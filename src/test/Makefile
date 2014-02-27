@@ -19,7 +19,7 @@ $(OBJ_DIR)/test: $(TEST_OBJS) $(OBJS) $(DRIVER_OBJ) $(TARGET_OBJ)
 	$(FC03) -L$(PFUNIT_INSTALL)/lib -o $@ $^ -lpfunit
 
 $(DRIVER_OBJ): $(PFUNIT_INSTALL)/include/driver.F90 testSuites.inc
-	$(FC03) $(F03FLAGS) -c -I$(PFUNIT_INSTALL)/include \
+	$(FC03) $(F03FLAGS) -c -I$(PFUNIT_INSTALL)/include -I. \
 	        $(F03MODULES) $(PFUNIT_INSTALL)/mod -o $@ $<
 
 $(OBJ_DIR)/%.o: $(OBJ_DIR)/%.F90

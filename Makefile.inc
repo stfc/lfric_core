@@ -24,7 +24,7 @@ endif
 
 ifeq '$(COMPILER)' 'ifort'
   # Intel compiler
-  $(info Chosen Intel Fortran compiler)
+  $(info ** Chosen Intel Fortran compiler)
   FC77     = ifort
   F77FLAGS = -g -O3 -xhost
   FC95     = ifort
@@ -35,10 +35,11 @@ ifeq '$(COMPILER)' 'ifort'
   F03MODULES = -module
   IFORT_VERSION = $(shell ifort -v 2>&1 | awk '{ print $$NF }' \
                    | awk -F . '{ printf "%03i%02i%02i", $$1, $$2, $$3 }')
+  $(info ** Version $(IFORT_VERSION))
 
 else ifeq '$(COMPILER)' 'xlf'
   # IBM compiler
-  $(info Chosen IBM XL Fortran compiler)
+  $(info ** Chosen IBM XL Fortran compiler)
   FC77     = xlf
   F77FLAGS =
   FC95     = xlf
@@ -49,7 +50,7 @@ else ifeq '$(COMPILER)' 'xlf'
 
 else ifeq '$(COMPILER)' 'gfortran'
   # GNU compiler
-  $(info Chosen GNU Fortran compiler)
+  $(info ** Chosen GNU Fortran compiler)
   FC77     = gfortran
   F77FLAGS = -g -O3
   FC95     = gfortran
@@ -59,7 +60,8 @@ else ifeq '$(COMPILER)' 'gfortran'
   F03MODULES = -J
   F95_MOD_DESTINATION_ARG = -J $(OBJ_DIR)
   GFORTRAN_VERSION = $(shell $(FC95) --version 2>&1 \
-                       | sed -rn 's/.*[[:space:]]+([[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+)[[:space:]]+.*/\1/p' \
+                       | sed -n 's/.*[[:space:]]\{1,\}\([[:digit:]]\{1,\}\.[[:digit:]]\{1,\}\.[[:digit:]]\{1,\}\)[[:space:]]\{1,\}.*/\1/p' \
                        | awk -F . '{ printf "%02i%02i%02i", $$1, $$2, $$3 }')
+  $(info ** Version $(GFORTRAN_VERSION))
 
 endif
