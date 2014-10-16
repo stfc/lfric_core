@@ -161,7 +161,7 @@ contains
     end do
 
     if ( k == 0 ) then
-      x2(1) = 0.5
+      x2(1) = 0.5_r_def
     else
       do i=1,k+1
         x2(i) = real(i-1)/real(k)

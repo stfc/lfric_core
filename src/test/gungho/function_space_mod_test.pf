@@ -129,14 +129,14 @@ contains
     allocate( w2_dofmap(w_unique_dofs(3,2),0:num_cells) )
     allocate( w3_dofmap(w_unique_dofs(4,2),0:num_cells) )
 
-    w0_basis=sqrt(2.0)
-    w1_basis=sqrt(2.0)
-    w2_basis=sqrt(2.0)
-    w3_basis=sqrt(2.0)
-    w0_diff_basis=atan(4.0)
-    w1_diff_basis=atan(4.0)
-    w2_diff_basis=atan(4.0)
-    w3_diff_basis=atan(4.0)
+    w0_basis=sqrt(2.0_r_def)
+    w1_basis=sqrt(2.0_r_def)
+    w2_basis=sqrt(2.0_r_def)
+    w3_basis=sqrt(2.0_r_def)
+    w0_diff_basis=atan(4.0_r_def)
+    w1_diff_basis=atan(4.0_r_def)
+    w2_diff_basis=atan(4.0_r_def)
+    w3_diff_basis=atan(4.0_r_def)
     w0_nodal_coords(1,:)=0.152689632_r_def
     w0_nodal_coords(2,:)=0.562554751_r_def
     w0_nodal_coords(3,:)=-0.8234_r_def
@@ -214,7 +214,7 @@ contains
     testmap => w0_func_space%get_cell_dofmap(num_cells-2)    
     @assertEqual( test_w0_dofmap_result_2, testmap(1) )
 
-    epsilon = 1.0e-14
+    epsilon = 1.0e-14_r_def
 
     test_basis => w0_func_space%get_basis( )
     @assertEqual( test_w0_basis_result , test_basis(1,1,1,1), epsilon )
@@ -246,7 +246,7 @@ contains
     testmap => w1_func_space%get_cell_dofmap(num_cells-2)    
     @assertEqual( test_w1_dofmap_result_2, testmap(1) )
 
-    epsilon = 1.0e-14
+    epsilon = 1.0e-14_r_def
 
     test_basis => w1_func_space%get_basis( )
     @assertEqual( test_w1_basis_result, test_basis(1,1,1,1), epsilon )
@@ -278,7 +278,7 @@ contains
     testmap => w2_func_space%get_cell_dofmap(num_cells-2)    
     @assertEqual( test_w2_dofmap_result_2, testmap(1) )
 
-    epsilon = 1.0e-14
+    epsilon = 1.0e-14_r_def
 
     test_basis => w2_func_space%get_basis( )
     @assertEqual( test_w2_basis_result, test_basis(1,1,1,1), epsilon )
@@ -310,7 +310,7 @@ contains
     testmap => w3_func_space%get_cell_dofmap(num_cells-2)    
     @assertEqual( test_w3_dofmap_result_2, testmap(1) )
 
-    epsilon = 1.0e-14
+    epsilon = 1.0e-14_r_def
 
     test_basis => w3_func_space%get_basis( )
     @assertEqual( test_w3_basis_result, test_basis(1,1,1,1), epsilon )

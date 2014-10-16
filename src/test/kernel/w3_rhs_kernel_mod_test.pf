@@ -70,7 +70,7 @@ contains
     map(1)=1
     num_layers=1
     ndf = 1
-    basis=1.0D0
+    basis=1.0_r_def
     call RHS_w3_code(num_layers,ndf,map,basis,xdata,gq, &
                      ndf_w0,map_w0,diff_basis,chi(:,1),chi(:,2),chi(:,3))
 

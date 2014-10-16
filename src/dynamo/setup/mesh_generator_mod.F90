@@ -572,7 +572,7 @@ subroutine xyz2llr(x,y,z,long,lat,r)
   real(kind=r_def), intent(in)  :: x, y, z
   real(kind=r_def), intent(out) :: long, lat, r
   real(kind=r_def)              :: tln, tlt
-  real(kind=r_def)              :: tol = 10e-8_r_def
+  real(kind=r_def)              :: tol = 10.0e-8_r_def
 
   if ( abs(x) < tol ) then
     if ( y >= 0.0_r_def ) then

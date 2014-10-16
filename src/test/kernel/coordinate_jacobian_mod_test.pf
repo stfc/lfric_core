@@ -47,7 +47,7 @@ contains
        
     err = maxval( abs( matmul( jac_inv,jac)-identity(:,:) ) )
     
-    tol=1.0e-14
+    tol=1.0e-14_r_def
     
     zero = 0.0_r_def
     one = 1.0_r_def
@@ -74,7 +74,7 @@ contains
     @assertEqual( 6000.0_r_def, jac(1,1), tol )
     @assertEqual( 1000.0_r_def, jac(2,2), tol )
     @assertEqual( 2000.0_r_def, jac(3,3), tol )
-    @assertEqual( 6000.0_r_def*1000.0_r_def*2000_r_def, dj(1,1), tol )
+    @assertEqual( 6000.0_r_def*1000.0_r_def*2000.0_r_def, dj(1,1), tol )
     
 
 

@@ -42,7 +42,7 @@ pure function poly1d(order, xi, x, i)
   ! loop counters
   integer       :: j
   
-  poly1d = 1.0 
+  poly1d = 1.0_r_def 
   
   do j = 1,i-1
      poly1d = poly1d*(xi-x(j))/(x(i)-x(j))

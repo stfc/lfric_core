@@ -36,7 +36,7 @@ module dynamo_algorithm_rk_timestep_mod
 
 contains
 
-  !> A simple algorithm which calls two kernels.
+  !> An algorithm for timestepping using a Runge Kutta method.
   !>
   subroutine dynamo_algorithm_rk_timestep( chi, u, rho, theta, exner, xi)
 
@@ -51,8 +51,6 @@ contains
                           r_u, r_rho, r_theta,       &
                           u_inc, rho_inc, theta_inc
                           
-    type( field_type ) :: chi_w3(3)
-    
     type( field_type ), allocatable :: rt_prediction(:),  &
                                        ru_prediction(:),  &
                                        rr_prediction(:)                        
@@ -103,12 +101,6 @@ contains
                             gq = gq%get_instance(u_gq) )
     rho_inc   = field_type( vector_space = fs%get_instance(rho_fs), &
                             gq = gq%get_instance(rho_gq) )
-    chi_w3(1) = field_type( vector_space = fs%get_instance(rho_fs), &
-                            gq = gq%get_instance(rho_gq) )
-    chi_w3(2) = field_type( vector_space = fs%get_instance(rho_fs), &
-                            gq = gq%get_instance(rho_gq) )
-    chi_w3(3) = field_type( vector_space = fs%get_instance(rho_fs), &
-                            gq = gq%get_instance(rho_gq) )
     
     do stage = 1,num_rk_stage
       rt_prediction(stage) = field_type( vector_space = fs%get_instance(theta_fs),&
@@ -125,15 +117,13 @@ contains
 ! initialise        
     call log_event( "Dynamo: computing W0 coordinate fields", LOG_LEVEL_INFO )
     call invoke_assign_coordinate_kernel( chi )
-    call log_event( "Dynamo: computing W3 coordinate fields", LOG_LEVEL_INFO )
-    call invoke_assign_coordinate_kernel( chi_w3 )
             
     ! Construct initial conditions
     call log_event( "Dynamo: computing initial fields", LOG_LEVEL_INFO )
     call invoke_initial_theta_kernel( theta, chi )    
     call invoke_initial_u_kernel    ( u )
     call invoke_initial_rho_kernel  ( rho )
-    call invoke_calc_exner_kernel   ( exner, rho, theta, chi, chi_w3(3))     
+    call invoke_calc_exner_kernel   ( exner, rho, theta, chi)     
         
     call invoke_compute_mass_matrix( theta, xi, u, chi ) 
 !================================================================================    
@@ -157,13 +147,11 @@ contains
 ! Compute new rhs      
         !PSY call invoke ( set_field_scalar(0.0_r_def, rt_prediction(stage)))
         call invoke_set_field_scalar(0.0_r_def, rt_prediction(stage))
-        call invoke_rtheta_kernel( rt_prediction(stage), u, chi,               &
-                                   chi_w3(3) ) 
+        call invoke_rtheta_kernel( rt_prediction(stage), u, chi )
         !PSY call invoke ( set_field_scalar(0.0_r_def, ru_prediction(stage)))
         call invoke_set_field_scalar(0.0_r_def, ru_prediction(stage))
-        call invoke_ru_kernel    ( ru_prediction(stage), rho, theta, chi,    &
-                                   chi_w3(3) )  
-        call invoke_rrho_kernel  ( rr_prediction(stage), u, chi, chi_w3(3) )  
+        call invoke_ru_kernel    ( ru_prediction(stage), exner, theta, chi )
+        call invoke_rrho_kernel  ( rr_prediction(stage), u, chi )  
         
         !PSY call invoke ( set_field_scalar(0.0_r_def, r_theta))
         call invoke_set_field_scalar(0.0_r_def, r_theta)
@@ -194,7 +182,7 @@ contains
         !PSY call invoke ( axpy(dt, rho_inc, rho_n, rho))
         call invoke_axpy(dt, rho_inc, rho_n, rho)
 ! recompute latest exner value        
-        call invoke_calc_exner_kernel( exner, rho, theta, chi, chi_w3(3) )   
+        call invoke_calc_exner_kernel( exner, rho, theta, chi )   
 
         ! diagnostics
         call theta_inc%print_minmax('min/max theta_inc = ');

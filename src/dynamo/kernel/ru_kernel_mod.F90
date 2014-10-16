@@ -25,14 +25,13 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: ru_kernel_type
   private
-  type(arg_type) :: meta_args(7) = [  &
+  type(arg_type) :: meta_args(6) = [  &
        arg_type(gh_inc  ,w2,fe,.true., .true.,.false.,.true.),         &
        arg_type(gh_read ,w3,fe,.true.,.false.,.false.,.false.),        &
        arg_type(gh_read ,w0,fe,.false.,.true.,.false., .false.),       &
        arg_type(gh_read ,w0,fe,.false.,.false.,.true.,.false.),        &
        arg_type(gh_read ,w0,fe,.false.,.false.,.false.,.false.),       &
-       arg_type(gh_read ,w0,fe,.false.,.false.,.false.,.false.),       &
-       arg_type(gh_read ,w3,fe,.false.,.false.,.false.,.false.)        &
+       arg_type(gh_read ,w0,fe,.false.,.false.,.false.,.false.)        &
        ]
   integer :: iterates_over = cells
 contains
@@ -78,13 +77,11 @@ end function ru_kernel_constructor
 !! @param[in] w3_basis Real 4-dim array holding basis functions evaluated at gaussian quadrature points 
 !! @param[in] exner Real array. exner pressure
 !! @param[inout] gq The gaussian quadrature rule 
-!! @param[in] chi_3_w3 Real array. the physical z coordinate in w3
 subroutine ru_code(nlayers,ndf_w2, map_w2, w2_basis, w2_diff_basis, gq,        &
                            boundary_value, r_u,                                &
                            ndf_w3, map_w3, w3_basis, rho,                      &
                            ndf_w0, map_w0, w0_basis, theta,                    &                           
-                           w0_diff_basis, chi_1, chi_2, chi_3,                 &
-                           chi_w3_3                                            &
+                           w0_diff_basis, chi_1, chi_2, chi_3                  &
                            )
                            
   use coordinate_jacobian_mod,  only: coordinate_jacobian
@@ -105,25 +102,23 @@ subroutine ru_code(nlayers,ndf_w2, map_w2, w2_basis, w2_diff_basis, gq,        &
   real(kind=r_def), intent(in), dimension(3,ndf_w0,ngp_h,ngp_v) :: w0_diff_basis   
   real(kind=r_def), intent(inout) :: r_u(*)
   real(kind=r_def), intent(in) ::  rho(*), theta(*)  
-  real(kind=r_def), intent(in) :: chi_1(*), chi_2(*), chi_3(*), chi_w3_3(*)
+  real(kind=r_def), intent(in) :: chi_1(*), chi_2(*), chi_3(*) 
   type(gaussian_quadrature_type), intent(inout) :: gq
 
   !Internal variables
   integer               :: df, k, loc
   integer               :: qp1, qp2
   
-  real(kind=r_def) :: exner_s(ndf_w3), rho_s(ndf_w3), theta_s(ndf_w0)
   real(kind=r_def), dimension(ndf_w0) :: chi_1_e, chi_2_e, chi_3_e
-  real(kind=r_def), dimension(ndf_w3) :: chi_w3_3_e
   real(kind=r_def), dimension(ngp_h,ngp_v)        :: dj
   real(kind=r_def), dimension(3,3,ngp_h,ngp_v)    :: jac
   real(kind=r_def) :: rho_e(ndf_w3), theta_e(ndf_w0)
-  real(kind=r_def) :: exner_at_quad, theta_at_quad, theta_s_at_quad,              &
-                      rho_at_quad, rho_s_at_quad, exner_s_at_quad,                &
-                       grad_term, bouy_term
   real(kind=r_def) :: k_vec(3), grad_theta_s_at_quad(3), ru_e(ndf_w2)
   real(kind=r_def), pointer :: wgp_h(:), wgp_v(:)
-
+  real(kind=r_def) :: exner_at_quad, rho_at_quad, theta_at_quad, z_at_quad, &
+                      exner_s_at_quad, rho_s_at_quad, theta_s_at_quad,      &
+                      grad_term, buoy_term
+  
   k_vec = (/ 0.0_r_def, 0.0_r_def, 1.0_r_def /)
 
   wgp_h => gq%get_wgp_h()
@@ -137,13 +132,8 @@ subroutine ru_code(nlayers,ndf_w2, map_w2, w2_basis, w2_diff_basis, gq,        &
       chi_2_e(df) = chi_2( loc )
       chi_3_e(df) = chi_3( loc )
     end do
-     do df = 1, ndf_w3
-      chi_w3_3_e(df) = chi_w3_3( map_w3(df) + k )
-    end do
     call coordinate_jacobian(ndf_w0, ngp_h, ngp_v, chi_1_e, chi_2_e, chi_3_e,  &
                              w0_diff_basis, jac, dj)
-    call reference_profile(ndf_w0, ndf_w3, exner_s, rho_s, theta_s, chi_3_e,   &
-                           chi_w3_3_e)
     do df = 1, ndf_w3
       rho_e(df) = rho( map_w3(df) + k )
     end do    
@@ -154,31 +144,27 @@ subroutine ru_code(nlayers,ndf_w2, map_w2, w2_basis, w2_diff_basis, gq,        &
     ru_e(:) = 0.0_r_def
     do qp2 = 1, ngp_v
       do qp1 = 1, ngp_h
-        rho_at_quad     = 0.0_r_def 
-        rho_s_at_quad   = 0.0_r_def 
-        exner_s_at_quad = 0.0_r_def 
+        rho_at_quad = 0.0_r_def 
         do df = 1, ndf_w3
-          rho_at_quad      = rho_at_quad     + rho_e(df)  *w3_basis(1,df,qp1,qp2) 
-          rho_s_at_quad    = rho_s_at_quad   + rho_s(df)  *w3_basis(1,df,qp1,qp2) 
-          exner_s_at_quad  = exner_s_at_quad + exner_s(df)*w3_basis(1,df,qp1,qp2)
+          rho_at_quad  = rho_at_quad + rho_e(df)*w3_basis(1,df,qp1,qp2) 
         end do
-        theta_at_quad           = 0.0_r_def
-        theta_s_at_quad         = 0.0_r_def
+        theta_at_quad = 0.0_r_def
         grad_theta_s_at_quad(:) = 0.0_r_def
+        z_at_quad = 0.0_r_def
         do df = 1, ndf_w0
           theta_at_quad   = theta_at_quad                                      &
                           + theta_e(df)*w0_basis(1,df,qp1,qp2)
-          theta_s_at_quad = theta_s_at_quad                                    &
-                          + theta_s(df)*w0_basis(1,df,qp1,qp2)
-          grad_theta_s_at_quad(:) = grad_theta_s_at_quad(:)                    &
-                                  + theta_s(df)*w0_diff_basis(:,df,qp1,qp2) 
+          z_at_quad = z_at_quad + chi_3_e(df)*w0_basis(1,df,qp1,qp2)
         end do
+        call reference_profile(exner_s_at_quad, rho_s_at_quad, &
+                               theta_s_at_quad, z_at_quad)
         exner_at_quad = calc_exner_pointwise(rho_at_quad, theta_at_quad,       & 
                                              exner_s_at_quad, rho_s_at_quad,   & 
                                              theta_s_at_quad)
                
+        grad_theta_s_at_quad(3) = n_sq/gravity*theta_s_at_quad       
         do df = 1, ndf_w2
-          bouy_term = dot_product(                                             &
+          buoy_term = dot_product(                                             &
                       matmul(jac(:,:,qp1,qp2),w2_basis(:,df,qp1,qp2)),         &
                       theta_at_quad/theta_s_at_quad*gravity*k_vec(:))
           grad_term = cp * (theta_s_at_quad * w2_diff_basis(1,df,qp1,qp2)      &
@@ -186,7 +172,7 @@ subroutine ru_code(nlayers,ndf_w2, map_w2, w2_basis, w2_diff_basis, gq,        &
                                          grad_theta_s_at_quad(:))              &
                            )*exner_at_quad
         
-          ru_e(df) = ru_e(df) +  wgp_h(qp1)*wgp_v(qp2)*( grad_term + bouy_term )
+          ru_e(df) = ru_e(df) +  wgp_h(qp1)*wgp_v(qp2)*( grad_term + buoy_term )
         end do
       end do
     end do

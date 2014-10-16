@@ -7,10 +7,9 @@
 !
 !-------------------------------------------------------------------------------
 
-!> @brief Provides access to the members of the W1_solver_kernel and 
-!! W2_solver_kernel class.
+!> @brief Provides access to the members of the W0_solver_kernel  
 
-!> @details Accessor functions for the W1 and W2_solver_kernel class are defined in this module.
+!> @details Accessor functions for the W0_solver_kernel class are defined in this module.
 
 module matrix_vector_w0_mod
 use argument_mod,            only : arg_type,                              &

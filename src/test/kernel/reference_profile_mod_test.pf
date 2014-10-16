@@ -20,26 +20,25 @@ contains
     implicit none
 
     real(kind=r_def) :: tol
-    real(kind=r_def) :: exner(1), theta(1), rho(1), z(1)
+    real(kind=r_def) :: exner, theta, rho, z
     real(kind=r_def) :: exner_exact, theta_exact, rho_exact   
 
-    integer :: ndf = 1
       
     z = 1000.0_r_def
            
-    call reference_profile(ndf,ndf,exner,rho,theta,z,z)
+    call reference_profile(exner,rho,theta,z)
 
-    tol=1.0e-14
+    tol=1.0e-14_r_def
     
-    theta_exact = 300.0_r_def * exp (  n_sq/gravity*z(1))
+    theta_exact = 300.0_r_def * exp (  n_sq/gravity*z)
     exner_exact = 1.0_r_def - gravity**2/(cp*300.0_r_def*n_sq)   &
-              * (1.0_r_def - exp ( - n_sq/gravity * z(1) ))
+              * (1.0_r_def - exp ( - n_sq/gravity * z ))
     rho_exact = p_zero/(rd*theta_exact) * exner_exact ** ((1.0_r_def - kappa)/kappa) 
     
 
-    @assertEqual( theta_exact, theta(1), tol )  
-    @assertEqual( exner_exact, exner(1), tol )  
-    @assertEqual( rho_exact,   rho(1),   tol )  
+    @assertEqual( theta_exact, theta, tol )  
+    @assertEqual( exner_exact, exner, tol )  
+    @assertEqual( rho_exact,   rho,   tol )  
 
   end subroutine test_of_reference_profile
 

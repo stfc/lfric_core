@@ -66,8 +66,8 @@ contains
     allocate(w0_nodal_coords(3,w_unique_dofs(1,2)))
     allocate( w0_dofmap(w_unique_dofs(1,2),0:num_cells) )
 
-    w0_basis=sqrt(2.0)
-    w0_diff_basis=atan(4.0)
+    w0_basis=sqrt(2.0_r_def)
+    w0_diff_basis=atan(4.0_r_def)
     w0_nodal_coords(1,:)=0.152689632_r_def
     w0_nodal_coords(2,:)=0.562554751_r_def
     w0_nodal_coords(3,:)=-0.8234_r_def

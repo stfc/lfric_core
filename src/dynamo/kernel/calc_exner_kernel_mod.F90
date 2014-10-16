@@ -26,14 +26,13 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: calc_exner_kernel_type
   private
-  type(arg_type) :: meta_args(7) = [  &
+  type(arg_type) :: meta_args(6) = [  &
        arg_type(gh_write,w3,fe,.true.,.false.,.false.,.true.),        &
        arg_type(gh_read ,w3,fe,.false.,.false.,.false.,.false.),      &       
        arg_type(gh_read ,w0,fe,.true.,.false.,.false.,.false.),       &
        arg_type(gh_read ,w0,fe,.false.,.true.,.false.,.false.),       &
        arg_type(gh_read ,w0,fe,.false.,.false.,.false.,.false.),      &
-       arg_type(gh_read ,w0,fe,.false.,.false.,.false.,.false.),      &
-       arg_type(gh_read ,w3,fe,.false.,.false.,.false.,.false.)       &
+       arg_type(gh_read ,w0,fe,.false.,.false.,.false.,.false.)       &
        ]
   integer :: iterates_over = cells
 contains
@@ -65,7 +64,6 @@ end function calc_exner_kernel_constructor
 !! @param[in] map_w3 Integer array holding the dofmap for the cell at the base of the column for w3
 !! @param[in] w3_basis Real 5-dim array holding basis functions evaluated at gaussian quadrature points 
 !! @param[inout] exner Real array the data 
-!! @param[in] chi_3_w3 Real array. the physical z coordinate in w3
 !! @param[in] chi_1 Real array. the physical x coordinate in w0
 !! @param[in] chi_2 Real array. the physical y coordinate in w0
 !! @param[in] chi_3 Real array. the physical z coordinate in w0
@@ -77,8 +75,7 @@ subroutine calc_exner_code(nlayers,ndf_w3,map_w3,w3_basis,gq,exner, &
                                    ndf_w0,map_w0,w0_basis,   theta, &
                                             w0_diff_basis,   chi_1, &
                                                              chi_2, &
-                                                             chi_3, &                                                                                                                   
-                                                             chi_3_w3 &
+                                                             chi_3  &                                                                                                                   
                                                                        )
 
   use coordinate_jacobian_mod, only: coordinate_jacobian
@@ -93,24 +90,23 @@ subroutine calc_exner_code(nlayers,ndf_w3,map_w3,w3_basis,gq,exner, &
   real(kind=r_def), intent(in), dimension(3,ndf_w0,ngp_h,ngp_v) :: w0_diff_basis 
   real(kind=r_def), intent(inout) :: exner(*)
   real(kind=r_def), intent(in)    :: rho(*), theta(*)
-  real(kind=r_def), intent(in)    :: chi_1(*), chi_2(*), chi_3(*), chi_3_w3(*)
+  real(kind=r_def), intent(in)    :: chi_1(*), chi_2(*), chi_3(*)
   type(gaussian_quadrature_type), intent(inout) :: gq
 
   !Internal variables
   integer               :: df1, df2, k
   integer               :: qp1, qp2
   
-  real(kind=r_def), dimension(ndf_w3) :: exner_e, rho_e,  exner_s, rho_s, rhs_e   
-  real(kind=r_def), dimension(ndf_w0) :: theta_e,  theta_s
+  real(kind=r_def), dimension(ndf_w3) :: exner_e, rho_e, rhs_e   
+  real(kind=r_def), dimension(ndf_w0) :: theta_e
   real(kind=r_def), dimension(ndf_w0) :: chi_1_e, chi_2_e, chi_3_e
-  real(kind=r_def), dimension(ndf_w3) :: chi_3_w3_e
   real(kind=r_def), dimension(ngp_h,ngp_v)     :: dj
   real(kind=r_def), dimension(3,3,ngp_h,ngp_v) :: jac
   real(kind=r_def), dimension(ndf_w3,ndf_w3) :: mass_matrix_w3, inv_mass_matrix_w3
   real(kind=r_def) :: rho_at_quad, rho_s_at_quad,                                 &
                    theta_at_quad, theta_s_at_quad,                             &
                    exner_s_at_quad
-  real(kind=r_def) :: rhs_eos, basis_func
+  real(kind=r_def) :: rhs_eos, z_at_quad 
   real(kind=r_def), pointer :: wgp_h(:), wgp_v(:)
 
   wgp_h => gq%get_wgp_h()
@@ -120,7 +116,6 @@ subroutine calc_exner_code(nlayers,ndf_w3,map_w3,w3_basis,gq,exner, &
   ! Extract element arrays of rho & theta
     do df1 = 1, ndf_w3
       rho_e(df1) = rho( map_w3(df1) + k )
-      chi_3_w3_e(df1) = chi_3_w3( map_w3(df1) + k )
     end do
     do df1 = 1, ndf_w0
       theta_e(df1) = theta( map_w0(df1) + k )  
@@ -130,28 +125,24 @@ subroutine calc_exner_code(nlayers,ndf_w3,map_w3,w3_basis,gq,exner, &
     end do
     call coordinate_jacobian(ndf_w0, ngp_h, ngp_v, chi_1_e, chi_2_e, chi_3_e,  &
                              w0_diff_basis, jac, dj)
-    call reference_profile(ndf_w0, ndf_w3, exner_s, rho_s, theta_s, chi_3_e,   &
-                           chi_3_w3_e)
   ! compute the RHS integrated over one cell
     do df1 = 1, ndf_w3  
       rhs_e(df1) = 0.0_r_def
       do qp2 = 1, ngp_v
         do qp1 = 1, ngp_h
-          rho_at_quad   = 0.0_r_def
-          rho_s_at_quad = 0.0_r_def
-          exner_s_at_quad = 0.0_r_def
+          z_at_quad = 0.0_r_def
+          do df2 = 1, ndf_w0
+            z_at_quad = z_at_quad + chi_3_e(df2)*w0_basis(1,df2,qp1,qp2)
+          end do
+          call reference_profile(exner_s_at_quad, rho_s_at_quad, &
+                                 theta_s_at_quad, z_at_quad)
+          rho_at_quad = 0.0_r_def
           do df2 = 1, ndf_w3
-            basis_func = w3_basis(1,df2,qp1,qp2)
-            rho_at_quad      = rho_at_quad     + rho_e(df2)  * basis_func
-            rho_s_at_quad    = rho_s_at_quad   + rho_s(df2)  * basis_func
-            exner_s_at_quad  = exner_s_at_quad + exner_s(df2)* basis_func
+            rho_at_quad = rho_at_quad + rho_e(df2)*w3_basis(1,df2,qp1,qp2)
           end do
           theta_at_quad   = 0.0_r_def
-          theta_s_at_quad = 0.0_r_def
           do df2 = 1, ndf_w0
-            basis_func = w0_basis(1,df2,qp1,qp2)
-            theta_at_quad    = theta_at_quad   + theta_e(df2) * basis_func
-            theta_s_at_quad  = theta_s_at_quad + theta_s(df2) * basis_func
+            theta_at_quad  = theta_at_quad   + theta_e(df2) * w0_basis(1,df2,qp1,qp2)
           end do
           rhs_eos = kappa / (1.0_r_def - kappa) * exner_s_at_quad                 &
                   *( rho_at_quad/rho_s_at_quad + theta_at_quad/theta_s_at_quad )
