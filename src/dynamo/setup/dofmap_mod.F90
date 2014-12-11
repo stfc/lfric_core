@@ -167,7 +167,7 @@ subroutine dofmap_populate(ncells,nlayers,ndof_sum,ndof_entity,dofmap)
   
 ! assign dofs for connectivity (3,2) (dofs on faces)
     do j=1,nfaces_h
-      jd = face_on_cell(i,j) 
+      jd = face_on_cell(j,i) 
       if ( dofmap_d2(1,jd) == 0 ) then
         do k=1,ndof_entity(2)
           dofmap_d2(k,jd) = id        
@@ -181,7 +181,7 @@ subroutine dofmap_populate(ncells,nlayers,ndof_sum,ndof_entity,dofmap)
     end do
     id0 = id
     do j=nfaces_h+1,nfaces
-      jd = face_on_cell(i,j) 
+      jd = face_on_cell(j,i) 
       if ( dofmap_d2(1,jd) == 0 ) then
         do k=1,ndof_entity(2)
           dofmap_d2(k,jd) = id        
@@ -200,8 +200,8 @@ subroutine dofmap_populate(ncells,nlayers,ndof_sum,ndof_entity,dofmap)
     end do
 ! assign dofs for connectivity (3,1) (dofs on edges)  
     do j=1,nedges_h
-      jd  = edge_on_cell(i,j)   
-      jdp = edge_on_cell(i,j+nedges-nedges_h)  
+      jd  = edge_on_cell(j,i)   
+      jdp = edge_on_cell(j+nedges-nedges_h,i)  
       if ( dofmap_d1(1,jd) == 0 ) then
         do k=1,ndof_entity(1)
           dofmap_d1(k,jd)  = id
@@ -211,7 +211,7 @@ subroutine dofmap_populate(ncells,nlayers,ndof_sum,ndof_entity,dofmap)
       end if
     end do
     do j=5,8
-      jd  = edge_on_cell(i,j) 
+      jd  = edge_on_cell(j,i) 
       if ( dofmap_d1(1,jd) == 0 ) then
         do k=1,ndof_entity(1)
           dofmap_d1(k,jd)  = id
@@ -220,7 +220,7 @@ subroutine dofmap_populate(ncells,nlayers,ndof_sum,ndof_entity,dofmap)
       end if
     end do
     do j=1,nedges
-      jd  = edge_on_cell(i,j) 
+      jd  = edge_on_cell(j,i) 
       do k=1,ndof_entity(1)
         dofmap(dof_idx,i) = dofmap_d1(k,jd)
         dof_idx = dof_idx + 1  

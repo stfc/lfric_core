@@ -30,6 +30,7 @@ program dynamo
   use gaussian_quadrature_mod, only : gaussian_quadrature_type, GQ3
   use field_io_mod,            only : write_state_netcdf                      &
                                     , write_state_plain_text
+  use mesh_mod,                only : total_ranks, local_rank
 
   implicit none
 
@@ -46,6 +47,10 @@ program dynamo
   integer                          :: n_fields
 
   call log_event( 'Dynamo running...', LOG_LEVEL_INFO )
+
+  !Code is not set up to run in parallel - so hardcode rank information
+  total_ranks=1
+  local_rank=0
 
   call set_up( )
 

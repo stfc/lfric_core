@@ -1,0 +1,58 @@
+!-----------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown, 
+! Met Office and NERC 2014. 
+! However, it has been created with the help of the GungHo Consortium, 
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-----------------------------------------------------------------------------
+
+!> Test the linked_list module
+!>
+module linked_list_mod_test
+
+  use pFUnit_Mod
+  use linked_list_mod, only : linked_list_type, &
+                              add_item, add_unique_item, clear_list
+  implicit none 
+
+contains
+
+  !> Test linked_list functionality
+  !>
+  @test
+  subroutine test_linked_list( )
+
+  type(linked_list_type), pointer :: start=>null()
+  type(linked_list_type), pointer :: curr=>null()
+  integer :: test_value1, test_value2
+  integer :: num_added
+  logical :: is_associated
+
+  test_value1 = 27
+  test_value2 = 93
+
+  ! Test add_value by creating a new linked list with a value in it
+  call add_item(start,test_value1)
+  @assertEqual( test_value1, start%dat )
+
+  curr => start
+
+  ! Test add_unique_value by trying to add a unique value
+  call add_unique_item(start, curr, test_value2, num_added)
+  @assertEqual( 1, num_added )
+  @assertEqual( test_value2, curr%dat )
+
+  ! Test add_unique_value by trying to add a non-unique value
+  call add_unique_item(start, curr, test_value1, num_added)
+  ! Should not be able to add test_value1 again, as it's not unique
+  ! so num_added should be zero and curr should still contain test_value2
+  @assertEqual( 0, num_added )
+  @assertEqual( test_value2, curr%dat )
+
+  !Test that clear_list really does clear the list
+  call clear_list(start)
+  is_associated=associated(start)
+  @assertFalse( is_associated )
+
+  end subroutine test_linked_list
+
+end module linked_list_mod_test

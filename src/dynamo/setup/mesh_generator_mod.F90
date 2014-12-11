@@ -15,9 +15,43 @@ module mesh_generator_mod
 
 use reference_element_mod, only : nfaces,   nedges,   nverts, &
                                  nfaces_h, nedges_h, nverts_h
-use constants_mod,         only : r_def                                 
+use constants_mod,         only : r_def
 
 implicit none
+
+private get_lid_from_gid
+
+! Local parameters to describe the faces of the cube
+integer, parameter :: W=1     ! south
+integer, parameter :: S=2     ! east
+integer, parameter :: E=3     ! north
+integer, parameter :: N=4     ! west
+integer, parameter :: B=5     ! bottom
+integer, parameter :: T=6     ! top
+
+!Local parameters to describe the vertices of the cube
+integer, parameter :: SWB=1   ! south west bottom
+integer, parameter :: SEB=2   ! south east bottom
+integer, parameter :: NEB=3   ! north east bottom
+integer, parameter :: NWB=4   ! north west bottom
+integer, parameter :: SWT=5   ! south west top
+integer, parameter :: SET=6   ! south west top
+integer, parameter :: NET=7   ! north east top
+integer, parameter :: NWT=8   ! north west top
+
+!Local parameters to describe the edges of the cube
+integer, parameter :: WB=1    ! south bottom
+integer, parameter :: SB=2    ! east bottom
+integer, parameter :: EB=3    ! north bottom
+integer, parameter :: NB=4    ! west bottom
+integer, parameter :: SW=5    ! south west
+integer, parameter :: SE=6    ! south east
+integer, parameter :: NE=7    ! north east
+integer, parameter :: NW=8    ! north west
+integer, parameter :: WT=9    ! south top
+integer, parameter :: ST=10   ! east top
+integer, parameter :: ET=11   ! north top
+integer, parameter :: NT=12   ! west top
 
 ! global numbers of entities in a single 2D layer
 integer :: nedge_h_g, nvert_h_g
@@ -62,197 +96,312 @@ integer, allocatable ::  face_on_cell(:,:), edge_on_cell(:,:)
 contains
 
 !> Subroutine to allocate mesh arrays for connectivity
-!> @param[in] ncells the number of cells in a horizontal layer
+!> @param[in] ncells the number of cells in a horizontal layer on this partition
 !> @param[in] nlayers the number of vertical layers
 subroutine mesh_generator_init(ncells,nlayers)
 !-----------------------------------------------------------------------------
 ! Subroutine to allocate connectivity
 !-----------------------------------------------------------------------------
 
-! number of cells in a horizontal layer
+! number of cells in a horizontal layer on this partition
   integer, intent(in) :: ncells 
 ! number of vertical layers
   integer, intent(in) :: nlayers   
+
 
   allocate ( cell_next(nfaces,ncells*nlayers) )
   allocate ( vert_on_cell(nverts,ncells*nlayers) )
 
 end subroutine mesh_generator_init
 
-!> Generate a biperiodic domain of size 'nx * ny' where 'nx * ny = ncells'
-!>
-!> @param ncells Number of cells in a layer.
+!> Generate a biperiodic domain (local to the partition).
 !> @param nx, ny Number of cells in X and Y.
 !> @param nlayers Number of vertical layers
 !> @param dx, dy, dz Cell width in X, Y and Z direction.
 !>
-subroutine mesh_generator_biperiodic( ncells, nx, ny, nlayers, dx, dy, dz )
+subroutine mesh_generator_biperiodic( nx, ny, nlayers, dx, dy, dz )
 
   use constants_mod, only: earth_radius
   use log_mod,       only: log_event, log_scratch_space, &
                            LOG_LEVEL_DEBUG, LOG_LEVEL_ERROR
+  use mesh_mod, only : partitioned_cells, num_owned, num_halo
 
-  integer,              intent( in ) :: ncells
   integer,              intent( in ) :: nx, ny
   integer,              intent( in ) :: nlayers
   real( kind = r_def ), intent( in ) :: dx, dy, dz
 
-  ! Loop indices
-  integer         :: i, j, k, id, jd
+  integer         :: i, j, k, jd  ! Loop indices
+  integer         :: lid, gid     ! local and global ids
+  integer         :: gidx, gidy   ! global id converted to x,y coords
 
-  if ( nx * ny /= ncells ) then
-    write( log_scratch_space, '( A, I0, A, I0)' ) &
-         'Incorrect number of elements in mesh_generator_biperiodic', &
-         nx * ny, ' cf. ', ncells
-    call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-    stop
-  end if
+! List of edges horizontally around base of cell
+  integer, allocatable :: edge_on_cell_h(:,:)
+
+  allocate ( edge_on_cell_h(nedges_h,num_owned+num_halo) )
 
 ! reset earth radius to 1 to avoid problems with routines 
 ! multiplying position by earth_radius
   earth_radius = 1.0_r_def
 
-! topologically a torus
-  nedge_h_g = 2*nx*ny
-  nvert_h_g = nx*ny
+  do lid=1,num_owned+num_halo
+
+    gid=partitioned_cells(lid)
+
+    !convert from a 1d id to x,y coord of cell
+    gidy=1+(gid-1)/nx
+    gidx=gid-nx*(gidy-1)
+
+! Calculate the global ids of the cells next to this one
+! j-1 cell (South face)
+    cell_next(S,lid) = gid - nx
+! i+1 cell (East face)
+    cell_next(E,lid) = gid + 1
+! j+1 cell (North face)
+    cell_next(N,lid) = gid + nx      
+! i-1 cell (West face)
+    cell_next(W,lid) = gid - 1
+! k-1 cell (bottom face)
+    cell_next(B,lid) = gid - nx*ny
+! k+1 cell (top face)
+    cell_next(T,lid) = gid + nx*ny
+
+! Now do periodicity/connectivity along edges 
+! South
+    if (gidy == 1)then
+      cell_next(S,lid) = cell_next(S,lid)+nx*ny
+    end if
+! North  
+    if (gidy == ny)then
+      cell_next(N,lid) = cell_next(N,lid)-nx*ny
+    endif
+! West
+    if (gidx == 1)then
+      cell_next(W,lid) = cell_next(W,lid)+nx
+    end if
+! East  
+    if (gidx == nx)then
+      cell_next(E,lid) = cell_next(E,lid)-nx
+    endif
+
+  end do
   
-  nface_g = nedge_h_g*nlayers + ncells*(nlayers + 1)
+  ! perform vertical extrusion for connectivity 
+  do k=1,nlayers-1
+    do i=1,num_owned+num_halo
+      lid = i + k*(num_owned+num_halo)
+      jd = lid - (num_owned+num_halo)        
+      do j=1,nfaces
+        cell_next(j,lid) = cell_next(j,jd) + nx*ny
+      end do
+    end do
+  end do
+  
+  ! cell_next(lid) still contains global ids so convert to local ids
+  do k=0,nlayers-1
+    do i=1,num_owned+num_halo
+      lid = i + k*(num_owned+num_halo)
+      do j=1,nfaces
+        cell_next(j,lid)=get_lid_from_gid(cell_next(j,lid))
+      end do
+    end do
+  end do
+
+  ! Set connectivity at lower/upper boundary to some dummy cell
+  do i=1,num_owned+num_halo
+    cell_next(B,i) = 0
+    cell_next(T,i+(nlayers-1)*(num_owned+num_halo)) = 0
+  end do
+
+! compute vertices on cells
+
+! vertices around bottom face of cube
+  nvert_h_g=0
+  vert_on_cell(:,:) = 0
+  do lid=1,num_owned+num_halo
+! 1. south west corner of cell
+    if(vert_on_cell(SWB,lid)==0)then 
+      nvert_h_g=nvert_h_g+1
+      vert_on_cell(SWB,lid) = nvert_h_g
+      if(cell_next(W,lid)>0)then                     ! and south east corner of cell to west 
+        vert_on_cell(SEB,cell_next(W,lid)) = nvert_h_g
+        if(cell_next(S,cell_next(W,lid))>0)then      ! and north east corner of cell to south west
+          vert_on_cell(NEB,cell_next(S,cell_next(W,lid))) = nvert_h_g
+        end if
+      end if
+      if(cell_next(S,lid)>0)then                     ! and north west corner of cell to south
+        vert_on_cell(NWB, cell_next(S,lid)) = nvert_h_g
+        if(cell_next(W,cell_next(S,lid))>0)then      ! and again north east corner of cell to south west (in case other route to southwest goes through a missing cell)
+          vert_on_cell(NEB,cell_next(W,cell_next(S,lid))) = nvert_h_g
+        end if
+      end if
+    end if
+! 2. south east corner of cell
+    if(vert_on_cell(SEB,lid)==0)then 
+      nvert_h_g=nvert_h_g+1
+      vert_on_cell(SEB,lid) = nvert_h_g
+      if(cell_next(E,lid)>0)then                     ! and south west corner of cell to east 
+        vert_on_cell(SWB,cell_next(E,lid)) = nvert_h_g
+        if(cell_next(S,cell_next(E,lid))>0)then      ! and north west corner of cell to south east
+          vert_on_cell(NWB,cell_next(S,cell_next(E,lid))) = nvert_h_g
+        end if
+      end if
+      if(cell_next(S,lid)>0)then                     ! and north east corner of cell to south
+        vert_on_cell(NEB,cell_next(S,lid)) = nvert_h_g
+        if(cell_next(E,cell_next(S,lid))>0)then      ! and again north west corner of cell to south east (in case other route to southeast goes through a missing cell)
+          vert_on_cell(NWB,cell_next(E,cell_next(S,lid))) = nvert_h_g
+        end if
+      end if
+    end if
+! 3. north east corner of cell
+    if(vert_on_cell(NEB,lid)==0)then 
+      nvert_h_g=nvert_h_g+1
+      vert_on_cell(NEB,lid) = nvert_h_g
+      if(cell_next(E,lid)>0)then                     ! and north west corner of cell to east 
+        vert_on_cell(NWB,cell_next(E,lid)) = nvert_h_g
+        if(cell_next(N,cell_next(E,lid))>0)then      ! and south west corner of cell to north east
+          vert_on_cell(SWB,cell_next(N,cell_next(E,lid))) = nvert_h_g
+        end if
+      end if
+      if(cell_next(N,lid)>0)then                     ! and south east corner of cell to north
+        vert_on_cell(SEB,cell_next(N,lid)) = nvert_h_g
+        if(cell_next(E,cell_next(N,lid))>0)then      ! and again south west corner of cell to north east (in case other route to northeast goes through a missing cell)
+          vert_on_cell(SWB,cell_next(E,cell_next(N,lid))) = nvert_h_g
+        end if
+      end if
+    end if
+! 4. north west corner of cell
+    if(vert_on_cell(NWB,lid)==0)then 
+      nvert_h_g=nvert_h_g+1
+      vert_on_cell(NWB,lid) = nvert_h_g
+      if(cell_next(W,lid)>0)then                     ! and north east corner of cell to west 
+        vert_on_cell(NEB,cell_next(W,lid)) = nvert_h_g
+        if(cell_next(N,cell_next(W,lid))>0)then      ! and south east corner of cell to north west
+          vert_on_cell(SEB,cell_next(N,cell_next(W,lid))) = nvert_h_g
+        end if
+      end if
+      if(cell_next(N,lid)>0)then                     ! and south west corner of cell to north
+        vert_on_cell(SWB,cell_next(N,lid)) = nvert_h_g
+        if(cell_next(W,cell_next(N,lid))>0)then      ! and again south east corner of cell to north west (in case other route to northwest goes through a missing cell)
+          vert_on_cell(SEB,cell_next(W,cell_next(N,lid))) = nvert_h_g
+        end if
+      end if
+    end if
+  end do
+! vertices around top face of cube
+  do lid=1,num_owned+num_halo
+    vert_on_cell(SWT,lid)=vert_on_cell(SWB,lid)+nvert_h_g
+    vert_on_cell(SET,lid)=vert_on_cell(SEB,lid)+nvert_h_g
+    vert_on_cell(NET,lid)=vert_on_cell(NEB,lid)+nvert_h_g
+    vert_on_cell(NWT,lid)=vert_on_cell(NWB,lid)+nvert_h_g
+  end do
+
+! perform vertical extrusion for connectivity 
+  do k=1,nlayers-1
+    do i=1,num_owned+num_halo
+      lid = i + k*(num_owned+num_halo)
+      jd = lid - (num_owned+num_halo)
+      vert_on_cell(SWB,lid)=vert_on_cell(SWT,jd)
+      vert_on_cell(SEB,lid)=vert_on_cell(SET,jd)
+      vert_on_cell(NEB,lid)=vert_on_cell(NET,jd)
+      vert_on_cell(NWB,lid)=vert_on_cell(NWT,jd)
+      vert_on_cell(SWT,lid)=vert_on_cell(SWB,lid)+nvert_h_g
+      vert_on_cell(SET,lid)=vert_on_cell(SEB,lid)+nvert_h_g
+      vert_on_cell(NET,lid)=vert_on_cell(NEB,lid)+nvert_h_g
+      vert_on_cell(NWT,lid)=vert_on_cell(NWB,lid)+nvert_h_g
+    end do
+  end do
+
+! compute edges horizontally on cell
+  nedge_h_g=0
+  edge_on_cell_h(:,:)=0
+  do lid=1,num_owned+num_halo
+! 1. south edge of cell
+    if(edge_on_cell_h(SB,lid)==0)then
+      nedge_h_g=nedge_h_g+1
+      edge_on_cell_h(SB,lid) = nedge_h_g
+      if(cell_next(S,lid)>0)then                     ! and north edge of cell to south
+        edge_on_cell_h(NB,cell_next(S,lid)) = nedge_h_g
+      end if
+    end if
+! 2. east edge of cell
+    if(edge_on_cell_h(EB,lid)==0)then
+      nedge_h_g=nedge_h_g+1
+      edge_on_cell_h(EB,lid) = nedge_h_g
+      if(cell_next(E,lid)>0)then                     ! and west edge of cell to east
+        edge_on_cell_h(WB,cell_next(E,lid)) = nedge_h_g
+      end if
+    end if
+! 3. north edge of cell
+    if(edge_on_cell_h(NB,lid)==0)then
+      nedge_h_g=nedge_h_g+1
+      edge_on_cell_h(NB,lid) = nedge_h_g
+      if(cell_next(N,lid)>0)then                     ! and south edge of cell to north
+        edge_on_cell_h(SB,cell_next(N,lid)) = nedge_h_g
+      end if
+    end if
+! 4. west edge of cell
+    if(edge_on_cell_h(WB,lid)==0)then
+      nedge_h_g=nedge_h_g+1
+      edge_on_cell_h(WB,lid) = nedge_h_g
+      if(cell_next(W,lid)>0)then                     ! and east edge of cell to west
+        edge_on_cell_h(EB,cell_next(W,lid)) = nedge_h_g
+      end if
+    end if
+  end do
+
+  deallocate ( edge_on_cell_h )
+
+  nface_g = nedge_h_g*nlayers + (num_owned+num_halo)*(nlayers + 1)
   nedge_g = nedge_h_g*(nlayers + 1) + nlayers*nvert_h_g
   nvert_g = nvert_h_g*(nlayers + 1)
   
 ! allocate coordinate array
   allocate ( mesh_vertex(3,nvert_g) )
 
-  id = 1
-  do j=1,ny
-    do i=1,nx
-! j-1 cell (South face)
-      cell_next(2,id) = id - nx
-! i+1 cell (East face)
-      cell_next(3,id) = id + 1
-! j+1 cell (North face)
-      cell_next(4,id) = id + nx      
-! i-1 cell (West face)
-      cell_next(1,id) = id - 1
-! k-1 cell (bottom face)
-      cell_next(5,id) = id - nx*ny
-! k+1 cell (top face)
-      cell_next(6,id) = id + nx*ny
-      
-      id = id + 1      
-    end do
-  end do
-
-! Now do periodicity/connectivity along edges 
-! South
-  id = 1
-  do i=1,nx
-    cell_next(2,id) = nx*ny-nx+i
-    id = id + 1
-  end do
-  
-! North  
-  id = nx*ny
-  do i=nx,1,-1
-    cell_next(4,id) = i
-    id = id - 1
-  end do
-  
-  id = 1
-  do j=1,ny
-! West     
-    cell_next(1,id) = id + nx -1
-    id = id + nx -1
-! East
-    cell_next(3,id) = id - nx + 1
-    id = id + 1
-  end do
-  
-  ! perform vertical extrusion for connectivity 
-  do k=1,nlayers-1
-    do i=1,nx*ny
-      id = i + k*nx*ny      
-      jd = id - nx*ny        
-      do j=1,nfaces
-        cell_next(j,id) = cell_next(j,jd) + nx*ny
-      end do
-    end do
-  end do
-  
-  ! Set connectivity at lower/upper boundary to some dummy cell
-  do i=1,nx*ny
-    cell_next(5,i) = 0
-    j =  i+(nlayers-1)*nx*ny
-    cell_next(6,j) = 0
-  end do
-      
-! compute vertices on cell
-  id = 1
-  do j=1,ny
-    do i=1,nx
-      vert_on_cell(1,id) = id
-      vert_on_cell(2,id) = cell_next(3,id)
-      vert_on_cell(3,id) = cell_next(3,cell_next(4,id))
-      vert_on_cell(4,id) = cell_next(4,id)
-      
-      jd = id + nx*ny
-      vert_on_cell(5,id) = jd
-      vert_on_cell(6,id) = cell_next(3,jd)
-      vert_on_cell(7,id) = cell_next(3,cell_next(4,jd))
-      vert_on_cell(8,id) = cell_next(4,jd)
-      
-      id = id + 1
-    end do
-  end do
-  
-! perform vertical extrusion for connectivity 
-  do k=1,nlayers-1
-    do i=1,nx*ny
-      id = i + k*nx*ny      
-      jd = id - nx*ny        
-      do j=1,nverts
-        vert_on_cell(j,id) =  vert_on_cell(j,jd) + nx*ny
-      end do
-    end do
-  end do
-  
 ! Compute vertices
-  id = 1
-  do k=1,nlayers+1
-    do j=1,ny
-      do i=1,nx
-        mesh_vertex(1,id) = real(i-1 - nx/2)*dx 
-        mesh_vertex(2,id) = real(j-1 - ny/2)*dy 
-        mesh_vertex(3,id) = real(k-1)*dz
-        id = id + 1
-      end do
+  do lid=1,num_owned+num_halo
+
+    gid=partitioned_cells(lid)
+
+    !convert from a 1d id to x,y coord of cell
+    gidy=1+(gid-1)/nx
+    gidx=gid-nx*(gidy-1)
+
+    do k=1,nlayers+1
+      mesh_vertex(1,vert_on_cell(SWB,lid)+(k-1)*(num_owned+num_halo)) = &
+                                                     real(gidx-1 - nx/2)*dx 
+      mesh_vertex(2,vert_on_cell(SWB,lid)+(k-1)*(num_owned+num_halo)) = &
+                                                     real(gidy-1 - ny/2)*dy 
+      mesh_vertex(3,vert_on_cell(SWB,lid)+(k-1)*(num_owned+num_halo)) = &
+                                                     real(k-1)*dz
     end do
+
   end do
   domain_top = dz * real(nlayers)
 
   call set_domain_size()
-   
+
 ! Diagnostic information  
   call log_event( 'grid connectivity', LOG_LEVEL_DEBUG )
-  do i = 1, nx * ny * nlayers
+  do i = 1, (num_owned+num_halo) * nlayers
     write( log_scratch_space,'(7i6)' ) i, &
-                            cell_next(1,i), cell_next(2,i), cell_next(3,i), &
-                            cell_next(4,i), cell_next(5,i), cell_next(6,i)
+                            cell_next(S,i), cell_next(E,i), cell_next(N,i), &
+                            cell_next(W,i), cell_next(B,i), cell_next(T,i)
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
   end do
   call log_event( 'verts on cells', LOG_LEVEL_DEBUG )
-  do i = 1, nx * ny * nlayers
+  do i = 1, (num_owned+num_halo) * nlayers
     write( log_scratch_space, '(9i6)' ) i, &
-                             vert_on_cell(1,i), vert_on_cell(2,i), &
-                             vert_on_cell(3,i), vert_on_cell(4,i), &
-                             vert_on_cell(5,i), vert_on_cell(6,i), &
-                             vert_on_cell(7,i), vert_on_cell(8,i)
+                             vert_on_cell(SWB,i), vert_on_cell(SEB,i), &
+                             vert_on_cell(NEB,i), vert_on_cell(NWB,i), &
+                             vert_on_cell(SWT,i), vert_on_cell(SET,i), &
+                             vert_on_cell(NET,i), vert_on_cell(NWT,i)
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
   end do
 
   call log_event( 'vert coords', LOG_LEVEL_DEBUG )
   do i = 1, nvert_g
-    write( log_scratch_space, '(i6,4f8.4)' ) &
+    write( log_scratch_space, '(i6,4f12.4)' ) &
          i, mesh_vertex(1,i), mesh_vertex(2,i), mesh_vertex(3,i)
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
   end do
@@ -466,99 +615,192 @@ subroutine mesh_connectivity( ncells )
 
   integer, intent( in ) :: ncells
  
-  integer :: i, j, k, l, m, n, ij, inxt, inxtnxt, jnxt, vert
-! Number of entities for a single layer  
-  integer :: nedge_layer, nface_layer
+  integer :: i            ! loop counter used to write out connectivities
+  integer :: lid          ! loop couonter over local ids
+  integer :: nedge_layer  ! Number of edges for a single layer  
+  integer :: nface_layer  ! Number of faces for a single layer  
 
-  nedge_layer = 2*nedge_h_g + nvert_h_g
-  nface_layer = nedge_h_g + 2*ncells
-
-  allocate( face_on_cell(ncells,nfaces) )
-  allocate( edge_on_cell(ncells,nedges) )
+  allocate( face_on_cell(nfaces,ncells) )
+  allocate( edge_on_cell(nedges,ncells) )
   face_on_cell(:,:) = 0
   edge_on_cell(:,:) = 0
-  
-  ij = 1
-  do i=1,ncells
-    do j=1,nfaces_h
-      if ( face_on_cell(i,j) == 0 ) then
-        face_on_cell(i,j) = ij
-! find matching face
-        inxt = cell_next(j,i)
-        do k=1,nfaces_h
-          if ( cell_next(k,inxt) == i ) then
-            jnxt = k
-          end if
-        end do
-        face_on_cell(inxt,jnxt) = ij
-        ij = ij + 1
-      end if                 
-    end do
-    do j=nfaces_h+1,nfaces
-      face_on_cell(i,j) = ij
-      ij = ij + 1
-    end do
+
+! compute faces on cells
+  nface_layer=0
+  do lid=1,ncells
+! 1. south facing face of cell
+    if(face_on_cell(S,lid)==0)then
+      nface_layer=nface_layer+1
+      face_on_cell(S,lid) = nface_layer
+      if(cell_next(S,lid)>0)then                     ! and north facing face of cell to south
+        face_on_cell(N,cell_next(S,lid)) = nface_layer
+      end if
+    end if
+! 2. east facing face of cell
+    if(face_on_cell(E,lid)==0)then
+      nface_layer=nface_layer+1
+      face_on_cell(E,lid) = nface_layer
+      if(cell_next(E,lid)>0)then                     ! and west facing face of cell to east
+        face_on_cell(W,cell_next(E,lid)) = nface_layer
+      end if
+    end if
+! 3. north facing face of cell
+    if(face_on_cell(N,lid)==0)then
+      nface_layer=nface_layer+1
+      face_on_cell(N,lid) = nface_layer
+      if(cell_next(N,lid)>0)then                     ! and south facing face of cell to north
+        face_on_cell(S,cell_next(N,lid)) = nface_layer
+      end if
+    end if
+! 4. west facing face of cell
+    if(face_on_cell(W,lid)==0)then
+      nface_layer=nface_layer+1
+      face_on_cell(W,lid) = nface_layer
+      if(cell_next(W,lid)>0)then                     ! and east facing face of cell to west
+        face_on_cell(E,cell_next(W,lid)) = nface_layer
+      end if
+    end if
+! 5. bottom facing face of cell
+     nface_layer=nface_layer+1
+     face_on_cell(B,lid) = nface_layer
+! 6. top facing face of cell
+     nface_layer=nface_layer+1
+     face_on_cell(T,lid) = nface_layer
   end do
-  if ( maxval(face_on_cell) /= nface_layer ) then
-    call log_event( 'Error computing face on cell connectivity', &
-                    LOG_LEVEL_ERROR )
-    stop
-  end if
   
-  ij = 1
-  do i=1,ncells
-! horizontal edges  
-    do j=1,nedges_h
-      if ( edge_on_cell(i,j) == 0 ) then  
-        edge_on_cell(i,j) = ij
-        edge_on_cell(i,j+nedges_h+nverts_h) = ij+1
-! find matching edge in neighbouring cell
-        inxt = cell_next(j,i)
-        do k=1,nedges_h
-          if ( cell_next(k,inxt) == i ) then
-            jnxt = k
-          end if
-        end do
-        edge_on_cell(inxt,jnxt) = ij
-        edge_on_cell(inxt,jnxt+nedges_h+nverts_h) = ij+1
-        ij = ij + 2
+! compute edges on cells
+  nedge_layer=0
+  do lid=1,ncells
+! 1. top and bottom edge on south facing face of cell
+    if(edge_on_cell(SB,lid)==0)then
+      edge_on_cell(SB,lid) = nedge_layer+1
+      edge_on_cell(ST,lid) = nedge_layer+2
+      if(cell_next(S,lid)>0)then                     ! and north facing face of cell to south
+        edge_on_cell(NB,cell_next(S,lid)) = nedge_layer+1
+        edge_on_cell(NT,cell_next(S,lid))= nedge_layer+2
       end if
-    end do
-! vertical edges 
-    do j=nedges_h+1,nedges_h+nverts_h
-      if ( edge_on_cell(i,j) == 0 ) then
-        edge_on_cell(i,j) = ij
-! find matching edge on two neighbouring cells 
-! this edge is an extrusion of the corresponding vertex
-        vert = vert_on_cell(j-nedges_h,i)
-        do k=1,nedges_h
-          inxt = cell_next(k,i)
-          do l=1,nverts_h
-            if ( vert_on_cell(l,inxt) == vert ) then
-              edge_on_cell(inxt,l+nedges_h) = ij
-              do m=1,nedges_h
-                inxtnxt = cell_next(m,inxt)
-                do n=1,nverts_h
-                  if ( vert_on_cell(n,inxtnxt) == vert ) then
-                    edge_on_cell(inxtnxt,n+nedges_h) = ij 
-                  end if
-                end do
-              end do
-            end if
-          end do
-        end do
-        ij = ij + 1
+      nedge_layer=nedge_layer+2
+    end if
+! 2. top and bottom egde on east facing face of cell
+    if(edge_on_cell(EB,lid)==0)then
+      edge_on_cell(EB,lid) = nedge_layer+1
+      edge_on_cell(ET,lid)= nedge_layer+2
+      if(cell_next(E,lid)>0)then                     ! and west facing face of cell to east
+        edge_on_cell(WB,cell_next(E,lid)) = nedge_layer+1
+        edge_on_cell(WT,cell_next(E,lid))= nedge_layer+2
       end if
-    end do
+      nedge_layer=nedge_layer+2
+    end if
+! 3. top and bottom edge on north facing face of cell
+    if(edge_on_cell(NB,lid)==0)then
+      edge_on_cell(NB,lid) = nedge_layer+1
+      edge_on_cell(NT,lid)= nedge_layer+2
+      if(cell_next(N,lid)>0)then                     ! and south facing face of cell to north
+        edge_on_cell(SB,cell_next(N,lid)) = nedge_layer+1
+        edge_on_cell(ST,cell_next(N,lid)) = nedge_layer+2
+      end if
+      nedge_layer=nedge_layer+2
+    end if
+! 4. top and bottom edge on west facing face of cell
+    if(edge_on_cell(WB,lid)==0)then
+      edge_on_cell(WB,lid) = nedge_layer+1
+      edge_on_cell(WT,lid)= nedge_layer+2
+      if(cell_next(W,lid)>0)then                     ! and east facing face of cell to west
+        edge_on_cell(EB,cell_next(W,lid)) = nedge_layer+1
+        edge_on_cell(ET,cell_next(W,lid))= nedge_layer+2
+      end if
+      nedge_layer=nedge_layer+2
+    end if
+! 5. vertical edge at south west corner of cell
+    if(edge_on_cell(SW,lid)==0)then 
+      nedge_layer=nedge_layer+1
+      edge_on_cell(SW,lid) = nedge_layer
+      if(cell_next(W,lid)>0)then                     ! and at south east corner of cell to west 
+        edge_on_cell(SE,cell_next(W,lid)) = nedge_layer
+        if(cell_next(S,cell_next(W,lid))>0)then      ! and at north east corner of cell to south west
+          edge_on_cell(NE,cell_next(S,cell_next(W,lid))) = nedge_layer
+        end if
+      end if
+      if(cell_next(S,lid)>0)then                     ! and at north west corner of cell to south
+        edge_on_cell(NW,cell_next(S,lid)) = nedge_layer
+        if(cell_next(W,cell_next(S,lid))>0)then      ! and again at north east corner of cell to south west (in case other route to southwest goes through a missing cell)
+          edge_on_cell(NE,cell_next(W,cell_next(S,lid))) = nedge_layer
+        end if
+      end if
+    end if
+! 6. vertical edge at south east corner of cell
+    if(edge_on_cell(SE,lid)==0)then 
+      nedge_layer=nedge_layer+1
+      edge_on_cell(SE,lid) = nedge_layer
+      if(cell_next(E,lid)>0)then                     ! and at south west corner of cell to east 
+        edge_on_cell(SW,cell_next(E,lid)) = nedge_layer
+        if(cell_next(S,cell_next(E,lid))>0)then      ! and north west corner of cell to south east
+          edge_on_cell(NW,cell_next(S,cell_next(E,lid))) = nedge_layer
+        end if
+      end if
+      if(cell_next(S,lid)>0)then                     ! and at north east corner of cell to south
+        edge_on_cell(NE,cell_next(S,lid)) = nedge_layer
+        if(cell_next(E,cell_next(S,lid))>0)then      ! and again at north west corner of cell to south east (in case other route to southeast goes through a missing cell)
+          edge_on_cell(NW,cell_next(E,cell_next(S,lid))) = nedge_layer
+        end if
+      end if
+    end if
+! 7. vertical edge at north east corner of cell
+    if(edge_on_cell(NE,lid)==0)then 
+      nedge_layer=nedge_layer+1
+      edge_on_cell(NE,lid) = nedge_layer
+      if(cell_next(E,lid)>0)then                     ! and at north west corner of cell to east 
+        edge_on_cell(NW,cell_next(E,lid)) = nedge_layer
+        if(cell_next(N,cell_next(E,lid))>0)then      ! and at south west corner of cell to north east
+          edge_on_cell(SW,cell_next(N,cell_next(E,lid))) = nedge_layer
+        end if
+      end if
+      if(cell_next(N,lid)>0)then                     ! and at south east corner of cell to north
+        edge_on_cell(SE,cell_next(N,lid)) = nedge_layer
+        if(cell_next(E,cell_next(N,lid))>0)then      ! and again at south west corner of cell to north east (in case other route to northeast goes through a missing cell)
+          edge_on_cell(SW,cell_next(E,cell_next(N,lid))) = nedge_layer
+        end if
+      end if
+    end if
+! 8. vertical edge at north west corner of cell
+    if(edge_on_cell(NW,lid)==0)then 
+      nedge_layer=nedge_layer+1
+      edge_on_cell(NW,lid) = nedge_layer
+      if(cell_next(W,lid)>0)then                     ! and at north east corner of cell to west 
+        edge_on_cell(NE,cell_next(W,lid)) = nedge_layer
+        if(cell_next(N,cell_next(W,lid))>0)then      ! and at south east corner of cell to north west
+          edge_on_cell(SE,cell_next(N,cell_next(W,lid))) = nedge_layer
+        end if
+      end if
+      if(cell_next(N,lid)>0)then                     ! and at south west corner of cell to nortth
+        edge_on_cell(SW,cell_next(N,lid)) = nedge_layer
+        if(cell_next(W,cell_next(N,lid))>0)then      ! and again at south east corner of cell to north west (in case other route to northwest goes through a missing cell)
+          edge_on_cell(SE,cell_next(W,cell_next(N,lid))) = nedge_layer
+        end if
+      end if
+    end if
   end do
 
-  if ( maxval(edge_on_cell) /= nedge_layer ) then
-    write( log_scratch_space, '(A, I0, A, I0)' ) &
-         'Error computing edge on cell connectivity: ', &
-         maxval( edge_on_cell ), ' vs. ', nedge_layer
-    call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-    stop
-  end if
+  call log_event( 'faces on cells', LOG_LEVEL_DEBUG )
+  do i = 1, ncells
+    write( log_scratch_space, '(7i6)' ) i, &
+                              face_on_cell(S,i), face_on_cell(E,i), &
+                              face_on_cell(N,i), face_on_cell(W,i), &
+                              face_on_cell(B,i), face_on_cell(T,i)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+  end do
+
+  call log_event( 'edges on cells', LOG_LEVEL_DEBUG )
+  do i = 1, ncells
+    write( log_scratch_space, '(13i6)' ) i, &
+                              edge_on_cell(SB,i), edge_on_cell(EB,i), &
+                              edge_on_cell(NB,i), edge_on_cell(WB,i), &
+                              edge_on_cell(SW,i), edge_on_cell(SE,i), &
+                              edge_on_cell(NE,i), edge_on_cell(NW,i), &
+                              edge_on_cell(ST,i), edge_on_cell(ET,i),&
+                              edge_on_cell(NT,i),edge_on_cell(WT,i)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+  end do
 
 end subroutine mesh_connectivity
 
@@ -685,6 +927,7 @@ subroutine set_domain_size()
     domain_size%maximum%z =  maxval(mesh_vertex(3,:))  
   end if
 
+!> @todo Need to do a global reduction of maxs and mins when the code is parallel
 
 end subroutine set_domain_size
 
@@ -754,5 +997,66 @@ function sphere2cart_vector( dlambda, llr ) result ( dx )
 
 end function sphere2cart_vector
 
+
+pure function get_lid_from_gid(gid) result (lid)
+
+! Given a global index (gid), return the local index of that cell on this
+! partition. If the global index is not available on this partition then
+! return -1
+
+  use mesh_mod, only : partitioned_cells, num_owned, num_halo, &
+                       num_cells_x, num_cells_y
+  implicit none
+
+  integer, intent(in) :: gid          ! global index
+  integer             :: lid          ! local index
+  integer             :: nlayer       ! layer of supplied gid
+  integer             :: gid_in_layer ! supplied gid projected to bottom layer
+  integer             :: bot_index, top_index, new_index  ! indices used to narrow the binary search 
+  integer             :: i            ! loop over owned, then halo cells
+
+  ! Set the default return code
+  lid=-1
+  ! If the supplied gid is not valid just return
+  if(gid < 1) return
+
+  ! The global index lookup table (partitioned_cells) only has the indices for
+  ! a single layer, so convert the full 3d global index into the global index
+  ! within the layer and a layer number
+  gid_in_layer=modulo(gid-1,(num_cells_x*num_cells_y))+1
+  nlayer=(gid-1)/(num_cells_x*num_cells_y)
+
+  ! Perform a binary search through the global cell lookup table looking for
+  ! the required global index. The array holds global indices in numerical
+  ! order for owned cells, followed by the indices for halo cells (for which
+  ! the numbering starts again, but they are in numerical order, again)
+  ! - so we need to binary search through owned and halo cells separately
+
+  ! For the first time through the i loop do a binary search though owned
+  ! cells - partitioned_cells(1:num_owned) - looking for the gid
+  bot_index=1
+  top_index=num_owned
+  do i=1,2
+    do
+      if(top_index < bot_index) exit
+      new_index=(bot_index+top_index)/2
+      if(partitioned_cells(new_index) == gid_in_layer)then
+        lid=new_index+nlayer*(num_owned+num_halo)
+        return
+      else if(partitioned_cells(new_index) < gid_in_layer)then
+        bot_index = new_index + 1
+      else
+        top_index = new_index - 1
+      endif
+    end do
+    ! For the second time through the i loop do a binary search though halo 
+    ! cells - partitioned_cells(num_owned+1:num_owned+num_halo) - looking for the gid
+    bot_index=num_owned+1
+    top_index=num_owned+num_halo
+  end do
+
+  return
+  
+end function get_lid_from_gid
 
 end module mesh_generator_mod

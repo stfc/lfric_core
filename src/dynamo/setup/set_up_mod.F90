@@ -44,12 +44,24 @@ contains
     use log_mod,  only : log_event, LOG_LEVEL_INFO
     use mesh_mod, only : num_cells, num_layers, element_order, l_spherical, &
                          w_unique_dofs, w_dof_entity, dx, dy, dz,           &
-                         num_cells_x, num_cells_y
+                         num_cells_x, num_cells_y, &
+                         xproc, yproc, &
+                         num_owned, num_halo
+    use partition_mod, only : partition_cubedsphere, partition_biperiodic
 
     implicit none
 
     real(kind=r_def), parameter              :: delta = 1.0_r_def
     character(len = str_def)                 :: filename
+
+    !Get the processor decomposition
+    !Code is not set up to run in parallel - so hardcode for now
+    xproc=1
+    yproc=1
+!> @todo Eventually xproc and yproc will be inputted into Dynamo (and not hard-coded).
+!>       When this happens their values will need to be checked to make sure they are
+!>       sensible  - e.g. that they are consistent with the values of num_cells_x
+!>       and num_cells_y 
 
     ! hard-coded these numbers are
     num_cells_x = 50
@@ -64,14 +76,15 @@ contains
     dz = 2000.0_r_def
     filename = 'ugrid_quads_2d.nc' 
     call log_event( "set_up: generating/reading the mesh", LOG_LEVEL_INFO )
-    
-    ! total number of horizontal cells ( num_cells is currently cells along one edge )   
+
+    ! Partition the mesh and calculate the total number of horizontal cells
+    !on this partition ( num_cells is currently cells along one edge )   
     if ( l_spherical ) then 
-      num_cells_y = num_cells_x
-      num_cells = 6*num_cells_x**2
+      call partition_cubedsphere( )  
     else
-      num_cells = num_cells_x*num_cells_y
+      call partition_biperiodic( )  
     end if
+    num_cells = num_owned + num_halo
 
 !  ----------------------------------------------------------
 !  Mesh generation, really a preprocessor step for reading
@@ -81,11 +94,11 @@ contains
     call reference_cube()
     ! Initialise mesh
     call mesh_generator_init(num_cells,num_layers)
-    ! Genereate mesh  
+    ! Generate mesh  
     if ( l_spherical ) then
        call mesh_generator_cubedsphere(filename,num_cells,num_layers,dz)
     else
-       call mesh_generator_biperiodic(num_cells,num_cells_x,num_cells_y,num_layers,dx,dy,dz)
+       call mesh_generator_biperiodic(num_cells_x,num_cells_y,num_layers,dx,dy,dz)
     end if
     ! Extend connectivity ( cells->faces, cells->edges )  
     call mesh_connectivity(num_cells)    

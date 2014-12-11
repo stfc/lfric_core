@@ -58,7 +58,7 @@ subroutine dummy_read_setup(filename ,num_cells, num_layers, element_order, &
   if ( l_spherical ) then
     call mesh_generator_cubedsphere(filename,num_cells,num_layers,delta)
   else
-    call mesh_generator_biperiodic(num_cells,3,3,num_layers,delta,delta,delta)
+    call mesh_generator_biperiodic(3,3,num_layers,delta,delta,delta)
   end if
 ! Extend connectivity ( cells->faces, cells->edges )  
   call mesh_connectivity(num_cells)    
