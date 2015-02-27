@@ -14,8 +14,11 @@
 module rtheta_kernel_mod
 use kernel_mod,              only : kernel_type
 use constants_mod,           only : r_def, N_SQ, GRAVITY, earth_radius
-use argument_mod,            only : arg_type, &          ! the type
-                                    GH_READ, GH_INC, W0, W2, FE, CELLS ! the enums
+use argument_mod,            only : arg_type, func_type,                     &
+                                    GH_FIELD, GH_READ, GH_INC,               &
+                                    W0, W2,                                  &
+                                    GH_BASIS, GH_DIFF_BASIS, GH_ORIENTATION, &
+                                    CELLS
 use reference_profile_mod,   only : reference_profile
 use mesh_generator_mod,      only: xyz2llr, sphere2cart_vector
 use mesh_mod,                only : l_spherical
@@ -28,13 +31,15 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: rtheta_kernel_type
   private
-  type(arg_type) :: meta_args(5) = [  &
-       arg_type(GH_INC  ,W0,FE,.true., .false.,.false.,.true.),        &
-       arg_type(GH_READ ,W2,FE,.true., .false.,.false.,.false.),       &
-       arg_type(GH_READ ,W0,FE,.false.,.true., .false.,.false.),       &
-       arg_type(GH_READ ,W0,FE,.false.,.false.,.false.,.false.),       &
-       arg_type(GH_READ ,W0,FE,.false.,.false.,.false.,.false.)        &
-       ]
+  type(arg_type) :: meta_args(3) = (/                                  &
+       arg_type(GH_FIELD,   GH_INC,  W0),                              &
+       arg_type(GH_FIELD,   GH_READ, W2),                              &
+       arg_type(GH_FIELD*3, GH_READ, W0)                               &
+       /)
+  type(func_type) :: meta_funcs(2) = (/                                &
+       func_type(W0, GH_BASIS, GH_DIFF_BASIS),                         &
+       func_type(W2, GH_BASIS, GH_ORIENTATION)                         &
+       /)
   integer :: iterates_over = CELLS
 contains
   procedure, nopass ::rtheta_code
@@ -149,7 +154,7 @@ subroutine rtheta_code(nlayers,                                                &
           k_cart(:) = k_sphere(:)
         end if
         vec_term = dot_product(matmul(jac(:,:,qp1,qp2),u_at_quad), k_cart )
-        buoy_term = -N_SQ/GRAVITY*theta_s_at_quad*vec_term
+        buoy_term = -n_sq/gravity*theta_s_at_quad*vec_term
 
         do df = 1, ndf_w0
           rtheta_e(df) = rtheta_e(df) + wqp_h(qp1)*wqp_v(qp2)*w0_basis(1,df,qp1,qp2)*buoy_term

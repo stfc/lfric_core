@@ -13,8 +13,10 @@
 !>         no advection
 module ru_kernel_mod
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, &          ! the type
-                                    GH_READ, GH_INC, W3, W2, W0, FE, CELLS 
+use argument_mod,            only : arg_type, func_type,                 &
+                                    GH_FIELD, GH_READ, GH_INC,           &
+                                    W0, W2, W3, GH_BASIS, GH_DIFF_BASIS, &
+                                    CELLS 
 use constants_mod,           only : N_SQ, GRAVITY, Cp, r_def
 use mesh_generator_mod,      only : xyz2llr, sphere2cart_vector
 use mesh_mod,                only : l_spherical
@@ -27,14 +29,17 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: ru_kernel_type
   private
-  type(arg_type) :: meta_args(6) = [  &
-       arg_type(GH_INC  ,W2,FE,.true., .true.,.false.,.true.),         &
-       arg_type(GH_READ ,W3,FE,.true.,.false.,.false.,.false.),        &
-       arg_type(GH_READ ,W0,FE,.false.,.true.,.false., .false.),       &
-       arg_type(GH_READ ,W0,FE,.false.,.false.,.true.,.false.),        &
-       arg_type(GH_READ ,W0,FE,.false.,.false.,.false.,.false.),       &
-       arg_type(GH_READ ,W0,FE,.false.,.false.,.false.,.false.)        &
-       ]
+  type(arg_type) :: meta_args(4) = (/                                  &
+       arg_type(GH_FIELD,   GH_INC,  W2),                              &
+       arg_type(GH_FIELD,   GH_READ, W3),                              &
+       arg_type(GH_FIELD,   GH_READ, W0),                              &
+       arg_type(GH_FIELD*3, GH_READ, W0)                               &
+       /)
+  type(func_type) :: meta_funcs(3) = (/                                &
+       func_type(W2, GH_BASIS, GH_DIFF_BASIS),                         &
+       func_type(W3, GH_BASIS),                                        &
+       func_type(W0, GH_BASIS, GH_DIFF_BASIS)                          &
+       /)
   integer :: iterates_over = CELLS
 contains
   procedure, nopass ::ru_code
@@ -195,9 +200,9 @@ subroutine ru_code(nlayers,                                                    &
         do df = 1, ndf_w2
           jac_v = matmul(jac(:,:,qp1,qp2),w2_basis(:,df,qp1,qp2))
           buoy_term = dot_product( jac_v, k_cart ) &
-                    *(GRAVITY*theta_at_quad/theta_s_at_quad)
-          grad_term = Cp*exner_at_quad*theta_s_at_quad*( &
-                      N_SQ/GRAVITY*dot_product( jac_v, k_cart ) + &
+                    *(gravity*theta_at_quad/theta_s_at_quad)
+          grad_term = cp*exner_at_quad*theta_s_at_quad*( &
+                      n_sq/gravity*dot_product( jac_v, k_cart ) + &
                       w2_diff_basis(1,df,qp1,qp2) )
         
           ru_e(df) = ru_e(df) +  wqp_h(qp1)*wqp_v(qp2)*( grad_term + buoy_term )

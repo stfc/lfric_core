@@ -17,8 +17,10 @@
 module compute_mass_matrix_kernel_w2_mod
 use constants_mod,           only: r_def
 use kernel_mod,              only: kernel_type
-use argument_mod,            only: arg_type, &           ! the type
-                                   GH_INC, W2,FE, CELLS ! the enums
+use argument_mod,            only: arg_type, func_type,            &
+                                   GH_OPERATOR, GH_FIELD, GH_READ, &
+                                   W0, W2, GH_DIFF_BASIS, &
+                                   CELLS
 
 use coordinate_jacobian_mod, only: coordinate_jacobian
 implicit none
@@ -29,8 +31,12 @@ implicit none
 
 type, public, extends(kernel_type) :: compute_mass_matrix_kernel_w2_type
   private
-  type(arg_type) :: meta_args(1) = (/ &
-       arg_type(GH_INC,W2,FE,.true.,.false.,.false.,.true.) &
+  type(arg_type) :: meta_args(2) = (/                                  &
+       arg_type(GH_OPERATOR, GH_READ, W2, W2),                         &
+       arg_type(GH_FIELD*3,  GH_READ, W0)                              &
+       /)
+  type(func_type) :: meta_funcs(1) = (/                                &
+       func_type(W0, GH_DIFF_BASIS)                                    &
        /)
   integer :: iterates_over = CELLS
 

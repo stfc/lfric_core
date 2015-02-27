@@ -7,10 +7,15 @@
 !
 !-------------------------------------------------------------------------------
 
-!> @brief Provides access to the members of the matrix-vector mass matrix kernel
+!> @brief Provides access to the members of the W2_solver_kernel  
+
+!> @details Accessor functions for the W2_solver_kernel class are defined in this module.
+
 module matrix_vector_mm_mod
-use argument_mod,            only : arg_type,                              &
-                                    GH_READ, GH_INC, W2, FE, CELLS 
+use argument_mod,            only : arg_type,                               &
+                                    GH_FIELD, GH_OPERATOR, GH_READ, GH_INC, &
+                                    ANY_SPACE_1,                            &
+                                    CELLS 
 use constants_mod,           only : r_def
 use kernel_mod,              only : kernel_type
 
@@ -22,10 +27,11 @@ implicit none
 
 type, public, extends(kernel_type) :: matrix_vector_kernel_mm_type
   private
-  type(arg_type) :: meta_args(2) = [                                       &
-       arg_type(GH_INC,  W2,FE,.false.,.false.,.false.,.false.),           &  
-       arg_type(GH_READ ,W2,FE,.false.,.false.,.false.,.false.)            &
-       ]
+  type(arg_type) :: meta_args(3) = (/                                  &
+       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &  
+       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_1),                    &
+       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_1)        &
+       /)
   integer :: iterates_over = CELLS
 contains
   procedure, nopass ::matrix_vector_mm_code

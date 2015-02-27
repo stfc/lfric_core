@@ -13,11 +13,13 @@
 !>         theta and rho profile
 module calc_exner_kernel_mod
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, &          ! the type
-                                    GH_READ, GH_WRITE, W0, W3, FE, CELLS ! the enums
+use argument_mod,            only : arg_type, func_type,             &
+                                    GH_FIELD, GH_READ, GH_WRITE,     &
+                                    W0, W3, GH_BASIS, GH_DIFF_BASIS, &
+                                    CELLS
 
 use matrix_invert_mod,       only : matrix_invert
-use constants_mod,           only : KAPPA, r_def
+use constants_mod,           only : kappa, r_def
 implicit none
 
 !-------------------------------------------------------------------------------
@@ -26,14 +28,16 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: calc_exner_kernel_type
   private
-  type(arg_type) :: meta_args(6) = [  &
-       arg_type(GH_WRITE,W3,FE,.true.,.false.,.false.,.true.),        &
-       arg_type(GH_READ ,W3,FE,.false.,.false.,.false.,.false.),      &       
-       arg_type(GH_READ ,W0,FE,.true.,.false.,.false.,.false.),       &
-       arg_type(GH_READ ,W0,FE,.false.,.true.,.false.,.false.),       &
-       arg_type(GH_READ ,W0,FE,.false.,.false.,.false.,.false.),      &
-       arg_type(GH_READ ,W0,FE,.false.,.false.,.false.,.false.)       &
-       ]
+  type(arg_type) :: meta_args(4) = (/                                  &
+       arg_type(GH_FIELD,   GH_WRITE, W3),                             &
+       arg_type(GH_FIELD,   GH_READ,  W3),                             &       
+       arg_type(GH_FIELD,   GH_READ,  W0),                             &
+       arg_type(GH_FIELD*3, GH_READ,  W0)                              &
+       /)
+  type(func_type) :: meta_funcs(2) = (/                                &
+       func_type(W3, GH_BASIS),                                        &
+       func_type(W0, GH_BASIS, GH_DIFF_BASIS)                          &
+       /)
   integer :: iterates_over = CELLS
 contains
   procedure, nopass ::calc_exner_code
@@ -154,7 +158,7 @@ subroutine calc_exner_code(nlayers,ndf_w3,undf_w3, & ! integers
           do df2 = 1, ndf_w0
             theta_at_quad  = theta_at_quad   + theta_e(df2) * w0_basis(1,df2,qp1,qp2)
           end do
-          rhs_eos = KAPPA / (1.0_r_def - KAPPA) * exner_s_at_quad                 &
+          rhs_eos = kappa / (1.0_r_def - kappa) * exner_s_at_quad                 &
                   *( rho_at_quad/rho_s_at_quad + theta_at_quad/theta_s_at_quad )
           rhs_e(df1) = rhs_e(df1) + wqp_h(qp1)*wqp_v(qp2)*w3_basis(1,df1,qp1,qp2) * rhs_eos * dj(qp1,qp2)
         end do

@@ -79,7 +79,7 @@ end type
 ! Module parameters
 !-------------------------------------------------------------------------------
 !> integer that defines the type of Gaussian quadrature required
-integer, public, parameter      :: QR3 = 303
+integer, public, parameter      :: QR3 = 1001
 
 !> All fields are integrated onto a fixed Guassian quadrature.
 !> This is a static copy of that Gaussian quadrature object 

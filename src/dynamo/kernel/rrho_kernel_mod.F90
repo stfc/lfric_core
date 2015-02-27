@@ -13,8 +13,11 @@
 !>         no advection
 module rrho_kernel_mod
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, &          ! the type
-                                    GH_READ, GH_WRITE, W0, W2, W3, FE, CELLS 
+use argument_mod,            only : arg_type, func_type,                     &
+                                    GH_FIELD, GH_READ, GH_WRITE,             &
+                                    W0, W2, W3,                              &
+                                    GH_BASIS, GH_DIFF_BASIS, GH_ORIENTATION, &
+                                    CELLS 
 use reference_profile_mod,   only : reference_profile
 use constants_mod,           only : N_SQ, GRAVITY, r_def
 use mesh_generator_mod,      only : xyz2llr, sphere2cart_vector
@@ -28,13 +31,16 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: rrho_kernel_type
   private
-  type(arg_type) :: meta_args(5) = [  &
-       arg_type(GH_WRITE,W3,FE,.true., .false.,.false.,.true.),       &
-       arg_type(GH_READ ,W2,FE,.true., .true. ,.false., .false.),     &
-       arg_type(GH_READ ,W0,FE,.false.,.true. ,.false., .false.),     &
-       arg_type(GH_READ ,W0,FE,.false.,.false.,.false.,.false.),      &
-       arg_type(GH_READ ,W0,FE,.false.,.false.,.false.,.false.)       &
-       ]
+  type(arg_type) :: meta_args(3) = (/                                  &
+       arg_type(GH_FIELD,   GH_WRITE, W3),                             &
+       arg_type(GH_FIELD,   GH_READ,  W2),                             &
+       arg_type(GH_FIELD*3, GH_READ,  W0)                              &
+       /)
+  type(func_type) :: meta_funcs(3) = (/                                &
+       func_type(W3, GH_BASIS),                                        &
+       func_type(W2, GH_BASIS, GH_DIFF_BASIS, GH_ORIENTATION),         &
+       func_type(W0, GH_BASIS, GH_DIFF_BASIS)                          &
+       /)
   integer :: iterates_over = CELLS
 contains
   procedure, nopass ::rrho_code
@@ -179,7 +185,7 @@ subroutine rrho_code(nlayers,                                                  &
 
         div_term  =  - rho_s_at_quad*div_u_at_quad 
         vec_term  = dot_product(matmul(jac(:,:,qp1,qp2),u_at_quad),k_cart)
-        buoy_term = N_SQ/GRAVITY*rho_s_at_quad*vec_term
+        buoy_term = n_sq/gravity*rho_s_at_quad*vec_term
 
         do df = 1, ndf_w3
           rrho_e(df) = rrho_e(df) + wqp_h(qp1)*wqp_v(qp2)*w3_basis(1,df,qp1,qp2)*( buoy_term + div_term )

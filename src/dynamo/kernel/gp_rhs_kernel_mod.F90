@@ -11,8 +11,11 @@ module gp_rhs_kernel_mod
 use kernel_mod,              only : kernel_type
 use constants_mod,           only : r_def
 use quadrature_mod,          only : quadrature_type
-use argument_mod,            only : arg_type, &          ! the type
-                                    GH_INC, GH_READ, ANY_SPACE, W0, FE, CELLS ! the enums                                       
+use argument_mod,            only : arg_type, func_type,           &
+                                    GH_FIELD, GH_INC, GH_READ,     &
+                                    W0, ANY_SPACE_1, ANY_SPACE_2,  &
+                                    GH_BASIS, GH_DIFF_BASIS,       &
+                                    CELLS
 
 implicit none
 
@@ -22,13 +25,16 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: gp_rhs_kernel_type
   private
-  type(arg_type) :: meta_args(5) = [ &
-       arg_type(GH_INC,  ANY_SPACE,FE,.true., .false.,.false.,.true.),  &
-       arg_type(GH_READ, ANY_SPACE,FE,.true., .false.,.false.,.true.),  &
-       arg_type(GH_READ, W0,       FE,.false.,.true., .false.,.false.), &
-       arg_type(GH_READ, W0,       FE,.false.,.false.,.false.,.false.), &
-       arg_type(GH_READ, W0,       FE,.false.,.false.,.false.,.false.)  &
-       ]
+  type(arg_type) :: meta_args(3) = (/                                  &
+       arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1),                     &
+       ARG_TYPE(GH_FIELD,   GH_READ, ANY_SPACE_2),                     &
+       ARG_TYPE(GH_FIELD*3, GH_READ, W0)                               &
+       /)
+  type(func_type) :: meta_funcs(3) = (/                                &
+       func_type(ANY_SPACE_1, GH_BASIS),                               &
+       FUNC_TYPE(ANY_SPACE_2, GH_BASIS),                               &
+       FUNC_TYPE(W0,          GH_DIFF_BASIS)                           &
+       /)
   integer :: iterates_over = CELLS
 
 contains
