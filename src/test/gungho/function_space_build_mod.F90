@@ -518,7 +518,7 @@ contains
     ! hard-coded array bounds. This is static
 
     basis = reshape ( [ &
-#include "data/w0_basis.dat"
+#include "../data/w0_basis.dat"
         ], shape(basis) )
     
     return
@@ -530,7 +530,7 @@ contains
     ! hard-coded array bounds. This is static
 
     basis = reshape ( [ &
-#include "data/w0_diff.dat"
+#include "../data/w0_diff.dat"
         ], shape(basis) )
 
     return
@@ -542,7 +542,7 @@ contains
     ! hard-coded array bounds. This is static
 
     basis = reshape ( [ &
-#include "data/w1_basis.dat"
+#include "../data/w1_basis.dat"
           ], shape(basis) )
     return
   end subroutine basis_func_w1
@@ -553,7 +553,7 @@ contains
     ! hard-coded array bounds. This is static
 
     basis = reshape ( [ &
-#include "data/w1_diff.dat"
+#include "../data/w1_diff.dat"
         ], shape(basis) )
     return
   end subroutine diff_basis_func_w1
@@ -564,7 +564,7 @@ contains
     ! hard-coded array bounds. This is static
 
     basis = reshape ( [ &
-#include "data/w2_basis.dat"
+#include "../data/w2_basis.dat"
           ], shape(basis) )
     return
   end subroutine basis_func_w2
@@ -575,7 +575,7 @@ contains
     ! hard-coded array bounds. This is static
 
     basis = reshape ( [ &
-#include "data/w2_diff.dat"
+#include "../data/w2_diff.dat"
           ], shape(basis) )
     return
   end subroutine diff_basis_func_w2
@@ -586,7 +586,7 @@ contains
     ! hard-coded array bounds. This is static
 
     basis = reshape ( [ &
-#include "data/w3_basis.dat"
+#include "../data/w3_basis.dat"
           ], shape(basis) )
     return
   end subroutine basis_func_w3
@@ -597,7 +597,7 @@ contains
     ! hard-coded array bounds. This is static
 
     basis = reshape ( [ &
-#include "data/w3_diff.dat"
+#include "../data/w3_diff.dat"
           ], shape(basis) )
     return
   end subroutine diff_basis_func_w3

@@ -37,23 +37,33 @@ contains
 !> be replaced with code that reads the information in)
   subroutine set_up( )
 
-    use log_mod,  only : log_event, LOG_LEVEL_INFO
-    use mesh_mod, only : num_cells, num_layers, element_order, l_spherical, &
-                         w_unique_dofs, w_dof_entity, dx, dy, dz,           &
-                         num_cells_x, num_cells_y, &
-                         xproc, yproc, &
-                         partitioned_cells, num_core, num_owned, num_halo, &
-                         local_rank
-    use partition_mod, only : partition_cubedsphere, partition_biperiodic
+    use log_mod,         only : log_event, LOG_LEVEL_INFO
+    use mesh_mod,        only : num_cells, num_layers, element_order, l_spherical, &
+                                w_unique_dofs, w_dof_entity, dx, dy, dz,           &
+                                num_cells_x, num_cells_y, &
+                                xproc, yproc, &
+                                local_rank, total_ranks
+    use partition_mod,   only : partition_type, &
+                                partitioner_interface, &
+                                partitioner_cubedsphere_serial, &
+                                partitioner_cubedsphere, &
+                                partitioner_biperiodic
+
+    use global_mesh_mod, only : global_mesh_type
 
     implicit none
 
     character(len = str_def)                 :: filename
 
+    type(global_mesh_type) :: global_mesh
+    type(partition_type)   :: partition
+
+    procedure (partitioner_interface), pointer :: partitioner_ptr => null ()
+
     !Get the processor decomposition
     !Code is not set up to run in parallel - so hardcode for now
-    xproc=1
-    yproc=1
+    xproc = 1
+    yproc = 1
 !> @todo Eventually xproc and yproc will be inputted into Dynamo (and not hard-coded).
 !>       When this happens their values will need to be checked to make sure they are
 !>       sensible  - e.g. that they are consistent with the values of num_cells_x
@@ -73,37 +83,43 @@ contains
     filename = 'ugrid_quads_2d.nc' 
     call log_event( "set_up: generating/reading the mesh", LOG_LEVEL_INFO )
 
-    ! Partition the mesh and calculate the total number of horizontal
-    ! cells on this partition
+    ! Setup reference cube  
+    call reference_cube()
+
+    ! Generate the global mesh and choose a partitioning strategy by setting
+    ! a function pointer to point at the appropriate partitioning routine
     if ( l_spherical ) then
-      call partition_cubedsphere( num_cells_x, &
-                                  local_rank, &
-                                  partitioned_cells, &
-                                  num_core, num_owned, num_halo )
+      global_mesh=global_mesh_type( filename )
+      partitioner_ptr => partitioner_cubedsphere_serial
     else
-      call partition_biperiodic( num_cells_x, num_cells_y, &
-                                 xproc, yproc, local_rank, &
-                                 partitioned_cells, &
-                                 num_core, num_owned, num_halo ) 
+      global_mesh=global_mesh_type( num_cells_x ,num_cells_y )
+      partitioner_ptr => partitioner_biperiodic
     end if
-    num_cells = num_core + num_owned + num_halo
+
+    ! Generate the partition object
+    partition=partition_type( global_mesh, &
+                              partitioner_ptr, &
+                              xproc, &
+                              yproc, &
+                              1, &
+                              local_rank, &
+                              total_ranks)
+
+    num_cells = partition%get_num_cells_in_layer()
 
 !  ----------------------------------------------------------
 !  Mesh generation, really a preprocessor step for reading
 ! -----------------------------------------------------------
-
-    ! Setup reference cube  
-    call reference_cube()
     ! Initialise mesh
-    call mesh_generator_init(num_cells,num_layers)
+    call mesh_generator_init( num_cells,num_layers )
     ! Generate mesh  
     if ( l_spherical ) then
-       call mesh_generator_cubedsphere(filename,num_cells,num_layers,dz)
+       call mesh_generator_cubedsphere( filename, num_layers, dz, partition )
     else
-       call mesh_generator_biperiodic(num_cells_x,num_cells_y,num_layers,dx,dy,dz)
+       call mesh_generator_biperiodic( num_cells_x, num_cells_y, num_layers, dx, dy, dz, partition )
     end if
     ! Extend connectivity ( cells->faces, cells->edges )  
-    call mesh_connectivity(num_cells)    
+    call mesh_connectivity( num_cells )    
 
 ! -----------------------------------------------------------
 ! Initialise FE elements on the mesh constructed above
@@ -111,21 +127,24 @@ contains
 ! ----------------------------------------------------------
 
     ! initialise numbers of dofs    
-    call num_dof_init(num_cells,num_layers,element_order,w_unique_dofs,w_dof_entity)
+    call num_dof_init( num_cells, num_layers, element_order, w_unique_dofs, w_dof_entity )
          
     call log_event( "set_up: computing basis functions", LOG_LEVEL_INFO )
 
     ! read the values of the basis functions. 
     call get_basis( k=element_order, &
-                    w_unique_dofs=w_unique_dofs,w_dof_entity=w_dof_entity )  
+                    w_unique_dofs=w_unique_dofs, &
+                    w_dof_entity=w_dof_entity )  
 
     call log_event( "set_up: computing the dof_map", LOG_LEVEL_INFO )
     ! compute the dof maps for each function space
-    call get_dofmap(nlayers=num_layers,w_dof_entity=w_dof_entity, &
-                    ncell=num_cells,w_unique_dofs=w_unique_dofs)
+    call get_dofmap( nlayers=num_layers, &
+                     w_dof_entity=w_dof_entity, &
+                     ncell=num_cells, &
+                     w_unique_dofs=w_unique_dofs)
     
     ! compute cell local orientations for vector spaces
-    call get_orientation(num_cells, w_unique_dofs, w_dof_entity)
+    call get_orientation( num_cells, w_unique_dofs, w_dof_entity )
 
     return
 

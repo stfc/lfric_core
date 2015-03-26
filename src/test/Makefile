@@ -17,7 +17,7 @@ PFUNIT_INSTALL_DIR = $(BUILD_DIR)/pfunit-install
 SPECIAL_FFLAGS := $(filter-out -Werror,$(FFLAGS)) # pFUnit isn't that well put together
 
 OBJ_DIR = $(BUILD_DIR)/tests
-OBJ_SUBDIRS = $(patsubst %,$(OBJ_DIR)/%,$(shell find * -type d))
+OBJ_SUBDIRS = $(patsubst %,$(OBJ_DIR)/%,$(filter-out data,$(shell find * -type d)))
 
 DRIVER_OBJ=$(OBJ_DIR)/driver.o
 
@@ -33,7 +33,7 @@ SUBJECT_MODINC  = $(patsubst %,-I %,$(SUBJECT_SUBDIRS))
 
 .PHONY: test
 test: $(OBJ_DIR)/test
-	$(Q)$(OBJ_DIR)/test -robust
+	$(Q)cd $(OBJ_DIR); ./test -robust
 
 .PRECIOUS: $(OBJ_DIR)/%.F90
 $(OBJ_DIR)/%.F90: %.pf | $(OBJ_DIR) $(OBJ_SUBDIRS) $(DRIVER_OBJ)
@@ -56,7 +56,7 @@ $(OBJ_DIR)/test: $(DRIVER_OBJ) $(SUPPORT_OBJECTS) $(TEST_OBJECTS)
 	             $(patsubst %,-l%,$(EXTERNAL_LIBRARIES))
 
 # Replace OBJ_SUBDIR with mangling of % ?
-$(OBJ_DIR)/%.o: %.F90 | $(OBJ_SUBDIRS)
+$(OBJ_DIR)/%.o: %.F90 | $(OBJ_DIR)/data $(OBJ_SUBDIRS)
 	$(Q)$(FC) $(FPPFLAGS) $(F_MOD_DESTINATION_ARG)$(OBJ_DIR)/$(dir $@) \
 	      $(SUBJECT_MODINC) -c -o $@ $<
 
@@ -67,6 +67,10 @@ $(OBJ_DIR)/%.o: %.f90 | $(OBJ_SUBDIRS)
 $(DRIVER_OBJ): | $(dir $(DRIVER_OBJ))
 	$(MAKE) -f pfunit.mk PFUNIT_INSTALL_DIR=$(PFUNIT_INSTALL_DIR) \
 	                     DRIVER_OBJ=$@
+
+$(OBJ_DIR)/data: data
+	@echo Copying data directory
+	$(Q)cp -r $< $@
 
 $(OBJ_DIR) $(OBJ_SUBDIRS):
 	@echo "Creating $@"

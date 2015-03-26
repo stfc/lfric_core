@@ -1,0 +1,117 @@
+!-----------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown, 
+! Met Office and NERC 2014. 
+! However, it has been created with the help of the GungHo Consortium, 
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-----------------------------------------------------------------------------
+
+!> Test the global_mesh module
+!>
+module global_mesh_mod_test
+
+  use pFUnit_Mod
+
+  implicit none 
+
+contains
+
+  !> Test global_mesh module functionality
+  !>
+  @test
+  subroutine test_global_mesh()
+  use constants_mod,         only : str_def
+  use reference_element_mod, only : reference_cube, deallocate_reference
+  use global_mesh_mod,       only : global_mesh_type
+  implicit none
+
+  type(global_mesh_type) :: global_mesh
+
+  integer :: num_cells_x
+  integer :: num_cells_y
+  integer :: cell_id
+  integer :: verts(4)
+  integer :: cells(4)
+  integer :: ncells
+  integer :: ncells_x
+  integer :: ncells_y
+
+  character(len = str_def) :: filename
+
+  !-------------------------------------
+  ! Test generation of a biperiodic mesh
+  !-------------------------------------
+  num_cells_x = 3
+  num_cells_y = 3
+  !
+  ! Set up stuff that the global_mesh object needs
+  call reference_cube()
+  global_mesh = global_mesh_type( num_cells_x, &
+                                  num_cells_y )
+
+  cell_id=global_mesh%get_cell_id( 1, 0, 0 )
+  @assertEqual( 1, cell_id )
+
+  cell_id=global_mesh%get_cell_id( 1, 2, 2 )
+  @assertEqual( 9, cell_id )
+
+  call global_mesh%get_vertex_on_cell( 2, verts )
+  @assertEqual( 2, verts(1) )
+  @assertEqual( 5, verts(2) )
+  @assertEqual( 6, verts(3) )
+  @assertEqual( 3, verts(4) )
+
+  call global_mesh%get_cell_on_vertex( 3, cells )
+  @assertEqual( 1, cells(1) )
+  @assertEqual( 2, cells(2) )
+  @assertEqual( 4, cells(3) )
+  @assertEqual( 5, cells(4) )
+
+  ncells = global_mesh%get_ncells()
+  @assertEqual( 9, ncells )
+
+  ncells_x = global_mesh%get_num_cells_x()
+  @assertEqual( num_cells_x, ncells_x )
+
+  ncells_y = global_mesh%get_num_cells_y()
+  @assertEqual( num_cells_y, ncells_y )
+
+
+  !---------------------------------------
+  ! Test generation of a cubed-sphere mesh
+  !---------------------------------------
+  filename = 'data/ugrid_quads_2d.nc' 
+  global_mesh = global_mesh_type( filename )
+
+  cell_id = global_mesh%get_cell_id( 1, 0, 0 )
+  @assertEqual( 1, cell_id )
+
+  cell_id = global_mesh%get_cell_id( 1, 2, 2 )
+  @assertEqual( 11, cell_id )
+
+  call global_mesh%get_vertex_on_cell( 6, verts )
+  @assertEqual(  6, verts(1) )
+  @assertEqual(  7, verts(2) )
+  @assertEqual( 11, verts(3) )
+  @assertEqual( 10, verts(4) )
+
+  call global_mesh%get_cell_on_vertex( 16, cells )
+  @assertEqual( 11, cells(1) )
+  @assertEqual( 12, cells(2) )
+  @assertEqual( 15, cells(3) )
+  @assertEqual( 16, cells(4) )
+
+  ncells = global_mesh%get_ncells()
+  @assertEqual( 96, ncells )
+
+  ncells_x = global_mesh%get_num_cells_x()
+  @assertEqual( 4, ncells_x )
+
+  ncells_y=global_mesh%get_num_cells_y()
+  @assertEqual( 4, ncells_y )
+
+  ! clean up the reference_cube we created at the start of the test
+  call deallocate_reference()
+
+  end subroutine test_global_mesh
+
+end module global_mesh_mod_test
