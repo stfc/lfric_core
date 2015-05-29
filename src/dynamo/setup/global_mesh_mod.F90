@@ -1,17 +1,18 @@
 !-------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown, 
-! Met Office and NERC 2014. 
-! However, it has been created with the help of the GungHo Consortium, 
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
 
 !> @brief A module that describes the cell ordering within the global mesh
 
 !> @details This object holds the connectivities that fully
-!>          describe the 2D topology of the global mesh 
+!>          describe the 2D topology of the global mesh
 
 module global_mesh_mod
 
+use constants_mod, only: r_def, i_def
 implicit none
 
 private
@@ -28,6 +29,7 @@ type, public :: global_mesh_type
   integer, allocatable :: edge_on_cell_2d(:,:)
 !> Full domain cells either side of an edge
   integer, allocatable :: cell_on_edge_2d(:,:)
+
 !> no of cells across a face (or across full domain in x-dirn for biperiodic)
   integer              :: num_cells_x
 !> no of cells across a face, perpendicular to num_cells_x (or across full domain in y-dirn for biperiodic)
@@ -51,21 +53,21 @@ contains
 !> @return the cell id of the cell at the given offset to the start cell
   procedure, public :: get_cell_id
 !> Get the vertices that are incident with a particular cell
-!> @param[in] cell_number The number of the cell being queried 
+!> @param[in] cell_number The number of the cell being queried
 !> @param[out] verts The vertices around the given cell
   procedure, public :: get_vert_on_cell
 !> Get the cells that are incident on a particular vertex
-!> @param[in] vertex_number The number of the vertex being queried 
+!> @param[in] vertex_number The number of the vertex being queried
 !> @param[out] cells The cells around the given vertex
-  procedure, public :: get_cell_on_vert 
+  procedure, public :: get_cell_on_vert
 !> Get the edges that are incident with a particular cell
-!> @param[in] cell_number The number of the cell being queried 
+!> @param[in] cell_number The number of the cell being queried
 !> @param[out] edges The edges around the given cell
   procedure, public :: get_edge_on_cell
 !> Get the cells that are incident on a particular edge
-!> @param[in] edge_number The number of the edge being queried 
+!> @param[in] edge_number The number of the edge being queried
 !> @param[out] cells The cells either side of the given edge
-  procedure, public :: get_cell_on_edge 
+  procedure, public :: get_cell_on_edge
 !> Get the total number of cells in the global domain
 !> @return The total number of cells in the global domain
   procedure, public :: get_ncells
@@ -84,14 +86,16 @@ contains
 !> for the "corner" vertices where there are three.
 !> @return The maximum number of cells that can be incident with a vertex
   procedure, public :: get_max_cells_per_vertex
+
 end type global_mesh_type
 
 interface global_mesh_type
   module procedure global_mesh_constructor_biperiodic
   module procedure global_mesh_constructor_cubedsphere
+  module procedure global_mesh_constructor_unit_test_data
 end interface
 
-contains 
+contains
 
 !> Construct a the full domain cell to cell connectivities for a
 !> biperiodic mesh
@@ -138,12 +142,12 @@ do j = 1,num_cells_y
 ! i-1 cell (West face)
     self%cell_next_2d(W,id) = id - 1
 
-! Now do periodicity/connectivity along edges 
+! Now do periodicity/connectivity along edges
 ! South
     if (j == 1)then
       self%cell_next_2d(S,id) = self%cell_next_2d(S,id)+num_cells_x*num_cells_y
     end if
-! North  
+! North
     if (j == num_cells_y)then
       self%cell_next_2d(N,id) = self%cell_next_2d(N,id)-num_cells_x*num_cells_y
     endif
@@ -151,7 +155,7 @@ do j = 1,num_cells_y
     if (i == 1)then
       self%cell_next_2d(W,id) = self%cell_next_2d(W,id)+num_cells_x
     end if
-! East  
+! East
     if (i == num_cells_x)then
       self%cell_next_2d(E,id) = self%cell_next_2d(E,id)-num_cells_x
     endif
@@ -165,10 +169,10 @@ vert_no = 0
 self%vert_on_cell_2d = 0
 do i = 1,self%ncells
 ! 1. south west corner of cell
-  if(self%vert_on_cell_2d(SWB,i) == 0)then 
+  if(self%vert_on_cell_2d(SWB,i) == 0)then
     vert_no = vert_no + 1
     self%vert_on_cell_2d(SWB,i) = vert_no
-    if(self%cell_next_2d(W,i) > 0)then                     ! and south east corner of cell to west 
+    if(self%cell_next_2d(W,i) > 0)then                     ! and south east corner of cell to west
       self%vert_on_cell_2d(SEB,self%cell_next_2d(W,i)) = vert_no
       if(self%cell_next_2d(S,self%cell_next_2d(W,i)) > 0)then      ! and north east corner of cell to south west
         self%vert_on_cell_2d(NEB,self%cell_next_2d(S,self%cell_next_2d(W,i))) = vert_no
@@ -182,10 +186,10 @@ do i = 1,self%ncells
     end if
   end if
 ! 2. south east corner of cell
-  if(self%vert_on_cell_2d(SEB,i) == 0)then 
+  if(self%vert_on_cell_2d(SEB,i) == 0)then
     vert_no = vert_no + 1
     self%vert_on_cell_2d(SEB,i) = vert_no
-    if(self%cell_next_2d(E,i) > 0)then                     ! and south west corner of cell to east 
+    if(self%cell_next_2d(E,i) > 0)then                     ! and south west corner of cell to east
       self%vert_on_cell_2d(SWB,self%cell_next_2d(E,i)) = vert_no
       if(self%cell_next_2d(S,self%cell_next_2d(E,i)) > 0)then      ! and north west corner of cell to south east
         self%vert_on_cell_2d(NWB,self%cell_next_2d(S,self%cell_next_2d(E,i))) = vert_no
@@ -199,10 +203,10 @@ do i = 1,self%ncells
     end if
   end if
 ! 3. north east corner of cell
-  if(self%vert_on_cell_2d(NEB,i) == 0)then 
+  if(self%vert_on_cell_2d(NEB,i) == 0)then
     vert_no = vert_no + 1
     self%vert_on_cell_2d(NEB,i) = vert_no
-    if(self%cell_next_2d(E,i) > 0)then                     ! and north west corner of cell to east 
+    if(self%cell_next_2d(E,i) > 0)then                     ! and north west corner of cell to east
       self%vert_on_cell_2d(NWB,self%cell_next_2d(E,i)) = vert_no
       if(self%cell_next_2d(N,self%cell_next_2d(E,i)) > 0)then      ! and south west corner of cell to north east
         self%vert_on_cell_2d(SWB,self%cell_next_2d(N,self%cell_next_2d(E,i))) = vert_no
@@ -216,10 +220,10 @@ do i = 1,self%ncells
     end if
   end if
 ! 4. north west corner of cell
-  if(self%vert_on_cell_2d(NWB,i) == 0)then 
+  if(self%vert_on_cell_2d(NWB,i) == 0)then
     vert_no = vert_no + 1
     self%vert_on_cell_2d(NWB,i) = vert_no
-    if(self%cell_next_2d(W,i) > 0)then                     ! and north east corner of cell to west 
+    if(self%cell_next_2d(W,i) > 0)then                     ! and north east corner of cell to west
       self%vert_on_cell_2d(NEB,self%cell_next_2d(W,i)) = vert_no
       if(self%cell_next_2d(N,self%cell_next_2d(W,i)) > 0)then      ! and south east corner of cell to north west
         self%vert_on_cell_2d(SEB,self%cell_next_2d(N,self%cell_next_2d(W,i))) = vert_no
@@ -299,11 +303,11 @@ function global_mesh_constructor_cubedsphere( filename ) result(self)
 
 use constants_mod,  only: str_def
 use ugrid_2d_mod,   only: ugrid_2d_type
-use ugrid_file_mod, only: ugrid_file_type 
-use ncdf_quad_mod,  only: ncdf_quad_type 
+use ugrid_file_mod, only: ugrid_file_type
+use ncdf_quad_mod,  only: ncdf_quad_type
 
 implicit none
- 
+
 character(len = str_def), intent(in) :: filename
 
 type(global_mesh_type) :: self
@@ -387,7 +391,7 @@ integer :: vert
 
 ! Calculate the cells that are incident on a vertex by looping through the
 ! vertices on all cells (which we store) and filling an array based on vertex
-! number with the cells around it  
+! number with the cells around it
 
 cell_on_vert = 0
 
@@ -427,7 +431,7 @@ integer :: edge
 
 ! Calculate the cells that are either side of an edge by looping through the
 ! edges on all cells (which we store) and filling an array based on edge
-! number with the cells around it  
+! number with the cells around it
 
 cell_on_edge=0
 
@@ -599,6 +603,116 @@ integer :: max_cells_per_vertex
 max_cells_per_vertex = self%max_cells_per_vertex
 
 end function get_max_cells_per_vertex
+
+
+!==============================================================================
+! The following routine returns a global mesh object for unit testing only
+!==============================================================================
+
+function global_mesh_constructor_unit_test_data() result (self)
+
+  implicit none
+
+  type(global_mesh_type) :: self
+
+  ! Returns global_mesh_object of size 3x3 quad reference cell.
+  ! As per reference cell, direction of numbering is anti-clockwise
+  ! Starting point is
+  ! Vertices: Bottom Left (south-west)
+  ! Edges:    Left        (west)
+  ! Faces:    Left        (west)
+
+  integer(i_def) :: nverts = 16
+  integer(i_def) :: nedges = 24
+
+  self%num_cells_x = 3
+  self%num_cells_y = 3
+  self%ncells      = 9
+
+  self%nverts_per_cell = 4
+  self%nedges_per_cell = 4
+
+  self%max_cells_per_vertex  = 4
+
+  allocate( self%cell_next_2d    (self%nedges_per_cell, self%ncells) )
+  allocate( self%vert_on_cell_2d (self%nverts_per_cell, self%ncells) )
+  allocate( self%edge_on_cell_2d (self%nedges_per_cell, self%ncells) )
+  allocate( self%cell_on_vert_2d (self%max_cells_per_vertex, nverts) )
+  allocate( self%cell_on_edge_2d (2, nedges) )
+
+  self%cell_next_2d(:,1)     = [0, 0, 2, 4]
+  self%cell_next_2d(:,2)     = [1, 0, 3, 5]
+  self%cell_next_2d(:,3)     = [2, 0, 0, 6]
+  self%cell_next_2d(:,4)     = [0, 1, 5, 7]
+  self%cell_next_2d(:,5)     = [4, 2, 6, 8]
+  self%cell_next_2d(:,6)     = [5, 3, 0, 9]
+  self%cell_next_2d(:,7)     = [0, 4, 8, 0]
+  self%cell_next_2d(:,8)     = [7, 5, 9, 0]
+  self%cell_next_2d(:,9)     = [8, 6, 0, 0]
+
+  self%vert_on_cell_2d(:,1)  = [ 1,  2,  6,  5]
+  self%vert_on_cell_2d(:,2)  = [ 2,  3,  7,  6]
+  self%vert_on_cell_2d(:,3)  = [ 3,  4,  8,  7]
+  self%vert_on_cell_2d(:,4)  = [ 5,  6, 10,  9]
+  self%vert_on_cell_2d(:,5)  = [ 6,  7, 11, 10]
+  self%vert_on_cell_2d(:,6)  = [ 7,  8, 12, 11]
+  self%vert_on_cell_2d(:,7)  = [ 9, 10, 14, 13]
+  self%vert_on_cell_2d(:,8)  = [10, 11, 15, 14]
+  self%vert_on_cell_2d(:,9)  = [11, 12, 16, 15]
+
+  self%edge_on_cell_2d(:,1)  = [4,   1,  5,  8]
+  self%edge_on_cell_2d(:,2)  = [5,   2,  6,  9]
+  self%edge_on_cell_2d(:,3)  = [6,   3,  7, 10]
+  self%edge_on_cell_2d(:,4)  = [11,  8, 12, 15]
+  self%edge_on_cell_2d(:,5)  = [12,  9, 13, 16]
+  self%edge_on_cell_2d(:,6)  = [13, 10, 14, 17]
+  self%edge_on_cell_2d(:,7)  = [18, 15, 19, 22]
+  self%edge_on_cell_2d(:,8)  = [19, 16, 20, 23]
+  self%edge_on_cell_2d(:,9)  = [20, 17, 21, 24]
+
+  self%cell_on_vert_2d(:,1)  = [0, 0, 1, 0]
+  self%cell_on_vert_2d(:,2)  = [0, 0, 2, 1]
+  self%cell_on_vert_2d(:,3)  = [0, 0, 3, 2]
+  self%cell_on_vert_2d(:,4)  = [0, 0, 0, 3]
+  self%cell_on_vert_2d(:,5)  = [0, 1, 4, 0]
+  self%cell_on_vert_2d(:,6)  = [1, 2, 5, 4]
+  self%cell_on_vert_2d(:,7)  = [2, 3, 6, 5]
+  self%cell_on_vert_2d(:,8)  = [3, 0, 0, 6]
+  self%cell_on_vert_2d(:,9)  = [0, 4, 7, 0]
+  self%cell_on_vert_2d(:,10) = [4, 5, 8, 7]
+  self%cell_on_vert_2d(:,11) = [5, 6, 9, 8]
+  self%cell_on_vert_2d(:,12) = [6, 0, 0, 9]
+  self%cell_on_vert_2d(:,13) = [0, 7, 0, 0]
+  self%cell_on_vert_2d(:,14) = [7, 8, 0, 0]
+  self%cell_on_vert_2d(:,15) = [8, 9, 0, 0]
+  self%cell_on_vert_2d(:,16) = [9, 0, 0, 0]
+
+  self%cell_on_edge_2d(:,1)  = [0, 1]
+  self%cell_on_edge_2d(:,2)  = [0, 2]
+  self%cell_on_edge_2d(:,3)  = [0, 3]
+  self%cell_on_edge_2d(:,4)  = [1, 0]
+  self%cell_on_edge_2d(:,5)  = [2, 1]
+  self%cell_on_edge_2d(:,6)  = [3, 2]
+  self%cell_on_edge_2d(:,7)  = [0, 3]
+  self%cell_on_edge_2d(:,8)  = [1, 4]
+  self%cell_on_edge_2d(:,9)  = [2, 5]
+  self%cell_on_edge_2d(:,10) = [3, 6]
+  self%cell_on_edge_2d(:,11) = [4, 0]
+  self%cell_on_edge_2d(:,12) = [5, 4]
+  self%cell_on_edge_2d(:,13) = [6, 5]
+  self%cell_on_edge_2d(:,14) = [0, 6]
+  self%cell_on_edge_2d(:,15) = [4, 7]
+  self%cell_on_edge_2d(:,16) = [5, 8]
+  self%cell_on_edge_2d(:,17) = [6, 9]
+  self%cell_on_edge_2d(:,18) = [7, 0]
+  self%cell_on_edge_2d(:,19) = [8, 7]
+  self%cell_on_edge_2d(:,20) = [9, 8]
+  self%cell_on_edge_2d(:,21) = [0, 9]
+  self%cell_on_edge_2d(:,22) = [7, 0]
+  self%cell_on_edge_2d(:,23) = [8, 0]
+  self%cell_on_edge_2d(:,24) = [9, 0]
+  
+end function global_mesh_constructor_unit_test_data
 
 
 end module global_mesh_mod

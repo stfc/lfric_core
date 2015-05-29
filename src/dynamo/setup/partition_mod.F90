@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown, 
-! Met Office and NERC 2014. 
-! However, it has been created with the help of the GungHo Consortium, 
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
 
@@ -20,7 +20,7 @@
 module partition_mod
 
 use global_mesh_mod, only : global_mesh_type
-
+use constants_mod,   only : r_def, i_def
 use ESMF
 
 implicit none
@@ -49,7 +49,7 @@ type, public :: partition_type
   integer              :: num_core
 !> The number of "owned" cells in the <code>global_cell_id</code> list
   integer              :: num_owned
-!> The number of "halo" cells in the <code>global_cell_id</code> list - 
+!> The number of "halo" cells in the <code>global_cell_id</code> list -
 !> one entry for each depth of halo
   integer, allocatable :: num_halo( : )
 !> The depth to which halos are generated
@@ -70,18 +70,18 @@ contains
   procedure, public :: get_num_cells_owned
 !> Returns the total number of halo cells in a particular depth of halo in a 2d
 !> slice on the local partition
-!> @param[in] depth The depth of the halo being quried
-!> @return core_cells The total number of halo cells of the particular depth 
+!> @param[in] depth The depth of the halo being queried
+!> @return core_cells The total number of halo cells of the particular depth
 !> on the local partition
   procedure, public :: get_num_cells_halo
 !> Returns the owner of a cell on the local partition
-!> @param[in] cell_number The local id of of the cell being queried 
+!> @param[in] cell_number The local id of of the cell being queried
 !> @return cell_owner The owner of the given cell
   procedure, public :: get_cell_owner
 !> Returns the global index of the cell that corresponds to the given
 !! local index on the local partition
 !> @param[in] lid The id of a cell in local index space
-!> @return gid The id of a cel in global index space
+!> @return gid The id of a cell in global index space
   procedure, public :: get_gid_from_lid
 !> @brief Returns the local index of the cell on the local
 !> partition that corresponds to the given global index.
@@ -89,10 +89,12 @@ contains
 !> @return lid The local index that corresponds to the given global index
 !> or -1 if the cell with the given global index is not present of the local partition
   procedure, public :: get_lid_from_gid
+
 end type partition_type
 
 interface partition_type
   module procedure partition_constructor
+  module procedure partition_constructor_unit_test_data
 end interface
 
 interface
@@ -112,24 +114,24 @@ interface
     integer,                intent(in)    :: xproc, yproc, local_rank, total_ranks
     integer, allocatable,   intent(inout) :: global_cell_id( : )
     integer,                intent(in)    :: halo_depth
-    integer,                intent(out)   ::  num_core, num_owned, num_halo( : )
+    integer,                intent(out)   :: num_core, num_owned, num_halo( : )
   end subroutine partitioner_interface
-end interface 
+end interface
 
-contains 
+contains
 
-!> Construct a <code>partition_type</code> object 
+!> Construct a <code>partition_type</code> object
 !>
 !> @param [in] global_mesh A global mesh object that describes the layout
 !>                         of the global mesh
 !> @param [in] partitioner A function pointer to the function that will perform
-!>                         the partitioning 
+!>                         the partitioning
 !> @param [in] xproc Number of ranks to partition the mesh over in the
 !>                   x-direction (across a single face  for a cubed-sphere mesh)
 !> @param [in] yproc Number of ranks to partition the mesh over in the
 !>                   y-direction (across a single face  for a cubed-sphere mesh)
 !> @param [in] halo_depth The depth to which halos will be created
-!> @param [in] local_rank Number of the local process rank 
+!> @param [in] local_rank Number of the local process rank
 !> @param [in] total_ranks Total number of process ranks available
 !> @return self the partition object
 !>
@@ -182,7 +184,7 @@ call partitioner( global_mesh, &
 ! by filling the locally owned cells with the local rank and performing
 ! a halo-swap to fill in the owners of all the halo cells.
 !
-! Set up the ESMF structures required to perform a halo swap 
+! Set up the ESMF structures required to perform a halo swap
 !
 ! Create an ESMF DistGrid, which describes which partition owns which cells
 distgrid = ESMF_DistGridCreate( arbSeqIndexList=self%global_cell_id(1:self%num_core+self%num_owned), &
@@ -237,7 +239,7 @@ end function partition_constructor
 !> @param [in] halo_depth The depth to which halos will be created
 !> @param partitioned_cells [out] Returned array that holds the global ids of all
 !>                          cells in local partition
-!> @param num_core [out] Number of cells that are wholly owned by the partition 
+!> @param num_core [out] Number of cells that are wholly owned by the partition
 !>                 (i.e. all dofs in these cells are wholly owned by the
 !>                 partition). The cell ids of these cells appear first in the
 !>                 <code>partitioned_cells</code> array
@@ -245,7 +247,7 @@ end function partition_constructor
 !>                  but may have dofs that are also owned by halo cells. The
 !>                  cell ids of these cells follow the core cells in the
 !>                  <code>partitioned_cells</code> array
-!> @param num_halo [out] Number of cells that are halo cells. The cell ids 
+!> @param num_halo [out] Number of cells that are halo cells. The cell ids
 !>                 of these cells follow the owned cells in the
 !>                 <code>partitioned_cells</code> array
   subroutine partitioner_biperiodic( global_mesh, &
@@ -287,7 +289,7 @@ end function partition_constructor
   integer :: start_y   ! global cell id of start of the domain on this partition in y-dirn
   integer :: num_y     ! number of cells in the domain on this partition in y-dirn
   integer :: num_in_list !total number of cells known to this partition
-  integer :: num_added ! number of cells added to the linked list 
+  integer :: num_added ! number of cells added to the linked list
   integer :: ix, iy    ! loop counters over cells on this partition in x- and y-dirns
 
   type(linked_list_type), pointer :: curr=>null()  ! the current position at which items will be added
@@ -305,16 +307,16 @@ end function partition_constructor
   integer :: depth     ! counter over the halo depths
   integer :: orig_num_in_list ! number of cells in list before halos are added
 
-  if( xproc*yproc /= total_ranks )then
+  if ( xproc*yproc /= total_ranks ) then
    call log_event( 'Invalid decomposition used for biperiodic partitioner', &
                    LOG_LEVEL_ERROR )
-  endif
+  end if
 
   !convert the local rank number into a local xproc and yproc
   local_xproc = modulo(local_rank,xproc)
   local_yproc = local_rank/xproc
 
-  !Work out the start index and number of cells (in x- and y-dirn) for 
+  !Work out the start index and number of cells (in x- and y-dirn) for
   !the local partition - this algorithm should spread out the number of
   !cells each partition gets fairly evenly
   start_x = int( ( real( local_xproc ) * real( global_mesh%get_num_cells_x() )/ &
@@ -339,7 +341,7 @@ end function partition_constructor
   end do
   num_core = num_in_list
 
-  ! Store location of last core cell in the linked list 
+  ! Store location of last core cell in the linked list
   last_core => curr
 
   ! Now add the owned cells - those still owned by the partition -
@@ -361,7 +363,7 @@ end function partition_constructor
   end do
   num_owned = num_in_list-num_core
 
-  ! Store location of last owned cell in the linked list 
+  ! Store location of last owned cell in the linked list
   last_owned => curr
 
   ! Add all cells that are in a single depth halo around each of the owned cells
@@ -384,7 +386,7 @@ end function partition_constructor
 
   curr_pos => last_owned%next
   do depth = 2,halo_depth
-    ! Store location of last halo cell in the linked list 
+    ! Store location of last halo cell in the linked list
     last_halo => curr
     orig_num_in_list = num_in_list
     call apply_stencil( global_mesh, &
@@ -447,7 +449,7 @@ end function partition_constructor
   end subroutine partitioner_biperiodic
 
 
-!> Returns a single partition of cubed-sphere mesh for use when running the 
+!> Returns a single partition of cubed-sphere mesh for use when running the
 !> code in serial
 !>
 !> @param [in] global_mesh A global mesh object that describes the layout
@@ -459,7 +461,7 @@ end function partition_constructor
 !> @param [in] halo_depth The depth to which halos will be created
 !> @param partitioned_cells [out] Returned array that holds the global ids of all
 !>                          cells in local partition
-!> @param num_core [out] Number of cells that are wholly owned by the partition 
+!> @param num_core [out] Number of cells that are wholly owned by the partition
 !>                 (i.e. all dofs in these cells are wholly owned by the
 !>                 partition). The cell ids of these cells appear first in the
 !>                 <code>partitioned_cells</code> array
@@ -467,7 +469,7 @@ end function partition_constructor
 !>                  but may have dofs that are also owned by halo cells. The
 !>                  cell ids of these cells follow the core cells in the
 !>                  <code>partitioned_cells</code> array
-!> @param num_halo [out] Number of cells that are halo cells. The cell ids 
+!> @param num_halo [out] Number of cells that are halo cells. The cell ids
 !>                 of these cells follow the owned cells in the
 !>                 <code>partitioned_cells</code> array
   subroutine partitioner_cubedsphere_serial( global_mesh, &
@@ -541,7 +543,7 @@ end function partition_constructor
 !> @param [in] halo_depth The depth to which halos will be created
 !> @param partitioned_cells [out] Returned array that holds the global ids of all
 !>                          cells in local partition
-!> @param num_core [out] Number of cells that are wholly owned by the partition 
+!> @param num_core [out] Number of cells that are wholly owned by the partition
 !>                 (i.e. all dofs in these cells are wholly owned by the
 !>                 partition). The cell ids of these cells appear first in the
 !>                 <code>partitioned_cells</code> array
@@ -549,7 +551,7 @@ end function partition_constructor
 !>                  but may have dofs that are also owned by halo cells. The
 !>                  cell ids of these cells follow the core cells in the
 !>                  <code>partitioned_cells</code> array
-!> @param num_halo [out] Number of cells that are halo cells. The cell ids 
+!> @param num_halo [out] Number of cells that are halo cells. The cell ids
 !>                 of these cells follow the owned cells in the
 !>                 <code>partitioned_cells</code> array
   subroutine partitioner_cubedsphere( global_mesh, &
@@ -593,7 +595,7 @@ end function partition_constructor
   integer :: start_y   ! global cell id of start of the domain on this partition in y-dirn
   integer :: num_y     ! number of cells in the domain on this partition in y-dirn
   integer :: num_in_list !total number of cells known to this partition
-  integer :: num_added ! number of cells added to the linked list 
+  integer :: num_added ! number of cells added to the linked list
   integer :: ix, iy    ! loop counters over cells on this partition in x- and y-dirns
 
   type(linked_list_type), pointer :: curr=>null()  ! the current position at which items will be added
@@ -618,7 +620,7 @@ end function partition_constructor
   local_xproc = modulo(local_rank-start_rank,xproc)
   local_yproc = (local_rank-start_rank)/xproc
 
-  !Work out the start index and number of cells (in x- and y-dirn) for 
+  !Work out the start index and number of cells (in x- and y-dirn) for
   !the local partition - this algorithm should spread out the number of
   !cells each partition gets fairly evenly
   start_x = int( ( real( local_xproc ) * real( global_mesh%get_num_cells_x() )/ &
@@ -640,10 +642,10 @@ end function partition_constructor
       if(.not.associated(start))start => curr
       num_in_list = num_in_list + 1
     end do
-  end do 
+  end do
   num_core = num_in_list
 
-  ! Store location of last core cell in the linked list 
+  ! Store location of last core cell in the linked list
   last_core => curr
 
   ! Now add the owned cells - those still owned by the partition -
@@ -665,7 +667,7 @@ end function partition_constructor
   end do
   num_owned = num_in_list-num_core
 
-  ! Store location of last owned cell in the linked list 
+  ! Store location of last owned cell in the linked list
   last_owned => curr
 
   ! Add all cells that are in a single depth halo around each of the owned cells
@@ -688,7 +690,7 @@ end function partition_constructor
 
   curr_pos => last_owned%next
   do depth = 2,halo_depth
-    ! Store location of last halo cell in the linked list 
+    ! Store location of last halo cell in the linked list
     last_halo => curr
     orig_num_in_list = num_in_list
     call apply_stencil( global_mesh, &
@@ -779,7 +781,7 @@ end function partition_constructor
 
   integer              :: i,j,k  ! loop counter
   integer              :: cell_id ! the current cell id that the stencil is being applied to
-  integer              :: num_added ! number of cells added to the linked list 
+  integer              :: num_added ! number of cells added to the linked list
   integer, allocatable :: verts(:)
   integer, allocatable :: cells(:)
 
@@ -829,8 +831,8 @@ function get_num_cells_in_layer( self ) result ( num_cells )
   integer :: num_cells
   integer :: depth   ! loop counter over halo depths
 
-  num_cells = self%num_core + self%num_owned 
-  
+  num_cells = self%num_core + self%num_owned
+
   do depth = 1,self%halo_depth
     num_cells = num_cells + self%num_halo(depth)
   end do
@@ -971,7 +973,7 @@ function get_lid_from_gid( self, gid ) result ( lid )
 
   ! No lid has been found in either the core, owned or halo cells on this partition, so return with lid=-1
   return
-  
+
 end function get_lid_from_gid
 
 !> @brief Performs a binary search through the given array looking for
@@ -1012,5 +1014,34 @@ pure function binary_search( array_to_be_searched, value_to_find ) result ( id )
   id = -1
 
 end function binary_search
+
+!==============================================================================
+! The following routine returns a partition object for unit testing.
+!==============================================================================
+function partition_constructor_unit_test_data() result (self)
+
+  implicit none
+
+  type(partition_type) :: self
+
+  ! Returns partition object from global_mesh of size 3x3 quad reference cell
+  ! (see global_mesh_mod for data) which only has one partition.
+
+  self%local_rank       = 0
+  self%total_ranks      = 1
+  self%num_core         = 9
+  self%num_owned        = 0
+  self%halo_depth       = 1
+  self%global_num_cells = 9
+
+  allocate( self%global_cell_id (self%global_num_cells) )
+  allocate( self%cell_owner     (self%global_num_cells) )
+  allocate( self%num_halo       (self%halo_depth) )
+
+  self%global_cell_id   = [1,2,3,4,5,6,7,8,9]
+  self%cell_owner       = [0,0,0,0,0,0,0,0,0]
+  self%num_halo(:)      = 0
+
+end function partition_constructor_unit_test_data
 
 end module partition_mod
