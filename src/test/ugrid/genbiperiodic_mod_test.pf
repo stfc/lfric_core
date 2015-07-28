@@ -1,0 +1,123 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown, 
+! Met Office and NERC 2014. 
+! However, it has been created with the help of the GungHo Consortium, 
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+!> @brief     Tests for src/dynamo/ugrid/genbiperiodic_mod.F90
+!>
+!> @details   [1]  Constructor can be called with program default args.
+!>            [2]  Constructor fails with invalid args.
+!>            [3]  Type generates mesh with appropriate dimensions for args.
+!>            [4]  Mesh contains correct values at fixed points for fixed args.
+!>            [5]  Mesh connectivity has correct dimensions.
+!>            [6]  Mesh connectivity has correct values at fixed points.
+!>            [7]  Mesh coords have correct values at fixed points.
+!> 
+!-------------------------------------------------------------------------------
+module genbiperiodic_mod_test
+  use genbiperiodic_mod, only: genbiperiodic_type
+  use constants_mod,     only: i_def, r_def
+  implicit none
+!-------------------------------------------------------------------------------
+contains
+!-------------------------------------------------------------------------------
+@test
+subroutine ctor_default_args_test()
+  use pFUnit_Mod
+  implicit none
+
+  type(genbiperiodic_type)               :: bpgen
+
+  ! Ctor succeeds with default values
+  bpgen = genbiperiodic_type(5, 4)
+
+  ! Ctor xFails with invalid values. This kills the pFUnit :(
+  ! bpgen = genbiperiodic_type(1, 0)
+
+
+end subroutine ctor_default_args_test
+!-------------------------------------------------------------------------------
+@test
+subroutine mesh_structure_test()
+  use pFUnit_Mod
+  implicit none
+
+  type(genbiperiodic_type)               :: bpgen
+  integer(kind=i_def)                    :: nx, ny
+  integer(kind=i_def)                    :: nodes, edges, faces
+  integer(kind=i_def)                    :: nodes_per_face, edges_per_face
+  integer(kind=i_def)                    :: nodes_per_edge, max_faces_per_node
+  integer(kind=i_def), allocatable       :: faces_on_face(:,:)
+  integer(kind=i_def), allocatable       :: nodes_on_face(:,:)
+  integer(kind=i_def), allocatable       :: edges_on_face(:,:)
+  integer(kind=i_def), allocatable       :: nodes_on_edge(:,:)
+  real(kind=r_def), allocatable          :: coords(:,:)
+
+  ! Replicate default values
+  nx = 5
+  ny = 4
+
+  bpgen = genbiperiodic_type(nx, ny)
+  ! Generate the mesh and connectivity
+  call bpgen%generate()
+  ! Retrieve calculated dimensions
+  call bpgen%get_dimensions(nodes, edges, faces, nodes_per_face, &
+                            edges_per_face, nodes_per_edge)
+
+  ! Mesh has correct dimensions for arguments
+  @assertEqual(nodes, nx*ny, "Incorrect number of vertices for mesh dimensions")
+  @assertEqual(edges, 2*nx*ny, "Incorrect number of edges for mesh dimensions")
+  @assertEqual(faces, nx*ny, "Incorrect number of faces for mesh dimensions")
+
+  ! Mesh has correct element dimensions
+  @assertEqual(edges_per_face, 4, "Number of edges per face does not correspond to quad mesh")
+  @assertEqual(nodes_per_edge, 2, "Number of vertices per edge does not correspond to quad mesh")
+
+  ! Retrieve mesh connectivity
+  allocate(faces_on_face(4, nx*ny))
+  allocate(nodes_on_face(4, nx*ny))
+  allocate(edges_on_face(4, nx*ny))
+  allocate(nodes_on_edge(2, 2*nx*ny))
+
+  call bpgen%get_connectivity(nodes_on_face, nodes_on_edge, &
+                              edges_on_face, faces_on_face)
+
+  ! Mesh has expected vertex values on certain faces  
+  @assertEqual(nodes_on_face(:,1), (/ 1,2,3,4 /), "Incorrect vertex sequence on faces.")
+  @assertEqual(nodes_on_face(:,20), (/ 9,4,17,20 /), "Incorrect vertex sequence on faces.")
+
+  ! Mesh connectivity is complete
+  @assertTrue(minval(faces_on_face, 2).ne.0, "Incomplete faces_on_face connectivity.")
+  @assertTrue(minval(nodes_on_face, 2).ne.0, "Incomplete nodes_on_face connectivity.")
+  @assertTrue(minval(edges_on_face, 2).ne.0, "Incomplete edges_on_face connectivity.")
+  @assertTrue(minval(nodes_on_edge, 2).ne.0, "Incomplete nodes_on_edge connectivity.")
+
+  ! Mesh connectivity has expected values at certain points
+  @assertEqual(faces_on_face(:,1), (/ 5,6,2,16 /), "Incorrect faces_on_face connectivity.")
+  @assertEqual(faces_on_face(:,11), (/ 15,16,12,6 /), "Incorrect faces_on_face connectivity.")
+
+  @assertEqual(edges_on_face(:,1), (/ 14,3,2,1 /), "Incorrect edges_on_face connectivity.")
+  @assertEqual(edges_on_face(:,20), (/ 39,13,40,35 /), "Incorrect edges_on_face connectivity.")
+
+  @assertEqual(nodes_on_edge(:,1), (/ 4,3 /), "Incorrect nodes_on_edge connectivity.")
+  @assertEqual(nodes_on_edge(:,40), (/ 17,4 /), "Incorrect nodes_on_edge connectivity.")
+
+  deallocate(faces_on_face)
+  deallocate(nodes_on_face)
+  deallocate(edges_on_face)
+  deallocate(nodes_on_edge)
+
+  ! Retrieve mesh coordinates
+  allocate(coords(2, nx*ny))
+  call bpgen%get_coordinates(coords)
+
+  ! Mesh coordinates have expected values at certain points
+  @assertTrue(coords(:,1) == (/ -12000.0, 4000.0 /), "Incorrect mesh coordinates.")
+  @assertTrue(coords(:,20) == (/ 12000.0, 0.0 /), "Incorrect mesh coordinates.")
+
+
+end subroutine mesh_structure_test
+!-------------------------------------------------------------------------------
+end module genbiperiodic_mod_test
+! vim: set ft=fortran :
