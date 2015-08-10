@@ -25,10 +25,13 @@
                 export_for_{{label}} => compile_with_{{label}}
                 compile_with_{{label}} => unit_test_with_{{label}}
                 unit_test_with_{{label}} => generate_{{label}}_cubedsphere
-                unit_test_with_{{label}} => run_{{label}}_dynamo
-                run_{{label}}_dynamo => check_{{label}}_dynamo
                 generate_{{label}}_cubedsphere => check_{{label}}_cubedsphere_metadata
                 generate_{{label}}_cubedsphere => check_{{label}}_cubedsphere_data
+                unit_test_with_{{label}} => generate_{{label}}_biperiodic
+                generate_{{label}}_biperiodic => check_{{label}}_biperiodic_metadata
+                generate_{{label}}_biperiodic => check_{{label}}_biperiodic_data
+                unit_test_with_{{label}} => run_{{label}}_dynamo
+                run_{{label}}_dynamo => check_{{label}}_dynamo
 {% endmacro %}
 
 [scheduling]
@@ -218,6 +221,22 @@
     [[check_{{label}}_cubedsphere_data]]
         inherit = {{family}}, {{family}}_COMPILER, REMOTE
         command scripting = "rose task-run --app-key=check_cubedsphere --command-key=check_cubedsphere_data"
+
+    [[generate_{{label}}_biperiodic]]
+        inherit = {{family}}, {{family}}_COMPILER, REMOTE
+        command scripting = """
+                            mkdir -p $DESTINATION_DIRECTORY
+                            mkdir -p data
+                            $SOURCE_DIRECTORY/bin/generate_biperiodic -nx 16 -ny 8 -dx 100 -dy 50 -o $DESTINATION_DIRECTORY/biperiodic.nc
+                            """
+
+    [[check_{{label}}_biperiodic_metadata]]
+        inherit = {{family}}, {{family}}_COMPILER, REMOTE
+        command scripting = "rose task-run --app-key=check_biperiodic --command-key=check_biperiodic_metadata"
+
+    [[check_{{label}}_biperiodic_data]]
+        inherit = {{family}}, {{family}}_COMPILER, REMOTE
+        command scripting = "rose task-run --app-key=check_biperiodic --command-key=check_biperiodic_data"
 {% endmacro %}
 {#############################################################################}
 
