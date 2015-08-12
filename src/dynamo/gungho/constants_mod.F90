@@ -134,7 +134,14 @@ module constants_mod
   
  !> @}
  !> @name Formulation switches
- logical, parameter :: L_NONLINEAR = .true.
+ logical, parameter :: L_NONLINEAR     = .true. !< Solve the full nonlinear equation set
+ logical, parameter :: L_SEMI_IMPLICIT = .true. !< Use the iterative timestepping method or runge kutta method
+ !> @}
+
+ !> @}
+ !> @name Runtime options
+ real(kind=r_def),    parameter :: DT = 1.0_r_def !< Timestep in seconds
+ integer(kind=i_def), parameter :: NT = 30        !< Number of timesteps to run for
  !> @}
 
 end module constants_mod

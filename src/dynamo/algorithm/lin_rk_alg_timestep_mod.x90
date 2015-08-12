@@ -33,7 +33,7 @@ module lin_rk_alg_timestep_mod
   use field_mod,     only: field_type 
   use function_space_mod, only: function_space_type, W0, W1, W2, W3
   use galerkin_projection_algorithm_mod, only : galerkin_projection_algorithm
-  use constants_mod, only: r_def, solver_option
+  use constants_mod, only: r_def, SOLVER_OPTION, DT, NT
   use quadrature_mod, only : quadrature_type, QR3
   use solver_mod,     only : solver_algorithm
   use driver_layer,  only : interpolated_output
@@ -47,13 +47,24 @@ module lin_rk_alg_timestep_mod
 
 contains
   !>-------------------------------------------------
-  !> @brief
-  !> @details
+  !> @brief A Runge-Kutta time-discretisation of the linear 3D equations,
+  !>        currently using 3-stage SSP.
+  !> @details An algorithm for timstepping the 3D linear
+  !>          equations with no advection using a Runge-Kutta algortihm. The
+  !>          algorithm initialialises all fields, sets up temporary fields
+  !>          and performs the timestepping and checks to see if it should
+  !>          dump output.
+  !>          The type of Runge-Kutta scheme can be simply changed by 
+  !>          modifying the (currently hardwired) Butcher tableau (ak array)
+  !>          The current set up uses the 3rd-order three stage 
+  !>          Strong-Stability-Preserving (SSP3) method
   !> @param[in]    mesh Mesh object on which the model runs
-  !> @param[inout] chi
-  !> @param[inout] u
-  !> @param[inout] rho
-  !> @param[inout] theta
+  !> @param[inout] chi The finite element form of the coordinates
+  !> @param[inout] u The 3D wind field
+  !> @param[inout] rho The density
+  !> @param[inout] theta The potential temperature
+  !> @deprecated The Usefulness of the linear model is to be re-evaluated at 
+  !>             the end of the Gung-Ho project and removed if possible
   subroutine lin_rk_alg_timestep( mesh, chi, u, rho, theta)
 
     implicit none
@@ -75,10 +86,9 @@ contains
     type( field_type ) :: projected_field(3)                                       
     
     integer :: theta_fs, u_fs, rho_fs
-    integer :: n, nt, output_freq
+    integer :: n, output_freq
     integer :: stage, num_rk_stage, st
     real(kind=r_def), allocatable :: ak(:,:)
-    real(kind=r_def) :: dt = 1.0_r_def
     type(function_space_type) :: fs
     type( quadrature_type), pointer :: qr => null()
     integer, parameter :: vector_field = 3, &
@@ -198,9 +208,8 @@ contains
 
 !================================================================================    
     ! Timestep
-    nt = 30 ! number of timesteps
-    output_freq = nt 
-    do n = 1,nt
+    output_freq = NT 
+    do n = 1,NT
       call log_event( '/****************************************************************************/ ', &
                       LOG_LEVEL_INFO )
       write( log_scratch_space, '(A,I0)' ) 'Start of timestep ', n
@@ -242,19 +251,19 @@ contains
 
 ! Invert mass matrices
         call solver_algorithm(theta_inc, r_theta, mesh, chi, &
-                              solver_option, mm=mm_w0)
+                              SOLVER_OPTION, mm=mm_w0)
         call solver_algorithm(u_inc,     r_u,     mesh, chi, &
-                              solver_option, mm=mm_w2)
+                              SOLVER_OPTION, mm=mm_w2)
         call solver_algorithm(rho_inc,   r_rho,   mesh, chi, &
-                              solver_option, qr=qr)
+                              SOLVER_OPTION, qr=qr)
 
 ! add increments
-        !PSY call invoke ( axpy(dt, theta_inc, theta_n, theta))
-        call invoke_axpy(dt, theta_inc, theta_n, theta)
-        !PSY call invoke ( axpy(dt, u_inc, u_n, u))
-        call invoke_axpy(dt, u_inc, u_n, u)
-        !PSY call invoke ( axpy(dt, rho_inc, rho_n, rho))
-        call invoke_axpy(dt, rho_inc, rho_n, rho)
+        !PSY call invoke ( axpy(DT, theta_inc, theta_n, theta))
+        call invoke_axpy(DT, theta_inc, theta_n, theta)
+        !PSY call invoke ( axpy(DT, u_inc, u_n, u))
+        call invoke_axpy(DT, u_inc, u_n, u)
+        !PSY call invoke ( axpy(DT, rho_inc, rho_n, rho))
+        call invoke_axpy(DT, rho_inc, rho_n, rho)
 
         ! diagnostics
         call theta_inc%log_minmax(LOG_LEVEL_TRACE, 'theta_inc');

@@ -1431,5 +1431,69 @@ contains
     end do
 
   end subroutine invoke_sum_field
+!-------------------------------------------------------------------------------   
+!> invoke_axpby:  z = (a * x + b * y) ; a,b-scalar, x,y-vector     
+  subroutine invoke_axpby(a,x,b,y,z)
+    use log_mod, only : log_event, LOG_LEVEL_ERROR
+    implicit none
+    type( field_type ), intent(in )    :: x, y
+    type( field_type ), intent(inout ) :: z
+    real(kind=r_def),   intent(in )    :: a, b
+    type( field_proxy_type)            :: x_proxy,y_proxy      &
+                                        , z_proxy
+    integer                            :: i,undf
+
+    x_proxy = x%get_proxy()
+    y_proxy = y%get_proxy()
+    z_proxy = z%get_proxy()
+
+    !sanity check
+    undf = x_proxy%vspace%get_undf()
+    if(undf /= y_proxy%vspace%get_undf() ) then
+      ! they are not on the same function space
+      call log_event("Psy:axpby:field1 and field2 live on different w-spaces" &
+                    , LOG_LEVEL_ERROR)
+      !abort
+      stop
+    endif
+    if(undf /= z_proxy%vspace%get_undf() ) then
+      ! they are not on the same function space
+      call log_event("Psy:axpby:field1 and result_field live on different w-spaces" &
+                    , LOG_LEVEL_ERROR)
+      !abort
+      stop
+    endif
+
+    do i = 1,undf
+      z_proxy%data(i) = (a * x_proxy%data(i)) + (b * y_proxy%data(i))
+    end do
+  end subroutine invoke_axpby
+!-------------------------------------------------------------------------------   
+!> invoke_multiply_field: compute y = a*x for scalar a and fields y and x
+  subroutine invoke_multiply_field(a, x, y)
+    use log_mod, only : log_event, LOG_LEVEL_ERROR
+    implicit none
+    type( field_type ), intent(in)    :: x
+    type( field_type ), intent(inout) :: y
+    real(kind=r_def),   intent(in)    :: a
+    type( field_proxy_type)           :: x_proxy, y_proxy
+    integer                           :: i,undf
+
+    x_proxy = x%get_proxy()
+    y_proxy = y%get_proxy()
+
+    undf = x_proxy%vspace%get_undf()
+    if(undf /= y_proxy%vspace%get_undf() ) then
+      ! they are not on the same function space
+      call log_event("Psy:multiply_field:field1 and field2 live on different w-spaces" &
+                    , LOG_LEVEL_ERROR)
+      !abort
+      stop
+    end if
+
+    do i = 1,undf
+      y_proxy%data(i) = a*x_proxy%data(i)
+    end do
+  end subroutine invoke_multiply_field
 
   end module psy

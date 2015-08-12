@@ -22,7 +22,10 @@ program dynamo
 
   use ESMF
   use constants_mod,           only : i_def, str_max_filename, &
-                                      L_NONLINEAR
+                                      L_NONLINEAR, &
+                                      L_SEMI_IMPLICIT
+  use iter_timestep_alg_mod, &
+                               only : iter_timestep_alg
   use rk_alg_timestep_mod, &
                                only : rk_alg_timestep
   use lin_rk_alg_timestep_mod, &
@@ -137,7 +140,11 @@ program dynamo
   call assign_coordinate_field(mesh, chi)
 
   if ( L_NONLINEAR ) then
-    call rk_alg_timestep( mesh, chi, u, rho, theta, xi)                       
+    if ( L_SEMI_IMPLICIT ) then
+      call iter_timestep_alg( mesh, chi, u, rho, theta, xi)
+    else
+      call rk_alg_timestep( mesh, chi, u, rho, theta, xi)                       
+    end if
   else
     call lin_rk_alg_timestep( mesh, chi, u, rho, theta)   
   end if

@@ -354,7 +354,7 @@ where
  Rewriting these equations in the vector invariant form yields
 \begin_inset Formula 
 \begin{eqnarray}
-\frac{\partial\mathbf{u}}{\partial t}+\frac{\bm{\xi}}{\rho}\times\bm{F}+\nabla\left(K+\Phi\right)+c_{pd}\theta\nabla\Pi & = & 0,\label{eq:nonlinear_mom-1}\\
+\frac{\partial\mathbf{u}}{\partial t}+\frac{\bm{\xi}}{\rho}\times\bm{F}+2\bm{\Omega}\times\mathbf{u}+\nabla\left(K+\Phi\right)+c_{pd}\theta\nabla\Pi & = & 0,\label{eq:nonlinear_mom-1}\\
 \frac{\partial\rho}{\partial t}+\nabla.\mathbf{F} & = & 0,\label{eq:nonlinear_continuity-1}\\
 \frac{\partial\theta}{\partial t}+\mathbf{u}.\nabla\theta & = & 0,\label{eq:nonlinear_thermo-1}\\
 \Pi^{\left(\frac{1-\kappa_{d}}{\kappa_{d}}\right)} & = & \frac{R_{d}}{p_{0}}\rho\theta,\label{eq:nonlinear_eos-1}
@@ -363,7 +363,7 @@ where
 \end_inset
 
 where 
-\begin_inset Formula $\bm{\xi}\equiv\nabla\times\mathbf{u}+2\bm{\Omega}$
+\begin_inset Formula $\bm{\xi}\equiv\nabla\times\mathbf{u}$
 \end_inset
 
  is the relative vorticity, 
@@ -782,7 +782,7 @@ reference "eq:linear_eos"
  gives the weak form of the nonlinear equations
 \begin_inset Formula 
 \begin{eqnarray}
-\left\langle \bm{v},\frac{\partial\mathbf{u}}{\partial t}\right\rangle  & = & -\left\langle \bm{v},\frac{\bm{\xi}}{\rho}\times\bm{F}+\tilde{\nabla}K+\nabla\Phi+c_{pd}\theta\tilde{\nabla}\Pi\right\rangle ,\label{eq:nonlinear_mom-1-1}\\
+\left\langle \bm{v},\frac{\partial\mathbf{u}}{\partial t}\right\rangle  & = & -\left\langle \bm{v},\frac{\bm{\xi}}{\rho}\times\bm{F}+2\bm{\Omega}\times\mathbf{u}+\tilde{\nabla}K+\nabla\Phi+c_{pd}\theta\tilde{\nabla}\Pi\right\rangle ,\label{eq:nonlinear_mom-1-1}\\
 \left\langle \sigma,\frac{\partial\rho}{\partial t}\right\rangle  & = & -\left\langle \sigma,\nabla.\mathbf{F}\right\rangle ,\label{eq:nonlinear_continuity-1-1}\\
 \left\langle \gamma,\frac{\partial\theta}{\partial t}\right\rangle  & = & -\left\langle \gamma,\mathbf{u}.\nabla\theta\right\rangle .\label{eq:nonlinear_thermo-1-1}
 \end{eqnarray}
@@ -793,7 +793,7 @@ Again, replacing the weak operators in the momentum equation through integrating
  by parts yields
 \begin_inset Formula 
 \begin{eqnarray}
-\left\langle \bm{v},\frac{\partial\mathbf{u}}{\partial t}\right\rangle  & = & -\left\langle \bm{v},\frac{\bm{\xi}}{\rho}\times\bm{F}+\nabla\Phi\right\rangle +\left\langle \nabla.\bm{v},K\right\rangle +c_{pd}\left\langle \nabla.\left(\theta\bm{v}\right),\Pi\right\rangle -\left\langle \bm{v},2\bm{\Omega}\times\mathbf{u}\right\rangle ,\label{eq:nonlinear_mom-1-1-1}
+\left\langle \bm{v},\frac{\partial\mathbf{u}}{\partial t}\right\rangle  & = & -\left\langle \bm{v},\frac{\bm{\xi}}{\rho}\times\bm{F}+2\bm{\Omega}\times\mathbf{u}+\nabla\Phi\right\rangle +\left\langle \nabla.\bm{v},K\right\rangle +c_{pd}\left\langle \nabla.\left(\theta\bm{v}\right),\Pi\right\rangle -\left\langle \bm{v},2\bm{\Omega}\times\mathbf{u}\right\rangle ,\label{eq:nonlinear_mom-1-1-1}
 \end{eqnarray}
 
 \end_inset
@@ -823,7 +823,7 @@ where the boundary integral terms have been neglected on the assumption
 \begin_inset Formula 
 \begin{eqnarray}
 \left\langle \bm{v},\bm{F}\right\rangle  & = & \left\langle \bm{v},\rho\bm{u}\right\rangle ,\label{eq:mass_flux_projection}\\
-\left\langle \bm{c},\mbox{\bm{\xi}}\right\rangle  & = & \left\langle \bm{c},\tilde{\nabla}\times\bm{u}+2\bm{\Omega}\right\rangle =-\left\langle \nabla\times\bm{c},\bm{u}\right\rangle +\left\langle \bm{c},2\bm{\Omega}\right\rangle ,\label{eq:voticity_projection}
+\left\langle \bm{c},\mbox{\bm{\xi}}\right\rangle  & = & \left\langle \bm{c},\tilde{\nabla}\times\bm{u}\right\rangle =-\left\langle \nabla\times\bm{c},\bm{u}\right\rangle ,\label{eq:voticity_projection}
 \end{eqnarray}
 
 \end_inset
@@ -1214,7 +1214,7 @@ reference "eq:linear_mom_vec_invariant-weak-1"
 \begin_layout Standard
 \begin_inset Formula 
 \begin{eqnarray}
-\left\langle J\hat{\bm{v}},\frac{J}{\det\left(J\right)}\frac{\partial\hat{\mathbf{u}}'}{\partial t}\right\rangle  & = & c_{pd}\left\langle \theta_{s}\left(\nabla.\hat{\bm{v}}\right)+\frac{N^{2}}{g}\bm{k}.\hat{\bm{v}},\Pi'\right\rangle +\left\langle J\bm{v},\frac{\hat{\theta}'}{\theta_{s}}\mathbf{g}\right\rangle -\left\langle \hat{\bm{v}},2\bm{\Omega}\times\hat{\mathbf{u}}\right\rangle \equiv R_{u},\label{eq:linear_mom_vec_invariant-weak-pullback}\\
+\left\langle J\hat{\bm{v}},\frac{J}{\det\left(J\right)}\frac{\partial\hat{\mathbf{u}}'}{\partial t}\right\rangle  & = & c_{pd}\left\langle \theta_{s}\left(\nabla.\hat{\bm{v}}\right)+\frac{N^{2}}{g}\bm{k}.\hat{\bm{v}},\Pi'\right\rangle +\left\langle J\bm{v},\frac{\hat{\theta}'}{\theta_{s}}\mathbf{g}\right\rangle -\left\langle \frac{J\hat{\bm{v}}}{\det\left(J\right)},2\bm{\Omega}\times\left(J\hat{\mathbf{u}}\right)\right\rangle \equiv R_{u},\label{eq:linear_mom_vec_invariant-weak-pullback}\\
 \left\langle \hat{\sigma},\frac{\partial\hat{\rho}'}{\partial t}\det\left(J\right)\right\rangle  & = & \left\langle \hat{\sigma},\frac{N^{2}}{g}\rho_{s}\mathbf{k}.J\hat{\mathbf{u}}'-\rho_{s}\nabla.\hat{\mathbf{u}}'\right\rangle \equiv R_{\rho},\label{eq:linear_continuity-weak-pullback}\\
 \left\langle \hat{\gamma},\frac{\partial\hat{\theta}'}{\partial t}\det\left(J\right)\right\rangle  & = & -\left\langle \hat{\gamma},\frac{N^{2}}{g}\theta_{s}\mathbf{k}.J\hat{\mathbf{u}}'\right\rangle \equiv R_{\theta}.\label{eq:linear_thermo-weak-pullback}
 \end{eqnarray}
@@ -1250,11 +1250,11 @@ reference "eq:voticity_projection"
 \begin_inset Formula 
 \begin{eqnarray}
 \left\langle J\hat{\bm{v}},\frac{J}{\det\left(J\right)}\frac{\partial\hat{\mathbf{u}}}{\partial t}\right\rangle  & = & -\left\langle J\hat{\bm{v}},\frac{J^{-T}\hat{\bm{\xi}}}{\hat{\rho}\det\left(J\right)}\times J\hat{\bm{F}}\right\rangle -\left\langle \hat{\bm{v}},\nabla\Phi\right\rangle +\left\langle \nabla.\hat{\bm{v}},\frac{1}{2}\left(\frac{J\hat{\bm{u}}}{\det\left(J\right)}\right).\left(\frac{J\hat{\bm{u}}}{\det\left(J\right)}\right)\right\rangle \label{eq:nonlinear_mom-pullback}\\
- &  & +c_{pd}\left\langle \hat{\theta}\nabla.\hat{\bm{v}}+\hat{\bm{v}}.\nabla\hat{\theta},\Pi\right\rangle ,\nonumber \\
+ &  & -\left\langle \frac{J\hat{\bm{v}}}{\det\left(J\right)},2\bm{\Omega}\times\left(J\hat{\mathbf{u}}\right)\right\rangle +c_{pd}\left\langle \hat{\theta}\nabla.\hat{\bm{v}}+\hat{\bm{v}}.\nabla\hat{\theta},\Pi\right\rangle ,\nonumber \\
 \left\langle \hat{\sigma},\frac{\partial\hat{\rho}'}{\partial t}\det\left(J\right)\right\rangle  & = & -\left\langle \hat{\sigma},\nabla.\hat{\mathbf{F}}\right\rangle ,\label{eq:nonlinear_continuity-pullback}\\
 \left\langle \hat{\gamma},\frac{\partial\hat{\theta}'}{\partial t}\det\left(J\right)\right\rangle  & = & -\left\langle \hat{\gamma},\hat{\mathbf{u}}.\nabla\hat{\theta}\right\rangle ,\label{eq:nonlinear_thermo-pullback}\\
 \left\langle J\hat{\bm{v}},\frac{J\hat{\mathbf{F}}}{\det\left(J\right)}\right\rangle  & = & \left\langle J\hat{\bm{v}},\hat{\rho}\frac{J\hat{\bm{u}}}{\det\left(J\right)}\right\rangle ,\label{eq:mass_flux_pullback}\\
-\left\langle J^{-T}\bm{c},J^{-T}\mbox{\bm{\xi}}\det\left(J\right)\right\rangle  & = & -\left\langle J\nabla\times\hat{\bm{c}},\frac{J\hat{\bm{u}}}{\det\left(J\right)}\right\rangle +\left\langle J^{-T}\hat{\bm{c}},2\bm{\Omega}\det\left(J\right)\right\rangle .\label{eq:vorticity_pullback}
+\left\langle J^{-T}\bm{c},J^{-T}\mbox{\bm{\xi}}\det\left(J\right)\right\rangle  & = & -\left\langle J\nabla\times\hat{\bm{c}},\frac{J\hat{\bm{u}}}{\det\left(J\right)}\right\rangle .\label{eq:vorticity_pullback}
 \end{eqnarray}
 
 \end_inset
@@ -1841,11 +1841,140 @@ Semi-Implicit Timestepping
 \end_layout
 
 \begin_layout Standard
-To be populated.
+The governing equations with some estimate 
+\begin_inset Formula $y^{(k)}$
+\end_inset
+
+ for variable 
+\begin_inset Formula $y$
+\end_inset
+
+ at time level 
+\begin_inset Formula $n+1$
+\end_inset
+
+ are:
 \end_layout
 
 \begin_layout Standard
+\begin_inset Formula 
+\begin{eqnarray}
+\left\langle \bm{v},\mathbf{u}'\right\rangle  & =R_{\mathbf{u}}^{(k)}\equiv & -\left\langle \bm{v},\mathbf{u}^{(k)}-\mathbf{u}^{n}\right\rangle -\Delta t\left\langle \bm{v},\left(\frac{\bm{\xi}}{\rho}\right)^{n}\times\widetilde{\mathbf{F}}\right\rangle \label{eq:si_mom}\\
+ &  & +\Delta t\left\{ -\overline{\left\langle \bm{v},\nabla\Phi\right\rangle }^{\alpha}+\overline{\left\langle \nabla.\bm{v},K\right\rangle }^{\alpha}+c_{pd}\overline{\left\langle \nabla.\left(\theta\bm{v}\right),\Pi\right\rangle }^{\alpha}-\overline{\left\langle \bm{v},2\bm{\Omega}\times\mathbf{u}\right\rangle }^{\alpha}\right\} ,\nonumber \\
+\left\langle \sigma,\rho'\right\rangle  & =R_{\rho}^{(k)}\equiv & -\left\langle \sigma,\rho^{(k)}-\rho^{n}\right\rangle -\Delta t\left\langle \sigma,\nabla.\widetilde{\mathbf{F}}\right\rangle ,\label{eq:si_continuity}\\
+\left\langle \gamma,\theta'\right\rangle  & =R_{\theta}^{(k)}\equiv & -\left\langle \gamma,\theta^{(k)}-\theta^{n}\right\rangle -\Delta t\left\langle \gamma,\frac{\widetilde{\mathbf{F}}}{\rho}.\nabla\theta^{n}\right\rangle ,\label{eq:si_thermo}
+\end{eqnarray}
 
+\end_inset
+
+where 
+\begin_inset Formula $y'\equiv y^{(k+1)}-y^{(k)},$
+\end_inset
+
+ are the increments to the latest estimate for timelevel 
+\begin_inset Formula $n+1$
+\end_inset
+
+ fields and 
+\begin_inset Formula $\overline{y}^{\alpha}\equiv\alpha y^{(k)}+\left(1-\alpha\right)y^{n}$
+\end_inset
+
+ is the possibly off-centred time averaging.
+ These can be rewritten as
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{eqnarray}
+M_{1}\mathbf{u}' & = & R_{\mathbf{u}}^{(k)}\equiv R_{\mathbf{u}}^{n+1}+R_{\mathbf{u}}^{n}+R_{\mathbf{u}}^{adv},\label{eq:si_momentum_operator}\\
+M_{2}\rho' & = & R_{\rho}^{(k)}\equiv R_{\rho}^{n+1}+R_{\rho}^{n}+R_{\rho}^{adv},\label{eq:si_continuity_operator}\\
+M_{\theta}\theta' & = & R_{\theta}^{(k)}\equiv R_{\theta}^{n+1}+R_{\theta}^{n}+R_{\theta}^{adv},\label{eq:si_thermodynamic_operator}
+\end{eqnarray}
+
+\end_inset
+
+where 
+\begin_inset Formula 
+\begin{eqnarray}
+R_{\mathbf{u}}^{n+1} & = & -\left\langle \bm{v},\mathbf{u}^{(k)}\right\rangle +\alpha\Delta t\left[-\left\langle \bm{v},\nabla\Phi\right\rangle +\left\langle \nabla.\bm{v},K^{(k)}\right\rangle +c_{pd}\left\langle \nabla.\left(\theta^{(k)}\bm{v}\right),\Pi^{(k)}\right\rangle -\left\langle \bm{v},2\bm{\Omega}\times\mathbf{u}^{(k)}\right\rangle \right],\label{eq:si_ru_np1}\\
+R_{\mathbf{u}}^{n} & = & \left\langle \bm{v},\mathbf{u}^{n}\right\rangle +\left(1-\alpha\right)\Delta t\left[-\left\langle \bm{v},\nabla\Phi\right\rangle +\left\langle \nabla.\bm{v},K^{n}\right\rangle +c_{pd}\left\langle \nabla.\left(\theta^{n}\bm{v}\right),\Pi^{n}\right\rangle -\left\langle \bm{v},2\bm{\Omega}\times\mathbf{u}^{n}\right\rangle \right],\label{eq:si_ru_n}\\
+R_{\mathbf{u}}^{adv} & = & -\Delta t\left\langle \bm{v},\left(\frac{\bm{\xi}}{\rho}\right)^{n}\times\widetilde{\mathbf{F}}\right\rangle ,\label{eq:si_ru_adv}\\
+R_{\rho}^{n+1} & = & -\left\langle \sigma,\rho^{(k)}\right\rangle ,\label{eq:si_rrho_np1}\\
+R_{\rho}^{n} & = & \left\langle \sigma,\rho^{n}\right\rangle ,\label{eq:si_rrho_n}\\
+R_{\rho}^{adv} & = & -\Delta t\left\langle \sigma,\nabla.\widetilde{\mathbf{F}}\right\rangle ,\label{eq:si_rrho_adv}\\
+R_{\theta}^{n+1} & = & -\left\langle \gamma,\theta^{(k)}\right\rangle ,\label{eq:si_rtheta_np1}\\
+R_{\theta}^{n} & = & \left\langle \gamma,\theta^{n}\right\rangle ,\label{eq:si_rtheta_n}\\
+R_{\theta}^{adv} & = & -\Delta t\left\langle \gamma,\frac{\widetilde{\mathbf{F}}}{\widetilde{\rho}}.\nabla\theta^{n}\right\rangle .\label{eq:si_rtheta_adv}
+\end{eqnarray}
+
+\end_inset
+
+The 
+\begin_inset Formula $R^{n}$
+\end_inset
+
+ terms are computed at the start of the timestep, 
+\begin_inset Formula $R^{adv}$
+\end_inset
+
+ terms are computed in the outer (advection) loop which computes the advective
+ mass flux 
+\begin_inset Formula $\widetilde{F}$
+\end_inset
+
+ and advective density 
+\begin_inset Formula $\widetilde{\rho}$
+\end_inset
+
+.
+ Finally 
+\begin_inset Formula $R^{n+1}$
+\end_inset
+
+ terms are computed in the inner (nonlinear) loop using the latest 
+\begin_inset Formula $k^{th}$
+\end_inset
+
+ estimate to the timelevel 
+\begin_inset Formula $n+1$
+\end_inset
+
+ fields.
+ To create the full semi-implicit equations it is only necessary to add
+ the desired terms to the lhs of 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:si_momentum_operator"
+
+\end_inset
+
+-
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:si_thermodynamic_operator"
+
+\end_inset
+
+.
+ It should be noted that at convergence of the iterative process 
+\begin_inset Formula $\left(y^{(k+1)}\equiv y^{(k)}\right)$
+\end_inset
+
+ that both the left and right hand sides of 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:si_momentum_operator"
+
+\end_inset
+
+-
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:si_thermodynamic_operator"
+
+\end_inset
+
+ are zero and the scheme corresponds to the standard Crank-Nicolson method
 \end_layout
 
 \begin_layout Section
@@ -1861,6 +1990,7 @@ name "sec:Results"
 
 \begin_layout Standard
 This section gives some indicative results obtained using Dynamo.
+ Unless otherwise noted all runs use the RKSSP3 timestepping method.
 \end_layout
 
 \begin_layout Subsection
@@ -2639,7 +2769,11 @@ Gravity wave test with (a) & (c) ENDGame, at
 \begin_inset Formula $46080$
 \end_inset
 
- cells) and (b) & (d) Dynamo, on a 
+ cells) with 
+\begin_inset Formula $\Delta t=5\,{\rm s}$
+\end_inset
+
+ and (b) & (d) Dynamo, on a 
 \begin_inset Formula $C24$
 \end_inset
 
@@ -2647,7 +2781,11 @@ Gravity wave test with (a) & (c) ENDGame, at
 \begin_inset Formula $34560$
 \end_inset
 
- cells).
+ cells) with 
+\begin_inset Formula $\Delta t=1\,{\rm s}$
+\end_inset
+
+, both with 10 vertical levels.
 \end_layout
 
 \end_inset
@@ -2687,6 +2825,185 @@ reference "fig:Spherical-Gravity-wave-test"
 \end_inset
 
 .
+ This test is then repeated, but on rotating planet and the results are
+ shown in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Spherical-Rotating-Gravity-wave-test"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename figures/EG_DCMIP301_rotation_xy.eps
+	scale 50
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename figures/GW_C24L10K0_theta_t1_rotating.eps
+	scale 50
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename figures/EG_DCMIP301_rotation_xz.eps
+	scale 50
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename figures/GW_C24L10K0_theta_t1_xz_rotating.eps
+	scale 50
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Spherical-Rotating-Gravity-wave-test"
+
+\end_inset
+
+Rotating gravity wave test with (a) & (c) ENDGame, at 
+\begin_inset Formula $3.75^{o}$
+\end_inset
+
+ resolution (
+\begin_inset Formula $46080$
+\end_inset
+
+ cells) with 
+\begin_inset Formula $\Delta t=5\,{\rm s}$
+\end_inset
+
+, and (b) & (d) Dynamo, on a 
+\begin_inset Formula $C24$
+\end_inset
+
+ grid with lowest order elements (
+\begin_inset Formula $34560$
+\end_inset
+
+ cells) with 
+\begin_inset Formula $\Delta t=1\,{\rm s}$
+\end_inset
+
+, both with 10 vertical levels.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard

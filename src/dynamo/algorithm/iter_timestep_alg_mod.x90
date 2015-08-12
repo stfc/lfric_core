@@ -1,0 +1,348 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+
+!>@brief A two time-level iterative time-discretisation of the nonlinear 3D equations
+!>@details An algorithm for timstepping the 3D nonlinear equations
+!>         using a iterative process of the same form as endgame.
+!>         initialialises all fields, sets up tempoary fields and perform the
+!>         timestepping and checks to see if it should dump output
+module iter_timestep_alg_mod
+
+  use log_mod,            only: log_event,         &
+                                log_scratch_space, &
+                                LOG_LEVEL_INFO,    &
+                                LOG_LEVEL_TRACE
+  use psy,                               only: invoke_axpy,                    &
+                                               invoke_axpby,                   &
+                                               invoke_minus_field_data,        &
+                                               invoke_axmy,                    &
+                                               invoke_multiply_field,          &
+                                               invoke_plus_field_data,         &
+                                               invoke_copy_field_data,         &
+                                               invoke_set_field_scalar,        &
+                                               invoke_flux_rhs
+
+  use initial_theta_kernel_mod,          only: initial_theta_kernel_type
+  use compute_mass_matrix_kernel_w0_mod, only: compute_mass_matrix_kernel_w0_type
+  use compute_mass_matrix_kernel_w1_mod, only: compute_mass_matrix_kernel_w1_type
+  use compute_mass_matrix_kernel_w2_mod, only: compute_mass_matrix_kernel_w2_type
+  use compute_geopotential_kernel_mod,   only: compute_geopotential_kernel_type
+  use rtheta_kernel_mod,                 only: rtheta_kernel_type
+  use ru_kernel_mod,                     only: ru_kernel_type
+  use rrho_kernel_mod,                   only: rrho_kernel_type
+  use initial_rho_kernel_mod,            only: initial_rho_kernel_type
+  use vorticity_rhs_kernel_mod,          only: vorticity_rhs_kernel_type
+  use rotation_kernel_mod,               only: rotation_kernel_type
+  use pressure_gradient_kernel_mod,      only: pressure_gradient_kernel_type
+  use kinetic_energy_gradient_kernel_mod,only: kinetic_energy_gradient_kernel_type
+  use geopotential_gradient_kernel_mod,  only: geopotential_gradient_kernel_type
+  use vorticity_advection_kernel_mod,    only: vorticity_advection_kernel_type
+  use matrix_vector_mm_mod,              only: matrix_vector_kernel_mm_type
+
+  use mesh_mod,                          only: mesh_type
+  use field_mod,                         only: field_type
+  use function_space_mod,                only: function_space_type, W0, W1, W2, W3
+  use solver_mod,                        only: solver_algorithm
+  use constants_mod,                     only: r_def, SOLVER_OPTION, DT, NT
+  use quadrature_mod,                    only: quadrature_type, QR3
+  use galerkin_projection_algorithm_mod, only: galerkin_projection_algorithm
+  use driver_layer,                      only: interpolated_output
+  use operator_mod,                      only: operator_type
+  use conservation_algorithm_mod,        only: conservation_algorithm
+
+  implicit none
+
+  private
+  public :: iter_timestep_alg
+
+contains
+  !> @brief
+  !> @details An algorithm for timstepping the 3D nonlinear equations
+  !>         using a iterative process of the same form as endgame.
+  !>         Initialialises all fields, sets up tempoary fields, performs the
+  !>         timestepping and checks to see if it should dump output.
+  !>         The algorithm splits all processes into one of three parts.
+  !>         Old time level forcings computed once per timestep.
+  !>         Advection terms computed in an outer loop using time-averaged
+  !>         fields.
+  !>         New time level forcings computed in an inner loop.
+  !>         To match ENDGame 2 outer and 2 inner loops are used per timestep
+  !>         by default. This means that there is one evaluation of old time
+  !>         level terms, 2 evaluation of advective terms and 4 evaluations 
+  !>         of new time level terms and increment updates per timestep
+  !> @param[in]    mesh Mesh object on which the model runs
+  !> @param[inout] chi  The finite element form of the coordinates
+  !> @param[inout] u  The 3D wind field
+  !> @param[inout] rho The density
+  !> @param[inout] theta The potential temperature
+  !> @param[inout] xi The vorticity field 
+  subroutine iter_timestep_alg( mesh, chi, u, rho, theta, xi)
+
+    implicit none
+
+    type (mesh_type), intent(in) :: mesh 
+
+    ! coordinate fields
+    type( field_type ), intent( inout ) :: chi(3)
+    ! prognostic fields    
+    type( field_type ), intent( inout ) :: u, rho, theta, xi
+    ! temporary fields    
+    type( field_type ) :: u_n, rho_n, theta_n,       &
+                          r_u, r_rho, r_theta,       &
+                          u_inc, rho_inc, theta_inc, &
+                          mass_flux, rhs_xi,         &
+                          geopotential, r_u_n,       &
+                          dudt, dthetadt, r_u_adv,   &
+                          rho_adv, theta_adv,        &
+                          r_theta_adv, r_rho_adv,    &
+                          u_adv
+
+    integer :: theta_fs, u_fs, rho_fs, xi_fs
+
+    type( function_space_type )      :: fs
+    type( quadrature_type ), pointer :: qr => null()
+    type( operator_type )            :: mm_w2, mm_w1, mm_w0
+
+    ! output variables
+    integer :: output_freq
+    integer, parameter :: VECTOR_FIELD = 3, &
+                          SCALAR_FIELD = 1
+    type( field_type ) :: projected_field(3)
+
+    ! Timestepping variables
+    integer            :: n
+
+    ! Iterative parameters
+    integer, parameter :: N_OUTER_ITER = 2
+    integer, parameter :: N_INNER_ITER = 2
+    integer            :: outer, inner
+    real(kind=r_def), parameter :: ALPHA = 0.5_r_def
+    real(kind=r_def), parameter :: BETA = (1.0_r_def - ALPHA)
+
+    ! Local fields
+    theta_fs  = theta%which_function_space()
+    u_fs      = u%which_function_space()
+    rho_fs    = rho%which_function_space()
+    xi_fs     = xi%which_function_space()
+
+    qr => qr%get_instance(QR3,9,3)
+
+    ! Create W0 fields needed for timestepping
+    theta_n      = field_type( vector_space = fs%get_instance(mesh, theta_fs) )
+    r_theta      = field_type( vector_space = fs%get_instance(mesh, theta_fs) )
+    r_theta_adv  = field_type( vector_space = fs%get_instance(mesh, theta_fs) )
+    dthetadt     = field_type( vector_space = fs%get_instance(mesh, theta_fs) )
+    theta_adv    = field_type( vector_space = fs%get_instance(mesh, theta_fs) )
+    theta_inc    = field_type( vector_space = fs%get_instance(mesh, theta_fs) )
+    geopotential = field_type( vector_space = fs%get_instance(mesh, theta_fs) )
+    do n = 1,3
+      projected_field(n) = field_type( vector_space = fs%get_instance(mesh, theta_fs) )
+    end do
+
+    ! Create W1 fields needed for timestepping
+    rhs_xi    = field_type( vector_space = fs%get_instance(mesh, xi_fs) )
+
+    ! Create W2 fields needed for timestepping
+    u_n       = field_type( vector_space = fs%get_instance(mesh, u_fs) )
+    u_adv     = field_type( vector_space = fs%get_instance(mesh, u_fs) )
+    r_u       = field_type( vector_space = fs%get_instance(mesh, u_fs) )
+    r_u_n     = field_type( vector_space = fs%get_instance(mesh, u_fs) )
+    r_u_adv   = field_type( vector_space = fs%get_instance(mesh, u_fs) )
+    dudt      = field_type( vector_space = fs%get_instance(mesh, u_fs) )
+    u_inc     = field_type( vector_space = fs%get_instance(mesh, u_fs) )
+    mass_flux = field_type( vector_space = fs%get_instance(mesh, u_fs) )
+
+    ! Create W3 fields needed for timestepping
+    rho_n     = field_type( vector_space = fs%get_instance(mesh, rho_fs) )
+    rho_adv   = field_type( vector_space = fs%get_instance(mesh, rho_fs) )
+    r_rho     = field_type( vector_space = fs%get_instance(mesh, rho_fs) )
+    r_rho_adv = field_type( vector_space = fs%get_instance(mesh, rho_fs) )
+    rho_inc   = field_type( vector_space = fs%get_instance(mesh, rho_fs) )
+    
+    ! Create operators needed for timestepping
+    mm_w0 = operator_type(fs%get_instance(mesh, W0),fs%get_instance(mesh, W0))
+    mm_w1 = operator_type(fs%get_instance(mesh, W1),fs%get_instance(mesh, W1))
+    mm_w2 = operator_type(fs%get_instance(mesh, W2),fs%get_instance(mesh, W2))
+
+    !Construct PSy layer given a list of kernels. This is the line the code
+    !generator may parse and do its stuff.
+
+    !==========================================================================
+    ! Initialise
+    call invoke( compute_geopotential_kernel_type( geopotential, chi ) )
+    ! Construct initial conditions
+    call log_event( "Dynamo: computing initial fields", LOG_LEVEL_INFO )
+
+    call invoke( initial_theta_kernel_type( theta, chi ) )   
+    call invoke( initial_rho_kernel_type( rho, chi, qr ) )
+    call invoke_set_field_scalar(0.0_r_def, u) 
+    call invoke_set_field_scalar(0.0_r_def, xi) 
+    call invoke_set_field_scalar(0.0_r_def, mass_flux) 
+
+    call invoke( compute_mass_matrix_kernel_w0_type(mm_w0, chi, qr), &
+                 compute_mass_matrix_kernel_w1_type(mm_w1, chi, qr), &
+                 compute_mass_matrix_kernel_w2_type(mm_w2, chi, qr) )
+    !==========================================================================
+
+
+    !==========================================================================
+    ! Intial output and output frequency 
+    output_freq = NT
+
+    call galerkin_projection_algorithm(projected_field(1), theta, mesh, chi, &
+                                       SCALAR_FIELD, qr, mm=mm_w0)
+    call interpolated_output(0, SCALAR_FIELD, projected_field(1), mesh, chi, &
+                             'theta_')
+    call invoke_set_field_scalar(0.0_r_def, projected_field(1)) 
+    call galerkin_projection_algorithm(projected_field(1), rho, mesh, chi, &
+                                       SCALAR_FIELD, qr, mm=mm_w0)
+    call interpolated_output(0, SCALAR_FIELD, projected_field(1), mesh, chi, &
+                             'rho___')
+    call galerkin_projection_algorithm(projected_field(:), u, mesh, chi, &
+                                       VECTOR_FIELD, qr, mm=mm_w0)
+    call interpolated_output(0, VECTOR_FIELD, projected_field(:), mesh, chi, &
+                             'u_____')
+    !==========================================================================
+
+    !==========================================================================
+    ! Timestep
+    
+    do n = 1,NT
+      call log_event( "/****************************************************************************\ ", &
+                      LOG_LEVEL_TRACE )
+      write( log_scratch_space, '(A,I0)' ) 'Start of timestep ', n
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+      ! Copy prognostics to old time level arrays
+      call invoke_copy_field_data( theta, theta_n )
+      call invoke_copy_field_data( u, u_n )
+      call invoke_copy_field_data( rho, rho_n )
+
+      ! Compute time-level n fields
+      call invoke_set_field_scalar( 0.0_r_def, r_u_n ) 
+      call invoke( pressure_gradient_kernel_type( r_u_n, rho_n, theta_n, qr ) )
+      call invoke( kinetic_energy_gradient_kernel_type( r_u_n, u_n, chi, qr ) )
+      call invoke( geopotential_gradient_kernel_type( r_u_n, geopotential, qr ) )
+      call invoke( rotation_kernel_type( r_u_n, u_n, chi, qr ) )
+      call invoke( ru_kernel_type( r_u_n ) )
+      call invoke_multiply_field( BETA*DT, r_u_n, r_u_n ) 
+
+      ! Outer (advection loop)
+      do outer = 1,N_OUTER_ITER
+        ! Set advecting velocity & terms
+        call invoke_axpby( ALPHA, u, BETA, u_n, u_adv ) 
+        call invoke_axpby( ALPHA, rho,   BETA, rho_n,   rho_adv )
+        call invoke_axpby( ALPHA, theta, BETA, theta_n, theta_adv ) 
+
+        ! Compute advection terms
+        ! 1) mass flux ( F = rho * u )
+        call invoke_set_field_scalar( 0.0_r_def, r_u_adv ) 
+        call invoke_flux_rhs( r_u_adv, u_adv, rho_adv, chi, qr ) 
+        call solver_algorithm( mass_flux, r_u_adv, mesh, chi, solver_option, mm=mm_w2)
+
+        ! 2) theta_advection ( F/rho . grad(theta) )
+        call invoke_set_field_scalar( 0.0_r_def, r_theta_adv )
+        call invoke( rtheta_kernel_type( r_theta_adv, theta_adv, mass_flux, rho_adv, qr) )
+
+        ! 3) Vorticity advection ( F/rho \cross curl(u))
+        call invoke_set_field_scalar( 0.0_r_def, rhs_xi )
+        call invoke( vorticity_rhs_kernel_type( rhs_xi, u_adv, chi, qr ) )
+        call solver_algorithm( xi, rhs_xi, mesh, chi, solver_option, mm=mm_w1 ) 
+        call invoke_set_field_scalar( 0.0_r_def, r_u_adv ) 
+        call invoke( vorticity_advection_kernel_type( r_u_adv, mass_flux, rho_adv, xi, chi, qr ) )
+        call invoke( ru_kernel_type( r_u_adv ) )
+        call invoke_multiply_field( DT, r_u_adv, r_u_adv )
+
+        ! Compute r_inc = rho_n - dt * M3^-1(div(F))
+        call invoke( rrho_kernel_type( r_rho_adv, mass_flux, qr ) )
+        call solver_algorithm( r_rho_adv, r_rho_adv, mesh, chi, SOLVER_OPTION, qr=qr )
+        
+        ! Inner (nonlinear, coriolis loop)
+        do inner = 1,N_INNER_ITER
+
+          ! Construct rhs terms
+
+          ! add -M0(theta - theta_n) to r_theta
+          call invoke_minus_field_data( theta, theta_n, theta_inc )
+          call invoke_set_field_scalar( 0.0_r_def, dthetadt )
+          call invoke( matrix_vector_kernel_mm_type( dthetadt, theta_inc, mm_w0) )
+          call invoke_axmy( DT, r_theta_adv, dthetadt, r_theta ) 
+
+          ! add -(rho - rho_n)  to r_rho
+          call invoke_minus_field_data( rho, rho_n, rho_inc )
+          call invoke_axmy( DT, r_rho_adv, rho_inc, r_rho )
+           
+          ! add nonlinear, Coriolis and time dependency to r_u 
+          call invoke_set_field_scalar( 0.0_r_def, r_u ) 
+          call invoke( pressure_gradient_kernel_type( r_u, rho, theta, qr ) )
+          call invoke( kinetic_energy_gradient_kernel_type( r_u, u, chi, qr ) )
+          call invoke( geopotential_gradient_kernel_type( r_u, geopotential, qr ) )
+          call invoke( rotation_kernel_type( r_u, u, chi, qr ) )
+          call invoke( ru_kernel_type( r_u ) )
+
+          ! r_u = alpha*dt*r_u + r_u_n + r_u_adv - M1*(u - u_n)
+          call invoke_multiply_field( ALPHA*DT, r_u, r_u )
+          call invoke_minus_field_data( u, u_n, u_inc )
+          call invoke_set_field_scalar( 0.0_r_def, dudt )
+          call invoke( matrix_vector_kernel_mm_type( dudt, u_inc, mm_w2) )
+          call invoke_plus_field_data( r_u_n,   r_u,  r_u )
+          call invoke_plus_field_data( r_u_adv, r_u,  r_u )
+          call invoke_minus_field_data( r_u,    dudt, r_u )
+
+          ! Solve to obtain increments
+          ! Solve for theta
+          call invoke_set_field_scalar( 0.0_r_def, theta_inc )
+          call solver_algorithm( theta_inc, r_theta, mesh, chi, SOLVER_OPTION, mm=mm_w0)
+          call invoke_plus_field_data( theta_inc, theta, theta )
+
+          ! Solve for rho
+          call invoke_plus_field_data( r_rho, rho, rho ) 
+
+          ! Solve for u
+          call invoke_set_field_scalar( 0.0_r_def, u_inc )
+          call solver_algorithm( u_inc, r_u, mesh, chi, SOLVER_OPTION, mm=mm_w2)
+          call invoke_plus_field_data( u_inc, u, u ) 
+
+          ! diagnostics
+          write( log_scratch_space, '(A,3I4)' ) &
+             'Increments from solve: ', n, outer, inner
+          call log_event( log_scratch_space, LOG_LEVEL_INFO )
+          call theta_inc%log_minmax(LOG_LEVEL_INFO, 'theta_inc ')
+          call u_inc%log_minmax(LOG_LEVEL_INFO,     'u_inc     ')
+          call rho_inc%log_minmax(LOG_LEVEL_INFO,   'rho_inc   ')
+                   
+        end do
+      end do     
+
+      if ( mod(n, output_freq) == 0 ) then
+        call galerkin_projection_algorithm(projected_field(1), theta, mesh, & 
+                                           chi, SCALAR_FIELD, qr, mm=mm_w0)
+        call interpolated_output(n, SCALAR_FIELD, projected_field(1), mesh, &
+                                 chi, 'theta_')
+        call galerkin_projection_algorithm(projected_field(1), rho, mesh, &
+                                           chi, SCALAR_FIELD, qr, mm=mm_w0)
+        call interpolated_output(n, SCALAR_FIELD, projected_field(1), mesh, &
+                                 chi, 'rho___')
+        call galerkin_projection_algorithm(projected_field(:), u, mesh, chi, &
+                                           VECTOR_FIELD, qr, mm=mm_w0)
+        call interpolated_output(n, VECTOR_FIELD, projected_field(:), mesh, &
+                                 chi, 'u_____')
+      end if
+
+      write( log_scratch_space, '(A,I0)' ) 'End of timestep ', n
+      call log_event( log_scratch_space, LOG_LEVEL_TRACE )
+      call log_event( '\****************************************************************************/ ', &
+                      LOG_LEVEL_TRACE )
+      call conservation_algorithm(n, mesh, rho, u, theta, xi, geopotential, chi)
+    end do
+    
+    call log_event( "Dynamo: finished timestep", LOG_LEVEL_INFO )
+    !==========================================================================
+
+  end subroutine iter_timestep_alg
+
+end module iter_timestep_alg_mod
