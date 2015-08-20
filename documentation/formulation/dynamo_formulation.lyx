@@ -585,6 +585,19 @@ reference "sec:Reference-Element"
  polynomials with no continuity.
 \end_layout
 
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Formula $\mathbb{W}_{\theta},$
+\end_inset
+
+ The space of scalar functions based on the vertical part of 
+\begin_inset Formula $\mathbb{W}_{2}$
+\end_inset
+
+ to obtain the desired properties of a Charney-Philips grid.
+ 
+\end_layout
+
 \begin_layout Standard
 The associated test/trial functions for each function space are 
 \begin_inset Formula $\gamma,\,\mathbf{c},\,\mathbf{v}\,,\sigma$
@@ -639,52 +652,6 @@ reference "eq:linear_eos"
  function space.
  Additionally the form of the reference state, rotation vector and geopotential
  is assumed to be know analytically and so will also be computed where needed.
-\end_layout
-
-\begin_layout Standard
-\begin_inset Box Boxed
-position "t"
-hor_pos "c"
-has_inner_box 1
-inner_pos "t"
-use_parbox 0
-use_makebox 0
-width "100col%"
-special "none"
-height "1in"
-height_special "totalheight"
-status open
-
-\begin_layout Plain Layout
-
-\shape italic
-Note: To obtain the desired properties of a Charney-Philips grid, where
- 
-\begin_inset Formula $\theta$
-\end_inset
-
- is collocated with 
-\begin_inset Formula $w$
-\end_inset
-
- it is envisioned that 
-\begin_inset Formula $\theta$
-\end_inset
-
- will actually belong to a special space 
-\begin_inset Formula $\mathbb{W}_{\theta}$
-\end_inset
-
- which corresponds to the vertical part of 
-\begin_inset Formula $\mathbb{W}_{2}$
-\end_inset
-
-.
-\end_layout
-
-\end_inset
-
-
 \end_layout
 
 \begin_layout Standard
@@ -4787,7 +4754,7 @@ status open
 
 \begin_layout Plain Layout
 \begin_inset Tabular
-<lyxtabular version="3" rows="5" columns="5">
+<lyxtabular version="3" rows="6" columns="5">
 <features rotate="0" tabularvalignment="middle">
 <column alignment="center" valignment="top">
 <column alignment="center" valignment="top">
@@ -5028,7 +4995,7 @@ volume
 </cell>
 </row>
 <row>
-<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \begin_layout Plain Layout
@@ -5040,11 +5007,61 @@ volume
 
 \end_inset
 </cell>
-<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \begin_layout Plain Layout
 \begin_inset Formula $0$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\mathbb{W}_{\theta}$
 \end_inset
 
 
@@ -5069,6 +5086,18 @@ volume
 
 \begin_layout Plain Layout
 \begin_inset Formula $0$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1^{†}$
 \end_inset
 
 
@@ -5080,7 +5109,7 @@ volume
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $1$
+\begin_inset Formula $0$
 \end_inset
 
 
@@ -5123,7 +5152,7 @@ status open
 
 \begin_layout Plain Layout
 \begin_inset Tabular
-<lyxtabular version="3" rows="5" columns="5">
+<lyxtabular version="3" rows="6" columns="5">
 <features rotate="0" tabularvalignment="middle">
 <column alignment="center" valignment="top">
 <column alignment="center" valignment="top">
@@ -5361,7 +5390,7 @@ volume
 </cell>
 </row>
 <row>
-<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \begin_layout Plain Layout
@@ -5373,11 +5402,61 @@ volume
 
 \end_inset
 </cell>
-<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \begin_layout Plain Layout
 \begin_inset Formula $0$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left(k+1\right)^{3}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\mathbb{W}_{\theta}$
 \end_inset
 
 
@@ -5402,6 +5481,18 @@ volume
 
 \begin_layout Plain Layout
 \begin_inset Formula $0$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left(k+1\right)^{2†}$
 \end_inset
 
 
@@ -5413,7 +5504,7 @@ volume
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $\left(k+1\right)^{3}$
+\begin_inset Formula $k\left(k+1\right)^{2}$
 \end_inset
 
 
@@ -5438,10 +5529,6 @@ volume
 
 \end_layout
 
-\begin_layout Plain Layout
-
-\end_layout
-
 \end_inset
 
 
@@ -5454,19 +5541,20 @@ name "tab:num_dofs"
 
 \end_inset
 
-Numbers of dofs per mesh entity for the (a) lowest order elements 
+Numbers of dofs per mesh entity for the (a) lowest order elements
 \begin_inset Formula $\left(k=0\right)$
 \end_inset
 
  and (b) general order elements.
+ †Only the top and bottom faces live in
+\begin_inset Formula $\mathbb{W}_{θ}$
+\end_inset
+
+.
 \end_layout
 
 \end_inset
 
-
-\end_layout
-
-\begin_layout Plain Layout
 
 \end_layout
 
@@ -5511,7 +5599,7 @@ reference "fig:dof_locations"
 \begin_inset Float figure
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center

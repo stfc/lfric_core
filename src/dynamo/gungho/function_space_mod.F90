@@ -166,12 +166,15 @@ integer, public, parameter      :: W0 = 100
 integer, public, parameter      :: W1 = 101
 integer, public, parameter      :: W2 = 102
 integer, public, parameter      :: W3 = 103
+integer, public, parameter      :: Wtheta = 104
 
 !> These are static copies of all the function spaces that will be required 
 type(function_space_type), target, allocatable, save :: w0_function_space
 type(function_space_type), target, allocatable, save :: w1_function_space
 type(function_space_type), target, allocatable, save :: w2_function_space
 type(function_space_type), target, allocatable, save :: w3_function_space
+type(function_space_type), target, allocatable, save :: wtheta_function_space 
+
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
@@ -183,18 +186,23 @@ contains
 !-------------------------------------------------------------------------------
 function get_instance(mesh, function_space) result(instance)
   use basis_function_mod,      only : &
-              w0_order, w1_order, w2_order, w3_order, &
-              w0_nodal_coords, w1_nodal_coords, w2_nodal_coords, w3_nodal_coords, &
+              w0_order, w1_order, w2_order, w3_order, wtheta_order, &
+              w0_nodal_coords, w1_nodal_coords, w2_nodal_coords, &
+              w3_nodal_coords, wtheta_nodal_coords, &
               w0_dof_on_vert_boundary, w1_dof_on_vert_boundary, &
               w2_dof_on_vert_boundary, w3_dof_on_vert_boundary, &
+              wtheta_dof_on_vert_boundary, &
               w0_basis_order, w0_basis_index, w0_basis_vector, w0_basis_x, &
               w1_basis_order, w1_basis_index, w1_basis_vector, w1_basis_x, &
               w2_basis_order, w2_basis_index, w2_basis_vector, w2_basis_x, &
-              w3_basis_order, w3_basis_index, w3_basis_vector, w3_basis_x
+              w3_basis_order, w3_basis_index, w3_basis_vector, w3_basis_x, &
+              wtheta_basis_order, wtheta_basis_index, wtheta_basis_vector, &
+              wtheta_basis_x
 
   use dofmap_mod,              only : &
-              w0_dofmap, w1_dofmap, w2_dofmap, w3_dofmap, &
-              w0_orientation, w1_orientation, w2_orientation, w3_orientation
+              w0_dofmap, w1_dofmap, w2_dofmap, w3_dofmap, wtheta_dofmap, &
+              w0_orientation, w1_orientation, w2_orientation, &
+              w3_orientation, wtheta_orientation
 
   use slush_mod, only : w_unique_dofs
 
@@ -275,6 +283,23 @@ function get_instance(mesh, function_space) result(instance)
          basis_vector=w3_basis_vector, basis_x=w3_basis_x )
     end if
     instance => w3_function_space
+  case (Wtheta)
+    if(.not.allocated(wtheta_function_space)) then
+      allocate(wtheta_function_space)
+      call init_function_space(self=wtheta_function_space, &
+         order = wtheta_order, &
+         mesh=mesh,&
+         num_dofs = w_unique_dofs(5,2), &
+         num_unique_dofs = w_unique_dofs(5,1) ,  &
+         dim_space = 1, dim_space_diff = 3,  &
+         dofmap=wtheta_dofmap, &
+         nodal_coords=wtheta_nodal_coords, &
+         dof_on_vert_boundary=wtheta_dof_on_vert_boundary, &
+         orientation=wtheta_orientation, fs=Wtheta, &
+         basis_order=wtheta_basis_order, basis_index=wtheta_basis_index, &
+         basis_vector=wtheta_basis_vector, basis_x=wtheta_basis_x )
+    end if
+    instance => wtheta_function_space
   case default
     !not a recognised function space - return a null pointer
     instance => null()
@@ -529,6 +554,9 @@ pure function evaluate_diff_basis(self, df, xi) result(dp)
   elseif ( self%dim_space == 3 .and. self%dim_space_diff == 1 ) then
 ! div(p)
     dp(1) = dpdx(1)*self%basis_vector(1,df) + dpdx(2)*self%basis_vector(2,df) + dpdx(3)*self%basis_vector(3,df)
+  elseif ( self%dim_space == 1 .and. self%dim_space_diff == 1 ) then
+! dp/dz
+    dp(1) = dpdx(3)
   else
     dp(:) = 0.0_r_def
   end if

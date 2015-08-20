@@ -31,7 +31,7 @@ program dynamo
   use lin_rk_alg_timestep_mod, &
                                only : lin_rk_alg_timestep
   use field_mod,               only : field_type
-  use function_space_mod,      only : function_space_type, W0, W1, W2, W3
+  use function_space_mod,      only : function_space_type, W0, W1, W2, W3, Wtheta
   use set_up_mod,              only : set_up
   use assign_coordinate_field_mod, only : assign_coordinate_field
   use field_io_mod,            only : write_state_netcdf                      &
@@ -169,3 +169,4 @@ program dynamo
   call ESMF_Finalize(rc=rc)
 
 end program dynamo
+

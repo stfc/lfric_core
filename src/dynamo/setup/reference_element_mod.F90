@@ -15,7 +15,7 @@
 
 module reference_element_mod
 
-use constants_mod, only : r_def
+ use constants_mod, only : r_def, IMDI
 
 implicit none
 
@@ -37,6 +37,15 @@ integer :: nverts_h, nfaces_h, nedges_h
 
 ! Variable specifying reference element type
 integer :: reference_element
+
+! Select entities in the function space
+type select_entity_type
+  integer, allocatable :: faces(:)
+  integer, allocatable :: edges(:)
+  integer, allocatable :: verts(:)
+end type select_entity_type
+
+type(select_entity_type) ::  select_entity_all, select_entity_theta
 
 !Entity naming convention for reference cube:
 !
@@ -229,6 +238,15 @@ subroutine reference_cube()
   allocate ( x_vert(nverts,3) )
   allocate ( normal_to_face(nfaces,3))
   allocate ( tangent_to_edge(nedges,3) )
+  ! Allocate arrays for derrived types
+  ! all entities 
+  allocate ( select_entity_all % faces(nfaces) )
+  allocate ( select_entity_all % edges(nedges) )
+  allocate ( select_entity_all % verts(nverts) )
+  ! theta - a subset of entities
+  allocate ( select_entity_theta % faces(nfaces) )
+  allocate ( select_entity_theta % edges(nedges) )
+  allocate ( select_entity_theta % verts(nverts) )
 
 ! vertex coordinates in unit reference space
   x_vert(SWB,:) = (/ 0.0_r_def, 0.0_r_def, 0.0_r_def /)
@@ -317,6 +335,16 @@ subroutine reference_cube()
   tangent_to_edge(ET,:) = J_VEC
   tangent_to_edge(NT,:) = I_VEC
   
+  ! Entity select
+  ! all entities   
+  select_entity_all % faces = (/ W, S, E, N, B, T /)
+  select_entity_all % edges = (/ WB, SB, EB, NB, SW, SE, NE, NW, WT, ST, ET, NT /)
+  select_entity_all % verts = (/ SWB, SEB, NEB, NWB, SWT, SET, NET, NWT /)
+  ! theta - a subset of entities
+  select_entity_theta % faces = (/ IMDI, IMDI, IMDI, IMDI, B, T /)
+  select_entity_theta % edges = IMDI
+  select_entity_theta % verts = IMDI
+
 end subroutine reference_cube
 
 
@@ -430,6 +458,14 @@ subroutine deallocate_reference()
   if(allocated( x_vert ))deallocate ( x_vert )
   if(allocated( normal_to_face ))deallocate ( normal_to_face )
   if(allocated( tangent_to_edge ))deallocate ( tangent_to_edge )
+
+  if(allocated( select_entity_all % faces ))deallocate ( select_entity_all % faces )
+  if(allocated( select_entity_all % edges ))deallocate ( select_entity_all % edges )
+  if(allocated( select_entity_all % verts ))deallocate ( select_entity_all % verts )
+  if(allocated( select_entity_theta % faces ))deallocate ( select_entity_theta % faces )
+  if(allocated( select_entity_theta % edges ))deallocate ( select_entity_theta % edges )
+  if(allocated( select_entity_theta % verts ))deallocate ( select_entity_theta % verts )
+
 end subroutine deallocate_reference
 
 end module reference_element_mod

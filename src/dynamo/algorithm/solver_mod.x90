@@ -23,7 +23,7 @@ module solver_mod
                                       LOG_LEVEL_DEBUG,   &
                                       LOG_LEVEL_TRACE
   use field_mod,               only : field_type
-  use function_space_mod,      only : function_space_type, W0, W1, W2, W3
+  use function_space_mod,      only : function_space_type, W0, W1, W2, W3, Wtheta
   use psy,             only : invoke_inner_prod,              &
                               invoke_axpy,                    &
                               invoke_minus_field_data,        &

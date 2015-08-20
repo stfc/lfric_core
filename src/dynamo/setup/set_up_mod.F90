@@ -24,7 +24,7 @@ module set_up_mod
               w0_nodal_coords, w1_nodal_coords, w2_nodal_coords, w3_nodal_coords
 
   use dofmap_mod,                 only : get_dofmap, get_orientation, &
-              w0_dofmap, w1_dofmap, w2_dofmap, w3_dofmap
+              w0_dofmap, w1_dofmap, w2_dofmap, w3_dofmap, wtheta_dofmap
   implicit none
   
 contains 

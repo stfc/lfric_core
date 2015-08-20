@@ -25,11 +25,11 @@ module slush_mod
   !> Flag for whether a plane is with constant f (omega)
   logical :: l_fplane
 
-  !> Number of unique dofs in a particular function space (4,:),
+  !> Number of unique dofs in a particular function space (5,:),
   !> either globally (:,1) or per cell (:,2)
-  integer :: w_unique_dofs(4,2)
-  !> Number of dofs in a particular function space (4,:) per entity (:,0:3)
-  integer :: w_dof_entity(4,0:3)
+  integer :: w_unique_dofs(5,4)
+  !> Number of dofs in a particular function space (5,:) per entity (:,0:5)
+  integer :: w_dof_entity(5,0:5)
 
 
   real(kind=r_def)  :: f_lat            ! Latitude for f-plane tests

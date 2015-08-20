@@ -23,7 +23,7 @@
 
 module argument_mod
 
-  use function_space_mod, only : W0, W1, W2, W3
+  use function_space_mod, only : W0, W1, W2, W3, Wtheta
   implicit none
 
 ! argument types

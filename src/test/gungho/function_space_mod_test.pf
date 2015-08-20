@@ -14,16 +14,18 @@ contains
   @test
   subroutine test_func_space()
     use pFUnit_Mod
-    use function_space_mod, only : function_space_type, W0, W1, W2, W3
+    use function_space_mod, only : function_space_type, W0, W1, W2, W3, Wtheta
     use constants_mod, only : r_def, PLANE_BI_PERIODIC
     use quadrature_mod, only : quadrature_type, QR3 
     use function_space_build_mod, only : w0_func_space, w1_func_space,      &
                                          w2_func_space, w3_func_space,      &
+					 wtheta_func_space,		    &
                                          fs_build, fs_destroy,get_test_map, &
                                          basis_func_w0, diff_basis_func_w0, &
                                          basis_func_w1, diff_basis_func_w1, &
                                          basis_func_w2, diff_basis_func_w2, &
-                                         basis_func_w3, diff_basis_func_w3
+                                         basis_func_w3, diff_basis_func_w3, &
+					 basis_func_wtheta, diff_basis_func_wtheta
     use mesh_mod,                   only : mesh_type
     
     implicit none
@@ -44,12 +46,13 @@ contains
     integer                            :: cell
 
     integer :: ndf
-    integer :: W0_l, W1_l, W2_l, W3_l
+    integer :: W0_l, W1_l, W2_l, W3_l, Wtheta_l
 
     W0_l = W0 - W0 + 1
     W1_l = W1 - W0 + 1
     W2_l = W2 - W0 + 1
     W3_l = W3 - W0 + 1
+    Wtheta_l = Wtheta - W0 + 1
 
     scalar=1
     vector=3
@@ -211,6 +214,42 @@ contains
     allocate(test_basis(w3_func_space%get_dim_space_diff(), ndf, nqp_h, nqp_v) )
     call diff_basis_func_w3(test_basis)
     call w3_func_space%compute_diff_basis_function(                   &
+         basis, ndf, nqp_h, nqp_v, xp, zp )
+    @assertEqual(test_basis, basis, epsilon)
+    deallocate(basis, test_basis)
+
+    ! ---------------------------------------------
+    ! test wtheta
+    test_fs = wtheta_func_space%which()
+    @assertEqual( test_fs, Wtheta )
+    call get_test_map(testmap,Wtheta)
+    do cell = 1, wtheta_func_space%get_ncell()
+       map => wtheta_func_space%get_cell_dofmap( cell )
+       @assertEqual( map, testmap(:,cell) )
+    end do
+
+    ndf = wtheta_func_space%get_ndf()
+    ! Wtheta at lowest order on quads ...
+    @assertEqual(ndf,2)
+    ! 36 for wtheta
+    @assertEqual( wtheta_func_space%get_undf(), 36 )
+    @assertEqual( wtheta_func_space%get_ncell(), nqp_h)
+    @assertEqual( wtheta_func_space%get_nlayers(), nqp_v )
+    @assertEqual( wtheta_func_space%get_dim_space(), scalar )
+    @assertEqual( wtheta_func_space%get_dim_space_diff(), vector )
+
+    allocate(basis(     wtheta_func_space%get_dim_space(), ndf, nqp_h, nqp_v) )
+    allocate(test_basis(wtheta_func_space%get_dim_space(), ndf, nqp_h, nqp_v) )
+    call basis_func_wtheta(test_basis)
+    call wtheta_func_space%compute_basis_function(                       &
+         basis, ndf, nqp_h, nqp_v, xp, zp )
+    @assertEqual(test_basis, basis, epsilon)
+    deallocate(basis, test_basis)
+
+    allocate(basis(     wtheta_func_space%get_dim_space_diff(), ndf, nqp_h, nqp_v) )
+    allocate(test_basis(wtheta_func_space%get_dim_space_diff(), ndf, nqp_h, nqp_v) )
+    call diff_basis_func_wtheta(test_basis)
+    call wtheta_func_space%compute_diff_basis_function(                   &
          basis, ndf, nqp_h, nqp_v, xp, zp )
     @assertEqual(test_basis, basis, epsilon)
     deallocate(basis, test_basis)
