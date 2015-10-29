@@ -31,7 +31,6 @@ contains
                                   basis_func_w2v, diff_basis_func_w2v,       &
                                   basis_func_w2h, diff_basis_func_w2h
 
-    use ESMF
     use mesh_mod,                 only : mesh_type, PLANE_BI_PERIODIC
     
     implicit none
@@ -42,11 +41,6 @@ contains
     integer          :: test_fs
     integer          :: scalar, vector
     integer          :: nqp_h, nqp_v
-
-    type(ESMF_DistGrid) :: distgrid
-    integer :: rc
-    integer :: last_dof_halo
-    integer, allocatable :: global_dof_id(:)
 
     real(kind=r_def), pointer :: xp(:,:) => null()
     real(kind=r_def), pointer :: zp(:) => null()
@@ -83,15 +77,6 @@ contains
     test_fs = w0_func_space%which()
     @assertEqual( test_fs, W0 )
 
-    ! Test the ESMF distgrid held within the function space
-    distgrid=w0_func_space%get_distgrid()
-    call ESMF_DistGridValidate(distgrid, rc=rc)
-    @assertEqual( ESMF_SUCCESS, rc )
-
-    ! Would like to test the ESMF routehandle held within the function space
-    ! and returned by get_haloHandle(), but it is an ESMF internal structure and 
-    ! ESMF does not seem to contain a function for validating routehandles    
-
     ndf = w0_func_space%get_ndf()
     ! W0 at lowest order on quads ...
     @assertEqual(ndf,8) 
@@ -107,14 +92,6 @@ contains
        map => w0_func_space%get_cell_dofmap( cell )
        @assertEqual( map, testmap(:,cell) )
     end do
-
-    last_dof_halo=w0_func_space%get_last_dof_halo()
-    @assertEqual( 36, last_dof_halo )
-
-    allocate(global_dof_id(last_dof_halo))
-    call w0_func_space%get_global_dof_id(global_dof_id)
-    @assertEqual( 4, global_dof_id(4))
-    deallocate(global_dof_id)
 
     allocate(basis(     w0_func_space%get_dim_space(), ndf, nqp_h, nqp_v) )
     allocate(test_basis(w0_func_space%get_dim_space(), ndf, nqp_h, nqp_v) )
@@ -136,11 +113,6 @@ contains
     test_fs = w1_func_space%which()
     @assertEqual( test_fs, W1 )
 
-    ! Test the ESMF distgrid held within the function space
-    distgrid=w1_func_space%get_distgrid()
-    call ESMF_DistGridValidate(distgrid, rc=rc)
-    @assertEqual( ESMF_SUCCESS, rc )
-
     call get_test_map(testmap,W1)
     do cell = 1, w1_func_space%get_ncell()
        map => w1_func_space%get_cell_dofmap( cell )
@@ -156,14 +128,6 @@ contains
     @assertEqual( w1_func_space%get_nlayers(),3 )
     @assertEqual( w1_func_space%get_dim_space(), vector )
     @assertEqual( w1_func_space%get_dim_space_diff(), vector )
-
-    last_dof_halo=w1_func_space%get_last_dof_halo()
-    @assertEqual( 99, last_dof_halo )
-
-    allocate(global_dof_id(last_dof_halo))
-    call w1_func_space%get_global_dof_id(global_dof_id)
-    @assertEqual( 4, global_dof_id(4))
-    deallocate(global_dof_id)
 
     allocate(basis(     w1_func_space%get_dim_space(), ndf, nqp_h, nqp_v) )
     allocate(test_basis(w1_func_space%get_dim_space(), ndf, nqp_h, nqp_v) )
@@ -186,11 +150,6 @@ contains
     test_fs = w2_func_space%which()
     @assertEqual( test_fs, W2 )
 
-    ! Test the ESMF distgrid held within the function space
-    distgrid=w2_func_space%get_distgrid()
-    call ESMF_DistGridValidate(distgrid, rc=rc)
-    @assertEqual( ESMF_SUCCESS, rc )
-
     call get_test_map(testmap,W2)
     do cell = 1, w2_func_space%get_ncell()
        map => w2_func_space%get_cell_dofmap( cell )
@@ -206,14 +165,6 @@ contains
     @assertEqual( w2_func_space%get_nlayers(), nqp_v )
     @assertEqual( w2_func_space%get_dim_space(), vector )  
     @assertEqual( w2_func_space%get_dim_space_diff(), scalar ) 
-
-    last_dof_halo=w2_func_space%get_last_dof_halo()
-    @assertEqual( 90, last_dof_halo )
-
-    allocate(global_dof_id(last_dof_halo))
-    call w2_func_space%get_global_dof_id(global_dof_id)
-    @assertEqual( 4, global_dof_id(4))
-    deallocate(global_dof_id)
 
     allocate(basis(     w2_func_space%get_dim_space(), ndf, nqp_h, nqp_v) )
     allocate(test_basis(w2_func_space%get_dim_space(), ndf, nqp_h, nqp_v) )
@@ -236,11 +187,6 @@ contains
     test_fs = w3_func_space%which()
     @assertEqual( test_fs, W3 )
 
-    ! Test the ESMF distgrid held within the function space
-    distgrid=w3_func_space%get_distgrid()
-    call ESMF_DistGridValidate(distgrid, rc=rc)
-    @assertEqual( ESMF_SUCCESS, rc )
-
     call get_test_map(testmap,W3)
      do cell = 1, w3_func_space%get_ncell()
        map => w3_func_space%get_cell_dofmap( cell )
@@ -256,14 +202,6 @@ contains
     @assertEqual( w3_func_space%get_nlayers(), nqp_v )
     @assertEqual( w3_func_space%get_dim_space(), scalar )  
     @assertEqual( w3_func_space%get_dim_space_diff(), scalar ) 
-
-    last_dof_halo=w3_func_space%get_last_dof_halo()
-    @assertEqual( 27, last_dof_halo )
-
-    allocate(global_dof_id(last_dof_halo))
-    call w3_func_space%get_global_dof_id(global_dof_id)
-    @assertEqual( 4, global_dof_id(4))
-    deallocate(global_dof_id)
 
     allocate(basis(     w3_func_space%get_dim_space(), ndf, nqp_h, nqp_v) )
     allocate(test_basis(w3_func_space%get_dim_space(), ndf, nqp_h, nqp_v) )
@@ -285,12 +223,6 @@ contains
     ! Test wtheta
     test_fs = wtheta_func_space%which()
     @assertEqual( test_fs, Wtheta )
-
-    ! Test the ESMF distgrid held within the function space
-    distgrid=wtheta_func_space%get_distgrid()
-    call ESMF_DistGridValidate(distgrid, rc=rc)
-    @assertEqual( ESMF_SUCCESS, rc )
-
     call get_test_map(testmap,Wtheta)
     do cell = 1, wtheta_func_space%get_ncell()
        map => wtheta_func_space%get_cell_dofmap( cell )
@@ -306,14 +238,6 @@ contains
     @assertEqual( wtheta_func_space%get_nlayers(), nqp_v )
     @assertEqual( wtheta_func_space%get_dim_space(), scalar )
     @assertEqual( wtheta_func_space%get_dim_space_diff(), vector )
-
-    last_dof_halo=wtheta_func_space%get_last_dof_halo()
-    @assertEqual( 36, last_dof_halo )
-
-    allocate(global_dof_id(last_dof_halo))
-    call wtheta_func_space%get_global_dof_id(global_dof_id)
-    @assertEqual( 4, global_dof_id(4))
-    deallocate(global_dof_id)
 
     allocate(basis(     wtheta_func_space%get_dim_space(), ndf, nqp_h, nqp_v) )
     allocate(test_basis(wtheta_func_space%get_dim_space(), ndf, nqp_h, nqp_v) )
@@ -336,11 +260,6 @@ contains
     test_fs = w2v_func_space%which()
     @assertEqual( test_fs, W2V )
 
-    ! Test the ESMF distgrid held within the function space
-    distgrid=w2v_func_space%get_distgrid()
-    call ESMF_DistGridValidate(distgrid, rc=rc)
-    @assertEqual( ESMF_SUCCESS, rc )
-
     call get_test_map(testmap,W2V)
     do cell = 1, w2v_func_space%get_ncell()
        map => w2v_func_space%get_cell_dofmap( cell )
@@ -356,14 +275,6 @@ contains
     @assertEqual( w2v_func_space%get_nlayers(), nqp_v )
     @assertEqual( w2v_func_space%get_dim_space(), vector )
     @assertEqual( w2v_func_space%get_dim_space_diff(), scalar )
-
-    last_dof_halo=w2v_func_space%get_last_dof_halo()
-    @assertEqual( 36, last_dof_halo )
-
-    allocate(global_dof_id(last_dof_halo))
-    call w2v_func_space%get_global_dof_id(global_dof_id)
-    @assertEqual( 4, global_dof_id(4))
-    deallocate(global_dof_id)
 
     allocate(basis(     w2v_func_space%get_dim_space(), ndf, nqp_h, nqp_v) )
     allocate(test_basis(w2v_func_space%get_dim_space(), ndf, nqp_h, nqp_v) )
@@ -386,11 +297,6 @@ contains
     test_fs = w2h_func_space%which()
     @assertEqual( test_fs, W2H )
 
-    ! Test the ESMF distgrid held within the function space
-    distgrid=w2h_func_space%get_distgrid()
-    call ESMF_DistGridValidate(distgrid, rc=rc)
-    @assertEqual( ESMF_SUCCESS, rc )
-
     call get_test_map(testmap,W2H)
     do cell = 1, w2h_func_space%get_ncell()
        map => w2h_func_space%get_cell_dofmap( cell )
@@ -406,14 +312,6 @@ contains
     @assertEqual( w2h_func_space%get_nlayers(), nqp_v )
     @assertEqual( w2h_func_space%get_dim_space(), vector )
     @assertEqual( w2h_func_space%get_dim_space_diff(), scalar )
-
-    last_dof_halo=w2h_func_space%get_last_dof_halo()
-    @assertEqual( 54, last_dof_halo )
-
-    allocate(global_dof_id(last_dof_halo))
-    call w2h_func_space%get_global_dof_id(global_dof_id)
-    @assertEqual( 4, global_dof_id(4))
-    deallocate(global_dof_id)
 
     allocate(basis(     w2h_func_space%get_dim_space(), ndf, nqp_h, nqp_v) )
     allocate(test_basis(w2h_func_space%get_dim_space(), ndf, nqp_h, nqp_v) )

@@ -21,8 +21,6 @@ use mesh_mod,           only: mesh_type
 use master_dofmap_mod,  only: master_dofmap_type
 use stencil_dofmap_mod, only: stencil_dofmap_type, &
                               STENCIL_POINT
-use ESMF
-
 implicit none
 
 private
@@ -77,11 +75,6 @@ type, public :: function_space_type
   !> A one dimensional, allocatable array which holds the index in the dofmap
   !! of the last of the halo dofs (from the various depths of halo)
   integer(kind=i_def), allocatable :: last_dof_halo(:)
-  !> A list of the routing tables needed to perform halo swaps to various depths
-  !! of halo
-  type(ESMF_RouteHandle), allocatable :: haloHandle(:)
-  !> An ESMF distributed grid description
-  type(ESMF_DistGrid) :: distgrid
 
 contains
   !final :: destructor
@@ -203,24 +196,6 @@ contains
   !> @brief Access the mesh object used to create this function space
   !> @return mesh Mesh object
   procedure get_mesh
-
-  !> @brief Gets a routing table for halo swapping
-  !> @param[in] depth The depth of halo swap to perform  
-  !> @return haloHandle The routing table for swapping halos to the depth required
-  procedure get_haloHandle
-
-  !> @brief Gets the ESMF distributed grid description for the function space
-  !> @return distgrid The ESMF distributed grid description
-  procedure get_distgrid
-
-  !> Gets the array that holds the global indices of all dofs
-  procedure get_global_dof_id
-
-  !> Gets the index within the dofmap of the last "owned" dof
-  procedure get_last_dof_owned
-
-  !> Gets the index in the dofmap of the last dof in the deepest depth of halo
-  procedure get_last_dof_halo
 
 end type function_space_type
 !-------------------------------------------------------------------------------
@@ -486,9 +461,6 @@ subroutine init_function_space(self, &
                                last_dof_owned, &
                                last_dof_annexed, &
                                last_dof_halo) 
-
-  use log_mod,         only : log_event, &
-                              LOG_LEVEL_ERROR
   implicit none
 
   class(function_space_type)  :: self
@@ -511,9 +483,6 @@ subroutine init_function_space(self, &
   integer (i_def),  intent(in)                  :: last_dof_annexed
   integer (i_def),  intent(inout), allocatable  :: last_dof_halo(:)
 
-  integer :: rc
-  type(ESMF_Array) :: temporary_esmf_array
-  integer :: idepth
 
   self%mesh            =  mesh
   self%order           =  order
@@ -540,46 +509,6 @@ subroutine init_function_space(self, &
   self%last_dof_owned   = last_dof_owned
   self%last_dof_annexed = last_dof_annexed
   call move_alloc(last_dof_halo,self%last_dof_halo)
-
-  !Set up routing tables for halo exchanges
-  rc = ESMF_SUCCESS
-  ! Create an ESMF DistGrid, which describes which partition owns which cells
-  self%distgrid = ESMF_DistGridCreate( arbSeqIndexList= &
-                                  self%global_dof_id(1:self%last_dof_owned), &
-                                       rc=rc )
-
-  allocate(self%haloHandle(size(self%last_dof_halo)))
-
-  do idepth = 1, size(self%last_dof_halo)
-
-    ! Can only halo-swap an ESMF array so set up a temporary one that's big
-    ! enough to hold all the owned cells and all the halos
-    if (rc == ESMF_SUCCESS) &
-      temporary_esmf_array = &
-        ESMF_ArrayCreate( distgrid=self%distgrid, &
-                          typekind=ESMF_TYPEKIND_R8, &
-                          haloSeqIndexList= &
-                                   self%global_dof_id( self%last_dof_owned+1 &
-                                                :self%last_dof_halo(idepth) ), &
-                          rc=rc )
-
-    ! Calculate the routing table required to perform the halo-swap, so the
-    ! code knows where to find the values it needs to fill in the halos
-    if (rc == ESMF_SUCCESS) &
-      call ESMF_ArrayHaloStore( array=temporary_esmf_array, &
-                                routehandle=self%haloHandle(idepth), &
-                                rc=rc )
-    ! Clean up the temporary array used to generate the routing table 
-    if (rc == ESMF_SUCCESS) &
-      call ESMF_ArrayDestroy(array=temporary_esmf_array, &
-                             rc=rc)
-
-  end do
-
-  if (rc /= ESMF_SUCCESS) call log_event( &
-    'ESMF failed to generate the halo routing table', &
-    LOG_LEVEL_ERROR )
-
   return
 end subroutine init_function_space
 
@@ -916,90 +845,5 @@ function get_mesh(self) result (mesh)
 
   return
 end function get_mesh
-
-
-!-----------------------------------------------------------------------------
-! Gets a routing table for halo swapping
-!-----------------------------------------------------------------------------
-function get_haloHandle(self, depth) result (haloHandle)
-
-  implicit none
-  class(function_space_type) :: self
-  integer , intent(in) :: depth
-
-  type(ESMF_RouteHandle) :: haloHandle
-
-  haloHandle = self%haloHandle(depth)
-
-  return
-end function get_haloHandle
-
-
-
-!-----------------------------------------------------------------------------
-! Gets the ESMF distributed grid description for the function space
-!-----------------------------------------------------------------------------
-function get_distgrid(self) result (distgrid)
-
-  implicit none
-  class(function_space_type) :: self
-
-  type(ESMF_DistGrid) :: distgrid
-
-  distgrid = self%distgrid
-
-  return
-end function get_distgrid
-
-
-
-!-----------------------------------------------------------------------------
-! Gets the array that holds the global indices of all dofs
-!-----------------------------------------------------------------------------
-subroutine get_global_dof_id(self, global_dof_id)
-
-  implicit none
-  class(function_space_type) :: self
-
-  integer(kind=i_def) :: global_dof_id(:)
-
-    global_dof_id(:) = self%global_dof_id(:)
-
-  return
-end subroutine get_global_dof_id
-
-
-
-!-----------------------------------------------------------------------------
-! Gets the index within the dofmap of the last "owned" dof
-!-----------------------------------------------------------------------------
-function get_last_dof_owned(self) result (last_dof_owned)
-
-  implicit none
-  class(function_space_type) :: self
-
-  integer(kind=i_def) :: last_dof_owned
-
-    last_dof_owned = self%last_dof_owned
-
-  return
-end function get_last_dof_owned
-
-
-
-!-----------------------------------------------------------------------------
-! Gets the index within the dofmap of the last dof in the deepest halo
-!-----------------------------------------------------------------------------
-function get_last_dof_halo(self) result (last_dof_halo)
-
-  implicit none
-  class(function_space_type) :: self
-
-  integer(kind=i_def) :: last_dof_halo
-
-    last_dof_halo = self%last_dof_halo(size(self%last_dof_halo))
-
-  return
-end function get_last_dof_halo
 
 end module function_space_mod

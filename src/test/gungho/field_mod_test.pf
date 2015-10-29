@@ -16,7 +16,6 @@ contains
 
   @test
   subroutine test_field()
-    use constants_mod,            only: r_def
     use field_mod,                only: field_type, field_proxy_type
     use function_space_mod,       only: function_space_type, W0, W1, W2, W3
     use function_space_build_mod, only: fs_build, fs_destroy
@@ -27,15 +26,12 @@ contains
     implicit none
 
     type(field_type)          :: f1
-    type(field_type)          :: f2
     type(field_proxy_type)    :: f1_p
-    type(field_proxy_type)    :: f2_p
     type(function_space_type) :: fs
     type(mesh_type)           :: mesh
     type(mesh_type)           :: mesh_out
 
-    integer :: i, iface, iedge, lid, test_integer
-    real(r_def) :: sum, min, max
+    integer :: iface, iedge, lid, test_integer
 
     ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
     mesh = mesh_type(PLANE_BI_PERIODIC)
@@ -52,35 +48,7 @@ contains
     @assertEqual( size( f1_p%data ) , f1_p%vspace%get_undf() )
     ! Check the the function space the field lives on is the one it was created with
     @assertEqual( f1%which_function_space(), W2 )
-
-    !Initialise field data
-    do i=1,f1_p%vspace%get_undf()
-      f1_p%data(i)=real(i)
-    end do
-
-    ! Make a second field, identical to the first
-    f2 = field_type( vector_space = fs%get_instance( mesh, W2 ) )
-    f2_p = f2%get_proxy()
-    do i=1,f2_p%vspace%get_undf()
-      f2_p%data(i)=real(i)
-    end do
-
-    ! Perform a halo swap on the second field
-    call f2%halo_exchange(1)
-
-    ! For serial case, the halo swapped field should be the same as the original
-    @assertEqual( f1_p%data  , f2_p%data, 1.0e-2_r_def )
-
-    ! Test the global reductions
-    sum=f1%sum()
-    @assertEqual( 4095.0  , sum, 1.0e-2_r_def )
-
-    min=f1%min()
-    @assertEqual( 1.0  , min, 1.0e-2_r_def )
-
-    max=f1%max()
-    @assertEqual( 90.0  , max, 1.0e-2_r_def)
-
+    
     ! Operations on field data are part of the PSy and Kernel layers so
     ! that is all.
 

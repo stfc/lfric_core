@@ -18,8 +18,6 @@ module field_mod
   use function_space_mod, only: function_space_type
   use mesh_mod,           only: mesh_type
 
-  use ESMF
-
   implicit none
 
   private
@@ -39,30 +37,14 @@ module field_mod
 
     !> Each field has a pointer to the function space on which it lives
     type( function_space_type ), pointer         :: vspace => null( )
-    !> Pointer array of type real which holds the values of the field
-    real(kind=r_def), pointer             :: data( : ) => null()
-    !> The data for each field is held within an ESMF array component
-    type(ESMF_Array) :: esmf_array
-
+    !> Allocatable array of type real which holds the values of the field
+    real(kind=r_def), allocatable         :: data( : )
 
   contains
 
     !> Function to get a proxy with public pointers to the data in a
     !! field_type.
     procedure, public :: get_proxy
-
-    !> Performs a halo exchange on the field
-    !! @param[in] depth The depth to which the halos should be exchanged
-    procedure, public :: halo_exchange
-
-    !> Perform a global sum operation on the field
-    procedure, public :: sum
-
-    !> Calculate the global minimum of the field
-    procedure, public :: min
-
-    !> Calculate the global maximum of the field
-    procedure, public :: max
 
     !> Sends the field contents to the log
     !! @param[in] title A title added to the log before the data is written out
@@ -127,55 +109,6 @@ contains
 
   end function get_proxy
 
-  !> Construct a <code>field_type</code> object.
-  !>
-  !> @param [in] vector_space the function space that the field lives on
-  !> @return self the field
-  !>
-  function field_constructor( vector_space ) result(self)
-
-    use log_mod,         only : log_event, &
-                                LOG_LEVEL_ERROR
-    implicit none
-
-    type(function_space_type), target, intent(in) :: vector_space
-
-    type(field_type), target :: self
-
-    integer, allocatable :: global_dof_id(:)
-    integer :: rc
-
-    self%vspace => vector_space
-
-    allocate(global_dof_id(self%vspace%get_last_dof_halo()))
-    call self%vspace%get_global_dof_id(global_dof_id)
-
-    ! Create an ESMF array - this allows us to perform halo exchanges
-    ! This call allocates the memory for the field data - we can extract a
-    ! pointer to that allocated memory next
-    self%esmf_array = &
-      ESMF_ArrayCreate( distgrid=self%vspace%get_distgrid(), &
-                        typekind=ESMF_TYPEKIND_R8, &
-                        haloSeqIndexList= &
-                             global_dof_id( self%vspace%get_last_dof_owned()+1 &
-                                           :self%vspace%get_last_dof_halo() ), &
-                        rc=rc )
-
-    ! Extract and store the pointer to the fortran array
-    if (rc == ESMF_SUCCESS) &
-      call ESMF_ArrayGet(array=self%esmf_array, farrayPtr=self%data, rc=rc)
-
-    if (rc /= ESMF_SUCCESS) call log_event( &
-       'ESMF failed to allocate space for field data.', &
-       LOG_LEVEL_ERROR )
-
-    deallocate(global_dof_id)
-
-  end function field_constructor
-
-  !---------------------------------------------------------------------------
-  ! Contained functions/subroutines
-  !---------------------------------------------------------------------------
 
   !> Function to get mesh information from the field.
   !>
@@ -192,89 +125,27 @@ contains
     return
   end function get_mesh
 
-  !! Perform halo exchanges on the field
-  !!
-  subroutine halo_exchange( self, depth )
+  !> Construct a <code>field_type</code> object.
+  !>
+  !> @param [in] vector_space the function space that the field lives on
+  !> @return self the field
+  !>
+  function field_constructor( vector_space ) result(self)
 
-    use log_mod,         only : log_event, &
-                                LOG_LEVEL_ERROR
-    implicit none
+    type(function_space_type), target, intent(in) :: vector_space
 
-    class( field_type ), target, intent(inout) :: self
-    integer, intent(in) :: depth
-    type(ESMF_RouteHandle) :: haloHandle
-    integer :: rc
+    type(field_type), target :: self
 
-    haloHandle=self%vspace%get_haloHandle(depth)
-    call ESMF_ArrayHalo( self%esmf_array, &
-                         routehandle=haloHandle, &
-                         rc=rc )
+    self%vspace => vector_space
 
-    if (rc /= ESMF_SUCCESS) call log_event( &
-       'ESMF failed to perform the halo exchange.', &
-       LOG_LEVEL_ERROR )
+    ! allocate the array in memory
+    allocate(self%data(self%vspace%get_undf()))
 
-  end subroutine halo_exchange
+  end function field_constructor
 
-  !! Perform a global sum operation on the field
-  !!
-  function sum(self) result (answer)
-
-    class(field_type), intent(in) :: self
-
-    real(r_def) :: answer
-
-    type(ESMF_VM) :: vm
-    integer :: rc
-
-    call ESMF_VMGetCurrent(vm=vm, rc=rc)
-    call ESMF_VMAllFullReduce(vm, &
-                              self%data, &
-                              answer, &
-                              self%vspace%get_last_dof_owned(), &
-                              ESMF_REDUCE_SUM, &
-                              rc=rc)
-  end function sum
-
-  !! Calculate the global minimum of the field
-  !!
-  function min(self) result (answer)
-
-    class(field_type), intent(in) :: self
-
-    real(r_def) :: answer
-
-    type(ESMF_VM) :: vm
-    integer :: rc
-
-    call ESMF_VMGetCurrent(vm=vm, rc=rc)
-    call ESMF_VMAllFullReduce(vm, &
-                              self%data, &
-                              answer, &
-                              self%vspace%get_last_dof_owned(), &
-                              ESMF_REDUCE_MIN, &
-                              rc=rc)
-  end function min
-
-  !! Calculate the global maximum of the field
-  !!
-  function max(self) result (answer)
-
-    class(field_type), intent(in) :: self
-
-    real(r_def) :: answer
-
-    type(ESMF_VM) :: vm
-    integer :: rc
-
-    call ESMF_VMGetCurrent(vm=vm, rc=rc)
-    call ESMF_VMAllFullReduce(vm, &
-                              self%data, &
-                              answer, &
-                              self%vspace%get_last_dof_owned(), &
-                              ESMF_REDUCE_MAX, &
-                              rc=rc)
-  end function max
+  !---------------------------------------------------------------------------
+  ! Contained functions/subroutines
+  !---------------------------------------------------------------------------
 
   !> Sends the field contents to the log
   !!
