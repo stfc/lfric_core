@@ -53,7 +53,9 @@ solver_option = 2
 &TIMESTEPPING_NML
 itimestep_option = 0,
 dt = 10.0,
-restart_filename = "dynamo_restart.nml"
+restart_filename = "dynamo_restart.nml",
+n_inner_iter = 2,
+n_outer_iter = 2
 /
 
 ! Output namelist:

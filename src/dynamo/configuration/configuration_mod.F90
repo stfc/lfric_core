@@ -96,8 +96,8 @@ module configuration_mod
 
   !> @name Iterative timestepping parameters
   !> @{
-  integer, parameter :: N_OUTER_ITER = 2   !< Number of outer (advection) iterations to do.
-  integer, parameter :: N_INNER_ITER = 2   !< Number of inner (Newton) iterations to do. 
+  integer :: n_outer_iter = 2   !< Number of outer (advection) iterations to do.
+  integer :: n_inner_iter = 2   !< Number of inner (Newton) iterations to do. 
   real(kind=r_def), parameter :: ALPHA = 0.5_r_def            !< Time off-centering parameter.
   real(kind=r_def), parameter :: BETA = (1.0_r_def - ALPHA)   !< 1 - Time off-centering parameter.
   !> @}
@@ -177,7 +177,7 @@ subroutine configure_dynamo( restart, local_rank, total_ranks )
   namelist /scaling_nml/ earth_scaling
   namelist /formulation_nml/ l_nonlinear, l_rotating, l_newton_krylov, l_supg
   namelist /solver_nml/ solver_option
-  namelist /timestepping_nml/ itimestep_option, dt, restart_filename
+  namelist /timestepping_nml/ itimestep_option, dt, restart_filename, n_outer_iter, n_inner_iter
   namelist /output_nml/ write_interpolated_output, write_nodal_output
 
   !============ Configuration file  ===========================================!

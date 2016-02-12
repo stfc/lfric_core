@@ -76,8 +76,8 @@ module initialisation_mod
 
   !> @name Wind components setup
   !> @{
-  real(kind=r_def), parameter :: U0 = 0.0_r_def    !< Prescribed background U horizontal wind component.
-  real(kind=r_def), parameter :: V0 = 0.0_r_def    !< Prescribed background V horizontal wind component.
+  real(kind=r_def) :: u0 = 0.0_r_def    !< Prescribed background U horizontal wind component.
+  real(kind=r_def) :: v0 = 0.0_r_def    !< Prescribed background V horizontal wind component.
   !> @}
 
   !> @name Wind initialisation choice
@@ -114,7 +114,7 @@ subroutine read_initialisation_namelist()
   character(len = str_long)         :: ioerrmsg = ''
 
   namelist /idealised_test_nml/ itest_option, tracer_max, tracer_background, r1, x1, y1, r2, x2, y2
-  namelist /wind_nml/ initial_u_profile, rotation_angle
+  namelist /wind_nml/ initial_u_profile, rotation_angle, u0, v0
   namelist /temperature_nml/ n_sq
 
   ! Name of initialisation file

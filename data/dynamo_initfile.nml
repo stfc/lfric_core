@@ -24,7 +24,9 @@ y2 = 0.0
 !    Constant shear UV wind   = 3
 &WIND_NML
 initial_u_profile = 0,
-rotation_angle = 0.0
+rotation_angle = 0.0,
+u0 = 0.0,
+v0 = 0.0
 /
 
 ! Temperature (and related quantities) namelist
