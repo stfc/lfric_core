@@ -85,6 +85,7 @@ module runtime_constants_mod_test
       type(function_space_type)    :: fs
       type(operator_type)          :: mm_w3, mm_w2, mm_w1, mm_w0
       type(operator_type)          :: mm_w3_inv
+      type(operator_type)          :: grad, curl, div
       type(field_type)             :: mmd_w3, mmd_w2, mmd_w1, mmd_w0
       type(field_type)             :: chi(3), geo
       type(field_proxy_type)       :: chi_p(3), geo_p, tmp_p
@@ -98,7 +99,11 @@ module runtime_constants_mod_test
                                             mm_w2_ptr => null(), &
                                             mm_w1_ptr => null(), &
                                             mm_w0_ptr => null(), &
-                                            mm_w3_inv_ptr => null()
+                                            mm_w3_inv_ptr => null(), &
+                                            grad_ptr => null(), &
+                                            curl_ptr => null(), &
+                                            div_ptr  => null()
+
       type(field_type),          pointer :: chi_ptr(:) => null(), &
                                             geo_ptr => null()
       integer,                   pointer :: map_w0(:) => null()
@@ -142,6 +147,9 @@ module runtime_constants_mod_test
       mm_w1 = operator_type(w1_fs,w1_fs)
       mm_w2 = operator_type(w2_fs,w2_fs)
       mm_w3 = operator_type(w3_fs,w3_fs)
+      grad = operator_type( w1_fs, w0_fs )
+      curl = operator_type( w2_fs, w1_fs )
+      div  = operator_type( w3_fs, w2_fs )
       mm_w3_inv = operator_type(w3_fs,w3_fs)
 
       ! Create diagonals
@@ -154,7 +162,8 @@ module runtime_constants_mod_test
       rt_const = runtime_constants_type( mesh, chi, geo, &
                                          mm_w0, mm_w1, mm_w2, mm_w3, &
                                          mm_w3_inv, &
-                                         mmd_w0, mmd_w1, mmd_w2, mmd_w3)
+                                         mmd_w0, mmd_w1, mmd_w2, mmd_w3, &
+                                         grad, curl, div)
 
       ! Check we get back what we sowed
       mesh_ptr  => rt_const%get_mesh()
@@ -165,6 +174,9 @@ module runtime_constants_mod_test
       mm_w2_ptr => rt_const%get_mass_matrix(2)
       mm_w3_ptr => rt_const%get_mass_matrix(3)
       mm_w3_inv_ptr => rt_const%get_mass_matrix(4)
+      grad_ptr  => rt_const%get_grad()
+      curl_ptr  => rt_const%get_curl()
+      div_ptr   => rt_const%get_div()
 
       ! Some simple tests to check we have the same information
       @assertEqual( mesh_ptr%get_ncells(), mesh%get_ncells() )
@@ -179,6 +191,10 @@ module runtime_constants_mod_test
       @assertEqual( mm_w2_ptr%which_fs_from(), mm_w2%which_fs_from() )
       @assertEqual( mm_w3_ptr%which_fs_from(), mm_w3%which_fs_from() )
       @assertEqual( mm_w3_inv_ptr%which_fs_from(), mm_w3_inv%which_fs_from() )
+      @assertEqual( grad_ptr%which_fs_from(), grad%which_fs_from() )
+      @assertEqual( curl_ptr%which_fs_from(), curl%which_fs_from() )
+      @assertEqual( div_ptr%which_fs_from(),  div%which_fs_from() )
+      
 
     end  subroutine test_all
 

@@ -43,6 +43,7 @@ module runtime_constants_mod
     type(operator_ptr), allocatable :: mass_matrix(:)
     type(field_ptr),    allocatable :: mass_matrix_diagonal(:)
     type(field_type), pointer       :: geopotential => null()
+    type(operator_type), pointer    :: grad, div, curl => null()
 
   contains
     procedure, public :: get_mesh
@@ -50,6 +51,9 @@ module runtime_constants_mod
     procedure, public :: get_geopotential
     procedure, public :: get_mass_matrix    
     procedure, public :: get_mass_matrix_diagonal  
+    procedure, public :: get_grad
+    procedure, public :: get_curl
+    procedure, public :: get_div
   end type runtime_constants_type
 
   interface runtime_constants_type
@@ -58,13 +62,15 @@ module runtime_constants_mod
 contains
   function runtime_constants_constructor(mesh, coords, phi, mm0, mm1, mm2, mm3, &
                                          mm3_inv, &
-                                         mm0d, mm1d, mm2d, mm3d ) &
+                                         mm0d, mm1d, mm2d, mm3d, &
+                                         grad, curl, div ) &
                                          result(self)
     implicit none
     type(mesh_type),     target, intent(in) :: mesh
     type(field_type),    target, intent(in) :: coords(3)
     type(field_type),    target, intent(in) :: phi
     type(operator_type), target, intent(in) :: mm0, mm1, mm2, mm3, mm3_inv
+    type(operator_type), target, intent(in) :: grad, div, curl
     type(field_type),    target, intent(in) :: mm0d, mm1d, mm2d, mm3d
     type(runtime_constants_type), target    :: self
 
@@ -82,6 +88,9 @@ contains
     self%mass_matrix_diagonal(1)%p => mm1d
     self%mass_matrix_diagonal(2)%p => mm2d
     self%mass_matrix_diagonal(3)%p => mm3d
+    self%grad => grad
+    self%curl => curl
+    self%div  => div 
 
   end function runtime_constants_constructor
 
@@ -134,5 +143,31 @@ contains
     mmd => self%mass_matrix_diagonal(i)%p
   end function get_mass_matrix_diagonal
 
+  !> Function to return a pointer to the grad operator
+  !> @return The grad operator
+  function get_grad(self) result(grad)
+    class(runtime_constants_type), target :: self
+    type(operator_type), pointer :: grad
+
+    grad => self%grad
+  end function get_grad
+
+  !> Function to return a pointer to the curl operator
+  !> @return The curl operator
+  function get_curl(self) result(curl)
+    class(runtime_constants_type), target :: self
+    type(operator_type), pointer :: curl
+
+    curl => self%curl
+  end function get_curl
+
+  !> Function to return a pointer to the div operator
+  !> @return The grad operator
+  function get_div(self) result(div)
+    class(runtime_constants_type), target :: self
+    type(operator_type), pointer :: div
+
+    div => self%div
+  end function get_div
 
 end module runtime_constants_mod

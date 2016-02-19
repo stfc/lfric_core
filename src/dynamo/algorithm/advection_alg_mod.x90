@@ -14,10 +14,10 @@ module advection_alg_mod
  
   use rtheta_kernel_mod,                 only: rtheta_kernel_type
   use enforce_bc_kernel_mod,             only: enforce_bc_kernel_type
-  use rrho_kernel_mod,                   only: rrho_kernel_type
   use vorticity_advection_kernel_mod,    only: vorticity_advection_kernel_type
-  use vorticity_rhs_kernel_mod,          only: vorticity_rhs_kernel_type
   use rtheta_supg_kernel_mod,            only: rtheta_supg_kernel_type
+  use matrix_vector_mod,                 only: matrix_vector_kernel_type
+  use transpose_matrix_vector_mod,       only: transpose_matrix_vector_kernel_type
 
   use mesh_mod,                          only: mesh_type
   use field_mod,                         only: field_type
@@ -69,7 +69,7 @@ contains
   type(runtime_constants_type), intent(in) :: runtime_constants
 
   type(field_type),    pointer :: chi(:) => null()
-  type(operator_type), pointer :: mm_w2, mm_w1 => null()
+  type(operator_type), pointer :: mm_w2, mm_w1, div, curl => null()
   type(field_type),    pointer :: mmd_w2, mmd_w1 => null()
   type(mesh_type),     pointer :: mesh => null()
 
@@ -88,6 +88,8 @@ contains
   mmd_w1 => runtime_constants%get_mass_matrix_diagonal(1)
   mmd_w2 => runtime_constants%get_mass_matrix_diagonal(2)
   chi    => runtime_constants%get_coordinates()
+  div    => runtime_constants%get_div()
+  curl   => runtime_constants%get_curl()
 
   u     => state(1)
   theta => state(2)
@@ -118,7 +120,7 @@ contains
 
   ! 2) Vorticity advection dt*( F/rho \cross curl(u))
   call invoke_set_field_scalar( 0.0_r_def, r_xi )
-  call invoke( vorticity_rhs_kernel_type( r_xi, u, chi, qr ) )
+  call invoke( transpose_matrix_vector_kernel_type(r_xi, u, curl) )
   call invoke( enforce_bc_kernel_type( r_xi ) )
   call solver_algorithm( xi, r_xi, mesh, chi, solver_option, &
                          mm=mm_w1, mmd=mmd_w1, &
@@ -135,7 +137,9 @@ contains
                                 theta_np1, theta_n, mass_flux, rho, chi, qr) )
 
   ! 4) divergence of mass flux: dt * M3^-1(div(F))
-  call invoke( rrho_kernel_type( r_rho, mass_flux, qr ) )
+  call invoke_set_field_scalar( 0.0_r_def, r_rho )
+  call invoke( matrix_vector_kernel_type( r_rho, mass_flux, div) )
+  call invoke_multiply_field(-1.0_r_def, r_rho, r_rho) 
   call solver_algorithm( advection(3), r_rho, mesh, chi, solver_option, qr=qr )
 
   ! Add in Dt factor

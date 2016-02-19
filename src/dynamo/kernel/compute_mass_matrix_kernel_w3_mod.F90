@@ -19,7 +19,7 @@ use argument_mod,            only: arg_type, func_type,                      &
                                    W0, W3, GH_BASIS, GH_DIFF_BASIS, &
                                    CELLS
 use coordinate_jacobian_mod, only: coordinate_jacobian
-
+use configuration_mod,       only: rehabilitate
 implicit none
 
 !-------------------------------------------------------------------------------
@@ -116,36 +116,44 @@ subroutine compute_mass_matrix_w3_code(cell, nlayers, ncell_3d,        &
 
   !loop over layers: Start from 1 as in this loop k is not an offset
   do k = 1, nlayers
-     ik = k + (cell-1)*nlayers
+    ik = k + (cell-1)*nlayers
      
-     ! indirect the chi coord field here
-     do df = 1, ndf_chi
-        chi1_e(df) = chi1(map_chi(df) + k - 1)
-        chi2_e(df) = chi2(map_chi(df) + k - 1)
-        chi3_e(df) = chi3(map_chi(df) + k - 1)
-     end do
+    ! indirect the chi coord field here
+    do df = 1, ndf_chi
+      chi1_e(df) = chi1(map_chi(df) + k - 1)
+      chi2_e(df) = chi2(map_chi(df) + k - 1)
+      chi3_e(df) = chi3(map_chi(df) + k - 1)
+    end do
 
     call coordinate_jacobian(ndf_chi, nqp_h, nqp_v, chi1_e, chi2_e, chi3_e,  &
                              diff_basis_chi, jac, dj)
 
     do df2 = 1, ndf_w3
-       do df = df2, ndf_w3 ! mass matrix is symmetric
-          mm(df,df2,ik) = 0.0_r_def
-          do qp2 = 1, nqp_v
-             do qp1 = 1, nqp_h
-                integrand = wqp_h(qp1) * wqp_v(qp2) * & 
-                     basis_w3(1,df,qp1,qp2)*basis_w3(1,df2,qp1,qp2)     * &
-                     dj(qp1,qp2) 
-                mm(df,df2,ik) = mm(df,df2,ik) + integrand
-             end do
+      do df = df2, ndf_w3 ! mass matrix is symmetric
+        mm(df,df2,ik) = 0.0_r_def
+        do qp2 = 1, nqp_v
+          do qp1 = 1, nqp_h
+            if ( rehabilitate ) then
+              ! With rehabilitation 
+              ! W3 mapping is x -> \hat{x}
+              integrand = wqp_h(qp1) * wqp_v(qp2) * & 
+                       basis_w3(1,df,qp1,qp2)*basis_w3(1,df2,qp1,qp2)  &
+                       *dj(qp1,qp2) 
+            else
+              ! Without rehabilitation 
+              ! W3 mapping is x -> \hat{x}/det(J)
+              integrand = wqp_h(qp1) * wqp_v(qp2) * & 
+                       basis_w3(1,df,qp1,qp2)*basis_w3(1,df2,qp1,qp2)  &
+                       /dj(qp1,qp2)  
+            end if
+            mm(df,df2,ik) = mm(df,df2,ik) + integrand
           end do
-       end do
-       do df = df2, 1, -1  
-          mm(df,df2,ik) = mm(df2,df,ik)
-       end do
-       
-    end do
-    
+        end do
+      end do
+      do df = df2, 1, -1  
+        mm(df,df2,ik) = mm(df2,df,ik)
+      end do       
+    end do    
   end do ! end of k loop
 
 

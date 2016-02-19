@@ -34,6 +34,12 @@ module configuration_mod
   !> @{ 
   integer(i_def) :: element_order = 0            !< Order of the function space.
   !> @}
+  !> @name FEM formulation
+  logical, parameter :: rehabilitate = .true. !< Rehabilitation is the modification of mapping for the W3 space and the 
+                                              !! divergence mapping so that the correct order of accuracy is maintained on
+                                              !! non-affine elements. For affine elements it is not required.
+                                              !! This is included here as in the future we wish to move to not rehabiliating
+  !> @}
 
   !=========================== Mesh and geometry  =============================!
 

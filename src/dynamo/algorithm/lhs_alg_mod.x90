@@ -8,16 +8,16 @@
 !>@brief wrapper algorithm to compute the lhs of the prognostic
 !>       equations
 module lhs_alg_mod
-  use psykal_lite_mod,                   only: invoke_axpy,             &
+  use psykal_lite_mod,                   only: invoke_axpy,                   &
                                                invoke_set_field_scalar,       &
                                                invoke_sample_flux_kernel,     &
-                                               invoke_copy_field_data
-
+                                               invoke_copy_field_data,        &
+                                               invoke_multiply_field
   use rtheta_kernel_mod,                 only: rtheta_kernel_type
   use enforce_bc_kernel_mod,             only: enforce_bc_kernel_type
   use rrho_kernel_mod,                   only: rrho_kernel_type
   use pert_pressure_gradient_kernel_mod, only: pert_pressure_gradient_kernel_type
-  use matrix_vector_mm_mod,              only: matrix_vector_kernel_mm_type
+  use matrix_vector_mod,                 only: matrix_vector_kernel_type
   use multiplicity_kernel_mod,           only: multiplicity_kernel_type
 
   use mesh_mod,                          only: mesh_type
@@ -70,6 +70,7 @@ contains
 
   type(field_type), pointer :: chi(:)=> null()
   type(operator_type), pointer :: mm_w2, mm_w0, mm_w3_inv => null()
+  type(operator_type), pointer :: div => null()
   type(mesh_type),           pointer :: mesh   => null()
   type(function_space_type), pointer :: rho_fs => null()
   type(function_space_type), pointer :: u_fs   => null()
@@ -86,6 +87,7 @@ contains
   mm_w2        => runtime_constants%get_mass_matrix(2)
   mm_w3_inv    => runtime_constants%get_mass_matrix(4)
   chi          => runtime_constants%get_coordinates()
+  div          => runtime_constants%get_div()
 
   u     => state(1)
   theta => state(2)
@@ -104,7 +106,7 @@ contains
   call invoke_set_field_scalar( 0.0_r_def, lhs(1) )
   call invoke( pert_pressure_gradient_kernel_type(  &
                  lhs_tmp(1), rho, rho_ref, theta, theta_ref, qr ), &
-               matrix_vector_kernel_mm_type( lhs(1), u, mm_w2) )
+               matrix_vector_kernel_type( lhs(1), u, mm_w2) )
   call invoke( enforce_bc_kernel_type( lhs_tmp(1) ) )
   call invoke_axpy( alpha_dt, lhs_tmp(1), lhs(1), lhs(1) ) 
  
@@ -119,7 +121,7 @@ contains
   call invoke_set_field_scalar( 0.0_r_def, lhs_tmp(2) )
   call invoke_set_field_scalar( 0.0_r_def, lhs(2) )
   call invoke( rtheta_kernel_type( lhs_tmp(2), theta_ref, u, ones, qr), & 
-               matrix_vector_kernel_mm_type( lhs(2), theta, mm_w0) )
+               matrix_vector_kernel_type( lhs(2), theta, mm_w0) )
   call invoke_axpy( alpha_dt, lhs_tmp(2), lhs(2), lhs(2) ) 
 
   ! Compute lhs_rho
@@ -133,9 +135,11 @@ contains
   call invoke_sample_flux_kernel( f_star, u, w2_multiplicity, rho_ref )
 
   r_rho = field_type( vector_space = rho_fs )
+  call invoke_set_field_scalar( 0.0_r_def, r_rho )
+  call invoke( matrix_vector_kernel_type( r_rho, f_star, div) )
+  call invoke_multiply_field(-1.0_r_def, r_rho, r_rho) 
   call invoke_set_field_scalar( 0.0_r_def, lhs_tmp(3) )
-  call invoke( rrho_kernel_type( r_rho, f_star, qr ), &
-               matrix_vector_kernel_mm_type( lhs_tmp(3), r_rho, mm_w3_inv) )
+  call invoke( matrix_vector_kernel_type( lhs_tmp(3), r_rho, mm_w3_inv) )
   call invoke_axpy( alpha_dt, lhs_tmp(3), rho, lhs(3) )
 
   end subroutine lhs_alg

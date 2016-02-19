@@ -5,9 +5,9 @@
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-----------------------------------------------------------------------------
 
-!> Test the W1 mass matrix computation
+!> Test the gradient operator computation
 !>
-module compute_mass_matrix_kernel_w1_mod_test
+module compute_grad_operator_kernel_mod_test
 
     use constants_mod,      only : i_def, r_def
     use field_mod,          only : field_type,field_proxy_type
@@ -24,18 +24,19 @@ module compute_mass_matrix_kernel_w1_mod_test
   public :: test_all
 
   @TestCase
-  type, extends(TestCase), public :: compute_mass_matrix_w1_test_type
+  type, extends(TestCase), public :: compute_grad_operator_test_type
     private
     type(mesh_type)          :: mesh
     type(field_type)         :: chi(3)
-    type(operator_type)      :: mm
-    real(r_def), allocatable :: diff_basis(:,:,:,:), &
-                                basis(:,:,:,:)
+    type(operator_type)      :: grad
+    real(r_def), allocatable :: diff_basis_w0(:,:,:,:), &
+                                basis_w1(:,:,:,:), &
+                                diff_basis_chi(:,:,:,:)
   contains
     procedure setUp
     procedure tearDown
     procedure test_all
-  end type compute_mass_matrix_w1_test_type
+  end type compute_grad_operator_test_type
 
   integer(i_def), parameter :: element_order = 0
 
@@ -50,19 +51,18 @@ contains
 
     implicit none
 
-    class(compute_mass_matrix_w1_test_type), intent(inout) :: this
+    class(compute_grad_operator_test_type), intent(inout) :: this
 
+    type(operator_proxy_type) :: grad_p
     type(quadrature_type)     :: qr
     type(function_space_type) :: fs
     type(field_proxy_type)    :: chi_p(3)
-    type(operator_proxy_type) :: mm_p
-
     type(function_space_type), pointer :: w0_fs => null()
     type(function_space_type), pointer :: w1_fs => null()
 
-    integer(i_def) :: nqp_h, nqp_v
-    integer(i_def) :: ndf, ndf_chi
-    integer(i_def) :: dim_mm, diff_dim
+    integer :: nlayers, dim, diff_dim, dim_w1, diff_dim_w0
+    integer :: ndf_chi, ndf_w0, ndf_w1
+    integer :: nqp_h, nqp_v
 
     integer :: i
 
@@ -80,6 +80,8 @@ contains
     w0_fs => fs%get_instance( this%mesh, element_order, W0 )
     w1_fs => fs%get_instance( this%mesh, element_order, W1 )
 
+    this%grad = operator_type(w1_fs,w0_fs)
+
     do i = 1,3
       this%chi(i) = field_type( vector_space = w0_fs )
       chi_p(i) = this%chi(i)%get_proxy()
@@ -87,14 +89,17 @@ contains
 
     diff_dim = chi_p(1)%vspace%get_dim_space_diff( )
     ndf_chi  = chi_p(1)%vspace%get_ndf()
-    allocate(this%diff_basis(diff_dim,ndf_chi,nqp_h,nqp_v) )
+    allocate(this%diff_basis_chi(diff_dim,ndf_chi,nqp_h,nqp_v) )
 
-    this%mm = operator_type(w1_fs,w1_fs)
-    mm_p    = this%mm%get_proxy()
+    grad_p = this%grad%get_proxy()   
+ 
+    ndf_w0  = grad_p%fs_from%get_ndf()
+    diff_dim_w0 = grad_p%fs_from%get_dim_space_diff( )
+    allocate(this%diff_basis_w0(diff_dim_w0 ,ndf_w0, nqp_h, nqp_v) )
 
-    ndf    = mm_p%fs_from%get_ndf()
-    dim_mm = mm_p%fs_from%get_dim_space( )
-    allocate(this%basis(dim_mm,ndf,nqp_h,nqp_v) )
+    ndf_w1 = grad_p%fs_to%get_ndf()
+    dim_w1 = grad_p%fs_to%get_dim_space( )
+    allocate(this%basis_w1(dim_w1, ndf_w1, nqp_h, nqp_v) )
 
   end subroutine setUp
 
@@ -106,9 +111,9 @@ contains
 
     implicit none
 
-    class(compute_mass_matrix_w1_test_type), intent(inout) :: this
+    class(compute_grad_operator_test_type), intent(inout) :: this
 
-    deallocate( this%basis, this%diff_basis )
+    deallocate( this%basis_w1, this%diff_basis_w0, this%diff_basis_chi)
 
     call purge_function_spaces()
     call deallocate_reference()
@@ -119,44 +124,43 @@ contains
   @test
   subroutine test_all( this )
 
-    use compute_mass_matrix_kernel_w1_mod, only : compute_mass_matrix_w1_code
+    use compute_grad_operator_kernel_mod, &
+                                    only : compute_grad_operator_code
 
     implicit none
 
-    class(compute_mass_matrix_w1_test_type), intent(inout) :: this
+    class(compute_grad_operator_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol = 1.0e-6_r_def
-    real(r_def), parameter :: dx = 6000.0_r_def, &
-                              dy = 1000.0_r_def
-
-    type(field_proxy_type) :: chi_p(3)
-
+    type(operator_proxy_type) :: grad_p
+    type(field_proxy_type )   :: chi_p(3) 
     type(quadrature_type)     :: qr
 
-    real(kind=r_def), dimension(12,12) :: answer
+    real(kind=r_def), parameter :: tol = 1.0e-6_r_def
+    real(kind=r_def), parameter :: dx = 6000.0_r_def, &
+                                   dy = 1000.0_r_def
 
     integer :: i, j, k, cell
     integer(i_def) :: err
 
     real(r_def) :: dz, dz_test(3)
-
-    ! Required for calling mass matrix kernel
-    integer :: nlayers, ndf
-    integer :: ndf_chi, undf_chi
+     
+    integer :: nlayers
+    integer :: ndf_chi, undf_chi, ndf_w1, ndf_w0
     integer :: nqp_h, nqp_v
 
-    integer, pointer        ::  map_chi(:)  => null()
-    type(operator_proxy_type) :: mm_p
+    integer, pointer                 :: map_chi(:)  => null()
 
     real(kind=r_def), pointer :: xp(:,:) => null()
     real(kind=r_def), pointer :: zp(:)   => null()
     real(kind=r_def), pointer :: wh(:), wv(:) => null()
+    real(kind=r_def), dimension(12,8) :: answer
 
     qr  = quadrature_type(3, GAUSSIAN)
 
     call this%mesh%get_dz(dz_test)
     dz = dz_test(1)
 
+    ! Make a coordinate field with a function space
     do i = 1,3
       chi_p(i) = this%chi(i)%get_proxy()
     end do
@@ -165,7 +169,7 @@ contains
     do j = 1,3
       do i = 1,3
         map_chi => chi_p(1)%vspace%get_cell_dofmap( cell )
-        do k = 0,3
+        do k = 0,3          
           chi_p(1)%data(map_chi(1) + k) = real(i-1)*dx
           chi_p(2)%data(map_chi(1) + k) = real(j-1)*dy
           chi_p(3)%data(map_chi(1) + k) = real(k)  *dz
@@ -174,7 +178,9 @@ contains
       end do
     end do
 
-    ! Test mass matrix kernel
+    ! Test the operator kernel
+    grad_p = this%grad%get_proxy()
+
     nqp_h=qr%get_nqp_h()
     nqp_v=qr%get_nqp_v()
     zp=>qr%get_xqp_v()
@@ -182,57 +188,62 @@ contains
     wh=>qr%get_wqp_h()
     wv=>qr%get_wqp_v()
 
-    ndf_chi      = chi_p(1)%vspace%get_ndf()
-    undf_chi     = chi_p(1)%vspace%get_undf()
-
-    mm_p= this%mm%get_proxy()
-
-    nlayers  = mm_p%fs_from%get_nlayers()
-    ndf  = mm_p%fs_from%get_ndf()
-
+    ndf_chi  = chi_p(1)%vspace%get_ndf()
+    undf_chi = chi_p(1)%vspace%get_undf()
     call chi_p(1)%vspace%compute_diff_basis_function(                    &
-         this%diff_basis,ndf_chi, nqp_h, nqp_v, xp, zp )
+         this%diff_basis_chi,ndf_chi, nqp_h, nqp_v, xp, zp )
 
-    call mm_p%fs_from%compute_basis_function(                            &
-         this%basis, ndf, nqp_h, nqp_v, xp, zp )
+    nlayers = grad_p%fs_from%get_nlayers()
+    ndf_w0  = grad_p%fs_from%get_ndf()
+    call grad_p%fs_from%compute_diff_basis_function(                     &
+         this%diff_basis_w0, ndf_w0, nqp_h, nqp_v, xp, zp ) 
+
+    ndf_w1 = grad_p%fs_to%get_ndf()
+    call grad_p%fs_to%compute_basis_function(                            &
+         this%basis_w1, ndf_w1, nqp_h, nqp_v, xp, zp ) 
 
     cell = 1
     map_chi => chi_p(1)%vspace%get_cell_dofmap(cell)
-    mm_p%local_stencil(:,:,:) = 0.0_r_def
-    call compute_mass_matrix_w1_code( cell,                              &
-                                      nlayers,                           &
-                                      mm_p%ncell_3d,                     &
-                                      mm_p%local_stencil,                &
-                                      chi_p(1)%data,                     &
-                                      chi_p(2)%data,                     &
-                                      chi_p(3)%data,                     &
-                                      ndf,                               &
-                                      this%basis,                             &
-                                      ndf_chi,                           &
-                                      undf_chi,                          &
-                                      map_chi,                           &
-                                      this%diff_basis,                        &
-                                      nqp_h,                             &
-                                      nqp_v,                             &
-                                      wh,                                &
-                                      wv                                 &
-                                      )
-
-    call mass_matrix_w1(answer)
+    grad_p%local_stencil(:,:,:) = 0.0_r_def
+    call compute_grad_operator_code( cell,                              &
+                                    nlayers,                           &
+                                    grad_p%ncell_3d,                    &
+                                    grad_p%local_stencil,               &
+                                    chi_p(1)%data,                     &
+                                    chi_p(2)%data,                     &
+                                    chi_p(3)%data,                     &
+                                    ndf_w1,                            &
+                                    this%basis_w1,                     &
+                                    ndf_w0,                            &
+                                    this%diff_basis_w0,                &
+                                    ndf_chi,                           &
+                                    undf_chi,                          &
+                                    map_chi,                           &
+                                    this%diff_basis_chi,               &
+                                    nqp_h,                             &
+                                    nqp_v,                             &
+                                    wh,                                &
+                                    wv                                 &
+                                    )
+    
+    call grad_operator(answer)
     ! Normalise by average edge length
     answer(:,:) = answer(:,:) * 3.0_r_def / (dx + dy + dz )
-    mm_p%local_stencil(:, :, 1 ) =  mm_p%local_stencil(:, :, 1 ) &
-                                 * 3.0_r_def / (dx + dy + dz )
-    @assertEqual(answer, mm_p%local_stencil(:, :, 1 ), tol)
+    grad_p%local_stencil(:, :, 1 ) =  grad_p%local_stencil(:, :, 1 ) &
+                                  * 3.0_r_def / (dx + dy + dz )
+    @assertEqual(answer, grad_p%local_stencil(:, :, 1 ), tol)
 
   end subroutine test_all
 
-  subroutine mass_matrix_w1( mm ) 
+  subroutine grad_operator( grad ) 
     use constants_mod, only: r_def
     implicit none
 
-    real(kind=r_def), dimension(12,12), intent(inout) :: mm
-    mm = reshape( [ &
+    real(kind=r_def), dimension(12,8), intent(inout) :: grad
+    real(kind=r_def), dimension(12,12) :: m1
+    real(kind=r_def), dimension(12,8) :: d10
+
+    m1 = reshape( [ &
   0.1333333333333320E+04_r_def, &
   0.0000000000000000E+00_r_def, &
   0.6666666666666615E+03_r_def, &
@@ -377,8 +388,22 @@ contains
   0.1851851851851837E+02_r_def, &
   0.0000000000000000E+00_r_def, &
   0.3703703703703668E+02_r_def  &
-    ], shape(mm) )
-    return
-  end subroutine mass_matrix_w1
+    ], shape(m1) )
 
-end module compute_mass_matrix_kernel_w1_mod_test
+ d10 = real(reshape( [ & 
+ -1, -1,  0,  0, -1,  0,  0,  0,  0,  0,  0,  0, &
+  0,  1, -1,  0,  0, -1,  0,  0,  0,  0,  0,  0, &
+  0,  0,  1,  1,  0,  0, -1,  0,  0,  0,  0,  0, &
+  1,  0,  0, -1,  0,  0,  0, -1,  0,  0,  0,  0, &
+  0,  0,  0,  0,  1,  0,  0,  0, -1, -1,  0,  0, &
+  0,  0,  0,  0,  0,  1,  0,  0,  0,  1, -1,  0, &
+  0,  0,  0,  0,  0,  0,  1,  0,  0,  0,  1,  1, &
+  0,  0,  0,  0,  0,  0,  0,  1,  1,  0,  0, -1  &
+ ], shape(d10) ),r_def) 
+
+  grad = matmul(m1,d10)
+
+    return
+  end subroutine grad_operator
+
+end module compute_grad_operator_kernel_mod_test

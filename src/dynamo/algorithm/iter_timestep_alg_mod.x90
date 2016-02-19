@@ -44,6 +44,9 @@ module iter_timestep_alg_mod
   use compute_geopotential_kernel_mod,   only: compute_geopotential_kernel_type
   use mm_diagonal_kernel_mod,            only: mm_diagonal_kernel_type
   use invert_local_operator_kernel_mod,  only: invert_local_operator_kernel_type
+  use compute_grad_operator_kernel_mod,  only: compute_grad_operator_kernel_type
+  use compute_curl_operator_kernel_mod,  only: compute_curl_operator_kernel_type
+  use compute_div_operator_kernel_mod,   only: compute_div_operator_kernel_type
 
   ! Derived Types
   use mesh_mod,                          only: mesh_type
@@ -117,7 +120,7 @@ contains
     
     type( runtime_constants_type ) :: runtime_constants
 
-    type(quadrature_type)     :: qr, qr_low
+    type(quadrature_type)     :: qr
     type(function_space_type) :: fs
     type(function_space_type), pointer :: theta_fs => null()
     type(function_space_type), pointer :: rho_fs   => null()
@@ -130,6 +133,7 @@ contains
 
 
     type( operator_type )            :: mm_w3, mm_w2, mm_w1, mm_w0, mm_w3_inv
+    type( operator_type )            :: grad, curl, div
 
     ! Iterative timestepping variables
     integer            :: timestep, ts_init
@@ -152,7 +156,6 @@ contains
     w3_fs => fs%get_instance( mesh, element_order, W3 )
 
     qr = quadrature_type(element_order+3, GAUSSIAN)
-    qr_low = quadrature_type(element_order+1, GAUSSIAN)
 
     ! Create field bundles
     state_np1(1) = field_type( vector_space = u_fs     )
@@ -177,6 +180,10 @@ contains
     mm_w3 = operator_type( w3_fs, w3_fs )
     mm_w3_inv = operator_type( w3_fs, w3_fs )
 
+    grad = operator_type( w1_fs, w0_fs )
+    curl = operator_type( w2_fs, w1_fs )
+    div  = operator_type( w3_fs, w2_fs )
+
     !=== Section 2: Initialise local algorithm fields ========================!
     call log_event( "Dynamo: computing Semi-Implicit algorithm fields", &
                      LOG_LEVEL_INFO )
@@ -185,10 +192,14 @@ contains
     ! Compute mass matrices
     call invoke( compute_mass_matrix_kernel_w0_type(mm_w0, chi, qr), &
                  compute_mass_matrix_kernel_w1_type(mm_w1, chi, qr), &
-                 compute_mass_matrix_kernel_w2_type(mm_w2, chi, qr))
-    ! Split invoke as we are using a different quadrature rule below
-    call invoke( compute_mass_matrix_kernel_w3_type(mm_w3, chi, qr_low), &
+                 compute_mass_matrix_kernel_w2_type(mm_w2, chi, qr), &
+                 compute_mass_matrix_kernel_w3_type(mm_w3, chi, qr), & 
                  invert_local_operator_kernel_type(mm_w3_inv, mm_w3) )
+    ! These are seperate invokes as chi is defined as any space and psyclone 
+    ! does not support multiple any_spaces in the same invoke
+    call invoke( compute_grad_operator_kernel_type(grad, chi, qr) )
+    call invoke( compute_curl_operator_kernel_type(curl, chi, qr) )
+    call invoke( compute_div_operator_kernel_type (div,  chi, qr) )
 
     ! Compute mass matrix diagonals
     mm_diagonal_w0 = field_type( vector_space = theta_fs )
@@ -213,7 +224,8 @@ contains
                                                mm_diagonal_w0, &
                                                mm_diagonal_w1, &
                                                mm_diagonal_w2, &
-                                               mm_diagonal_w3)
+                                               mm_diagonal_w3, &
+                                               grad, curl, div)
     ! Prognostics
     if(.not.restart%read_file()) then ! no check point to start from
       call invoke_set_field_scalar(0.0_r_def, xi)

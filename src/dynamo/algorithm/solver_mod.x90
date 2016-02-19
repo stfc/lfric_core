@@ -38,7 +38,7 @@ module solver_mod
                                       invoke_divide_field,            &
                                       invoke_copy_scaled_field_data
   use w3_solver_kernel_mod, only: w3_solver_kernel_type
-  use matrix_vector_mm_mod, only: matrix_vector_kernel_mm_type
+  use matrix_vector_mod,    only: matrix_vector_kernel_type
 
   use quadrature_mod,  only : quadrature_type
   use operator_mod,    only : operator_type
@@ -115,7 +115,7 @@ contains
 
        if(fs_l == W3) then
          ! mm is inverse mass matrix 
-         call invoke( matrix_vector_kernel_mm_type(rhs,lhs,mm) )
+         call invoke( matrix_vector_kernel_type(rhs,lhs,mm) )
        else
        select case ( solver_type )
           case ( CG_SOLVER )
@@ -228,14 +228,14 @@ contains
       call invoke_axpy((-beta*omega),v,p,p)
       call preconditioner( y, p, precond_option, diagonal=mmd )
       call invoke_set_field_scalar(0.0_r_def, v)
-      call invoke( matrix_vector_kernel_mm_type(v,y,mm) )
+      call invoke( matrix_vector_kernel_type(v,y,mm) )
       
       call invoke_inner_prod(rhs,v,norm)
       alpha = rho/norm
       call invoke_axpy(-alpha,v,res,s)
       call preconditioner( z, s, precond_option, diagonal=mmd )
       call invoke_set_field_scalar(0.0_r_def, t)
-      call invoke( matrix_vector_kernel_mm_type(t,z,mm) )
+      call invoke( matrix_vector_kernel_type(t,z,mm) )
 
       call invoke_inner_prod(t,t,tt)
       call invoke_inner_prod(t,s,ts)
@@ -326,7 +326,7 @@ contains
     ! First guess: lhs = 0
       call invoke_set_field_scalar(0.0_r_def, lhs)
     end if
-    call invoke( matrix_vector_kernel_mm_type(Ap,lhs,mm) )
+    call invoke( matrix_vector_kernel_type(Ap,lhs,mm) )
 
     call invoke_minus_field_data( rhs, Ap, res )
     call preconditioner( z, res, precond_option, diagonal=mmd )   
@@ -350,7 +350,7 @@ contains
 
     do iter = 1, MAX_ITER
        call invoke_set_field_scalar(0.0_r_def, Ap)
-       call invoke( matrix_vector_kernel_mm_type(Ap,p,mm) )
+       call invoke( matrix_vector_kernel_type(Ap,p,mm) )
 
       call invoke_inner_prod( p, Ap, rs_new )
       alpha = rs_old/rs_new
@@ -435,7 +435,7 @@ contains
 
   do iter = 1,n_iter
     call invoke_set_field_scalar(0.0_r_def, Ax)
-    call invoke( matrix_vector_kernel_mm_type(Ax,lhs,mm) )
+    call invoke( matrix_vector_kernel_type(Ax,lhs,mm) )
 
     call invoke_minus_field_data( rhs, Ax, res )
     call invoke_divide_field( res, diagonal, res )
@@ -511,7 +511,7 @@ contains
       return
     end if
     call invoke_set_field_scalar(0.0_r_def, Ax)
-    call invoke( matrix_vector_kernel_mm_type(Ax,lhs,mm) )
+    call invoke( matrix_vector_kernel_type(Ax,lhs,mm) )
 
     call invoke_minus_field_data( rhs, Ax, r )
 
@@ -533,7 +533,7 @@ contains
      
         call preconditioner( w, v(j), pstcond_option, diagonal=mmd )   
         call invoke_set_field_scalar(0.0_r_def, s)
-        call invoke( matrix_vector_kernel_mm_type(s,w,mm) )
+        call invoke( matrix_vector_kernel_type(s,w,mm) )
 
         call preconditioner( w, s, precond_option, diagonal=mmd )   
 
@@ -581,7 +581,7 @@ contains
 
 ! Check for convergence
       call invoke_set_field_scalar(0.0_r_def, Ax)
-      call invoke( matrix_vector_kernel_mm_type(Ax,lhs,mm) )
+      call invoke( matrix_vector_kernel_type(Ax,lhs,mm) )
       call invoke_minus_field_data( rhs, Ax, r )
 
       call invoke_inner_prod(r, r, err )
@@ -673,7 +673,7 @@ contains
       return
     end if
     call invoke_set_field_scalar(0.0_r_def, Ax)
-    call invoke( matrix_vector_kernel_mm_type(Ax,lhs,mm) )
+    call invoke( matrix_vector_kernel_type(Ax,lhs,mm) )
 
     call invoke_minus_field_data( rhs, Ax, r )
 
@@ -682,7 +682,7 @@ contains
 ! This is the correct settings -> call Precon(s(:,:,m),r,prit,prec)
         call preconditioner( s(m), r, precond_option, diagonal=mmd )
         call invoke_set_field_scalar(0.0_r_def, v(m))
-        call invoke( matrix_vector_kernel_mm_type(v(m),s(m),mm) )
+        call invoke( matrix_vector_kernel_type(v(m),s(m),mm) )
 
 
         do n = 1, m-1

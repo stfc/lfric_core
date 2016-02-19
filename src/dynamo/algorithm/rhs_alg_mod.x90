@@ -8,18 +8,18 @@
 !>@brief wrapper algorithm to compute the rhs of the prognostic
 !>       equations
 module rhs_alg_mod
-  use psykal_lite_mod,                   only: invoke_axpy,                 &
-                                               invoke_set_field_scalar,       &
-                                               invoke_sample_flux_kernel
+  use psykal_lite_mod,                   only: invoke_axpy,               &
+                                               invoke_set_field_scalar,   &
+                                               invoke_sample_flux_kernel, &
+                                               invoke_multiply_field
 
   use enforce_bc_kernel_mod,             only: enforce_bc_kernel_type
   use rotation_kernel_mod,               only: rotation_kernel_type
   use pressure_gradient_kernel_mod,      only: pressure_gradient_kernel_type
   use kinetic_energy_gradient_kernel_mod,only: kinetic_energy_gradient_kernel_type
   use geopotential_gradient_kernel_mod,  only: geopotential_gradient_kernel_type
-  use matrix_vector_mm_mod,              only: matrix_vector_kernel_mm_type
+  use matrix_vector_mod,                 only: matrix_vector_kernel_type
   use multiplicity_kernel_mod,           only: multiplicity_kernel_type
-  use rrho_kernel_mod,                   only: rrho_kernel_type
   use rtheta_kernel_mod,                 only: rtheta_kernel_type
   use mesh_mod,                          only: mesh_type
   use field_mod,                         only: field_type
@@ -71,7 +71,7 @@ contains
   logical,                      intent(in)    :: l_from_solver
 
   type(field_type), pointer :: chi(:), geopotential => null()
-  type(operator_type), pointer :: mm_w2, mm_w0 => null()
+  type(operator_type), pointer :: mm_w2, mm_w0, mm_w3_inv, div => null()
   type(mesh_type),  pointer    :: mesh => null()
 
   type( quadrature_type )   :: qr 
@@ -87,6 +87,7 @@ contains
   geopotential => runtime_constants%get_geopotential()
   mm_w0        => runtime_constants%get_mass_matrix(0)
   mm_w2        => runtime_constants%get_mass_matrix(2)
+  mm_w3_inv    => runtime_constants%get_mass_matrix(4)
   chi          => runtime_constants%get_coordinates()
 
   u     => state(1)
@@ -126,7 +127,7 @@ contains
     call invoke( rotation_kernel_type( rhs_tmp(1), u, chi, qr ) )
   call invoke(enforce_bc_kernel_type(rhs_tmp(1)) )
   call invoke_set_field_scalar( 0.0_r_def, rhs(1) )
-  call invoke( matrix_vector_kernel_mm_type( rhs(1), u, mm_w2) )
+  call invoke( matrix_vector_kernel_type( rhs(1), u, mm_w2) )
   call invoke_axpy( alpha_dt, rhs_tmp(1), rhs(1), rhs(1) ) 
  
   ! Compute rhs_theta
@@ -139,14 +140,17 @@ contains
     call invoke( rtheta_kernel_type( rhs_tmp(2), theta, u, ones, qr) )
   end if
   call invoke_set_field_scalar( 0.0_r_def, rhs(2) )
-  call invoke( matrix_vector_kernel_mm_type( rhs(2), theta, mm_w0) )
+  call invoke( matrix_vector_kernel_type( rhs(2), theta, mm_w0) )
   call invoke_axpy( alpha_dt, rhs_tmp(2), rhs(2), rhs(2) ) 
 
   ! Compute rhs_rho
   if ( l_from_solver ) then
-    call invoke( rrho_kernel_type( rhs_tmp(3), f_star, qr ) )
-    call solver_algorithm( rhs_tmp(3), rhs_tmp(3), &
-                           mesh, chi, solver_option, qr=qr )
+    div => runtime_constants%get_div()
+    call invoke_set_field_scalar( 0.0_r_def, rhs_tmp(3) )
+    call invoke( matrix_vector_kernel_type( rhs_tmp(3), f_star, div) )
+    call invoke_multiply_field(-1.0_r_def, rhs_tmp(3), rhs_tmp(3)) 
+    call invoke_set_field_scalar( 0.0_r_def, rhs_tmp(3) )
+    call invoke( matrix_vector_kernel_type( rhs_tmp(3), rhs_tmp(3), mm_w3_inv) )
   else
     call invoke_set_field_scalar( 0.0_r_def, rhs_tmp(3) )
   end if
