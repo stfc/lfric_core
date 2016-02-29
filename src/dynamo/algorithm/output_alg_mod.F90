@@ -55,6 +55,7 @@ contains
 
     ! output variables
     integer :: dir
+
     integer, parameter :: VECTOR_FIELD = 3, &
                           SCALAR_FIELD = 1
     type( field_type ) :: W0_projected_field(3)
@@ -62,8 +63,19 @@ contains
     type( quadrature_type )          :: qr
     type( function_space_type )      :: fs
     character(len=str_max_filename)  :: fname
+    ! local rank to write out a filename for each rank
+    character(len=str_max_filename)  :: rank_name
 
     qr = quadrature_type(element_order+3, GAUSSIAN)
+
+    ! Determine the rank and set rank_name
+    ! No rank name appended for a serial run
+
+    if ( mesh%get_total_ranks() == 1 ) then
+      rank_name=".m"
+    else
+      write( rank_name, "("".Rank"", I6.6, A)") mesh%get_local_rank(), ".m"
+    end if
 
     if ( write_interpolated_output ) then
 
@@ -77,35 +89,35 @@ contains
 
       call galerkin_projection_algorithm(W0_projected_field(1), theta, mesh, chi, &
                                          SCALAR_FIELD, qr, mm=mm_w0)
-      fname=trim(rs%ts_fname("interp_theta",n))//".m"
+      fname=trim(rs%ts_fname("interp_theta",n))//rank_name
       call interpolated_output(SCALAR_FIELD, W0_projected_field(1), mesh, chi, &
                                fname)
       call invoke_set_field_scalar(0.0_r_def, W3_projected_field(1)) 
       call galerkin_projection_algorithm(W3_projected_field(1), rho, mesh, chi, &
                                          SCALAR_FIELD, qr)
-      fname=trim(rs%ts_fname("interp_rho",n))//".m"
+      fname=trim(rs%ts_fname("interp_rho",n))//rank_name
       call interpolated_output(SCALAR_FIELD, W3_projected_field(1), mesh, chi, &
                                fname)
       call galerkin_projection_algorithm(W0_projected_field(:), u, mesh, chi, &
                                          VECTOR_FIELD, qr, mm=mm_w0)
-      fname=trim(rs%ts_fname("interp_u",n))//".m"
+      fname=trim(rs%ts_fname("interp_u",n))//rank_name
       call interpolated_output(VECTOR_FIELD, W0_projected_field(:), mesh, chi, &
                                fname)
       call galerkin_projection_algorithm(W0_projected_field(:), xi, mesh, chi, &
                                          VECTOR_FIELD, qr, mm=mm_w0)
-      fname=trim(rs%ts_fname("interp_xi",n))//".m"
+      fname=trim(rs%ts_fname("interp_xi",n))//rank_name
       call interpolated_output(VECTOR_FIELD, W0_projected_field(:), mesh, chi, &
                                fname)
     end if
 
     if ( write_nodal_output ) then  
-      fname=trim(rs%ts_fname("nodal_theta",n))//".m"
+      fname=trim(rs%ts_fname("nodal_theta",n))//rank_name
       call nodal_output_alg(theta, chi, fname, mesh)
-      fname=trim(rs%ts_fname("nodal_u",n))//".m"
+      fname=trim(rs%ts_fname("nodal_u",n))//rank_name
       call nodal_output_alg(u, chi, fname, mesh)
-      fname=trim(rs%ts_fname("nodal_rho",n))//".m"
+      fname=trim(rs%ts_fname("nodal_rho",n))//rank_name
       call nodal_output_alg(rho, chi, fname, mesh)
-      fname=trim(rs%ts_fname("nodal_xi",n))//".m"
+      fname=trim(rs%ts_fname("nodal_xi",n))//rank_name
       call nodal_output_alg(xi, chi, fname, mesh)
     end if
   end subroutine output_alg

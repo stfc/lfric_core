@@ -226,6 +226,11 @@ module mesh_mod
     procedure, public :: get_num_cells_ghost
     procedure, public :: get_gid_from_lid
 
+    ! get total_ranks and local_rank from partition
+
+    procedure, public :: get_total_ranks
+    procedure, public :: get_local_rank
+
     ! Colouring now accessed through function_space_type
     procedure, public :: set_colours
     procedure, public :: get_ncolours
@@ -1139,6 +1144,34 @@ contains
     cell_gid = self%partition%get_gid_from_lid(cell_lid)
 
   end function get_gid_from_lid
+
+  !> @details Gets the total ranks from the partition
+  !> @return              The total ranks
+  !============================================================================
+  function get_total_ranks( self ) result ( total_ranks )
+
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+    integer(i_def)               :: total_ranks 
+
+    total_ranks = self%partition%get_total_ranks()
+
+  end function get_total_ranks
+
+  !> @details fets the local rank from the partition
+  !> @return              The local rank
+  !============================================================================
+  function get_local_rank( self ) result ( local_rank )
+
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+    integer(i_def)               :: local_rank
+
+    local_rank = self%partition%get_local_rank()
+
+  end function get_local_rank
 
 
   !> @details Returns count of colours used in colouring mesh.
