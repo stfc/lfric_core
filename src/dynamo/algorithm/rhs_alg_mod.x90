@@ -34,7 +34,7 @@ module rhs_alg_mod
   use runtime_constants_mod,             only: runtime_constants_type
   use solver_config_mod,                 only: method
   use solver_mod,                        only: solver_algorithm
-
+  use derived_config_mod,                only: bundle_size
   implicit none
 
   private
@@ -59,26 +59,28 @@ contains
 !> @param[in]    alpha_dt The offcentering parameter times the timestep
 !> @param[in]    state The current model prognostic state
 !> @param[in]    runtime_constants Runtime constants for the model
-!> @param[in]    l_from_solver flag set to true if computing the lhs
+!> @param[in]    from_solver flag set to true if computing the lhs from the si solver
+!> @param[in]    from_solver flag set to true if computing the terms in the inner loop
   subroutine rhs_alg(rhs, alpha_dt, state, runtime_constants, &
-                     l_from_solver)
+                     from_solver, from_inner_loop)
   
   implicit none
 
   real(kind=r_def),             intent(in)    :: alpha_dt
-  ! Form of state and rhs is [u,theta,rho] & [rhs_tmp(1),rhs_tmp(2),rhs_tmp(3)]
-  type(field_type), target,     intent(in)    :: state(3)
-  type(field_type),             intent(inout) :: rhs(3)
+  ! Form of state and rhs is [u,theta,rho,exner] 
+  type(field_type), target,     intent(in)    :: state(bundle_size)
+  type(field_type),             intent(inout) :: rhs(bundle_size)
   type(runtime_constants_type), intent(in)    :: runtime_constants
-  logical,                      intent(in)    :: l_from_solver
+  logical,                      intent(in)    :: from_solver
+  logical,                      intent(in)    :: from_inner_loop
 
   type(field_type), pointer :: chi(:), geopotential => null()
   type(operator_type), pointer :: mm_w2, mm_w0, mm_w3_inv, div => null()
   type(mesh_type),  pointer    :: mesh => null()
 
   type( quadrature_type )   :: qr 
-  type(field_type), pointer :: u ,theta, rho
-  type(field_type)          :: rhs_tmp(3)
+  type(field_type), pointer :: u ,theta, rho => null()
+  type(field_type)          :: rhs_tmp(bundle_size)
   type(field_type)          :: f_star, ones, w2_multiplicity
 
   type(function_space_type) :: fs
@@ -96,16 +98,16 @@ contains
   theta => state(2)
   rho   => state(3)
  
-  call clone_bundle(rhs, rhs_tmp, 3)
+  call clone_bundle(rhs, rhs_tmp, bundle_size)
 
-  if ( l_from_solver ) then
+  if ( from_solver ) then
     qr = quadrature_type(element_order+3, GAUSSIAN)
   else
     qr = quadrature_type(element_order+2, GAUSSIAN)
   end if
 
 
-  if ( l_from_solver ) then    
+  if ( from_solver ) then    
     ! Need to create u*rho^ref \in W2 for rhs_tmp(3) kernel -> sampled mass flux
     u_fs => fs%get_instance( mesh, element_order, u%which_function_space() )
 
@@ -122,7 +124,7 @@ contains
   call invoke_set_field_scalar( 0.0_r_def, rhs_tmp(1) )
   call invoke( pressure_gradient_kernel_type( rhs_tmp(1), rho, theta, qr ) )
   call invoke( kinetic_energy_gradient_kernel_type( rhs_tmp(1), u, chi, qr ) )
-  if ( .not. l_from_solver ) &
+  if ( .not. from_solver ) &
     call invoke( geopotential_gradient_kernel_type( rhs_tmp(1), &
                                                     geopotential, qr ) )
   if ( rotating ) &
@@ -134,7 +136,7 @@ contains
  
   ! Compute rhs_theta
   call invoke_set_field_scalar( 0.0_r_def, rhs_tmp(2) )
-  if ( l_from_solver ) then
+  if ( from_solver ) then
     qr = quadrature_type(element_order+1, GAUSSIAN)
     rho_fs => fs%get_instance( mesh, element_order, rho%which_function_space() )
     ones = field_type( vector_space = rho_fs )
@@ -146,7 +148,7 @@ contains
   call invoke_axpy( alpha_dt, rhs_tmp(2), rhs(2), rhs(2) ) 
 
   ! Compute rhs_rho
-  if ( l_from_solver ) then
+  if ( from_solver ) then
     div => runtime_constants%get_div()
     call invoke_set_field_scalar( 0.0_r_def, rhs_tmp(3) )
     call invoke( matrix_vector_kernel_type( rhs_tmp(3), f_star, div) )

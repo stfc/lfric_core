@@ -36,7 +36,7 @@ module advection_alg_mod
                                       only: transpose_matrix_vector_kernel_type
   use vorticity_advection_kernel_mod, only: vorticity_advection_kernel_type
   use vorticity_rhs_kernel_mod,       only: vorticity_rhs_kernel_type
-
+  use derived_config_mod,             only: bundle_size 
   implicit none
 
   private
@@ -67,10 +67,10 @@ contains
   
   implicit none
   ! Form of state and advection is [u,theta,rho] & [r_u,r_theta,r_rho]
-  type(field_type), intent(in),    target  :: state(3)
-  type(field_type), intent(in),    target  :: state_np1(3)
-  type(field_type), intent(in),    target  :: state_n(3)
-  type(field_type), intent(inout)          :: advection(3)
+  type(field_type), intent(in),    target  :: state(bundle_size)
+  type(field_type), intent(in),    target  :: state_np1(bundle_size)
+  type(field_type), intent(in),    target  :: state_n(bundle_size)
+  type(field_type), intent(inout)          :: advection(bundle_size)
   type(field_type), intent(inout)          :: xi
   type(runtime_constants_type), intent(in) :: runtime_constants
 
@@ -150,7 +150,7 @@ contains
   call solver_algorithm( advection(3), r_rho, mesh, chi, method, qr=qr )
 
   ! Add in Dt factor
-  call bundle_ax( dt, advection, advection, 3 )
+  call bundle_ax( dt, advection, advection, bundle_size )
 
   end subroutine advection_alg
 

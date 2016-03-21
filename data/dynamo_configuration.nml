@@ -21,8 +21,8 @@
 &formulation
   nonlinear     = .toad.
   rotating      = .toad.
-  newton_krylov = .frog.
   supg          = .frog.
+  eliminate_p   = .true.
 /
 
 &idealised

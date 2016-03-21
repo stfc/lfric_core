@@ -14,9 +14,11 @@ module lhs_alg_mod
   use field_bundle_mod,                  only: clone_bundle
   use field_mod,                         only: field_type
   use finite_element_config_mod,         only: element_order
+  use formulation_config_mod,            only: eliminate_p
   use function_space_mod,                only: function_space_type
   use rtheta_kernel_mod,                 only: rtheta_kernel_type
   use pert_pressure_gradient_kernel_mod, only: pert_pressure_gradient_kernel_type
+  use exner_gradient_kernel_mod,         only: exner_gradient_kernel_type
   use psykal_lite_mod,                   only: invoke_axpy,               &
                                                invoke_copy_field_data,    &
                                                invoke_multiply_field,     &
@@ -30,10 +32,13 @@ module lhs_alg_mod
   use rrho_kernel_mod,                   only: rrho_kernel_type
   use runtime_constants_mod,             only: runtime_constants_type
   use w3_solver_kernel_mod,              only: w3_solver_kernel_type
+  use derived_config_mod,                only: si_bundle_size, bundle_size
+  use lhs_exner_kernel_mod,              only: lhs_exner_kernel_type
 
   implicit none
 
-  type(field_type), private :: lhs_tmp(3), ones, w2_multiplicity, f_star, r_rho
+  type(field_type),              private :: ones, w2_multiplicity, f_star, r_rho
+  type(field_type), allocatable, private :: lhs_tmp(:)
 
   private
   public :: lhs_alg
@@ -43,14 +48,15 @@ contains
 
   subroutine lhs_init(state)
     implicit none
-    type(field_type), intent(in) :: state(3)
+    type(field_type), intent(in) :: state(si_bundle_size)
 
     type(function_space_type), pointer :: rho_fs, u_fs => null()
     type(mesh_type),           pointer :: mesh => null()
     type(function_space_type)          :: fs
     integer                            :: fs_handle
 
-    call clone_bundle(state, lhs_tmp, 3)
+    allocate( lhs_tmp(si_bundle_size) )
+    call clone_bundle(state, lhs_tmp, si_bundle_size)
     mesh => state(1)%get_mesh()
 
     ! For computing lhs_theta
@@ -88,25 +94,22 @@ contains
 !> @param[in]    alpha_dt The offcentring parameter times the timestep
 !> @param[inout] state The current model prognostic state
 !> @param[in]    runtime_constants Runtime constants for the model
-!> @param[in]    l_newton_krylov true if computing timelevel n+1 terms 
-  subroutine lhs_alg(lhs, alpha_dt, state, ref_state, runtime_constants)
+  subroutine lhs_alg(lhs, state, ref_state, alpha_dt,  runtime_constants)
 
   implicit none
 
   real(kind=r_def),             intent(in)    :: alpha_dt
-  ! Form of state and lhs is [u,theta,rho] & [lhs_u,lhs_theta,lhs_rho]
-  type(field_type), target,     intent(inout) :: state(3)
-  type(field_type), target,     intent(in)    :: ref_state(3)
-  type(field_type),             intent(inout) :: lhs(3)
+  ! Form of state and lhs is [u,theta,rho,exner]
+  type(field_type), target,     intent(inout) :: state(si_bundle_size)
+  type(field_type), target,     intent(in)    :: ref_state(bundle_size)
+  type(field_type),             intent(inout) :: lhs(si_bundle_size)
   type(runtime_constants_type), intent(in)    :: runtime_constants
 
-  type(quadrature_type)     :: qr
-
-  type(field_type), pointer :: chi(:)=> null()
+  type(quadrature_type)        :: qr
+  type(field_type),    pointer :: chi(:)=> null()
   type(operator_type), pointer :: mm_w2, mm_w0, mm_w3_inv => null()
   type(operator_type), pointer :: div => null()
-
-  type(field_type), pointer :: u ,theta, rho, u_ref, theta_ref, rho_ref => null()
+  type(field_type),    pointer :: u ,theta, rho, exner, theta_ref, rho_ref => null()
 
   mm_w0        => runtime_constants%get_mass_matrix(0)
   mm_w2        => runtime_constants%get_mass_matrix(2)
@@ -118,7 +121,6 @@ contains
   theta => state(2)
   rho   => state(3)
 
-  u_ref     => ref_state(1)
   theta_ref => ref_state(2)
   rho_ref   => ref_state(3)
 
@@ -127,9 +129,19 @@ contains
   ! Compute lhs_u
   call invoke_set_field_scalar( 0.0_r_def, lhs_tmp(1) )
   call invoke_set_field_scalar( 0.0_r_def, lhs(1) )
-  call invoke( pert_pressure_gradient_kernel_type(  &
-                 lhs_tmp(1), rho, rho_ref, theta, theta_ref, qr ), &
-               matrix_vector_kernel_type( lhs(1), u, mm_w2) )
+  if ( eliminate_p ) then
+    call invoke( pert_pressure_gradient_kernel_type(  &
+                   lhs_tmp(1), rho, rho_ref, theta, theta_ref, qr ), &
+                 matrix_vector_kernel_type( lhs(1), u, mm_w2) )
+  else 
+    ! Use r_rho as a zero field so that exner' = 0 in pert_pressure_gradient_kernel
+    call invoke_set_field_scalar( 0.0_r_def, r_rho )
+    exner => state(4)
+    call invoke( exner_gradient_kernel_type( lhs_tmp(1), exner, theta_ref, qr ), &
+                 pert_pressure_gradient_kernel_type( lhs_tmp(1), r_rho, rho_ref, &
+                                                     theta, theta_ref, qr ), &
+                 matrix_vector_kernel_type( lhs(1), u, mm_w2) )
+  end if
   call invoke( enforce_bc_kernel_type( lhs_tmp(1) ) )
   call invoke_axpy( alpha_dt, lhs_tmp(1), lhs(1), lhs(1) ) 
  
@@ -154,6 +166,17 @@ contains
   call invoke_set_field_scalar( 0.0_r_def, lhs_tmp(3) )
   call invoke( matrix_vector_kernel_type( lhs_tmp(3), r_rho, mm_w3_inv) )
   call invoke_axpy( alpha_dt, lhs_tmp(3), rho, lhs(3) )
+
+  ! Compute lhs exner
+  if ( .not. eliminate_p ) then
+    exner => state(4)
+    call invoke_set_field_scalar( 0.0_r_def, lhs(4) )
+    call invoke_set_field_scalar( 0.0_r_def, lhs_tmp(4) )
+    call invoke( lhs_exner_kernel_type(lhs_tmp(4), theta, rho, exner, &
+                                       theta_ref, rho_ref, chi, qr ) )
+    call invoke( matrix_vector_kernel_type( lhs(4), lhs_tmp(4), mm_w3_inv) )
+
+  end if
 
   end subroutine lhs_alg
 

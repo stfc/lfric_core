@@ -596,19 +596,10 @@ practice $J$ is a large matrix and its inverse is dense, therefore
 so it is desirable to use a method that avoids the explicit computation
 of $J$. 
 
-Two different methods are proposed here, both can be considered forms
-of the Jacobian-Free-Newton-Krylov (JFNK) method \citep{knoll04}
-and differ only in how they approximate the $J\mathbf{x}'$ term.
-Both methods seek to solve \eqref{eq:Newton} at a fixed Newton iterate
-$k$ with a Krylov solver (GMRES is currently used). The first method,
-is a traditional JFNK method and approximates the product $J\mathbf{x}'$
-using a first order finite difference 
-\begin{equation}
-J\mathbf{x}'\approx\frac{\mathbf{R}\left(\mathbf{x}^{(k)}+\delta\mathbf{x}'\right)-\mathbf{R}\left(\mathbf{x}^{(k)}\right)}{\delta},\label{eq:standard_jfnk}
-\end{equation}
-for some small value $\delta$. The second approach is based upon
-some understanding of the physics of the equations being solved and
-approximates the Jacobian $J$ by a linear system 
+The avoid the difficulties in computing the full Jacobian matrix
+an approach based upon
+some understanding of the physics of the equations being solved is used.
+This method approximates the Jacobian $J$ by a linear system 
 \begin{equation}
 J\mathbf{x'}\approx L\mathbf{x'},\label{eq:physics_based_jfnk}
 \end{equation}
@@ -627,6 +618,15 @@ where $\tau$ is a relaxation parameter. The reference pressure $\Pi^{*}$
 is computed from $\rho^{*}$ and $\theta^{*}$ using the equation
 of state and $\Pi'=\frac{\kappa}{1-\kappa}\Pi^{*}\left(\frac{\theta'}{\theta^{*}}+\frac{\rho'}{\rho^{*}}\right)$
 is a pressure increment.
+
+Optionally \eqref{eq:L} can be augmented by including a prognostic equation for the 
+pressure increment $\Pi'\in\mathbb{W}_{3}$, the equation of state is added as an extra
+equation to the system \eqref{eq:L} as 
+\begin{equation}
+\frac{1-\kappa}{\kappa}\frac{\Pi'}{\Pi^{*}} - \frac{\rho'}{\rho^{*}} - \frac{\theta}{\theta^{*}} = 0,\label{eq:si_eos}
+\end{equation}
+Where needed $\Pi$ and $\Pi^{*}$ are evaluated from the nonlinear equation of state and so the equation of state
+is always exactly satisfied everywhere and the right-hand-side of \eqref{eq:si_eos} is identically zero.
 
 Due to the expected high relative cost of computing the advective
 terms these are computed outside of the Newton loop and are therefore

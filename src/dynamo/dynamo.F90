@@ -51,6 +51,7 @@ program dynamo
   use timestepping_config_mod,        only : method,                          &
                                            timestepping_method_semi_implicit, &
                                            timestepping_method_rk
+  use derived_config_mod,             only : set_derived_config
 
   use runge_kutta_init_mod,    only: runge_kutta_init
   implicit none
@@ -88,6 +89,7 @@ program dynamo
 
   call process_commandline()
   call load_configuration()
+  call set_derived_config()
 
   restart = restart_type( filename, local_rank, total_ranks )
 

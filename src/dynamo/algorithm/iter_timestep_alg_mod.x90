@@ -17,13 +17,13 @@ module iter_timestep_alg_mod
 
   ! Configuration and restart/checkpoint options
   use finite_element_config_mod, only: element_order
-  use formulation_config_mod,    only: newton_krylov
   use restart_control_mod,       only: restart_type
   use output_config_mod,         only: diagnostic_frequency
   use solver_config_mod,         only: method
   use timestepping_config_mod,   only: dt, alpha, beta, &
                                        outer_iterations, inner_iterations
   use idealised_config_mod,      only: test, idealised_test_held_suarez
+  use derived_config_mod,        only: bundle_size
   ! PsyKAl-lite kernels
   use psykal_lite_mod,                   only: invoke_axpby,            &
                                                invoke_copy_field_data,  &
@@ -67,7 +67,6 @@ module iter_timestep_alg_mod
   use advection_alg_mod,                 only: advection_alg
   use output_alg_mod,                    only: output_alg
   use si_solver_alg_mod,                 only: si_solver_alg, si_solver_init
-  use lhs_alg_mod,                       only: lhs_init
 
   ! Handles
   use fs_continuity_mod,                 only: W0, W1, W2, W3
@@ -116,9 +115,9 @@ contains
 
     ! Temporary fields    
     type( field_type ) :: geopotential, r_u
-    type( field_type ) :: state_n(3), state_np1(3), state_adv(3)
-    type( field_type ) :: rhs_n(3), rhs_np1(3), rhs_adv(3)
-    type( field_type ) :: rhs_heldsuarez(3)
+    type( field_type ) :: state_n(bundle_size), state_np1(bundle_size), state_adv(bundle_size)
+    type( field_type ) :: rhs_n(bundle_size), rhs_np1(bundle_size), rhs_adv(bundle_size)
+    type( field_type ) :: rhs_heldsuarez(bundle_size)
     type( field_type ) :: mm_diagonal_w3, &
                           mm_diagonal_w2, &
                           mm_diagonal_w1, &
@@ -167,17 +166,16 @@ contains
     state_np1(1) = field_type( vector_space = u_fs     )
     state_np1(2) = field_type( vector_space = theta_fs )
     state_np1(3) = field_type( vector_space = rho_fs   )
-    call clone_bundle(state_np1, state_adv, 3)
-    call clone_bundle(state_np1, state_n,   3)
-    call clone_bundle(state_np1, rhs_n,     3)
-    call clone_bundle(state_np1, rhs_np1,   3)
-    call clone_bundle(state_np1, rhs_adv,   3)
-    call clone_bundle(state_np1, rhs_heldsuarez,   3)
-    
-    ! Create W2 field needed for u initialisation
-    r_u = field_type( vector_space = u_fs )
 
-    ! Create W0 fields needed for timestepping
+    call clone_bundle(state_np1, state_adv, bundle_size)
+    call clone_bundle(state_np1, state_n,   bundle_size)
+    call clone_bundle(state_np1, rhs_n,     bundle_size)
+    call clone_bundle(state_np1, rhs_np1,   bundle_size)
+    call clone_bundle(state_np1, rhs_adv,   bundle_size)
+    call clone_bundle(state_np1, rhs_heldsuarez,   bundle_size)
+
+    ! Create extra fields
+    r_u = field_type( vector_space = u_fs )
     geopotential = field_type( vector_space = theta_fs )
 
     ! Create operators needed for timestepping
@@ -226,7 +224,7 @@ contains
 
     ! If held-suarez forcing is not used, then we want the following to be 
     ! initialized to zero
-    call set_bundle_scalar(0.0_r_def, rhs_heldsuarez, 3)
+    call set_bundle_scalar(0.0_r_def, rhs_heldsuarez, bundle_size)
 
     ! Create fixed state container
     runtime_constants = runtime_constants_type(mesh, chi, geopotential, &
@@ -243,9 +241,8 @@ contains
       call invoke_set_field_scalar(0.0_r_def, u)
       call invoke_set_field_scalar(0.0_r_def, r_u) 
       call invoke( initial_u_kernel_type( r_u, chi, qr ) )
-      call solver_algorithm(u, r_u, mesh, chi, method, mm=mm_w2)
+      call solver_algorithm(u, r_u, mesh, chi, method, mm=mm_w2)            
     end if
-
     !--- Intial output and output frequency -----------------------------------!
     ! Output initial conditions
     call log_event( "Dynamo: Outputing initial fields", LOG_LEVEL_INFO )
@@ -259,7 +256,6 @@ contains
     call invoke_copy_field_data(theta, state_np1(2))
     call invoke_copy_field_data(rho,   state_np1(3))
     call si_solver_init(state_np1, runtime_constants)
-    call lhs_init(state_np1)
 
     do timestep = restart%ts_start(),restart%ts_end()
        call log_event( &
@@ -268,8 +264,8 @@ contains
        write( log_scratch_space, '(A,I0)' ) 'Start of timestep ', timestep
        call log_event( log_scratch_space, LOG_LEVEL_INFO )
        ! Time level n fields
-       call copy_bundle(state_np1, state_n, 3)
-       call rhs_alg(rhs_n, BETA*dt, state_n, runtime_constants, .false.)
+       call copy_bundle(state_np1, state_n, bundle_size)
+       call rhs_alg(rhs_n, BETA*dt, state_n, runtime_constants, .false., .false.)
        !=== Section 3.1:  Outer (advection loop) ==============================!
        do outer = 1,outer_iterations
          ! Some idealized (fast) physics terms
@@ -281,19 +277,19 @@ contains
           end if
 
           ! Set advecting velocity & terms
-          call bundle_axpby(ALPHA, state_np1, BETA, state_n, state_adv, 3)
+          call bundle_axpby(ALPHA, state_np1, BETA, state_n, state_adv, bundle_size)
           call advection_alg(rhs_adv, state_adv, state_np1, state_n,  &
                xi, runtime_constants)
           !=== Section 3.2: Inner (nonlinear, coriolis loop) ===================!
           do inner = 1,inner_iterations
-             call rhs_alg(rhs_np1, -ALPHA*dt, state_np1, runtime_constants, .false.)
+             call rhs_alg(rhs_np1, -ALPHA*dt, state_np1, runtime_constants, .false., .true.)
 
              ! === Section 3.3: Solve for increments ============================!
              ! Add on advective terms: rhs = rhs_n - rhs_np1 + rhs_adv
              ! (reuse rhs_np1 for rhs)
-             call bundle_axpy(-1.0_r_def, rhs_np1, rhs_n, rhs_np1, 3)
-             call add_bundle(rhs_np1, rhs_adv, rhs_np1, 3)
-             call add_bundle(rhs_np1, rhs_heldsuarez, rhs_np1, 3)
+             call bundle_axpy(-1.0_r_def, rhs_np1, rhs_n, rhs_np1, bundle_size)
+             call add_bundle(rhs_np1, rhs_adv, rhs_np1, bundle_size)
+             call add_bundle(rhs_np1, rhs_heldsuarez, rhs_np1, bundle_size)
              
              write( log_scratch_space, '(A,I6,2I3)' ) &
                   'loop indices (n, o, i): ', timestep, outer, inner
