@@ -1,5 +1,8 @@
 #!jinja2
 {%- set builds = ['fast-debug'] %}
+{%- set science_configs = ['semi-implicit', 'runge-kutta'] %}
+{%- set science_target = 'fast-debug' %}
+{%- set compile_config = 'semi_implicit' %}
 
 {%- set compiler_setup = {} -%}
 {%- for compiler, setup in TARGET_COMPILER_SETUP|batch(2) -%}
@@ -46,30 +49,31 @@
 {%-   endif %}
 {%- endif %}
 
-{% for compiler, script in TARGET_COMPILER_SETUP | batch(2) -%}
-{%   for build in builds -%}
-{%     set label = compiler | lower + '_' + build | lower -%}
+{%- for compiler, script in TARGET_COMPILER_SETUP | batch(2) %}
+{%-   for build in builds %}
+{%-     set label = compiler | lower + '_' + build | lower %}
             local_purge_for_{{label}}      => target_purge_for_{{label}}
             target_purge_for_{{label}}     => export_for_{{label}}
             export_for_{{label}}           => copy_{{label}}_to_target
             copy_{{label}}_to_target       => compile_with_{{label}}
-{%-    if TARGET_SKIP_UNIT_TESTS %}
             compile_with_{{label}}         => generate_{{label}}_cubedsphere
             compile_with_{{label}}         => generate_{{label}}_biperiodic
-            compile_with_{{label}}         => run_{{label}}_dynamo
-{%-    else %}
+{%-    if not TARGET_SKIP_UNIT_TESTS %}
             compile_with_{{label}}         => unit_test_with_{{label}}
-            unit_test_with_{{label}}       => generate_{{label}}_cubedsphere
-            unit_test_with_{{label}}       => generate_{{label}}_biperiodic
-            unit_test_with_{{label}}       => run_{{label}}_dynamo
 {%-    endif %}
             generate_{{label}}_cubedsphere => check_{{label}}_cubedsphere_metadata
             generate_{{label}}_cubedsphere => check_{{label}}_cubedsphere_data
             generate_{{label}}_biperiodic  => check_{{label}}_biperiodic_metadata
             generate_{{label}}_biperiodic  => check_{{label}}_biperiodic_data
-            run_{{label}}_dynamo           => check_{{label}}_dynamo
-{%   endfor -%}
-{% endfor -%}
+{%-    for config in science_configs %}
+{#-       At the point where we have more than one compiler or target we will #}
+{#-       need some logic here.                                               #}
+{%-       set config_label = config | lower + '_' + label %}
+                compile_with_{{label}}    => run_{{config_label}}_dynamo
+                run_{{config_label}}_dynamo => check_{{config_label}}_dynamo
+{%-     endfor %}
+{%-   endfor %}
+{%- endfor %}
                 """
 [runtime]
     [[root]]
@@ -218,15 +222,20 @@
         pre-script = {{command_list(TARGET_BASE_SETUP, TARGET_BUILD_SETUP, compiler_setup[compiler], TARGET_REVEAL_SETUP)}}
         script = "make -C $DYNAMO_SOURCE_DIRECTORY test"
 
-    [[run_{{label}}_dynamo]]
+{%- for config in science_configs %}
+{%-   set config_label = config | lower + '_' + label %}
+    [[run_{{config_label}}_dynamo]]
         inherit = {{family}}, {{family}}_RUN_ENVIRONMENT
         pre-script = {{command_list(TARGET_BASE_SETUP, compiler_setup[compiler], TARGET_REVEAL_SETUP)}}
-        script = "rose task-run --verbose --debug --app-key=dynamo --command-key={{TARGET_RUN_METHOD}}"
-        post-script = "cp dynamo-checksums.txt $DYNAMO_DESTINATION_DIRECTORY/dynamo.out.txt"
+        script = "rose task-run --verbose --debug --app-key=dynamo --command-key={{TARGET_RUN_METHOD}} --opt-conf-key={{config}}"
+        post-script = "cp dynamo-checksums.txt $DYNAMO_DESTINATION_DIRECTORY/dynamo.{{config}}.{{compiler}}.out.txt"
 
-    [[check_{{label}}_dynamo]]
+    [[check_{{config_label}}_dynamo]]
         inherit = {{family}}, {{family}}_TECHNICAL_ENVIRONMENT
         script = "rose task-run --app-key=check_dynamo"
+        [[[environment]]]
+        DYNAMO_CONFIG = {{config}}
+{%- endfor %}
 
     [[generate_{{label}}_cubedsphere]]
         inherit = {{family}}, {{family}}_TECHNICAL_ENVIRONMENT

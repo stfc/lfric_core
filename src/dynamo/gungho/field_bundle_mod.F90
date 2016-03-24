@@ -8,9 +8,11 @@
 !>@brief Contains wrapper routines for working on arrays of fields
 !!       Effectively these are generally wrapper functions to pointwise kernels
 module field_bundle_mod
-  use field_mod,     only: field_type
-  use constants_mod, only: i_def, r_def
- 
+
+  use constants_mod,             only: i_def, r_def
+  use field_mod,                 only: field_type
+  use finite_element_config_mod, only: element_order
+
   implicit none
 
 contains
