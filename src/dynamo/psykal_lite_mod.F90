@@ -18,7 +18,7 @@ module psykal_lite_mod
   use scalar_mod,     only : scalar_type
   use operator_mod,   only : operator_type, operator_proxy_type
   use quadrature_mod, only : quadrature_type
-  use constants_mod,  only : r_def, i_def
+  use constants_mod,  only : r_def, i_def, cache_block
   use mesh_mod,       only : mesh_type
 
   use quadrature_3d_xyoz_mod, only : quadrature_3d_xyoz_type, &
@@ -112,16 +112,18 @@ contains
     END SUBROUTINE invoke_initial_u_kernel
 
 !-------------------------------------------------------------------------------    
-!> invoke_inner_prod: Calculate inner product of x and y
   subroutine invoke_inner_prod(x,y,inner_prod)
+    use omp_lib
     USE log_mod, ONLY : log_event, LOG_LEVEL_ERROR
     implicit none
     type( field_type ),  intent(in ) :: x,y
     real(kind=r_def),    intent(out) :: inner_prod
     real(kind=r_def)                 :: inner_prod_local_tmp
+    real(kind=r_def), allocatable, dimension(:) :: lsum
     type( scalar_type )              :: inner_prod_local
     type( field_proxy_type)          ::  x_p,y_p
     INTEGER                          :: i,undf
+    integer                          :: thread_id, num_threads, pad_size
 
     x_p = x%get_proxy()
     y_p = y%get_proxy()
@@ -135,16 +137,33 @@ contains
       stop
     endif
 
-    inner_prod_local_tmp = 0.0_r_def 
-    !$omp parallel do default(none), schedule(static) & 
-    !$omp& shared(x_p, y_p, undf),  private(i) &
-    !$omp& reduction(+:inner_prod_local_tmp)
+    ! get the number of threads
+    num_threads = omp_get_max_threads()
+    pad_size = cache_block / storage_size(x_p%data(1))
+    ! allocate the array, pad to avoid false sharing
+    allocate( lsum( 0 : (num_threads - 1)*pad_size ) )
+    lsum = 0.0_r_def
+
+    !$omp parallel default(none) &
+    !$omp& shared(lsum, x_p, y_p, undf, num_threads, pad_size) & 
+    !$omp& private(i, thread_id)
+    ! which thread am i?
+    thread_id = omp_get_thread_num()*pad_size
+
+    !$omp do schedule(static) 
     do i = 1,undf
-      inner_prod_local_tmp = inner_prod_local_tmp + &
+      lsum(thread_id) = lsum(thread_id) + &
                              ( x_p%data(i) * y_p%data(i) )
     end do
-    !$omp end parallel do
+    !$omp end do
 
+    !$omp end parallel
+
+    inner_prod_local_tmp = 0.0_r_def 
+    do i = 0, num_threads -1
+       inner_prod_local_tmp = inner_prod_local_tmp + lsum(i*pad_size)
+    end do
+    deallocate(lsum)
     inner_prod_local = scalar_type( inner_prod_local_tmp )
 
     ! Get the global sum of the inner products
@@ -545,27 +564,48 @@ contains
 !-------------------------------------------------------------------------------   
 !> invoke_sum_field: Sum all values of a field x
   subroutine invoke_sum_field( x, field_sum )
+    use omp_lib
     use log_mod, only : log_event, LOG_LEVEL_ERROR
     implicit none
     type( field_type ),  intent(in ) :: x
     real(kind=r_def),    intent(out) :: field_sum
     real(kind=r_def)                 :: field_sum_local_tmp
+    real(kind=r_def), allocatable, dimension(:) :: lsum
     type( scalar_type )              :: field_sum_local
     type( field_proxy_type)          :: x_p
     integer(kind=i_def)              :: df, undf
+    integer(kind=i_def)              :: thread_id, num_threads, pad_size
 
     x_p = x%get_proxy()   
 
     undf = x_p%vspace%get_last_dof_owned()
     
     ! Calculate the local sum on this partition
-    field_sum_local_tmp = 0.0_r_def
-    !$omp parallel do schedule(static), default(none), shared(x_p, undf),  private(df), reduction(+:field_sum_local_tmp)
-    do df = 1,undf
-      field_sum_local_tmp = field_sum_local_tmp + x_p%data(df)
-    end do
-    !$omp end parallel do
+    ! get the number of threads
+    num_threads = omp_get_max_threads()
+    pad_size = cache_block / storage_size(x_p%data(1))
+    ! allocate the array, pad to avoid false sharing
+    allocate( lsum( 0 : (num_threads - 1)*pad_size ) )
+    lsum = 0.0_r_def
 
+    !$omp parallel default(none) &
+    !$omp& shared(x_p, lsum, undf, num_threads, pad_size) &
+    !$omp& private(thread_id, df)
+    thread_id = omp_get_thread_num()*pad_size
+
+    !$omp do schedule(static) 
+    do df = 1,undf
+      lsum(thread_id) = lsum(thread_id) + x_p%data(df)
+    end do
+    !$omp end do
+    
+    !$omp end parallel
+
+    field_sum_local_tmp = 0.0_r_def
+    do df = 0, num_threads - 1
+       field_sum_local_tmp = field_sum_local_tmp + lsum(df*pad_size)
+    end do
+    deallocate(lsum)
     field_sum_local = scalar_type( field_sum_local_tmp )
 
     ! Now call the global sum
