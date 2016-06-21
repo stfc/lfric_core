@@ -5,9 +5,8 @@
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
 
-!> A container module for various routines that are part of the driver layer
-!> and hence sit outside of the PsyKAl structure
-module driver_layer
+!> A module for the interpolated output subroutine
+module interpolated_output_mod
 
   implicit none
 
@@ -132,4 +131,4 @@ contains
   
   end subroutine interpolated_output 
 
-end module driver_layer
+end module interpolated_output_mod

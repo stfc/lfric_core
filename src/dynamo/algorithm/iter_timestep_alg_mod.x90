@@ -9,26 +9,28 @@
 !>       3D equations
 module iter_timestep_alg_mod
 
-  use constants_mod,                     only: r_def, i_def
+  use constants_mod,                     only: i_def,r_def
   use log_mod,                           only: log_event,         &
                                                log_scratch_space, &
                                                LOG_LEVEL_INFO,    &
                                                LOG_LEVEL_TRACE
 
-  ! Configuration and restart/checkpoint options
+  ! Configuration options
   use finite_element_config_mod, only: element_order
-  use restart_control_mod,       only: restart_type
-  use output_config_mod,         only: diagnostic_frequency
+
   use solver_config_mod,         only: method
+
   use timestepping_config_mod,   only: dt, alpha, beta, &
                                        outer_iterations, inner_iterations
   use idealised_config_mod,      only: test, idealised_test_held_suarez
   use derived_config_mod,        only: bundle_size
+  use runtime_constants_mod,     only: get_geopotential, &
+                                       get_mass_matrix, &
+                                       get_mass_matrix_diagonal, &
+                                       get_qr
+
   ! PsyKAl-lite kernels
-  use psykal_lite_mod,                   only: invoke_axpby,            &
-                                               invoke_copy_field_data,  &
-                                               invoke_minus_field_data, &
-                                               invoke_plus_field_data,  &
+  use psykal_lite_mod,                   only: invoke_copy_field_data,  &
                                                invoke_set_field_scalar, &
                                                invoke_initial_u_kernel
   use field_bundle_mod,                  only: clone_bundle, & 
@@ -39,17 +41,6 @@ module iter_timestep_alg_mod
                                                set_bundle_scalar
 
   ! PsyKAl PSYClone kernels
-  use initial_u_kernel_mod,              only: initial_u_kernel_type
-  use compute_mass_matrix_kernel_w0_mod, only: compute_mass_matrix_kernel_w0_type
-  use compute_mass_matrix_kernel_w1_mod, only: compute_mass_matrix_kernel_w1_type
-  use compute_mass_matrix_kernel_w2_mod, only: compute_mass_matrix_kernel_w2_type
-  use compute_mass_matrix_kernel_w3_mod, only: compute_mass_matrix_kernel_w3_type
-  use compute_geopotential_kernel_mod,   only: compute_geopotential_kernel_type
-  use mm_diagonal_kernel_mod,            only: mm_diagonal_kernel_type
-  use invert_local_operator_kernel_mod,  only: invert_local_operator_kernel_type
-  use compute_grad_operator_kernel_mod,  only: compute_grad_operator_kernel_type
-  use compute_curl_operator_kernel_mod,  only: compute_curl_operator_kernel_type
-  use compute_div_operator_kernel_mod,   only: compute_div_operator_kernel_type
   use held_suarez_kernel_mod,            only: held_suarez_kernel_type
   use enforce_bc_kernel_mod,             only: enforce_bc_kernel_type
 
@@ -57,33 +48,106 @@ module iter_timestep_alg_mod
   use function_space_collection_mod,     only: function_space_collection
   use field_mod,                         only: field_type
   use function_space_mod,                only: function_space_type
-  use quadrature_mod,                    only: quadrature_type, GAUSSIAN
-  use quadrature_3d_xyoz_mod,            only: quadrature_3d_xyoz_type
-  use quadrature_rule_gaussian_mod,      only: quadrature_rule_gaussian_type
-  use operator_mod,                      only: operator_type
-  use runtime_constants_mod,             only: runtime_constants_type
+  use quadrature_mod,                    only: quadrature_type
+
 
   ! Algorithms
   use solver_mod,                        only: solver_algorithm
   use conservation_algorithm_mod,        only: conservation_algorithm
   use rhs_alg_mod,                       only: rhs_alg
   use advection_alg_mod,                 only: advection_alg
-  use output_alg_mod,                    only: output_alg
   use si_solver_alg_mod,                 only: si_solver_alg, si_solver_init
 
-  ! Handles
-  use fs_continuity_mod,                 only: W0, W1, W2, W3
 
   implicit none
 
   private
-  public :: iter_timestep_alg
+
+  ! 'State' items private to the algorithm that need to be 
+  !  created once but used every step
+  type( field_type ), allocatable :: state(:), state_n(:), state_adv(:)
+  type( field_type ), allocatable :: rhs_n(:), rhs_np1(:), rhs_adv(:)
+  type( field_type ), allocatable :: rhs_heldsuarez(:)
+
+
+  public :: iter_alg_init
+  public :: iter_alg_step
 
 contains
-  !> @details An algorithm for timstepping the 3D nonlinear equations
+  !> @details Initialisation procedure for the timestepping algorithm
+  !>         Initialises various internal fields
+  !> @param[in]    mesh Mesh object on which the model runs
+  !> @param[inout] u  The 3D wind field
+  !> @param[inout] rho The density
+  !> @param[inout] theta The potential temperature
+
+
+  subroutine iter_alg_init( mesh_id, u, rho, theta)
+
+    implicit none
+
+    ! Mesh
+    integer(i_def), intent(in) :: mesh_id 
+
+
+    ! Prognostic fields    
+    type( field_type ), intent( inout ) :: u, rho, theta
+
+
+    type(function_space_type), pointer :: theta_fs => null()
+    type(function_space_type), pointer :: rho_fs   => null()
+    type(function_space_type), pointer :: u_fs     => null()
+
+
+    !=== Allocate internal state field arrays ================================!
+
+    allocate(state(bundle_size))
+    allocate(state_n(bundle_size))
+    allocate(state_adv(bundle_size))
+    allocate(rhs_n(bundle_size))
+    allocate(rhs_np1(bundle_size))
+    allocate(rhs_adv(bundle_size))
+    allocate(rhs_heldsuarez(bundle_size))
+
+
+    !=== Initialise internal state field objects =============================!
+
+    theta_fs => function_space_collection%get_fs ( mesh_id, element_order        &
+                                                 ,theta%which_function_space() )
+    u_fs     => function_space_collection%get_fs ( mesh_id, element_order        &
+                                                 ,u%which_function_space()     )
+    rho_fs   => function_space_collection%get_fs ( mesh_id, element_order        &
+                                                 ,rho%which_function_space()   )
+
+    state(1) = field_type( vector_space = u_fs     )
+    state(2) = field_type( vector_space = theta_fs )
+    state(3) = field_type( vector_space = rho_fs   )
+
+    call clone_bundle(state, state_n,   bundle_size)
+    call clone_bundle(state, state_adv, bundle_size)
+    call clone_bundle(state, rhs_n,     bundle_size)
+    call clone_bundle(state, rhs_np1,   bundle_size)
+    call clone_bundle(state, rhs_adv,   bundle_size)
+    call clone_bundle(state, rhs_heldsuarez,   bundle_size)
+
+    ! If held-suarez forcing is not used, then we want the following to be 
+    ! initialized to zero
+    call set_bundle_scalar(0.0_r_def, rhs_heldsuarez, bundle_size)
+
+
+    !=== Copy prognostic field data to state arrays ===========================!
+    call invoke_copy_field_data(u,     state(1))
+    call invoke_copy_field_data(theta, state(2))
+    call invoke_copy_field_data(rho,   state(3))
+    call si_solver_init(state)
+
+    call log_event( "Dynamo: initialised timestepping algorithm", LOG_LEVEL_INFO )
+
+
+  end subroutine iter_alg_init
+
+  !> @details An algorithm for timestepping the 3D nonlinear equations
   !>         using a iterative process of the same form as endgame.
-  !>         Initialialises all fields, sets up tempoary fields, performs the
-  !>         timestepping and checks to see if it should dump output.
   !>         The algorithm splits all processes into one of three parts.
   !>         Old time level forcings computed once per timestep.
   !>         Advection terms computed in an outer loop using time-averaged
@@ -93,245 +157,78 @@ contains
   !>         by default. This means that there is one evaluation of old time
   !>         level terms, 2 evaluation of advective terms and 4 evaluations 
   !>         of new time level terms and increment updates per timestep
-  !> @param[in]    mesh id of Mesh object on which the model runs
   !> @param[inout] chi  The finite element form of the coordinates
   !> @param[inout] u  The 3D wind field
   !> @param[inout] rho The density
   !> @param[inout] theta The potential temperature
   !> @param[inout] xi The vorticity field
-  !> @param[in] restart Checkpoint/restart type with timestepping information
-  subroutine iter_timestep_alg( mesh, chi, u, rho, theta, xi, &
-       restart)
+
+  subroutine iter_alg_step(chi, u, rho, theta, xi)
 
     implicit none
 
-    ! Mesh id
-    integer(i_def), intent(in) :: mesh
 
     ! Coordinate fields
     type( field_type ), intent( inout ) :: chi(3)
 
     ! Prognostic fields    
     type( field_type ), intent( inout ) :: u, rho, theta, xi
-    ! Restart for timestep control
-    type( restart_type ), intent(in)    :: restart
 
-    ! Temporary fields    
-    type( field_type ) :: geopotential, r_u
-    type( field_type ) :: state_n(bundle_size), state_np1(bundle_size), state_adv(bundle_size)
-    type( field_type ) :: rhs_n(bundle_size), rhs_np1(bundle_size), rhs_adv(bundle_size)
-    type( field_type ) :: rhs_heldsuarez(bundle_size)
-    type( field_type ) :: mm_diagonal_w3, &
-                          mm_diagonal_w2, &
-                          mm_diagonal_w1, &
-                          mm_diagonal_w0
-    
-    type( runtime_constants_type ) :: runtime_constants
+    ! quadrature object
 
-    type(quadrature_type)     :: qr
-    type(quadrature_3d_xyoz_type)       :: qr_3d_xyoz
-    type(quadrature_rule_gaussian_type) :: gaussian_quadrature
-    type(function_space_type) :: fs
-    type(function_space_type), pointer :: theta_fs => null()
-    type(function_space_type), pointer :: rho_fs   => null()
-    type(function_space_type), pointer :: u_fs     => null()
-    type(function_space_type), pointer :: xi_fs    => null()
-    type(function_space_type), pointer :: w0_fs    => null()
-    type(function_space_type), pointer :: w1_fs    => null()
-    type(function_space_type), pointer :: w2_fs    => null()
-    type(function_space_type), pointer :: w3_fs    => null()
+    type(quadrature_type)       :: qr
 
-
-    type( operator_type )            :: mm_w3, mm_w2, mm_w1, mm_w0, mm_w3_inv
-    type( operator_type )            :: grad, curl, div
-
-    ! Iterative timestepping variables
-    integer            :: timestep, ts_init
     integer            :: outer, inner
 
-    !=== Section 1: Create field objects =====================================!
-    ! Local fields
-    theta_fs => function_space_collection%get_fs ( mesh, element_order        &
-                                                 ,theta%which_function_space() )
-    u_fs     => function_space_collection%get_fs ( mesh, element_order        &
-                                                 ,u%which_function_space()     )
-    rho_fs   => function_space_collection%get_fs ( mesh, element_order        &
-                                                 ,rho%which_function_space()   )
-    xi_fs    => function_space_collection%get_fs ( mesh, element_order        &
-                                                 ,xi%which_function_space()    )
+    qr = get_qr()
 
-    w0_fs => function_space_collection%get_fs( mesh, element_order, W0 )
-    w1_fs => function_space_collection%get_fs( mesh, element_order, W1 )
-    w2_fs => function_space_collection%get_fs( mesh, element_order, W2 )
-    w3_fs => function_space_collection%get_fs( mesh, element_order, W3 )
+    !=== Do a single timestep ==============================================!
 
-    qr = quadrature_type(element_order+3, GAUSSIAN)
-    qr_3d_xyoz = quadrature_3d_xyoz_type(element_order+3,  gaussian_quadrature)
+    call copy_bundle(state, state_n, bundle_size)
+    call rhs_alg(rhs_n, beta*dt, state_n, .false., .false.)
+    !=== Section 3.1:  Outer (advection loop) ==============================!
+    do outer = 1,outer_iterations
+      ! Some idealized (fast) physics terms
+      if ( test == idealised_test_held_suarez) then
+        call set_bundle_scalar(0.0_r_def, rhs_heldsuarez, 3)
+        call invoke(held_suarez_kernel_type(rhs_heldsuarez(1), rhs_heldsuarez(2), &
+                    state_n(1), state_n(2), state_n(3), chi, qr))
+        call invoke( enforce_bc_kernel_type( rhs_heldsuarez(1) ) )
+      end if
 
-    ! Create field bundles
-    state_np1(1) = field_type( vector_space = u_fs     )
-    state_np1(2) = field_type( vector_space = theta_fs )
-    state_np1(3) = field_type( vector_space = rho_fs   )
+      ! Set advecting velocity & terms
+      call bundle_axpby(alpha, state, beta, state_n, state_adv, bundle_size)
+      call advection_alg(rhs_adv, state_adv, state, state_n, xi)
+      !=== Section 3.2: Inner (nonlinear, coriolis loop) ===================!
+      do inner = 1,inner_iterations
+        call rhs_alg(rhs_np1, -alpha*dt, state, .false., .true.)
 
-    call clone_bundle(state_np1, state_adv, bundle_size)
-    call clone_bundle(state_np1, state_n,   bundle_size)
-    call clone_bundle(state_np1, rhs_n,     bundle_size)
-    call clone_bundle(state_np1, rhs_np1,   bundle_size)
-    call clone_bundle(state_np1, rhs_adv,   bundle_size)
-    call clone_bundle(state_np1, rhs_heldsuarez,   bundle_size)
+        ! === Section 3.3: Solve for increments ============================!
+        ! Add on advective terms: rhs = rhs_n - rhs_np1 + rhs_adv
+        ! (reuse rhs_np1 for rhs)
 
-    ! Create extra fields
-    r_u = field_type( vector_space = u_fs )
-    geopotential = field_type( vector_space = theta_fs )
-
-    ! Create operators needed for timestepping
-    mm_w0 = operator_type( w0_fs, w0_fs )
-    mm_w1 = operator_type( w1_fs, w1_fs )
-    mm_w2 = operator_type( w2_fs, w2_fs )
-    mm_w3 = operator_type( w3_fs, w3_fs )
-    mm_w3_inv = operator_type( w3_fs, w3_fs )
-
-    grad = operator_type( w1_fs, w0_fs )
-    curl = operator_type( w2_fs, w1_fs )
-    div  = operator_type( w3_fs, w2_fs )
-
-    !=== Section 2: Initialise local algorithm fields ========================!
-    call log_event( "Dynamo: computing Semi-Implicit algorithm fields", &
-                     LOG_LEVEL_INFO )
-    ! Compute geopotential
-    call invoke( compute_geopotential_kernel_type( geopotential, chi ) )
-    ! Compute mass matrices
-    call invoke( compute_mass_matrix_kernel_w0_type(mm_w0, chi, qr), &
-                 compute_mass_matrix_kernel_w1_type(mm_w1, chi, qr), &
-                 compute_mass_matrix_kernel_w2_type(mm_w2, chi, qr), &
-                 compute_mass_matrix_kernel_w3_type(mm_w3, chi, qr), & 
-                 invert_local_operator_kernel_type(mm_w3_inv, mm_w3) )
-    ! These are seperate invokes as chi is defined as any space and psyclone 
-    ! does not support multiple any_spaces in the same invoke
-    call invoke( compute_grad_operator_kernel_type(grad, chi, qr) )
-    call invoke( compute_curl_operator_kernel_type(curl, chi, qr) )
-    call invoke( compute_div_operator_kernel_type (div,  chi, qr) )
-
-    ! Compute mass matrix diagonals
-    mm_diagonal_w0 = field_type( vector_space = theta_fs )
-    mm_diagonal_w1 = field_type( vector_space = xi_fs    )
-    mm_diagonal_w2 = field_type( vector_space = u_fs     )
-    mm_diagonal_w3 = field_type( vector_space = rho_fs   )
-    call invoke_set_field_scalar(0.0_r_def,mm_diagonal_w0)
-    call invoke_set_field_scalar(0.0_r_def,mm_diagonal_w1)
-    call invoke_set_field_scalar(0.0_r_def,mm_diagonal_w2)
-
-    call invoke( mm_diagonal_kernel_type(mm_diagonal_w0,mm_w0))
-    call invoke( mm_diagonal_kernel_type(mm_diagonal_w1,mm_w1))
-    call invoke( mm_diagonal_kernel_type(mm_diagonal_w2,mm_w2))
-    ! W3 equations are solved pointwise and so the mass matrix is inverted
-    ! exactly, therfore the diagonal, where used should be 1
-    call invoke_set_field_scalar(1.0_r_def,mm_diagonal_w3)
-
-    ! If held-suarez forcing is not used, then we want the following to be 
-    ! initialized to zero
-    call set_bundle_scalar(0.0_r_def, rhs_heldsuarez, bundle_size)
-
-    ! Create fixed state container
-    runtime_constants = runtime_constants_type( chi, geopotential, &
-                                               mm_w0, mm_w1, mm_w2, mm_w3, &
-                                               mm_w3_inv,&
-                                               mm_diagonal_w0, &
-                                               mm_diagonal_w1, &
-                                               mm_diagonal_w2, &
-                                               mm_diagonal_w3, &
-                                               grad, curl, div)
-    ! Prognostics
-    if(.not.restart%read_file()) then ! no check point to start from
-      call invoke_set_field_scalar(0.0_r_def, xi)
-      call invoke_set_field_scalar(0.0_r_def, u)
-      call invoke_set_field_scalar(0.0_r_def, r_u) 
-      call invoke_initial_u_kernel(r_u, chi, qr_3d_xyoz)
-      call solver_algorithm(u, r_u, mesh, chi, method, mm=mm_w2)            
-    end if
-    !--- Intial output and output frequency -----------------------------------!
-    ! Output initial conditions
-    call log_event( "Dynamo: Outputing initial fields", LOG_LEVEL_INFO )
-    ts_init = max( (restart%ts_start() - 1), 0 ) ! 0 or t previous.
-    call output_alg(ts_init, theta, xi, u, rho, chi, mesh, mm_w0)
-    call conservation_algorithm(ts_init, mesh, rho, u, theta, xi, &
-                                geopotential, chi)
-
-    !=== Section 3: Timestepping ==============================================!
-    call invoke_copy_field_data(u,     state_np1(1))
-    call invoke_copy_field_data(theta, state_np1(2))
-    call invoke_copy_field_data(rho,   state_np1(3))
-    call si_solver_init(state_np1, runtime_constants)
-
-    do timestep = restart%ts_start(),restart%ts_end()
-       call log_event( &
-       "/****************************************************************************\ ", &
-            LOG_LEVEL_TRACE )
-       write( log_scratch_space, '(A,I0)' ) 'Start of timestep ', timestep
-       call log_event( log_scratch_space, LOG_LEVEL_INFO )
-       ! Time level n fields
-       call copy_bundle(state_np1, state_n, bundle_size)
-       call rhs_alg(rhs_n, BETA*dt, state_n, runtime_constants, .false., .false.)
-       !=== Section 3.1:  Outer (advection loop) ==============================!
-       do outer = 1,outer_iterations
-         ! Some idealized (fast) physics terms
-          if ( test == idealised_test_held_suarez) then
-            call set_bundle_scalar(0.0_r_def, rhs_heldsuarez, 3)
-            call invoke(held_suarez_kernel_type(rhs_heldsuarez(1), rhs_heldsuarez(2), &
-               state_n(1), state_n(2), state_n(3), chi, qr))
-            call invoke( enforce_bc_kernel_type( rhs_heldsuarez(1) ) )
-          end if
-
-          ! Set advecting velocity & terms
-          call bundle_axpby(ALPHA, state_np1, BETA, state_n, state_adv, bundle_size)
-          call advection_alg(rhs_adv, state_adv, state_np1, state_n,  &
-               xi, runtime_constants)
-          !=== Section 3.2: Inner (nonlinear, coriolis loop) ===================!
-          do inner = 1,inner_iterations
-             call rhs_alg(rhs_np1, -ALPHA*dt, state_np1, runtime_constants, .false., .true.)
-
-             ! === Section 3.3: Solve for increments ============================!
-             ! Add on advective terms: rhs = rhs_n - rhs_np1 + rhs_adv
-             ! (reuse rhs_np1 for rhs)
-             call bundle_axpy(-1.0_r_def, rhs_np1, rhs_n, rhs_np1, bundle_size)
-             call add_bundle(rhs_np1, rhs_adv, rhs_np1, bundle_size)
-             call add_bundle(rhs_np1, rhs_heldsuarez, rhs_np1, bundle_size)
+        call bundle_axpy(-1.0_r_def, rhs_np1, rhs_n, rhs_np1, bundle_size)
+        call add_bundle(rhs_np1, rhs_adv, rhs_np1, bundle_size)
+        call add_bundle(rhs_np1, rhs_heldsuarez, rhs_np1, bundle_size)
              
-             write( log_scratch_space, '(A,I6,2I3)' ) &
-                  'loop indices (n, o, i): ', timestep, outer, inner
-             call log_event( log_scratch_space, LOG_LEVEL_INFO )
-             call si_solver_alg(state_np1, rhs_np1, state_n, runtime_constants)
-             !=== End Section 3.3 ===============================================!
-          end do
-          !=== End Section 3.2 =================================================!
-       end do
-       !=== End Section 3.1 ===================================================!
-       !=== Section 3.4: End of timestep diagnostics ==========================!
-       ! Here we need to use diagnostic output frequency to determine when to 
-       ! write diagnostics
+        write( log_scratch_space, '(A,2I3)' ) 'loop indices (o, i): ', &
+                                                  , outer, inner
+        call log_event( log_scratch_space, LOG_LEVEL_INFO )
+        call si_solver_alg(state, rhs_np1, state_n)
+        !=== End Section 3.3 ===============================================!
+      end do ! INNER
+      !=== End Section 3.2 =================================================!
+    end do ! OUTER
+    !=== End Section 3.1 ===================================================!
 
-       if ( mod(timestep, diagnostic_frequency) == 0 ) then
-         call output_alg(timestep, state_np1(2), xi, state_np1(1), &
-                         state_np1(3), chi, mesh, mm_w0)
-       end if
-       call conservation_algorithm(timestep, mesh, state_np1(3), state_np1(1), &
-         state_np1(2), xi, geopotential, chi)
        
-       write( log_scratch_space, '(A,I0)' ) 'End of timestep ', timestep
-       call log_event( log_scratch_space, LOG_LEVEL_TRACE )
-       call log_event( &
-       '\****************************************************************************/ ', &
-            LOG_LEVEL_TRACE )
-       !=== End of Section 3.4 ================================================!
-    end do
-
     ! Return fields in u, theta, rho arrays
-    call invoke_copy_field_data(state_np1(1), u)
-    call invoke_copy_field_data(state_np1(2), theta)
-    call invoke_copy_field_data(state_np1(3), rho)
+    call invoke_copy_field_data(state(1), u)
+    call invoke_copy_field_data(state(2), theta)
+    call invoke_copy_field_data(state(3), rho)
 
-    call log_event( "Dynamo: Finished timestep", LOG_LEVEL_INFO )
-    !=== End Section 3.0 ======================================================!
-  end subroutine iter_timestep_alg
+
+  end subroutine iter_alg_step
+
 
 end module iter_timestep_alg_mod

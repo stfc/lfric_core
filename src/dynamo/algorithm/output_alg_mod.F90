@@ -8,7 +8,7 @@
 module output_alg_mod
 
   use constants_mod,                     only: r_def, str_max_filename, i_def
-  use driver_layer,                      only: interpolated_output
+  use interpolated_output_mod,           only: interpolated_output
   use function_space_collection_mod,     only: function_space_collection
   use field_mod,                         only: field_type
   use finite_element_config_mod,         only: element_order

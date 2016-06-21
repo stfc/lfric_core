@@ -12,6 +12,11 @@ module rhs_alg_mod
   use constants_mod,                     only: r_def, i_def
   use enforce_bc_kernel_mod,             only: enforce_bc_kernel_type
   use function_space_collection_mod,     only: function_space_collection
+  use runtime_constants_mod,             only: get_geopotential, &
+                                               get_coordinates, &
+                                               get_div, &
+                                               get_mass_matrix, &
+                                               get_mass_matrix_diagonal
   use field_bundle_mod,                  only: clone_bundle
   use field_mod,                         only: field_type
   use finite_element_config_mod,         only: element_order
@@ -31,7 +36,6 @@ module rhs_alg_mod
   use rotation_kernel_mod,               only: rotation_kernel_type
   use rrho_kernel_mod,                   only: rrho_kernel_type
   use rtheta_kernel_mod,                 only: rtheta_kernel_type
-  use runtime_constants_mod,             only: runtime_constants_type
   use solver_config_mod,                 only: method
   use solver_mod,                        only: solver_algorithm
   use derived_config_mod,                only: bundle_size
@@ -58,11 +62,9 @@ contains
 !> @param[inout] rhs The state vector to compute
 !> @param[in]    alpha_dt The offcentering parameter times the timestep
 !> @param[in]    state The current model prognostic state
-!> @param[in]    runtime_constants Runtime constants for the model
 !> @param[in]    from_solver flag set to true if computing the lhs from the si solver
 !> @param[in]    from_solver flag set to true if computing the terms in the inner loop
-  subroutine rhs_alg(rhs, alpha_dt, state, runtime_constants, &
-                     from_solver, from_inner_loop)
+  subroutine rhs_alg(rhs, alpha_dt, state, from_solver, from_inner_loop)
   
   implicit none
 
@@ -70,7 +72,6 @@ contains
   ! Form of state and rhs is [u,theta,rho,exner] 
   type(field_type), target,     intent(in)    :: state(bundle_size)
   type(field_type),             intent(inout) :: rhs(bundle_size)
-  type(runtime_constants_type), intent(in)    :: runtime_constants
   logical,                      intent(in)    :: from_solver
   logical,                      intent(in)    :: from_inner_loop
 
@@ -86,11 +87,11 @@ contains
   type(function_space_type), pointer :: rho_fs => null()
   integer(i_def) :: mesh_id
 
-  geopotential => runtime_constants%get_geopotential()
-  mm_w0        => runtime_constants%get_mass_matrix(0)
-  mm_w2        => runtime_constants%get_mass_matrix(2)
-  mm_w3_inv    => runtime_constants%get_mass_matrix(4)
-  chi          => runtime_constants%get_coordinates()
+  geopotential => get_geopotential()
+  mm_w0        => get_mass_matrix(0)
+  mm_w2        => get_mass_matrix(2)
+  mm_w3_inv    => get_mass_matrix(4)
+  chi          => get_coordinates()
   mesh_id = chi(1)%get_mesh_id()
 
   u     => state(1)
@@ -154,7 +155,7 @@ contains
 
   ! Compute rhs_rho
   if ( from_solver ) then
-    div => runtime_constants%get_div()
+    div => get_div()
     call invoke_set_field_scalar( 0.0_r_def, rhs_tmp(3) )
     call invoke( matrix_vector_kernel_type( rhs_tmp(3), f_star, div) )
     call invoke_multiply_field(-1.0_r_def, rhs_tmp(3), rhs_tmp(3)) 

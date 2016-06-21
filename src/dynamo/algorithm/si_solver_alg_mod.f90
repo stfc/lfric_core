@@ -17,6 +17,7 @@ module si_solver_alg_mod
                                      bundle_divide, &
                                      bundle_minmax, &
                                      bundle_inner_product
+  use runtime_constants_mod,   only: get_mass_matrix_diagonal
   use field_mod,               only: field_type
   use formulation_config_mod,  only: eliminate_p
   use lhs_alg_mod,             only: lhs_alg
@@ -27,7 +28,6 @@ module si_solver_alg_mod
                                      LOG_LEVEL_TRACE,   &
                                      lOG_LEVEL_INFO
   use operator_mod,            only: operator_type
-  use runtime_constants_mod,   only: runtime_constants_type
   use solver_config_mod,       only: maximum_iterations, &
                                      tolerance, &
                                      preconditioner, &
@@ -57,24 +57,24 @@ contains
 !>@param[inout] x0 The state array to solve for the increment of 
 !>@param[in]    rhs0 Fixed rhs forcing for the solver
 !>@param[in]    x_ref A reference state used for computing a proscribed L
-!>@param[in]    runtime_constants Container for various constant objects
-  subroutine si_solver_alg(x0, rhs0, x_ref, runtime_constants)
+  subroutine si_solver_alg(x0, rhs0, x_ref)
     use psykal_lite_mod,           only: invoke_set_field_scalar, &
                                          invoke_copy_field_data
     implicit none
 
     type(field_type), intent(inout)          :: x0(bundle_size)
     type(field_type), intent(in)             :: rhs0(bundle_size), x_ref(bundle_size)
-    type(runtime_constants_type), intent(in) :: runtime_constants
  
     real(kind=r_def)                         :: tau_dt ! tau_dt would eventually be set globally 
                                                        ! (probably the same place as alpha)
     integer(kind=i_def)                      :: i
+
     ! Set up tau_dt: to be used here and in subsequent algorithms
     tau_dt = -0.5_r_def*dt
 
+
     if ( eliminate_p ) then
-      call mixed_gmres_alg(x0, rhs0, x_ref, tau_dt, runtime_constants)      
+      call mixed_gmres_alg(x0, rhs0, x_ref, tau_dt)      
     else
       do i = 1,bundle_size
         call invoke_copy_field_data(rhs0(i), rhs0_ext(i))
@@ -84,16 +84,17 @@ contains
       call invoke_set_field_scalar(0.0_r_def, x0_ext(si_bundle_size))      
       call invoke_set_field_scalar(0.0_r_def, rhs0_ext(si_bundle_size))      
 
-      call mixed_gmres_alg(x0_ext, rhs0_ext, x_ref, tau_dt, runtime_constants)
+      call mixed_gmres_alg(x0_ext, rhs0_ext, x_ref, tau_dt)
       do i = 1,bundle_size
         call invoke_copy_field_data(x0_ext(i), x0(i))
       end do
     end if
 
+
   end subroutine si_solver_alg
 !=============================================================================!
 
-  subroutine si_solver_init(x0, runtime_constants)
+  subroutine si_solver_init(x0)
     use function_space_mod,              only: function_space_type
     use function_space_collection_mod,   only: function_space_collection
     use finite_element_config_mod,       only: element_order
@@ -102,11 +103,11 @@ contains
     implicit none
 
     type(field_type),             intent(in) :: x0(bundle_size)
-    type(runtime_constants_type), intent(in) :: runtime_constants
     integer                                  :: iter
     type(function_space_type), pointer       :: exner_fs => null()
     integer(i_def)                           :: mesh
-    integer(kind=i_def)                      :: fs_handle    
+    integer(kind=i_def)                      :: fs_handle
+
 
     allocate( dx         (si_bundle_size), &
               Ax         (si_bundle_size), &
@@ -118,11 +119,14 @@ contains
               mm_diagonal(si_bundle_size), &
               v          (si_bundle_size,gcrk) )
  
-    mm_diagonal(1) = runtime_constants%get_mass_matrix_diagonal(2)
-    mm_diagonal(2) = runtime_constants%get_mass_matrix_diagonal(0)
-    mm_diagonal(3) = runtime_constants%get_mass_matrix_diagonal(3)
+
+    mm_diagonal(1) = get_mass_matrix_diagonal(2)
+    mm_diagonal(2) = get_mass_matrix_diagonal(0)
+    mm_diagonal(3) = get_mass_matrix_diagonal(3)
     if ( .not. eliminate_p ) &
-      mm_diagonal(4) = runtime_constants%get_mass_matrix_diagonal(3)
+      mm_diagonal(4) = get_mass_matrix_diagonal(3)
+
+
    
     if ( eliminate_p ) then
       call clone_bundle(x0, x0_ext, si_bundle_size)
@@ -147,6 +151,7 @@ contains
     end do
     ! Intitialise lhs fields
     call lhs_init(x0_ext)
+
   end subroutine si_solver_init
 
 !=============================================================================!
@@ -157,22 +162,19 @@ contains
 !>@param[in]    rhs0 Fixed rhs so solve for
 !>@param[in]    x_ref Reference state
 !>@param[in]    tau_dt The offcentering parameter times the timestep
-!>@param[in]    runtime_constants Container for various constant objects
-!>@param[in]    mm_diagonal fields containing a diagonal approxiamtion to the
-!!                          mass matrices
-  subroutine mixed_gmres_alg(x0, rhs0, x_ref, tau_dt, runtime_constants)
+
+  subroutine mixed_gmres_alg(x0, rhs0, x_ref, tau_dt)
     use psykal_lite_mod, only: invoke_inner_prod
     implicit none
 
     type(field_type),             intent(inout) :: x0(si_bundle_size)
     type(field_type),             intent(in)    :: rhs0(si_bundle_size), &
                                                    x_ref(bundle_size)
-    type(runtime_constants_type), intent(in)    :: runtime_constants
     real(kind=r_def),             intent(in)    :: tau_dt
 
     ! the scalars
     real(kind=r_def)         :: h(gcrk+1, gcrk), u(gcrk), g(gcrk+1)
-    real(kind=r_def)         :: beta, si, ci, nrm, h1, h2, p, q
+    real(kind=r_def)         :: beta,si, ci, nrm, h1, h2, p, q
     ! others
     real(kind=r_def)               :: err, sc_err, init_err
     integer(kind=i_def)            :: iter, i, j, k, m
@@ -228,7 +230,7 @@ contains
 
         call bundle_preconditioner(w, v(:,j), postcon, mm_diagonal, si_bundle_size)
 
-        call lhs_alg(s, w, x_ref, tau_dt, runtime_constants)
+        call lhs_alg(s, w, x_ref, tau_dt)
 
         call bundle_preconditioner(w, s, precon, mm_diagonal, si_bundle_size )
         do k = 1, j
@@ -273,7 +275,7 @@ contains
       end do
 
       ! Check for convergence
-      call lhs_alg(Ax, dx, x_ref, tau_dt, runtime_constants)
+      call lhs_alg(Ax, dx, x_ref, tau_dt)
 
       call minus_bundle( rhs0, Ax, residual, si_bundle_size )
 
@@ -326,6 +328,7 @@ contains
     type(field_type),    optional      :: mm(si_bundle_size)
     integer(kind=i_def), intent(in)    :: option
     integer(kind=i_def)                :: i
+
 
     if ( option == solver_preconditioner_none ) then
       do i = 1,si_bundle_size

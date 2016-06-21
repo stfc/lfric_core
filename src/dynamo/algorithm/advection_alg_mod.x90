@@ -12,6 +12,11 @@ module advection_alg_mod
   use constants_mod,                  only: r_def, i_def
   use enforce_bc_kernel_mod,          only: enforce_bc_kernel_type
   use function_space_collection_mod,  only: function_space_collection
+  use runtime_constants_mod,          only: get_coordinates, &
+                                            get_div, &
+                                            get_curl, &
+                                            get_mass_matrix, &
+                                            get_mass_matrix_diagonal
   use field_bundle_mod,               only: bundle_ax
   use field_mod,                      only: field_type
   use finite_element_config_mod,      only: element_order
@@ -26,7 +31,6 @@ module advection_alg_mod
   use rtheta_kernel_mod,              only: rtheta_kernel_type
   use rtheta_supg_kernel_mod,         only: rtheta_supg_kernel_type
   use flux_rhs_kernel_mod,            only: flux_rhs_kernel_type
-  use runtime_constants_mod,          only: runtime_constants_type
   use solver_config_mod,              only: method,         &
                                             preconditioner, &
                                             solver_preconditioner_diagonal
@@ -56,14 +60,12 @@ contains
 !> @param[inout] advection Field array containing the advective terms
 !> @param[in]    state Field array. Current state of the model prognostics (u, theta, rho)
 !> @param[in]    xi The relative vorticity field
-!> @param[in]    runtime constants Container of various constant operators and
-!>               fields
+
   subroutine advection_alg( advection, &
                             state, &
                             state_np1, &
                             state_n,   &
-                            xi, &
-                            runtime_constants )
+                            xi)
   
   implicit none
   ! Form of state and advection is [u,theta,rho] & [r_u,r_theta,r_rho]
@@ -72,7 +74,6 @@ contains
   type(field_type), intent(in),    target  :: state_n(bundle_size)
   type(field_type), intent(inout)          :: advection(bundle_size)
   type(field_type), intent(inout)          :: xi
-  type(runtime_constants_type), intent(in) :: runtime_constants
 
   type(field_type),    pointer :: chi(:) => null()
   type(operator_type), pointer :: mm_w2, mm_w1, div, curl => null()
@@ -87,13 +88,13 @@ contains
   type(function_space_type), pointer :: u_fs   => null()
   type(function_space_type), pointer :: rho_fs => null()
 
-  mm_w1  => runtime_constants%get_mass_matrix(1)
-  mm_w2  => runtime_constants%get_mass_matrix(2)
-  mmd_w1 => runtime_constants%get_mass_matrix_diagonal(1)
-  mmd_w2 => runtime_constants%get_mass_matrix_diagonal(2)
-  chi    => runtime_constants%get_coordinates()
-  div    => runtime_constants%get_div()
-  curl   => runtime_constants%get_curl()
+  mm_w1  => get_mass_matrix(1)
+  mm_w2  => get_mass_matrix(2)
+  mmd_w1 => get_mass_matrix_diagonal(1)
+  mmd_w2 => get_mass_matrix_diagonal(2)
+  chi    => get_coordinates()
+  div    => get_div()
+  curl   => get_curl()
   mesh = chi(1)%get_mesh_id()
 
   u     => state(1)

@@ -12,6 +12,9 @@ module lhs_alg_mod
   use constants_mod,                     only: r_def, i_def
   use enforce_bc_kernel_mod,             only: enforce_bc_kernel_type
   use function_space_collection_mod,     only: function_space_collection
+  use runtime_constants_mod,             only: get_coordinates, &
+                                               get_div, &
+                                               get_mass_matrix
   use field_bundle_mod,                  only: clone_bundle
   use field_mod,                         only: field_type
   use finite_element_config_mod,         only: element_order
@@ -30,7 +33,6 @@ module lhs_alg_mod
   use operator_mod,                      only: operator_type
   use quadrature_mod,                    only: quadrature_type, GAUSSIAN
   use rrho_kernel_mod,                   only: rrho_kernel_type
-  use runtime_constants_mod,             only: runtime_constants_type
   use w3_solver_kernel_mod,              only: w3_solver_kernel_type
   use derived_config_mod,                only: si_bundle_size, bundle_size
   use lhs_exner_kernel_mod,              only: lhs_exner_kernel_type
@@ -91,8 +93,7 @@ contains
 !> @param[inout] lhs The state vector to compute
 !> @param[in]    alpha_dt The offcentring parameter times the timestep
 !> @param[inout] state The current model prognostic state
-!> @param[in]    runtime_constants Runtime constants for the model
-  subroutine lhs_alg(lhs, state, ref_state, alpha_dt,  runtime_constants)
+  subroutine lhs_alg(lhs, state, ref_state, alpha_dt)
 
   implicit none
 
@@ -101,7 +102,6 @@ contains
   type(field_type), target,     intent(inout) :: state(si_bundle_size)
   type(field_type), target,     intent(in)    :: ref_state(bundle_size)
   type(field_type),             intent(inout) :: lhs(si_bundle_size)
-  type(runtime_constants_type), intent(in)    :: runtime_constants
 
   type(quadrature_type)        :: qr
   type(field_type),    pointer :: chi(:)=> null()
@@ -109,11 +109,11 @@ contains
   type(operator_type), pointer :: div => null()
   type(field_type),    pointer :: u ,theta, rho, exner, theta_ref, rho_ref => null()
 
-  mm_w0        => runtime_constants%get_mass_matrix(0)
-  mm_w2        => runtime_constants%get_mass_matrix(2)
-  mm_w3_inv    => runtime_constants%get_mass_matrix(4)
-  chi          => runtime_constants%get_coordinates()
-  div          => runtime_constants%get_div()
+  mm_w0        => get_mass_matrix(0)
+  mm_w2        => get_mass_matrix(2)
+  mm_w3_inv    => get_mass_matrix(4)
+  chi          => get_coordinates()
+  div          => get_div()
 
   u     => state(1)
   theta => state(2)

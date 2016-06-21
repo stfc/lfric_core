@@ -15,29 +15,41 @@
 
 !> @brief Main program used to illustrate dynamo functionality.
 
-!> @details Calls Creates function spaces, then fields on those
-!> function spaces, before passing the fields to the algorithm layer
+!> @details Calls various init subroutines to create a mesh, function spaces
+!> and then prognostic fields on those function spaces.
+!> Controls the main timestepping loop, initialises and calls
+!> timestepping algorithms and also handles output of diagnostics at
+!> specified intervals as well as checkpoint restart files.
 
 program dynamo
 
-  use assign_coordinate_field_mod,    only : assign_coordinate_field
-  use constants_mod,                  only : i_def, str_max_filename
+  use constants_mod,                  only : i_def
   use dynamo_mod,                     only : load_configuration, &
                                              process_commandline
+  use init_gungho_mod,                only : init_gungho
+  use init_dynamo_mod,                only : init_dynamo
   use ESMF
-  use field_io_mod,                   only : write_state_netcdf,     &
-                                             write_state_plain_text, &
-                                             read_state_netcdf
+  use field_io_mod,                   only : write_state_netcdf
   use field_mod,                      only : field_type
   use finite_element_config_mod,      only : element_order
   use formulation_config_mod,         only : nonlinear, transport_only
+  use operator_mod,                   only : operator_type
   use function_space_collection_mod,  only : function_space_collection_type, &
                                              function_space_collection
-  use fs_continuity_mod,              only : W0, W1, W2, W3, Wtheta, W2V, W2H
-  use init_prognostic_fields_alg_mod, only : init_prognostic_fields_alg
-  use iter_timestep_alg_mod,          only : iter_timestep_alg
-  use lin_rk_alg_timestep_mod,        only : lin_rk_alg_timestep
-  use rk_transport_mod,               only : rk_transport
+  use iter_timestep_alg_mod,          only : iter_alg_init, &
+                                             iter_alg_step
+  use lin_rk_alg_timestep_mod,        only : lin_rk_alg_init, &
+                                             lin_rk_alg_step
+  use runge_kutta_init_mod,           only : runge_kutta_init
+  use rk_alg_timestep_mod,            only : rk_alg_init, &
+                                             rk_alg_step
+  use transport_config_mod,           only : scheme, transport_scheme_rk, &
+                                             transport_scheme_cosmic
+  use rk_transport_mod,               only : rk_transport_init, &
+                                             rk_transport_step
+  use cosmic_transport_alg_mod,       only : cosmic_transport_init, &
+                                             cosmic_transport_step
+  use conservation_algorithm_mod,     only : conservation_algorithm
   use log_mod,                        only : log_event,         &
                                              log_set_level,     &
                                              log_scratch_space, &
@@ -48,18 +60,28 @@ program dynamo
                                              log_scratch_space
   use restart_config_mod,             only : filename
   use restart_control_mod,            only : restart_type
-  use rk_alg_timestep_mod,            only : rk_alg_timestep
-  use set_up_mod,                     only : set_up
-  use timestepping_config_mod,        only : method,                          &
+  use output_config_mod,              only : diagnostic_frequency
+  use output_alg_mod,                 only : output_alg
+  use timestepping_config_mod,        only : method, &
                                            timestepping_method_semi_implicit, &
                                            timestepping_method_rk
   use derived_config_mod,             only : set_derived_config
-  use transport_config_mod,           only : scheme, transport_scheme_rk,     &
-                                             transport_scheme_cosmic
-  use cosmic_transport_alg_mod,       only : cosmic_transport_alg
+  use runtime_constants_mod,          only : create_runtime_constants, &
+                                             get_geopotential, &
+                                             get_mass_matrix, &
+                                             get_mass_matrix_diagonal
 
-  use runge_kutta_init_mod,    only: runge_kutta_init
+
   implicit none
+
+  type(ESMF_VM)      :: vm
+  integer            :: rc
+  integer            :: total_ranks, local_rank
+  integer            :: petCount, localPET
+
+  type(restart_type) :: restart
+
+  integer            :: mesh_id
 
   ! coordinate fields
   type( field_type ) :: chi(3)
@@ -67,15 +89,21 @@ program dynamo
   ! prognostic fields
   type( field_type ) :: u, rho, theta, xi
 
-  integer                          :: coord
-  type( field_type ), allocatable  :: state(:)
-  integer                          :: n_fields
-  type(ESMF_VM) :: vm
-  integer :: rc
-  integer :: total_ranks, local_rank
-  integer :: petCount, localPET
-  integer :: mesh_id
-  type(restart_type)               :: restart
+  ! Array to hold fields for checkpoint output
+  type( field_type ), allocatable   :: checkpoint_output(:)
+
+  ! temps to hold things retrieved from runtime_constants
+  ! that are needed for output
+  type( field_type )               :: geopotential
+  type(operator_type)              :: mm_w0
+
+
+  integer                          :: timestep, ts_init
+
+
+  !-----------------------------------------------------------------------------
+  ! Driver layer init
+  !-----------------------------------------------------------------------------
 
   ! Initialise ESMF and get the rank information from the virtual machine
   CALL ESMF_Initialize(vm=vm, defaultlogfilename="dynamo.Log", &
@@ -96,92 +124,156 @@ program dynamo
 
   restart = restart_type( filename, local_rank, total_ranks )
 
-  ! Set up mesh and element order
-  call set_up(local_rank, total_ranks, mesh_id)
+  !-----------------------------------------------------------------------------
+  ! model init
+  !-----------------------------------------------------------------------------
 
-  write(log_scratch_space,'(A,I0)') "Dynamo:Partition mesh, id=", mesh_id
-  call log_event(log_scratch_space,LOG_LEVEL_INFO)
-  ! Create top level function space collection
 
-  function_space_collection = function_space_collection_type()
+  ! Create the mesh and function space collection
+  call init_gungho(mesh_id, local_rank, total_ranks, function_space_collection)
 
-  ! Calculate coordinates
-  do coord = 1,3
-    chi(coord) = field_type (vector_space =                                    &
-                       function_space_collection%get_fs(mesh_id,element_order,W0) )
-  end do
-  ! Assign coordinate field
-  call log_event( "Dynamo: Computing W0 coordinate fields", LOG_LEVEL_INFO )
-  call assign_coordinate_field(chi, mesh_id)
+  ! Create and initialise prognostic fields
+  call init_dynamo(mesh_id, chi, u, rho, theta, xi, restart)
 
-  ! Create prognostic fields
-  theta = field_type( vector_space = &
-                     function_space_collection%get_fs(mesh_id, element_order, W0) )
-  xi    = field_type( vector_space = &
-                     function_space_collection%get_fs(mesh_id, element_order, W1) )
-  u     = field_type( vector_space = &
-                     function_space_collection%get_fs(mesh_id, element_order, W2) )
-  rho   = field_type( vector_space = &
-                     function_space_collection%get_fs(mesh_id, element_order, W3) )
 
-  ! Initialise prognostic fields: Theta, U, Xi, Rho are initialised in 
-  ! separate algorithm/subroutine
-  call init_prognostic_fields_alg( mesh_id, chi, u, rho, theta, xi, restart)
+  ! Create runtime_constants object. This in turn creates various things
+  ! needed by the timstepping algorithms such as mass matrix operators, mass
+  ! matrix diagonal fields and the geopotential field
 
-  ! Run timestepping algorithms
-  if ( transport_only ) then    ! Transport test options
+  call create_runtime_constants(mesh_id, chi, theta, u, rho, xi)
 
-    select case( scheme )
-      case ( transport_scheme_rk)
-          call runge_kutta_init()
-          call rk_transport( mesh_id, chi, u, rho, restart)
-      case ( transport_scheme_cosmic)
-          call cosmic_transport_alg(mesh_id, chi, u, rho, restart)
-      case default
-          call log_event("Dynamo: Incorrect transport option chosen, "// &
-                         "stopping program! ",LOG_LEVEL_ERROR)
-          stop
-    end select
+  geopotential = get_geopotential()
 
-  else
+  mm_w0 = get_mass_matrix(0)
 
-    if ( nonlinear ) then    ! Nonlinear timestepping options
 
-      select case( method )
-        case( timestepping_method_semi_implicit )  ! Semi-Implicit 
-          call iter_timestep_alg( mesh_id, chi, u, rho, theta, xi, restart)
-        case( timestepping_method_rk )             ! RK
-          call runge_kutta_init()
-          call rk_alg_timestep( mesh_id, chi, u, rho, theta, xi, restart)
+  !-----------------------------------------------------------------------------
+  ! model step 
+  !-----------------------------------------------------------------------------
+  do timestep = restart%ts_start(),restart%ts_end()
+    call log_event( &
+    "/****************************************************************************\ ", &
+     LOG_LEVEL_TRACE )
+     write( log_scratch_space, '(A,I0)' ) 'Start of timestep ', timestep
+     call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+    if ( transport_only ) then
+
+      select case( scheme )
+        case ( transport_scheme_rk)
+          if (timestep == restart%ts_start()) then 
+            ! Initialise and output initial conditions on first timestep
+            call runge_kutta_init()
+            call rk_transport_init( mesh_id, u, rho)
+            call log_event( "Dynamo: Outputting initial fields", LOG_LEVEL_INFO )
+            ts_init = max( (restart%ts_start() - 1), 0 ) ! 0 or t previous.
+            call output_alg(ts_init, theta, xi, u, rho, chi, mesh_id, mm_w0)
+          end if
+          call rk_transport_step( mesh_id, chi, u, rho)
+        case ( transport_scheme_cosmic)
+          if (timestep == restart%ts_start()) then 
+            ! Initialise and output initial conditions on first timestep
+            call cosmic_transport_init(mesh_id, u)
+            call log_event( "Dynamo: Outputting initial fields", LOG_LEVEL_INFO )
+            ts_init = max( (restart%ts_start() - 1), 0 ) ! 0 or t previous.
+            call output_alg(ts_init, theta, xi, u, rho, chi, mesh_id, mm_w0)
+          end if
+          call cosmic_transport_step( mesh_id, chi, rho)
         case default
-          call log_event("Dynamo: Incorrect time stepping option chosen, "// &
-                         "stopping program! ",LOG_LEVEL_ERROR)
-          stop
+         call log_event("Dynamo: Incorrect transport option chosen, "// &
+                        "stopping program! ",LOG_LEVEL_ERROR)
+         stop
       end select
 
-    else                       ! Linear timestepping options
+    else
 
-      select case( method )
-        case( timestepping_method_rk )        ! RK 
-          call runge_kutta_init()
-          call lin_rk_alg_timestep( mesh_id, chi, u, rho, theta, restart)
-        case default
-          call log_event("Dynamo: Only RK available for linear equations. ", &
-                          LOG_LEVEL_INFO )
-          call log_event("Dynamo: Incorrect time stepping option chosen, "// &
-                         "stopping program! ",LOG_LEVEL_ERROR)
-          stop
-      end select
+
+       if ( nonlinear ) then    ! Nonlinear timestepping options
+
+         select case( method )
+           case( timestepping_method_semi_implicit )  ! Semi-Implicit 
+             ! Initialise and output initial conditions on first timestep
+             if (timestep == restart%ts_start()) then 
+               call iter_alg_init(mesh_id, u, rho, theta)
+               call log_event( "Dynamo: Outputting initial fields", LOG_LEVEL_INFO )
+               ts_init = max( (restart%ts_start() - 1), 0 ) ! 0 or t previous.
+               call output_alg(ts_init, theta, xi, u, rho, chi, mesh_id, mm_w0)
+               call conservation_algorithm(timestep, mesh_id, rho, u, theta, xi, geopotential, chi)
+             end if
+             call iter_alg_step(chi, u, rho, theta, xi)
+
+           case( timestepping_method_rk )             ! RK
+             ! Initialise and output initial conditions on first timestep
+             if (timestep == restart%ts_start()) then
+               call runge_kutta_init()
+               call rk_alg_init( mesh_id, u, rho, theta)
+               call log_event( "Dynamo: Outputting initial fields", LOG_LEVEL_INFO )
+               ts_init = max( (restart%ts_start() - 1), 0 ) ! 0 or t previous.
+               call output_alg(ts_init, theta, xi, u, rho, chi, mesh_id, mm_w0)
+               call conservation_algorithm(timestep, mesh_id, rho, u, theta, xi, geopotential, chi)
+             end if
+             call rk_alg_step( mesh_id, chi, u, rho, theta, xi)
+           case default
+             call log_event("Dynamo: Incorrect time stepping option chosen, "// &
+                            "stopping program! ",LOG_LEVEL_ERROR)
+             stop
+         end select
+
+         call conservation_algorithm(timestep, mesh_id, rho, u, theta, xi, geopotential, chi)
+
+       else                       ! Linear timestepping options
+
+         select case( method )
+           case( timestepping_method_rk )        ! RK 
+             ! Initialise and output initial conditions on first timestep
+             if (timestep == restart%ts_start()) then
+               call runge_kutta_init()
+               call lin_rk_alg_init( mesh_id, u, rho, theta)
+               call log_event( "Dynamo: Outputting initial fields", LOG_LEVEL_INFO ) 
+               ts_init = max( (restart%ts_start() - 1), 0 ) ! 0 or t previous.
+               call output_alg(ts_init, theta, xi, u, rho, chi, mesh_id, mm_w0)
+             end if
+               call lin_rk_alg_step( mesh_id, chi, u, rho, theta)
+           case default
+             call log_event("Dynamo: Only RK available for linear equations. ", &
+                             LOG_LEVEL_INFO )
+             call log_event("Dynamo: Incorrect time stepping option chosen, "// &
+                            "stopping program! ",LOG_LEVEL_ERROR)
+             stop
+         end select
+
+       end if
 
     end if
 
-  end if
+    write( log_scratch_space, '(A,I0)' ) 'End of timestep ', timestep
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    call log_event( &
+    '\****************************************************************************/ ', &
+     LOG_LEVEL_INFO)
 
-  ! Do some i/o
+
+    ! Use diagnostic output frequency to determine whether to write diagnostics
+    ! on this timestep
+
+    if ( mod(timestep, diagnostic_frequency) == 0 ) then
+      call log_event("Dynamo: writing diagnostic output", LOG_LEVEL_INFO)
+      call output_alg(timestep, theta, xi, u, rho, chi, mesh_id, mm_w0)
+    end if
+
+
+  end do ! end ts loop
+
+  !-----------------------------------------------------------------------------
+  ! model finalise
+  !-----------------------------------------------------------------------------
+
+  ! Log fields
   call rho%log_field(   LOG_LEVEL_DEBUG, LOG_LEVEL_INFO, 'rho' )
   call theta%log_field( LOG_LEVEL_DEBUG, LOG_LEVEL_INFO, 'theta' )
   call u%log_field(     LOG_LEVEL_DEBUG, LOG_LEVEL_INFO, 'u' )
 
+  ! Write checksums to file
   open( 9, file="dynamo-checksums.txt", status="replace", iostat=rc)
   if (rc /= 0) then
     write( log_scratch_space, '("Unable to open checksum file")' )
@@ -192,36 +284,40 @@ program dynamo
   call u%write_checksum( 9, 'u' )
   close( 9 )
 
+  ! Write checkpoint/restart files if required
   if( restart%write_file() ) then 
-     n_fields = 1
-     allocate(state(4))
-     write(log_scratch_space,'(A,A)') "writing file:",  &
-          trim(restart%endfname("rho"))
+
+    allocate(checkpoint_output(4))
+    write(log_scratch_space,'(A,A)') "writing file:",  &
+                            trim(restart%endfname("rho"))
      call log_event(log_scratch_space,LOG_LEVEL_INFO)
-     state(1) = rho
-     call write_state_netcdf( n_fields, state, trim(restart%endfname("rho")) )
+     checkpoint_output(1) = rho
+     call write_state_netcdf( 1, checkpoint_output(1), trim(restart%endfname("rho")) )
 
      write(log_scratch_space,'(A,A)') "writing file:",  &
-          trim(restart%endfname("u"))
+                             trim(restart%endfname("u"))
      call log_event(log_scratch_space,LOG_LEVEL_INFO)
-     state(2) = u
-     call write_state_netcdf( n_fields, state(2), trim(restart%endfname("u")) )
+     checkpoint_output(2) = u
+     call write_state_netcdf( 1, checkpoint_output(2), trim(restart%endfname("u")) )
 
      write(log_scratch_space,'(A,A)') "writing file:",  &
-          trim(restart%endfname("theta"))
+                             trim(restart%endfname("theta"))
      call log_event(log_scratch_space,LOG_LEVEL_INFO)
-     state(3) = theta
-     call write_state_netcdf( n_fields, state(3), trim(restart%endfname("theta")) )
-
+     checkpoint_output(3) = theta
+     call write_state_netcdf( 1, checkpoint_output(3), trim(restart%endfname("theta")) )
+  
      write(log_scratch_space,'(A,A)') "writing file:",  &
-          trim(restart%endfname("xi"))
+                             trim(restart%endfname("xi"))
      call log_event(log_scratch_space,LOG_LEVEL_INFO)
-     state(4) = xi
-     call write_state_netcdf( n_fields, state(4), trim(restart%endfname("xi")) )
+     checkpoint_output(4) = xi
+     call write_state_netcdf( 1, checkpoint_output(4), trim(restart%endfname("xi")) )
   end if
-  n_fields = 3
 
   call log_event( 'Dynamo completed', LOG_LEVEL_INFO )
+
+  !-----------------------------------------------------------------------------
+  ! Driver layer finalise
+  !-----------------------------------------------------------------------------
 
   ! Close down ESMF
   call ESMF_Finalize(rc=rc)

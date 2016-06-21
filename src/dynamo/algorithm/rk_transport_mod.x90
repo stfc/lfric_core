@@ -10,7 +10,7 @@
 !>         multistage explicit Runge-Kutta algorithm.
 module rk_transport_mod
 
-  use constants_mod,                     only: r_def, i_def, str_max_filename
+  use constants_mod,                     only: r_def, i_def
   use log_mod,                           only: log_event,         &
                                                log_scratch_space, &
                                                LOG_LEVEL_INFO,    &
@@ -23,8 +23,8 @@ module rk_transport_mod
                                                preconditioner, &
                                                solver_preconditioner_diagonal
   use timestepping_config_mod,           only: dt
-  use output_config_mod,                 only: diagnostic_frequency
   use runge_kutta_init_mod,              only: num_rk_stage, ak
+  use runtime_constants_mod,             only: get_mass_matrix, get_qr
 
   ! PsyKAl-lite kernels
   use psykal_lite_mod,                   only: invoke_axpy,                   &
@@ -32,8 +32,6 @@ module rk_transport_mod
                                                invoke_set_field_scalar
 
   ! PsyKAl PSYClone kernels
-  use compute_mass_matrix_kernel_w0_mod, only: compute_mass_matrix_kernel_w0_type
-  use compute_mass_matrix_kernel_w2_mod, only: compute_mass_matrix_kernel_w2_type
   use rrho_kernel_mod,                   only: rrho_kernel_type
   use flux_rhs_kernel_mod,               only: flux_rhs_kernel_type
   use enforce_bc_kernel_mod,             only: enforce_bc_kernel_type
@@ -47,56 +45,44 @@ module rk_transport_mod
 
   ! Algorithms
   use solver_mod,                        only: solver_algorithm
-  use output_alg_mod,                    only: output_alg
 
   ! Handles
-  use fs_continuity_mod,                 only: W0, W1, W2, W3
+  use fs_continuity_mod,                 only: W0, W1
 
   implicit none
 
   private
-  public :: rk_transport
+
+  ! 'State' items that need to be created once but used every step
+  type( field_type ) :: rho_n, r_u, r_rho, rho_inc, mass_flux
+  type( field_type ), allocatable ::       rr_prediction(:)
+
+  public :: rk_transport_init
+  public :: rk_transport_step
+
 
 contains
 
-  !> @brief A Runge-Kutta time-discretisation of the transport equation.
-  !> @details An algorithm for timstepping the transport equation using the
-  !>          Runge-Kutta algortihm. rho and u fields are initialised before
-  !>          this algorithm is called.
+  !> @brief Init routine for rk transport timestepping algorithm
+  !> @details Rho and u fields are initialised before
+  !>          this algorithm is called. State items are created,
   !> @param[in]    mesh_id Mesh id of mesh on which the model runs
-  !> @param[inout] chi  The finite element form of the coordinates
   !> @param[in]    u The 3D wind field
   !> @param[inout] rho The density
-  !> @param[in] restart Checkpoint/restart type with timestepping information
-  subroutine rk_transport( mesh_id, chi, u, rho, restart)
+  subroutine rk_transport_init( mesh_id, u, rho)
 
     implicit none
 
     ! Mesh id
     integer(i_def),  intent(in) :: mesh_id
-    ! Coordinate fields
-    type( field_type ), intent( inout ) :: chi(3)
     ! Prognostic fields
     type( field_type ), intent( inout ) :: u, rho
-    ! Restart for timestep control and diagnostic output control
-    type( restart_type ), intent( in )  :: restart
-
-    ! Temporary fields
-    type( field_type ) :: rho_n, r_u, r_rho, rho_inc, mass_flux, theta, xi
-
-    type( field_type ), allocatable ::       rr_prediction(:)
 
     type(function_space_type), pointer :: u_fs     => null()
     type(function_space_type), pointer :: rho_fs   => null()
-    type(function_space_type), pointer :: w0_fs    => null()
-    type(function_space_type), pointer :: w2_fs    => null()
-
-    type(quadrature_type)     :: qr
-    type(operator_type)       :: mm_w2, mm_w0
 
     ! Timestepping variables
-    integer :: timestep, ts_init
-    integer :: stage, st
+    integer :: stage
 
     allocate ( rr_prediction(num_rk_stage) )
 
@@ -106,10 +92,7 @@ contains
                                                  u%which_function_space())
     rho_fs   => function_space_collection%get_fs(mesh_id, element_order, &
                                                  rho%which_function_space())
-    w0_fs    => function_space_collection%get_fs(mesh_id, element_order, W0)
-    w2_fs    => function_space_collection%get_fs(mesh_id, element_order, W2)
 
-    qr = quadrature_type(element_order+3, GAUSSIAN)
 
     rho_n        = field_type( vector_space = rho_fs )
     r_rho        = field_type( vector_space = rho_fs )
@@ -121,82 +104,77 @@ contains
       rr_prediction(stage) = field_type( vector_space = rho_fs )
     end do
 
-    ! Create operators needed for timestepping
-    mm_w0 = operator_type(w0_fs, w0_fs)
-    mm_w2 = operator_type(w2_fs, w2_fs)
-
-    ! Compute mass matrices
-    call invoke( compute_mass_matrix_kernel_w0_type(mm_w0, chi, qr),           &
-                 compute_mass_matrix_kernel_w2_type(mm_w2, chi, qr) )
-
-    ! Dummy W0 and W1 field needed for output algorithm
-    xi = field_type( vector_space =                                           &
-                    function_space_collection%get_fs(mesh_id, element_order, W1) )
-    call invoke_set_field_scalar(0.0_r_def, xi)
-    theta = field_type( vector_space =                                           &
-                    function_space_collection%get_fs(mesh_id, element_order, W0) )
-    call invoke_set_field_scalar(0.0_r_def, theta)
 
     call invoke_set_field_scalar(0.0_r_def, mass_flux)
 
-    ! Output initial conditions
-    call log_event( "Dynamo: Outputing initial fields", LOG_LEVEL_INFO )
-    ts_init = max( (restart%ts_start() - 1), 0 ) ! 0 or t previous.
-    call output_alg(ts_init, theta, xi, u, rho, chi, mesh_id, mm_w0)
 
-    !=== Section 2: Timestepping ==============================================!
+  end subroutine rk_transport_init
 
-    do timestep = restart%ts_start(),restart%ts_end()
-      call log_event( "&
-      /****************************************************************************\ ", &
-                      LOG_LEVEL_TRACE )
-      write( log_scratch_space, '(A,I0)' ) 'Start of timestep ', timestep
-      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+  !> @brief A Runge-Kutta time-discretisation of the transport equation
+  !> @details An algorithm for timstepping the transport equation using the
+  !>          Runge-Kutta algorithm. rho and u fields are initialised before
+  !>          this algorithm is called.
+  !> @param[in]    mesh_id Mesh id of mesh on which the model runs
+  !> @param[inout] chi  The finite element form of the coordinates
+  !> @param[in]    u The 3D wind field
+  !> @param[inout] rho The density
 
-      call invoke_set_field_scalar(0.0_r_def, rho_n)
-      call invoke_copy_field_data(rho,rho_n)
+  subroutine rk_transport_step( mesh_id, chi, u, rho)
 
-      ! Runge-Kutta algorithm
-      do stage = 1,num_rk_stage
-        ! Compute advection terms
-        ! mass flux ( F = rho * u )
-        call invoke_set_field_scalar(0.0_r_def, r_u)
-        call invoke(flux_rhs_kernel_type( r_u, u, rho, chi, qr ) )
-        call invoke(enforce_bc_kernel_type( r_u ) )
+    implicit none
 
-        call invoke_set_field_scalar(0.0_r_def, mass_flux)
-        call solver_algorithm( mass_flux, r_u, mesh_id, chi, method, mm=mm_w2 )
+    ! Mesh id
+    integer(i_def),  intent(in) :: mesh_id
+    ! Coordinate fields
+    type( field_type ), intent( inout ) :: chi(3)
+    ! Prognostic fields
+    type( field_type ), intent( inout ) :: u, rho
 
-        ! Compute rrho = div(F)
-        call invoke( rrho_kernel_type  ( rr_prediction(stage), mass_flux, qr ) )
+    ! the quadrature object
+    type( quadrature_type )          :: qr
 
-        call invoke_set_field_scalar(0.0_r_def, r_rho)
+    integer(i_def) :: stage, st
 
-        do st = 1, stage
-          call invoke_axpy(ak(stage,st), rr_prediction(st),r_rho, r_rho)
-        end do
 
-        ! Invert mass matrices
-        call solver_algorithm( rho_inc, r_rho, mesh_id, chi, method, qr=qr )
+    ! temps for retrieving objects back from runtime constants
+    type(operator_type)       :: mm_w2
 
-        ! Add increments
-        call invoke_axpy(dt, rho_inc, rho_n, rho)
+    qr = get_qr()
+
+    ! Create operators needed for timestepping
+    mm_w2 = get_mass_matrix(2)
+
+    call invoke_set_field_scalar(0.0_r_def, rho_n)
+    call invoke_copy_field_data(rho,rho_n)
+
+    ! Runge-Kutta algorithm
+    do stage = 1,num_rk_stage
+      ! Compute advection terms
+      ! mass flux ( F = rho * u )
+      call invoke_set_field_scalar(0.0_r_def, r_u)
+      call invoke(flux_rhs_kernel_type( r_u, u, rho, chi, qr ) )
+      call invoke(enforce_bc_kernel_type( r_u ) )
+
+      call invoke_set_field_scalar(0.0_r_def, mass_flux)
+      call solver_algorithm( mass_flux, r_u, mesh_id, chi, method, mm=mm_w2 )
+
+      ! Compute rrho = div(F)
+      call invoke( rrho_kernel_type  ( rr_prediction(stage), mass_flux, qr ) )
+
+      call invoke_set_field_scalar(0.0_r_def, r_rho)
+
+      do st = 1, stage
+        call invoke_axpy(ak(stage,st), rr_prediction(st),r_rho, r_rho)
       end do
 
-      ! Diagnostics
-      if ( mod(timestep, diagnostic_frequency) == 0 ) then
-        call output_alg(timestep, theta, xi, u, rho, chi, mesh_id, mm_w0)
-      end if
+      ! Invert mass matrices
+      call solver_algorithm( rho_inc, r_rho, mesh_id, chi, method, qr=qr )
 
-      write( log_scratch_space, '(A,I0)' ) 'End of timestep ', timestep
-      call log_event( log_scratch_space, LOG_LEVEL_TRACE )
-      call log_event( &
-      '\****************************************************************************/ ', &
-                      LOG_LEVEL_TRACE )
+      ! Add increments
+      call invoke_axpy(dt, rho_inc, rho_n, rho)
     end do
-    call log_event( "Dynamo: Finished timestep", LOG_LEVEL_INFO )
-    !==========================================================================
 
-  end subroutine rk_transport
+
+  end subroutine rk_transport_step
 
 end module rk_transport_mod

@@ -87,9 +87,13 @@ contains
     if (.not.restart%read_file()) then           ! No check point to start from
 
       call log_event( "Dynamo: Initialising prognostic fields", LOG_LEVEL_INFO )
-      ! Initialise Theta, U, Xi (all formulations)
+
+      ! Initialise Theta and Xi (all formulations)
       call invoke( initial_theta_kernel_type( theta, chi ) )
-      if ( transport_only ) then
+      call invoke_set_field_scalar(0.0_r_def, xi) 
+
+      ! Initialise U and Rho according to formulation
+      if (  nonlinear .OR. transport_only ) then
         r_u = field_type( vector_space =                                           &
                     function_space_collection%get_fs(mesh_id, element_order, W2) )
         call invoke_set_field_scalar(0.0_r_def, u)
@@ -101,16 +105,14 @@ contains
         mm_w2 = operator_type( w2_fs, w2_fs )
         call invoke( compute_mass_matrix_kernel_w2_type(mm_w2, chi, qr) )
         call solver_algorithm(u, r_u, mesh_id, chi, method, mm=mm_w2)
+
+        call invoke( initial_rho_kernel_type ( rho, chi, qr ) )
+
       else
         call invoke_set_field_scalar(0.0_r_def, u)
-      end if
-      call invoke_set_field_scalar(0.0_r_def, xi) 
-      ! Initialise Rho (different for nonlinear or linear formulation)
-      if ( nonlinear .OR. transport_only ) then
-        call invoke( initial_rho_kernel_type ( rho, chi, qr ) )
-      else
         call invoke_set_field_scalar(0.0_r_def, rho)
       end if
+
       call log_event( "Dynamo: Initialised prognostic fields", LOG_LEVEL_INFO )
 
     else                                   ! Recorded check point to start from
