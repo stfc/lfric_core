@@ -53,7 +53,7 @@ export PFUNIT_INSTALL_DIR \
 
 .PHONY: test
 test: $(OBJ_DIR)/test | $(OBJ_DIR)/data
-	@echo Running $@
+	@echo -e $(VT_BOLD)Running$(VT_RESET) $@
 	$(Q)$(OBJ_DIR)/test -robust \
 	                    -max-timeout-duration $(UNIT_TEST_RUN_TIME) \
 	                    -max-launch-duration  $(UNIT_TEST_LAUNCH_TIME)
