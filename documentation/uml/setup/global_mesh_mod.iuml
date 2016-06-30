@@ -1,4 +1,4 @@
-class setup::global_mesh {
+class global_mesh_mod::global_mesh_type {
   -cell_next_2d: integer[::] <<allocatable>>
   -cell_on_edge_2d: integer[::] <<allocatable>>
   -cell_on_vert_2d: integer[::] <<allocatable>>
@@ -14,8 +14,8 @@ class setup::global_mesh {
   -vert_coords: real[::] <<allocatable>>
   -vert_on_cell_2d: integer[::] <<allocatable>>
 
-  +<<create>>global_mesh_constructor( <<in>>filename: string ) : global_mesh
-  +<<create>>global_mesh_unit_test_data() : global_mesh
+  +<<create>>global_mesh_constructor( <<in>>filename: string ) : global_mesh_type
+  +<<create>>global_mesh_unit_test_data() : global_mesh_type
 
   +get_cell_id( <<in>>cell_number: integer, <<in>>x_cells: integer, <<in>>y_cells: integer ) : integer
   +get_cell_next( <<in>>cell_gid: integer, <<out>>cell_next: integer[] )

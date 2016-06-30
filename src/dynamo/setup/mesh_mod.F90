@@ -9,7 +9,7 @@
 !>
 !> This module provides details for a mesh_type which is generated
 !> using a global mesh object and a partition object, along some with
-!> additional inputs.
+!> inputs that describe the vertical structure.
 !>
 !> It is also contains a static mesh object for unit testing. This
 !> is returned if a mesh_object is instatiated with a single integer
@@ -20,64 +20,24 @@ module mesh_mod
   use base_mesh_config_mod, only : geometry, &
                                    base_mesh_geometry_spherical
   use constants_mod,        only : i_def, i_native, r_def, l_def, pi, imdi
-  use extrusion_config_mod, only: extrusion_method_uniform
+  use extrusion_config_mod, only : extrusion_method_uniform
   use global_mesh_mod,      only : global_mesh_type
   use log_mod,              only : log_event, log_scratch_space, &
                                    LOG_LEVEL_DEBUG, LOG_LEVEL_ERROR, LOG_LEVEL_INFO
   use partition_mod,        only : partition_type
+  use linked_list_data_mod, only : linked_list_data_type
+  use mesh_constructor_helper_functions_mod, &
+                            only : domain_size_type, &
+                                   mesh_extruder, &
+                                   mesh_connectivity, &
+                                   set_domain_size, &
+                                   set_vertical_coordinate
 
   implicit none
 
   private
 
-  ! Connectivities in global ids, 2d-base level only.
-  ! These are used in the creation of connectivity arrays from the
-  ! global mesh, but are only temporary as the same connectivity
-  ! information is present in the 3D-mesh once it has been extruded
-  !
-  ! Arrays where the connected entity ids are local ids
-
-  !> @}
-  !> @name Private variables used in object construction
-  !>
-  integer(i_def), allocatable :: vert_on_cell_2d (:,:) 
-  !< Vertices connected to local 2d cell.
-  !>
-  integer(i_def), allocatable :: edge_on_cell_2d (:,:)
-  !< Edges connected to local 2d cell.
-  !>
-  integer(i_def), allocatable :: cell_next_2d (:,:)
-  !< Local 2d cell connectivity.
-  !>
-  real(r_def), allocatable :: vertex_coords_2d(:,:)
-  !< Surface Coordinates in, [long, lat, radius]
-  !< Units in Radians/metres
-  !>
-  integer(i_def) :: ncells_2d
-  integer(i_def) :: nverts_2d
-  integer(i_def) :: nedges_2d
-  integer(i_def) :: nlayers
-  integer(i_def) :: ncells
-  integer(i_def) :: nverts_3d
-  integer(i_def) :: nedges_3d
-  integer(i_def) :: nfaces_3d
-  !>
-  !> @}
-
-  !============================================================================
-  ! Declare type definitions in this module
-  !============================================================================
-
-  ! types definitions for computing/storing the domain size
-  type, private :: coordinate
-    real(r_def) :: x,y,z
-  end type coordinate
-
-  type, public :: domain_limits
-    type(coordinate) :: minimum, maximum
-  end type domain_limits
-
-  type, public :: mesh_type
+  type, extends(linked_list_data_type), public :: mesh_type
 
     private
 
@@ -87,10 +47,7 @@ module mesh_mod
 
     !> The domain limits (x,y,z) for Cartesian domains
     !>                   (long, lat, radius) for spherical
-    type (domain_limits) :: domain_size
-
-    !> Mesh id number
-    integer(i_def) :: mesh_id
+    type (domain_size_type) :: domain_size
 
     !> Number of 3d-cell layers in mesh object
     integer(i_def) :: nlayers
@@ -191,7 +148,6 @@ module mesh_mod
 
   contains
 
-    procedure, public :: get_id
     procedure, public :: get_nlayers
     procedure, public :: get_ncells_2d
     procedure, public :: get_ncells_2d_with_ghost
@@ -244,30 +200,22 @@ module mesh_mod
     procedure, public :: get_colours
     procedure, public :: is_coloured
 
-    procedure, private :: set_vertical_coordinate
-
-    procedure, public, nopass :: get_mesh_instance_global
-    procedure, public, nopass :: get_mesh_instance_id
-    procedure, public, nopass :: get_mesh_noargs
-    generic,   public :: get_mesh_instance => get_mesh_instance_global, &
-         get_mesh_instance_id,  get_mesh_noargs
-
-    procedure, public, nopass :: get_mesh_instance_test
-
-
     ! Destructor frees colouring storage
     final :: mesh_destructor
 
   end type mesh_type
 
+  interface mesh_type
+    module procedure mesh_constructor
+    module procedure mesh_constructor_unit_test_data
+  end interface
+
   ! -------------------------------------------------------------------------
   ! Module parameters
   ! -------------------------------------------------------------------------
-  !> The mesh_type saved in module scope to hold the singleton
-  type(mesh_type), target, allocatable, save :: primal_mesh
   
   !> Counter variable to keep track of the next mesh id number to uniquely 
-  !! identify each Singleton
+  !! identify each different mesh
   integer(i_def) :: mesh_id_counter = 0
 
   !============================================================================
@@ -280,101 +228,10 @@ module mesh_mod
   integer(i_def), parameter, public :: PLANE_BI_PERIODIC = 2
   !> @}
 
-  public destroy_mesh_singleton
-
 contains
 
-  !> Returns a pointer to the primal_mesh
-  !! The mesh is a Singleton, so it is created once and thereafter a pointer
-  !! to this mesh is returned whenever an instance is requested.
-  !> @param [in] global_mesh   Global mesh object on which the partition is
-  !!                           applied
-  !> @param [in] partition     Partition object to base 3D-Mesh on
-  !> @param [in] nlayers_in    Number of 3D-cell layers in the 3D-Mesh object
-  !> @param [in] domain_top    Top of atmosphere above surface
-  !> @param [in] vgrid_option  Choice of vertical grid
-  !> @return                   pointer to 3D-Mesh object based on the list of 
-  !!                           partitioned cells on the given global mesh
-  function get_mesh_instance_global(global_mesh, partition, nlayers_in, domain_top, & 
-       vgrid_option) result(instance) 
-    implicit none
-    type (partition_type),   intent(in) :: partition
-    type (global_mesh_type), intent(in) :: global_mesh
-    
-    integer(i_def), intent(in) :: nlayers_in
-    integer(i_def), intent(in) :: vgrid_option
-    real(r_def),    intent(in) :: domain_top
-    
-    type(mesh_type), pointer :: instance
-    
-    instance => null()
-    
-    if(allocated(primal_mesh)) then
-       instance => primal_mesh
-       return
-    else
-       allocate(primal_mesh)
-       call mesh_constructor(global_mesh, partition, nlayers_in, domain_top, &
-            vgrid_option, primal_mesh)
-       instance => primal_mesh
-    end if
-
-  end function get_mesh_instance_global
-
-  !> Returns a pointer to a mesh used in the unit tests, typically 
-  !! bi-periodic of small size. 
-  function get_mesh_instance_test(grid_option) result(instance)
-    implicit none
-    integer(i_def), intent(in) :: grid_option
-
-    type(mesh_type), pointer :: instance
-    instance => null()
-    if(allocated(primal_mesh)) then 
-       instance => primal_mesh
-       return
-    else
-       allocate(primal_mesh)
-       call mesh_constructor_unit_test_data(grid_option, primal_mesh)
-       instance => primal_mesh
-    end if
-  end function get_mesh_instance_test
-
-  !> Returns a pointer to the primal mesh. This is used in the PSylayer
-  !! via the functions space wrapper. Temporary measure to preserve the
-  !! API
-  function get_mesh_noargs() result(instance)
-    implicit none
-    type(mesh_type), pointer :: instance 
-    instance => null()
-    if(allocated(primal_mesh)) then
-       instance => primal_mesh
-       return
-    else
-       write(log_scratch_space,'(A)') & 
-            "Can't make a mesh from thin air: Gimmie something to work with"
-       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-    end if
-
-  end function get_mesh_noargs
-
-  function get_mesh_instance_id(mesh_id) result(instance)
-    implicit none
-    integer, intent(in) :: mesh_id
-    type(mesh_type), pointer :: instance 
-    instance => null()
-    if(allocated(primal_mesh)) then
-       instance => primal_mesh
-       return
-    else
-       write(log_scratch_space,'(A)') & 
-            "Can't make a mesh from thin air: Gimmie something to work with"
-       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-    end if
-
-  end function get_mesh_instance_id
-
   !============================================================================
-  !> @brief Builds the mesh object
+  !> @brief Constructor for the mesh object
   !> @param [in] partition     Partition object to base 3D-Mesh on
   !> @param [in] global_mesh   Global mesh object on which the partition is
   !>                           applied
@@ -384,13 +241,13 @@ contains
   !> @return                   3D-Mesh object based on the list of partitioned
   !>                           cells on the given global mesh
   !============================================================================
-  subroutine mesh_constructor (              &
+  function mesh_constructor (              &
                               global_mesh,   &
                               partition,     &
                               nlayers_in,    &
                               domain_top,    &
-                              vgrid_option,  &
-                              self )
+                              vgrid_option ) &
+                            result( self )
     
 
     ! User structure constructor function for 3d-mesh object
@@ -402,80 +259,330 @@ contains
 
     type (global_mesh_type), intent(in) :: global_mesh
     type (partition_type),   intent(in) :: partition
+    integer(i_def),          intent(in) :: nlayers_in
+    integer(i_def),          intent(in) :: vgrid_option
+    real(r_def),             intent(in) :: domain_top
 
-    integer(i_def), intent(in) :: nlayers_in
-    integer(i_def), intent(in) :: vgrid_option
-    real(r_def),    intent(in) :: domain_top
-    type(mesh_type), intent(out) :: self
+    type(mesh_type)                     :: self
 
-    integer(i_def) :: i, j        ! loop counters
+    integer(i_def) :: i, j, counter        ! loop counters
 
     integer(i_def) :: nverts_per_2d_cell
     integer(i_def) :: nedges_per_2d_cell
-
 
     ! Arrays used in entity ownership calculation - see their names
     ! for a descriptioin of what they actually contain
     integer(i_def), allocatable :: verts( : )
     integer(i_def), allocatable :: edges( : )
 
+    integer (i_def) :: max_num_vertices_2d
+    integer (i_def) :: max_num_edges_2d
+
+
+    integer (i_def) :: cell_gid
+    integer (i_def) :: edge_gid
+    integer (i_def) :: vert_gid
+    integer (i_def) :: n_uniq_verts
+    integer (i_def) :: n_uniq_edges
+
+
+    integer (i_def), allocatable :: tmp_list(:)
+    integer (i_def) :: tmp_int
+    logical (l_def) :: edge_gid_present
+    logical (l_def) :: vert_gid_present
+
+    ! Arrays where the connected entity ids are global ids
+    integer(i_def), allocatable :: &
+      vert_on_cell_2d_gid (:,:)    &! Vertices connected to local 2d cell.
+    , edge_on_cell_2d_gid (:,:)    &! Edges connected to local 2d cell.
+    , cell_next_2d_gid    (:,:)     ! Local 2d cell connectivity.
+
+    integer(i_def), allocatable :: &
+      vert_lid_gid_map(:)           ! Vertices local-to-global id map
+
+    ! Vertices connected to local 2d cell.
+    integer(i_def), allocatable :: vert_on_cell_2d (:,:) 
+
+    ! Edges connected to local 2d cell.
+    integer(i_def), allocatable :: edge_on_cell_2d (:,:)
+
+    ! Local 2d cell connectivity.
+    integer(i_def), allocatable :: cell_next_2d (:,:)
+
+    ! Surface Coordinates in [long, lat, radius] (Units: Radians/metres)
+    real(r_def), allocatable :: vertex_coords_2d(:,:)
+
     nverts_per_2d_cell = global_mesh%get_nverts_per_cell()
     nedges_per_2d_cell = global_mesh%get_nedges_per_cell()
 
     mesh_id_counter = mesh_id_counter+1
-    self%mesh_id    = mesh_id_counter
+    call self%set_id( mesh_id_counter )
 
-    self%partition  = partition
-    self%ncells_2d  = partition%get_num_cells_in_layer()
-    self%nlayers    = nlayers_in
-    self%ncells     = self%ncells_2d * self%nlayers
-    self%domain_top = domain_top
-    self%ncolours   = -1     ! Initialise ncolours to error status
-    self%ncells_2d_with_ghost = self%ncells_2d                                 &
-                              + partition%get_num_cells_ghost()
+    self%partition            = partition   ! deep copy of the partition object into the mesh
+    self%ncells_2d            = partition%get_num_cells_in_layer()
+    self%ncells_2d_with_ghost = self%ncells_2d &
+                                 + partition%get_num_cells_ghost()
+    self%nlayers              = nlayers_in
+    self%ncells               = self%ncells_2d * self%nlayers
     self%ncells_with_ghost    = self%ncells_2d_with_ghost * self%nlayers
+    self%domain_top           = domain_top
+    self%ncolours             = -1     ! Initialise ncolours to error status
 
-    ncells_2d       = self%ncells_2d_with_ghost
-    ncells          = self%ncells_with_ghost
-    nlayers         = self%nlayers
+    allocate( self%eta ( 0:self%nlayers ) )
+    allocate( self%dz  ( self%nlayers   ) )
 
-    allocate( self%eta ( 0:nlayers ) )
-    allocate( self%dz  ( nlayers   ) )
-
-    ! Calculate vertical coordinates eta[0,1] and dz in a separate subroutine
-    call self%set_vertical_coordinate(vgrid_option)
+    ! Calculate vertical coordinates eta[0,1] and dz
+    call set_vertical_coordinate( self%eta, &
+                                  self%dz, &
+                                  self%nlayers, &
+                                  self%domain_top, &
+                                  vgrid_option )
 
     ! Calculate next-to cells and vertices on cells
-    allocate ( self % cell_next    ( nfaces, ncells ) )
-    allocate ( self % vert_on_cell ( nverts, ncells ) )
+    allocate ( self%cell_next    ( nfaces, self%ncells_with_ghost ) )
+    allocate ( self%vert_on_cell ( nverts, self%ncells_with_ghost ) )
 
-    ! Need connectivities of 2d mesh cells that make up this
-    ! partition from the global mesh connectivities, in lid.
-    call get_partition_stats (self, partition, global_mesh)
+    ! Get global mesh statistics to size connectivity arrays
+    nverts_per_2d_cell   = global_mesh%get_nverts_per_cell()
+    nedges_per_2d_cell   = global_mesh%get_nedges_per_cell()
 
-    self%nverts = nverts_3d
-    self%nedges = nedges_3d
-    self%nfaces = nfaces_3d
+    self%nverts_per_cell = 2*nedges_per_2d_cell
+    self%nedges_per_cell = 2*nedges_per_2d_cell + nverts_per_2d_cell
+    self%nfaces_per_cell = nedges_per_2d_cell + 2
 
-    call mesh_extruder     (self)
-    call mesh_connectivity (self)
-    call set_domain_size   (self)
 
+    ! Get partition statistics
+    max_num_vertices_2d  = self%ncells_2d_with_ghost*nverts_per_2d_cell
+    max_num_edges_2d     = self%ncells_2d_with_ghost*nedges_per_2d_cell
+
+
+    ! Allocate arrays to hold partition connectivities, as global ids
+    allocate( vert_on_cell_2d_gid (nverts_per_2d_cell, &
+                                   self%ncells_2d_with_ghost) )
+    allocate( edge_on_cell_2d_gid (nedges_per_2d_cell, &
+                                   self%ncells_2d_with_ghost) )
+    allocate( cell_next_2d_gid    (nedges_per_2d_cell, &
+                                   self%ncells_2d_with_ghost) )
+
+    ! Get 2d cell lid/gid map
+    allocate( self%cell_lid_gid_map(self%ncells_2d_with_ghost) )
+
+    do i=1, self%ncells_2d_with_ghost
+
+      ! Note: For a single partition, the global ids should be the same
+      !       as the local cell ids
+      cell_gid = partition%get_gid_from_lid(i)
+      self%cell_lid_gid_map(i) = cell_gid
+
+      call global_mesh%get_vert_on_cell (cell_gid, vert_on_cell_2d_gid(:,i))
+      call global_mesh%get_edge_on_cell (cell_gid, edge_on_cell_2d_gid(:,i))
+      call global_mesh%get_cell_next    (cell_gid, cell_next_2d_gid(:,i))
+
+    end do
+
+
+    !--------------------------------------------------------------------------
+    ! Now get a list of all unique entities in partition (cells/vertices/edges)
+    !--------------------------------------------------------------------------
+    ! A. Generate cell_next for partition, in local ids
+    allocate( cell_next_2d (nedges_per_2d_cell, self%ncells_2d_with_ghost) )
+
+    ! Set default to 0, For missing cells, i.e. at the edge of a partition
+    ! there is no cell_next. So default to zero if a cell_next is not found
+    cell_next_2d(:,:) = 0
+
+    do i=1, self%ncells_2d_with_ghost
+      do j=1, nedges_per_2d_cell
+        ! For a 2D cell in the parition, get the each global id of its
+        ! adjacent cell.
+        cell_gid = cell_next_2d_gid(j,i)
+
+        do counter=1, self%ncells_2d_with_ghost
+          ! Loop over all cells in the partition, getting the cell
+          ! global id.
+          tmp_int = partition%get_gid_from_lid(counter)
+
+          ! Set the adjacent cell id to the local id if
+          ! it's global appears in the partition
+          if (tmp_int == cell_gid) then
+            cell_next_2d(j,i) = counter
+            exit
+          end if
+        end do
+
+      end do
+    end do
+
+    deallocate( cell_next_2d_gid )
+
+
+    !--------------------------------------------------------------------------
+    ! B. Get global ids of vertices in partition
+    ! Get global ids of all vertices on partition, by looping over the
+    ! cell-vertex connectivity on the partition.
+    allocate( tmp_list(max_num_vertices_2d) )
+    allocate( vert_on_cell_2d (nverts_per_2d_cell, self%ncells_2d_with_ghost) )
+
+    n_uniq_verts = 0
+
+    do i=1, self%ncells_2d_with_ghost
+      do j=1, nverts_per_2d_cell
+
+        vert_gid = vert_on_cell_2d_gid(j,i)
+        vert_gid_present = .false.
+
+        do counter=1, n_uniq_verts
+          if (tmp_list(counter) == vert_gid) then
+            vert_gid_present = .true.
+            vert_on_cell_2d(j,i) = counter
+            exit
+          end if
+        end do
+
+        if (vert_gid_present .eqv. .false.) then
+          n_uniq_verts = n_uniq_verts + 1
+          tmp_list(n_uniq_verts) = vert_gid
+          vert_on_cell_2d(j,i) = n_uniq_verts
+        end if
+
+      end do
+    end do
+
+    deallocate (vert_on_cell_2d_gid)
+
+    allocate(vert_lid_gid_map(n_uniq_verts))
+    vert_lid_gid_map(:) = tmp_list(1:n_uniq_verts)
+
+    self%nverts_2d = n_uniq_verts
+    deallocate(tmp_list)
+
+
+    !-------------------------------------------------------------------------
+    ! C. Get global ids of edges in partition
+    ! Get global ids of all edges on partition, by looping over the cell-edge
+    ! connectivity on the partition.
+    allocate( tmp_list(max_num_edges_2d) )
+    allocate( edge_on_cell_2d (nedges_per_2d_cell, self%ncells_2d_with_ghost) )
+
+    n_uniq_edges = 0
+
+    do i=1, self%ncells_2d_with_ghost       ! cells in local order in partition
+      do j=1, nedges_per_2d_cell ! edges from that cell
+
+        ! Get the global id of the edge
+        edge_gid = edge_on_cell_2d_gid(j,i)
+
+        ! Initialise the flag, we assume this gedge global id has not been
+        ! encountered yet
+        edge_gid_present = .false.
+
+        ! Loop over the number of existing uniq edges
+        do counter=1, n_uniq_edges
+          ! Test to see if this global edge id is in the list
+          if (tmp_list(counter) == edge_gid) then
+            ! Set flag if it's present
+            edge_gid_present = .true.
+
+            ! Mark this edge as the local id, which is it's index in the
+            ! array of unique ids
+            edge_on_cell_2d(j,i) = counter
+
+            ! Found this edge already so stop looping
+            exit
+          end if
+        end do
+
+        ! If the edge gid was not found
+        if (edge_gid_present .eqv. .false.) then
+          ! This is a new edge gid. So increment the number of unique
+          ! edges by 1
+          n_uniq_edges = n_uniq_edges + 1
+
+          ! Add this edge gid to the next element in the array
+          tmp_list(n_uniq_edges) = edge_gid
+
+          ! and map it's local id
+          edge_on_cell_2d(j,i) = n_uniq_edges
+        end if
+
+      end do
+    end do
+
+    deallocate(edge_on_cell_2d_gid)
+
+    self%nedges_2d = n_uniq_edges
+
+    deallocate(tmp_list)
+
+    !--------------------------------------------------------------------------
+    ! Get partition vertices lat-lon-z coords, Note z=surface height
+    !--------------------------------------------------------------------------
+    allocate(vertex_coords_2d(3,n_uniq_verts))
+    do i=1, n_uniq_verts
+      ! Get coords of vertices
+      vert_gid = vert_lid_gid_map(i)
+      call global_mesh%get_vert_coords(vert_gid,vertex_coords_2d(:,i))
+    end do
+
+    deallocate( vert_lid_gid_map )
+
+    self%nverts = self%nverts_2d * (self%nlayers+1)
+    self%nedges = self%nedges_2d * (self%nlayers+1) &
+                  + self%nverts_2d*self%nlayers
+    self%nfaces = self%ncells_2d_with_ghost * (self%nlayers+1) &
+                  + self%nedges_2d * self%nlayers
+
+    allocate ( self%vertex_coords( 3, self%nverts ) )
+
+    call mesh_extruder( self%cell_next, &
+                        self%vert_on_cell, &
+                        self%vertex_coords, &
+                        cell_next_2d, &
+                        vert_on_cell_2d, &
+                        vertex_coords_2d, &
+                        nverts_per_2d_cell, &
+                        nedges_per_2d_cell, &
+                        self%nverts_2d, &
+                        self%nverts, &
+                        self%ncells_2d_with_ghost, &
+                        self%ncells_with_ghost, &
+                        self%nlayers, &
+                        self%dz)
+
+    allocate(self%face_on_cell(self%nfaces_per_cell, self%ncells_2d_with_ghost))
+    allocate(self%edge_on_cell(self%nedges_per_cell, self%ncells_2d_with_ghost))
+
+    call mesh_connectivity ( self%face_on_cell, &
+                             self%edge_on_cell, &
+                             self%ncells_2d_with_ghost, &
+                             self%ncells_with_ghost, &
+                             self%nfaces_per_cell, &
+                             self%nedges_per_cell, &
+                             self%cell_next, &
+                             self%vert_on_cell )
+
+    call set_domain_size( self%domain_size, self%domain_top, &
+                          self%vertex_coords, self%nverts )
+
+    deallocate (vert_on_cell_2d)
+    deallocate (edge_on_cell_2d)
+    deallocate (cell_next_2d)
+    deallocate (vertex_coords_2d)
 
     ! Assign ownership of cell vertices and cell edges
     allocate( &
-      self%vertex_ownership (nverts_per_2d_cell, ncells_2d) )
+      self%vertex_ownership (nverts_per_2d_cell, self%ncells_2d_with_ghost) )
     allocate( &
-      self%edge_ownership   (nedges_per_2d_cell, ncells_2d) )
+      self%edge_ownership   (nedges_per_2d_cell, self%ncells_2d_with_ghost) )
     allocate( &
-      self%vert_cell_owner  (nverts_per_2d_cell, ncells_2d) )
+      self%vert_cell_owner  (nverts_per_2d_cell, self%ncells_2d_with_ghost) )
     allocate( &
-      self%edge_cell_owner  (nedges_per_2d_cell, ncells_2d) )
+      self%edge_cell_owner  (nedges_per_2d_cell, self%ncells_2d_with_ghost) )
 
     allocate( verts (nverts_per_2d_cell) )
     allocate( edges (nedges_per_2d_cell) )
 
-    do i=1, ncells_2d
+    do i=1, self%ncells_2d_with_ghost
       ! Vertex ownership
       call global_mesh%get_vert_on_cell(partition%get_gid_from_lid(i), verts)
       do j=1, nverts_per_2d_cell
@@ -510,7 +617,7 @@ contains
     deallocate( verts )
     deallocate( edges )
 
-  end subroutine mesh_constructor
+  end function mesh_constructor
 
 
   !============================================================================
@@ -605,24 +712,6 @@ contains
     end do
 
   end subroutine get_column_coords
-
-  !> @details This function returns the id number of the mesh, this number is
-  !>          assigned when the object is first instatiated.
-  !> @return  Mesh object id number
-  !============================================================================
-  function get_id(self) result (mesh_id)
-
-    ! Function returns the id number of the mesh, this
-    ! number is assigned when the object is first instatiated.
-
-    implicit none
-    class(mesh_type), intent(in) :: self
-    integer(i_def)               :: mesh_id
-
-    mesh_id = self%mesh_id
-
-  end function get_id
-
 
   !> @details This function returns the number of 3d-cell layers in the mesh
   !>          object
@@ -735,7 +824,7 @@ contains
     integer(i_def),   intent(in) :: icell   ! Local cell id
     integer(i_def)               :: face_lid
 
-    face_lid = self % face_on_cell(iface, icell)
+    face_lid = self%face_on_cell(iface, icell)
 
   end function get_face_on_cell
 
@@ -756,7 +845,7 @@ contains
     integer(i_def),   intent(in) :: icell   ! Local cell id
     integer(i_def)               :: edge_lid
 
-    edge_lid = self % edge_on_cell(iedge, icell)
+    edge_lid = self%edge_on_cell(iedge, icell)
 
   end function get_edge_on_cell
 
@@ -778,7 +867,7 @@ contains
     integer(i_def),   intent(in) :: icell   ! Local cell id
     integer(i_def)               :: vert_lid
 
-    vert_lid = self % vert_on_cell(ivert, icell)
+    vert_lid = self%vert_on_cell(ivert, icell)
 
   end function get_vert_on_cell
 
@@ -1036,11 +1125,11 @@ contains
   !============================================================================
   function get_domain_size(self) result (domain_size)
 
-    ! Returns local mesh domain limits as a domain_limits type
+    ! Returns local mesh domain limits as a domain_size_type type
 
     implicit none
     class(mesh_type), intent(in) :: self
-    type(domain_limits)          :: domain_size
+    type(domain_size_type)          :: domain_size
 
     domain_size = self%domain_size
 
@@ -1054,8 +1143,8 @@ contains
   !> @return                  Gets the local id of the cell that "owns" a
   !>                          particular vertex entity
   !============================================================================
-  function get_vertex_cell_owner( self, vertex_index, cell_lid )               &
-    result (cell_owner)
+  function get_vertex_cell_owner( self, vertex_index, cell_lid ) &
+                                  result (cell_owner)
 
     class(mesh_type), intent(in) :: self
     integer(i_def),   intent(in) :: vertex_index
@@ -1074,8 +1163,8 @@ contains
   !> @return                Gets the local id of the cell that "owns" a
   !>                        particular edge entity
   !============================================================================
-  function get_edge_cell_owner( self, edge_index, cell_lid )                   &
-    result (cell_owner)
+  function get_edge_cell_owner( self, edge_index, cell_lid ) &
+                                result (cell_owner)
 
     class(mesh_type), intent(in) :: self
     integer(i_def),   intent(in) :: edge_index
@@ -1102,7 +1191,7 @@ contains
     logical(l_def)               :: owned
 
     owned = .false.
-    if ( self%vertex_ownership( vertex_index, cell_lid ) ==                    &
+    if ( self%vertex_ownership( vertex_index, cell_lid ) == &
          self%partition%get_local_rank() ) owned = .true.
 
   end function is_vertex_owned
@@ -1122,7 +1211,7 @@ contains
     logical(l_def)               :: owned
 
     owned = .false.
-    if ( self%edge_ownership( edge_index, cell_lid ) ==                        &
+    if ( self%edge_ownership( edge_index, cell_lid ) == &
          self%partition%get_local_rank() ) owned = .true.
 
   end function is_edge_owned
@@ -1138,7 +1227,7 @@ contains
     logical(l_def)               :: owned
 
     owned = .false.
-    if ( self%partition%get_cell_owner(cell_lid) ==                            &
+    if ( self%partition%get_cell_owner(cell_lid) == &
          self%partition%get_local_rank())    owned = .true.
 
   end function is_cell_owned
@@ -1426,757 +1515,6 @@ contains
 
   end subroutine set_colours
 
-
-!==============================================================================
-! PRIVATE ROUTINES/FUNCTIONS - Internal to object
-!==============================================================================
-
-  !----------------------------------------------------------------------------
-  !> @details Called during <code>mesh_object<code>_construction, this routine
-  !>          calculates partition statistics using the list of cells in the
-  !>          partition from the <code>partition_object<code> and the
-  !>          connectivity information of the same cells in the
-  !>          <code>global_mesh_object<code>. Some information is added to the
-  !>          mesh_object, while other info is held in module and used by the
-  !>          subroutine mesh_extruder
-  !>
-  !> @param [in]  partition   A partition_object specifying which 2d-cells in
-  !>                          the global_mesh are to be included in this
-  !>                          partition
-  !> @param [in]  global_mesh A global mesh object that describes the layout
-  !>                          of the global mesh
-  !> @param [out] self        The mesh_object with updated the partition
-  !>                          statistics
-  subroutine get_partition_stats(self, partition, global_mesh)
-
-    implicit none
-
-    class (mesh_type)                    :: self
-    type  (partition_type),   intent(in) :: partition
-    type  (global_mesh_type), intent(in) :: global_mesh
-
-    integer (i_def) :: nverts_per_2d_cell
-    integer (i_def) :: nedges_per_2d_cell
-
-    integer (i_def) :: max_num_vertices_2d
-    integer (i_def) :: max_num_edges_2d
-    integer (i_def) :: counter, i, j
-
-
-    integer (i_def) :: cell_gid
-    integer (i_def) :: edge_gid
-    integer (i_def) :: vert_gid
-    integer (i_def) :: n_uniq_verts
-    integer (i_def) :: n_uniq_edges
-
-
-    integer (i_def), allocatable :: tmp_list(:)
-    integer (i_def) :: tmp_int
-    logical (l_def) :: edge_gid_present
-    logical (l_def) :: vert_gid_present
-
-    ! Arrays where the connected entity ids are global ids
-    integer(i_def), allocatable :: &
-      vert_on_cell_2d_gid (:,:)    &! Vertices connected to local 2d cell.
-    , edge_on_cell_2d_gid (:,:)    &! Edges connected to local 2d cell.
-    , cell_next_2d_gid    (:,:)     ! Local 2d cell connectivity.
-
-    integer(i_def), allocatable :: &
-      vert_lid_gid_map(:)           ! Vertices local-to-global id map
-
-
-    ! Get global mesh statistics to size connectivity arrays
-    nverts_per_2d_cell   = global_mesh%get_nverts_per_cell()
-    nedges_per_2d_cell   = global_mesh%get_nedges_per_cell()
-
-    self%nverts_per_cell = 2*nedges_per_2d_cell
-    self%nedges_per_cell = 2*nedges_per_2d_cell + nverts_per_2d_cell
-    self%nfaces_per_cell = nedges_per_2d_cell + 2
-
-
-    ! Get partition statistics
-    max_num_vertices_2d  = ncells_2d*nverts_per_2d_cell
-    max_num_edges_2d     = ncells_2d*nedges_per_2d_cell
-
-
-    ! Allocate arrays to hold partition connectivities, as global ids
-    ! These will be deallocated in mesh_extruder
-    allocate( vert_on_cell_2d_gid (nverts_per_2d_cell, ncells_2d) )
-    allocate( edge_on_cell_2d_gid (nedges_per_2d_cell, ncells_2d) )
-    allocate( cell_next_2d_gid    (nedges_per_2d_cell, ncells_2d) )
-
-
-    ! Get 2d cell lid/gid map
-    allocate( self % cell_lid_gid_map(ncells_2d) )
-
-    do i=1, ncells_2d
-
-      ! Note: For a single partition, the global ids should be the same
-      !       as the local cell ids
-      cell_gid = partition % get_gid_from_lid(i)
-      self % cell_lid_gid_map(i) = cell_gid
-
-      call global_mesh % get_vert_on_cell (cell_gid, vert_on_cell_2d_gid(:,i))
-      call global_mesh % get_edge_on_cell (cell_gid, edge_on_cell_2d_gid(:,i))
-      call global_mesh % get_cell_next    (cell_gid, cell_next_2d_gid(:,i))
-
-    end do
-
-
-    !--------------------------------------------------------------------------
-    ! Now get a list of all unique entities in partition (cells/vertices/edges)
-    !--------------------------------------------------------------------------
-    ! A. Generate cell_next for partition, in local ids
-    allocate( cell_next_2d (nedges_per_2d_cell, ncells_2d) )
-
-    ! Set default to 0, For missing cells, i.e. at the edge of a partition
-    ! there is no cell_next. So default to zero if a cell_next is not found
-    cell_next_2d(:,:) = 0
-
-    do i=1, ncells_2d
-      do j=1, nedges_per_2d_cell
-        ! For a 2D cell in the parition, get the each global id of its
-        ! adjacent cell.
-        cell_gid = cell_next_2d_gid(j,i)
-
-        do counter=1, ncells_2d
-          ! Loop over all cells in the partition, getting the cell
-          ! global id.
-          tmp_int = partition % get_gid_from_lid(counter)
-
-          ! Set the adjacent cell id to the local id if
-          ! it's global appears in the partition
-          if (tmp_int == cell_gid) then
-            cell_next_2d(j,i) = counter
-            exit
-          end if
-        end do
-
-      end do
-    end do
-
-    deallocate( cell_next_2d_gid )
-
-
-    !--------------------------------------------------------------------------
-    ! B. Get global ids of vertices in partition
-    ! Get global ids of all vertices on partition, by looping over the
-    ! cell-vertex connectivity on the partition.
-    allocate( tmp_list(max_num_vertices_2d) )
-    allocate( vert_on_cell_2d (nverts_per_2d_cell, ncells_2d) )
-
-    n_uniq_verts = 0
-
-    do i=1, ncells_2d
-      do j=1, nverts_per_2d_cell
-
-        vert_gid = vert_on_cell_2d_gid(j,i)
-        vert_gid_present = .false.
-
-        do counter=1, n_uniq_verts
-          if (tmp_list(counter) == vert_gid) then
-            vert_gid_present = .true.
-            vert_on_cell_2d(j,i) = counter
-            exit
-          end if
-        end do
-
-        if (vert_gid_present .eqv. .false.) then
-          n_uniq_verts = n_uniq_verts + 1
-          tmp_list(n_uniq_verts) = vert_gid
-          vert_on_cell_2d(j,i) = n_uniq_verts
-        end if
-
-      end do
-    end do
-
-    deallocate (vert_on_cell_2d_gid)
-
-    allocate(vert_lid_gid_map(n_uniq_verts))
-    vert_lid_gid_map(:) = tmp_list(1:n_uniq_verts)
-
-    nverts_2d        = n_uniq_verts
-    self % nverts_2d = n_uniq_verts
-    deallocate(tmp_list)
-
-
-    !-------------------------------------------------------------------------
-    ! C. Get global ids of edges in partition
-    ! Get global ids of all edges on partition, by looping over the cell-edge
-    ! connectivity on the partition.
-    allocate( tmp_list(max_num_edges_2d) )
-    allocate( edge_on_cell_2d (nedges_per_2d_cell, ncells_2d) )
-
-    n_uniq_edges = 0
-
-    do i=1, ncells_2d            ! cells in local order in partition
-      do j=1, nedges_per_2d_cell ! edges from that cell
-
-        ! Get the global id of the edge
-        edge_gid = edge_on_cell_2d_gid(j,i)
-
-        ! Initialise the flag, we assume this gedge global id has not been
-        ! encountered yet
-        edge_gid_present = .false.
-
-        ! Loop over the number of existing uniq edges
-        do counter=1, n_uniq_edges
-          ! Test to see if this global edge id is in the list
-          if (tmp_list(counter) == edge_gid) then
-            ! Set flag if it's present
-            edge_gid_present = .true.
-
-            ! Mark this edge as the local id, which is it's index in the
-            ! array of unique ids
-            edge_on_cell_2d(j,i) = counter
-
-            ! Found this edge already so stop looping
-            exit
-          end if
-        end do
-
-        ! If the edge gid was not found
-        if (edge_gid_present .eqv. .false.) then
-          ! This is a new edge gid. So increment the number of unique
-          ! edges by 1
-          n_uniq_edges = n_uniq_edges + 1
-
-          ! Add this edge gid to the next element in the array
-          tmp_list(n_uniq_edges) = edge_gid
-
-          ! and map it's local id
-          edge_on_cell_2d(j,i) = n_uniq_edges
-        end if
-
-      end do
-    end do
-
-    deallocate(edge_on_cell_2d_gid)
-
-    nedges_2d        = n_uniq_edges
-    self % nedges_2d = n_uniq_edges
-
-    deallocate(tmp_list)
-
-    !--------------------------------------------------------------------------
-    ! Get partition vertices lat-lon-z coords, Note z=surface height
-    !--------------------------------------------------------------------------
-    allocate(vertex_coords_2d(3,n_uniq_verts))
-    do i=1, n_uniq_verts
-      ! Get coords of vertices
-      vert_gid = vert_lid_gid_map(i)
-      call global_mesh % get_vert_coords(vert_gid,vertex_coords_2d(:,i))
-    end do
-
-    deallocate( vert_lid_gid_map )
-
-    nverts_3d = nverts_2d * (nlayers+1)
-    nedges_3d = nedges_2d * (nlayers+1) + nverts_2d*nlayers
-    nfaces_3d = ncells_2d * (nlayers+1) + nedges_2d*nlayers
-
-  end subroutine get_partition_stats
-
-
-  !----------------------------------------------------------------------------
-  !> @details Called during <code>mesh_object<code>_construction, this routine
-  !>          extrudes the a surface 2D-mesh into the 3D-mesh object.
-  !>
-  !> @param self The mesh_object being constructed on the partition
-  subroutine mesh_extruder(self)
-
-    use coord_transform_mod,   only : llr2xyz
-    use planet_config_mod,     only : scaled_radius
-    use reference_element_mod, only : W, S, E, N, B, T,                       &
-                                      nverts_h, nedges_h, nfaces_h,           &
-                                      nverts,   nedges,   nfaces,             &
-                                      SWB, SEB, NEB, NWB, SWT, SET, NET, NWT
-
-    implicit none
-
-    class(mesh_type) :: self
-
-    ! Loop indices
-    integer(i_def) :: i, j, k, id, jd, iedge, ivert, base_id
-
-    ! From reference element
-    ! nverts_h = number of vertices on 2d horizontal cell
-    ! nedges_h = number of edges    on 2d horizontal cell
-    !
-    ! nverts   = number of vertices on 3d cell
-    ! nedges   = number of edges    on 3d cell
-    ! nfaces   = number of faces    on 3d cell
-
-    integer(i_def) :: nverts_per_3d_cell
-    integer(i_def) :: nedges_per_3d_cell
-    integer(i_def) :: nfaces_per_3d_cell
-
-    integer(i_def) :: nverts_per_2d_cell
-    integer(i_def) :: nedges_per_2d_cell
-
-    ! lat/long coordinates
-    real(r_def) :: long, lat, r
-
-    ! The height of the lowest z-level
-    real(r_def) :: base_z
-
-    ! Reference element stats
-    nverts_per_2d_cell = nverts_h
-    nedges_per_2d_cell = nedges_h
-
-    nverts_per_3d_cell = nverts
-    nedges_per_3d_cell = nedges
-    nfaces_per_3d_cell = nfaces
-
-    ! Allocate mesh object arrays
-    allocate ( self % vertex_coords ( 3, nverts_3d ) )
-
-    ! Apply default cell_next values
-    self%cell_next(:,:) = 0
-
-    do i=1, ncells_2d
-      do ivert=1, nverts_per_2d_cell
-        self % vert_on_cell(ivert,i) = vert_on_cell_2d(ivert,i)
-      end do
-
-      do iedge=1, nedges_per_2d_cell
-        self % cell_next(iedge,i) = cell_next_2d(iedge,i)
-      end do
-    end do
-
-    ! Add connectivity for up/down
-    ! index nfaces_h+1 is the bottom of the 3d cell
-    !                  (set to zero as it's the surface)
-    ! index nfaces_h+2 is the top of the 3d cell
-    do j=1,ncells_2d
-      self%cell_next(nfaces_h+2,j) = j + ncells_2d
-    end do
-
-    ! Perform vertical extrusion for connectivity
-    do k=1, nlayers-1
-      do i=1, ncells_2d
-        id = i  + k*ncells_2d
-        jd = id - ncells_2d
-
-        do j=1, nfaces_h ! only over vertical faces
-          if (self % cell_next(j,jd) /= 0)                                    &
-                    self % cell_next(j,id) = self % cell_next(j,jd) + ncells_2d
-        end do
-
-        self%cell_next(nfaces_h+1,id) = id - ncells_2d
-        self%cell_next(nfaces_h+2,id) = id + ncells_2d
-
-        if (k==nlayers-1) self%cell_next(nfaces_h+2,id) = 0
-
-      end do
-    end do
-
-    ! NOTE: dz and domain top will depend on
-    !       the orography, vertical resolution file, top of model
-    !       and how vertical and horizontal smoothing is applied
-    !       after the application of orography. At present, the
-    !       vertical depth is hard-coded uniformly to 1.0
-
-    ! The assumption is that the global mesh coords are provided in
-    ! [longitude, latitude, radius] (long/lat in rads)
-
-    ! perform vertical extrusion for vertices
-    if( geometry == base_mesh_geometry_spherical )then
-      !> @todo We shouldn't be using earth_radius here - it should be
-      !!       some form of scaled planet radius - but that is a much
-      !!       bigger change for a different ticket.
-      base_z = scaled_radius
-    else
-      base_z = 0.0_r_def
-    end if
-    do j=1, nverts_2d
-     ! k = 0
-     self%vertex_coords(1,j) = vertex_coords_2d(1,j)
-     self%vertex_coords(2,j) = vertex_coords_2d(2,j)
-     self%vertex_coords(3,j) = base_z
-     ! k = 1, nlayers
-      do k=1, nlayers
-        self%vertex_coords(1,j+k*nverts_2d) = vertex_coords_2d(1,j)
-        self%vertex_coords(2,j+k*nverts_2d) = vertex_coords_2d(2,j)
-        self%vertex_coords(3,j+k*nverts_2d) = base_z + real(k)*self%dz(k)
-      end do
-    end do
-
-    deallocate(vertex_coords_2d)
-
-    if( geometry == base_mesh_geometry_spherical )then
-      ! Convert (long,lat,r) -> (x,y,z)
-      do j=1, nverts_2d
-        do k=0, nlayers
-          long = self % vertex_coords(1,j+k*nverts_2d)
-          lat  = self % vertex_coords(2,j+k*nverts_2d)
-          r    = self % vertex_coords(3,j+k*nverts_2d)
-          call llr2xyz(long,lat,r,self % vertex_coords(1,j+k*nverts_2d), &
-                                  self % vertex_coords(2,j+k*nverts_2d), &
-                                  self % vertex_coords(3,j+k*nverts_2d))
-        end do
-      end do
-    end if
-
-    ! assign vertices to cells
-    ! Loop over lowest layer of cells first, to set the cell ids above
-    ! the lowest layer
-    do i=1, ncells_2d
-      do ivert=1, nverts_per_2d_cell
-        self % vert_on_cell(nverts_per_2d_cell + ivert, i) =                  &
-          self % vert_on_cell(ivert,i) + nverts_2d
-      end do
-    end do
-
-    ! Do vertical extrusion
-    do base_id=1, ncells_2d
-      do k=1, nlayers-1
-
-        i = base_id + k*ncells_2d
-        do ivert=1, nverts_per_3d_cell
-          self % vert_on_cell(ivert,i) = self % vert_on_cell(ivert,base_id)   &
-                                       + k*nverts_2d
-        end do
-
-      end do
-    end do
-
-    deallocate (vert_on_cell_2d)
-    deallocate (edge_on_cell_2d)
-    deallocate (cell_next_2d)
-
-
-    ! Diagnostic information
-    call log_event('grid connectivity', LOG_LEVEL_DEBUG)
-    do i=1, ncells
-      write(log_scratch_space,'(7i6)') i,                                     &
-        self % cell_next(S,i), self % cell_next(E,i),                         &
-        self % cell_next(N,i), self % cell_next(W,i),                         &
-        self % cell_next(B,i), self % cell_next(T,i)
-      call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
-    end do
-
-    call log_event('verts on cells', LOG_LEVEL_DEBUG)
-    do i=1, ncells
-      write(log_scratch_space, '(9i6)') i,                                    &
-        self % vert_on_cell(SWB,i), self % vert_on_cell(SEB,i),               &
-        self % vert_on_cell(NEB,i), self % vert_on_cell(NWB,i),               &
-        self % vert_on_cell(SWT,i), self % vert_on_cell(SET,i),               &
-        self % vert_on_cell(NET,i), self % vert_on_cell(NWT,i)
-      call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
-    end do
-
-    call log_event('vert coords', LOG_LEVEL_DEBUG)
-    do i=1, nverts_3d
-      write(log_scratch_space, '(i6,3ES20.10E3)') i,                          &
-        self%vertex_coords(1,i),                                              &
-        self%vertex_coords(2,i),                                              &
-        self%vertex_coords(3,i)
-      call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
-    end do
-
-  end subroutine mesh_extruder
-
-
-  !----------------------------------------------------------------------------
-  !> @details Compute mesh connectivity.
-  !>
-  !> <pre>
-  !> cells->faces (3,2)
-  !> cells->edges (3,1)
-  !> </pre>
-  !>
-  !> @param ncells Total number of cells in horizontal layer.
-  !
-  subroutine mesh_connectivity( self )
-
-  use reference_element_mod, only: W,   S,  E,  N,  B,  T,                    &
-                                   EB, ET, WB, WT, NB, NT, SB, ST,            &
-                                   SW, SE, NW, NE,                            &
-                                   nedges_h, nverts_h, nfaces_h,              &
-                                   SWB, SEB, NEB, NWB, SWT, SET, NET, NWT
-
-  implicit none
-
-  class (mesh_type) :: self
-
-  integer (i_def) :: &
-    cell             &! cell loop index
-  , face             &! face loop index
-  , edge             &! edge loop index
-  , vert             &! vert loop index
-  , face_id          &! unique face index
-  , edge_id          &! unique edge index
-  , edge_upper       &! index of edge on top face
-  , cell_nbr         &! cell index for a neightbour cell
-  , face_nbr         &! face index for a face on a neighbour cell
-  , edge_nbr         &! edge index for a edge on a neighbour cell
-  , vert_nbr         &! vert index for a edge on a neighbour cell
-  , cell_nbr_nbr     &! cell index for a neighbour cell of a neighbour cell
-  , vert_nbr_nbr      ! vert index for a neighbour cell of a neighbour cell
-
-  allocate( self % face_on_cell(self%nfaces_per_cell, ncells_2d) )
-  allocate( self % edge_on_cell(self%nedges_per_cell, ncells_2d) )
-
-  self%face_on_cell(:,:) = 0
-  self%edge_on_cell(:,:) = 0
-
-
-  !==================================================
-  ! Compute index of faces on the cell
-  !==================================================
-  face_id = 1
-  do cell=1, ncells_2d
-
-    ! First do faces on E,S,W,N sides of cell
-    do face=1, nfaces_h
-
-      if ( self%face_on_cell(face,cell) == 0 ) then
-        ! Assign face_id to this face as it is not already assigned
-
-        self%face_on_cell(face,cell) = face_id
-
-        ! Find matching face on the neighbouring face.
-        ! Note: The orientations of cells may not be the same,
-        !       e.g. Cubedsphere, for a so search all faces of
-        !       cell_next on the neighbouring cell
-        cell_nbr = self%cell_next(face,cell)
-        if (cell_nbr /= 0) then
-          do face_nbr=1, nfaces_h
-            if ( self%cell_next(face_nbr,cell_nbr) == cell ) then
-              ! Found matching face, assign in and increment count
-              self%face_on_cell(face_nbr,cell_nbr) = face_id
-            end if
-          end do
-        end if
-
-        face_id = face_id + 1
-
-      end if ! test for assigned face
-
-    end do  ! n_faces_h
-
-    ! Now do Faces on B and T of cell
-    do face=nfaces_h+1, self%nfaces_per_cell
-      self%face_on_cell(face, cell) = face_id
-      face_id = face_id + 1
-    end do
-
-  end do ! ncells_2d
-
-  ! Compute the index of edges on the cell
-  edge_id = 1
-  do cell=1, ncells_2d
-    ! horizontal edges ( edges on Bottom and Top faces)
-    ! This uses the fact that edges of the bottom face correspond to the
-    ! vertical faces, i.e edge i is the bottom edge of face i and hence
-    ! we can use cell_next array (which is addressed through faces) for
-    ! edge indexes
-    do edge=1, nedges_h
-      if ( self%edge_on_cell(edge,cell) == 0 ) then
-
-        ! Index of edge on bottom face
-        self%edge_on_cell(edge,cell) = edge_id
-
-        ! Corresponding index of edge on top face
-        edge_upper = edge + nedges_h + nverts_h
-        self%edge_on_cell(edge_upper,cell) = edge_id + 1
-
-        ! find matching edge in neighbouring cell
-        cell_nbr = self%cell_next(edge,cell)
-        if (cell_nbr /= 0) then
-          do edge_nbr = 1,nedges_h
-            if ( self%cell_next(edge_nbr,cell_nbr) == cell ) then
-              ! Found cell which shares edge
-              self%edge_on_cell(edge_nbr,cell_nbr) = edge_id
-              edge_upper = edge_nbr+nedges_h+nverts_h
-              self%edge_on_cell(edge_upper,cell_nbr) = edge_id + 1
-            end if
-          end do
-        end if
-
-        edge_id = edge_id + 2
-
-      end if
-    end do
-
-    ! vertical edges (edges not on Bottom and Top faces)
-    ! This uses the fact that vertical edges correspond to vertices of
-    ! the bottom face i.e edge i has the same index as vertex i and hence
-    ! we can use vert_on_cell array (which is addressed through verts) for
-    ! edge indexes
-    do edge = nedges_h+1,nedges_h+nverts_h
-      if ( self%edge_on_cell(edge,cell) == 0 ) then
-        self%edge_on_cell(edge,cell) = edge_id
-
-        ! Find matching edge on two neighbouring cells
-        ! this edge is an extrusion of the corresponding vertex
-        vert = self%vert_on_cell(edge-nedges_h,cell)
-        do face = 1,nfaces_h
-          cell_nbr = self%cell_next(face,cell)
-          if (cell_nbr /= 0) then
-            do vert_nbr = 1,nverts_h
-              if ( self%vert_on_cell(vert_nbr,cell_nbr) == vert ) then
-                ! Found matching vert in neighbour cell
-                self%edge_on_cell(vert_nbr+nedges_h,cell_nbr) = edge_id
-                do face_nbr = 1,nfaces_h
-                  ! Now find matching vert in neighbour of neighbour
-                  cell_nbr_nbr = self%cell_next(face_nbr,cell_nbr)
-                  if (cell_nbr_nbr /= 0) then
-                    do vert_nbr_nbr = 1,nverts_h
-                      if ( self%vert_on_cell(vert_nbr_nbr,cell_nbr_nbr) ==    &
-                           vert ) then
-                        self%edge_on_cell(vert_nbr_nbr+nedges_h,              &
-                                          cell_nbr_nbr) = edge_id
-                      end if
-                    end do
-                  end if ! cell_nbr_nbr
-                end do
-              end if
-            end do
-          end if
-        end do
-        edge_id = edge_id + 1
-      end if
-    end do
-  end do
-
-  call log_event( 'faces on cells', LOG_LEVEL_DEBUG )
-  do cell = 1, ncells_2d
-    write( log_scratch_space, '(7i6)' ) cell,                                 &
-           self%face_on_cell(S,cell), self%face_on_cell(E,cell),              &
-           self%face_on_cell(N,cell), self%face_on_cell(W,cell),              &
-           self%face_on_cell(B,cell), self%face_on_cell(T,cell)
-    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
-  end do
-
-  call log_event( 'edges on cells', LOG_LEVEL_DEBUG )
-  do cell = 1, ncells_2d
-    write( log_scratch_space, '(13i6)' ) cell,                                &
-           self%edge_on_cell(SB,cell), self%edge_on_cell(EB,cell),            &
-           self%edge_on_cell(NB,cell), self%edge_on_cell(WB,cell),            &
-           self%edge_on_cell(SW,cell), self%edge_on_cell(SE,cell),            &
-           self%edge_on_cell(NE,cell), self%edge_on_cell(NW,cell),            &
-           self%edge_on_cell(ST,cell), self%edge_on_cell(ET,cell),            &
-           self%edge_on_cell(NT,cell), self%edge_on_cell(WT,cell)
-    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
-  end do
-
-  end subroutine mesh_connectivity
-
-
-
-  !----------------------------------------------------------------------------
-  !> @details Compute the domain limits (x,y,z) for
-  !           Cartesian domains and (lambda,phi,r) for spherical domains
-  subroutine set_domain_size(self)
-
-    implicit none
-
-    class(mesh_type) :: self
-
-    if ( geometry == base_mesh_geometry_spherical ) then
-      self % domain_size%minimum%x =  0.0_r_def
-      self % domain_size%maximum%x =  2.0_r_def*PI
-      self % domain_size%minimum%y = -0.5_r_def*PI
-      self % domain_size%maximum%y =  0.5_r_def*PI
-      self % domain_size%minimum%z =  0.0_r_def
-      self % domain_size%maximum%z =  self % domain_top
-    else
-      self % domain_size%minimum%x =  minval( self % vertex_coords(1,:))
-      self % domain_size%maximum%x =  maxval( self % vertex_coords(1,:))
-      self % domain_size%minimum%y =  minval( self % vertex_coords(2,:))
-      self % domain_size%maximum%y =  maxval( self % vertex_coords(2,:))
-      self % domain_size%minimum%z =  minval( self % vertex_coords(3,:))
-      self % domain_size%maximum%z =  maxval( self % vertex_coords(3,:))
-    end if
-
-    !> @todo Need to do a global reduction of maxs and mins when the
-    !> code is parallel
-
-  end subroutine set_domain_size
-
-
-  !============================================================================
-  !> @details Set up and calculate vertical coordinate. Called during
-  !>          @c mesh_type object construction, this routine
-  !>          sets up the vertical grid layers and type of vertical grid
-  !> @param [inout] self          The mesh_object with set up vertical
-  !>                              coordinate eta and layer spacing dz
-  !> @param [in]    vgrid_option  Choice of vertical grid
-  subroutine set_vertical_coordinate( self, vgrid_option )
-
-    use extrusion_config_mod, only: extrusion_method_uniform,   &
-                                    extrusion_method_quadratic, &
-                                    extrusion_method_geometric, &
-                                    extrusion_method_dcmip
-
-    implicit none
-
-    class(mesh_type),  intent(inout) :: self
-    integer(i_native), intent(in)    :: vgrid_option
-
-    integer(i_def) :: k, nlayers
-    real   (r_def) :: stretching_factor, phi_flatten, delta_eta, eta_uni
-
-    ! Get the number of layers
-    nlayers = self%nlayers
-
-    ! Calculate eta depending on uniform/stretching option
-    select case (vgrid_option)
-
-      ! UNIFORM GRID (constant delta_eta)
-      case (extrusion_method_uniform)
-        do k = 0, nlayers
-          self%eta(k) = real(k,r_def)/real(nlayers,r_def)
-        end do
-
-      ! QUADRATIC GRID: eta(k) = (k/numlayers)^2
-      case (extrusion_method_quadratic)
-        do k = 0, nlayers
-          self%eta(k) = ( real(k,r_def)/real(nlayers,r_def) )**2_i_def
-        end do
-
-      ! GEOMETRIC GRID
-      ! Source: John Thuburn's ENDGame code for staggered grid.
-      !         deta = (stretch - 1.0d0)/(stretch**(2*nz) - 1.0d0)
-      ! Here:   The grid is non-staggered grid so it must be
-      !         deta = (stretch - 1.0d0)/(stretch**(nz) - 1.0d0)
-      case (extrusion_method_geometric)
-        stretching_factor = 1.03_r_def
-        self%eta(0) = 0.0_r_def
-        delta_eta = ( stretching_factor - 1.0_r_def ) / &
-                    ( stretching_factor**(nlayers) - 1.0_r_def )
-        do k = 1, nlayers
-          self%eta(k) = self%eta(k-1) + delta_eta
-          delta_eta = delta_eta*stretching_factor
-        end do
-
-      ! DCMIP GRID
-      ! Source: DCMIP-TestCaseDocument_v1.7.pdf, Appendix F.2. - Eq. 229)
-      ! phi_flatten is a flattening parameter (usually phi_flatten = 15)
-      case (EXTRUSION_METHOD_DCMIP)
-        phi_flatten = 15.0_r_def
-        do k = 0, nlayers
-          eta_uni = real(k,r_def)/real(nlayers,r_def)
-          self%eta(k) = ( sqrt(phi_flatten*(eta_uni**2_i_def) + 1.0_r_def) &
-                          - 1.0_r_def ) / &
-                        ( sqrt(phi_flatten + 1.0_r_def) - 1.0_r_def )
-        end do
-
-      ! Default case - automatically make the uniform grid
-      case default
-        do k = 0, nlayers
-          self%eta(k) = real(k,r_def)/real(nlayers,r_def)
-        end do
-      end select
-
-    ! Calculate dz
-    do k = 1, nlayers
-       self%dz(k) = ( self%eta(k) - self%eta(k-1) )*self%domain_top
-    end do
-
-  end subroutine set_vertical_coordinate
-
 !-----------------------------------------------------------------------------
 ! Mesh destructor
 !-----------------------------------------------------------------------------
@@ -2223,7 +1561,7 @@ contains
   !> @return             A 3D-Mesh object based on a 3x3-cell global mesh
   !>                     with one partition.
   !============================================================================
-  subroutine mesh_constructor_unit_test_data(mesh_cfg, self)
+  function mesh_constructor_unit_test_data( mesh_cfg )  result( self )
 
     ! Mesh returned is based on a 3x3 partition with the following
     ! cell numbering.
@@ -2255,7 +1593,7 @@ contains
     self%ncolours        = -1  ! Initialise ncolours to error status
 
     mesh_id_counter = mesh_id_counter+1
-    self%mesh_id    = mesh_id_counter
+    call self%set_id( mesh_id_counter )
 
 
 
@@ -2292,8 +1630,8 @@ contains
     end if
 
 
-    self%ncells_2d_with_ghost = self%ncells_2d                          &
-                              + self%partition%get_num_cells_ghost()
+    self%ncells_2d_with_ghost = self%ncells_2d &
+                                + self%partition%get_num_cells_ghost()
     self%ncells_with_ghost    = self%ncells_2d_with_ghost * self%nlayers
 
 
@@ -2315,7 +1653,11 @@ contains
     ! Calculate vertical coordinates eta[0,1] and dz in a separate subroutine
     ! for the unit tests.
     ! Uniform vertical grid is used for pFunit tests (hard-wired).
-    call self%set_vertical_coordinate(extrusion_method_uniform)
+    call set_vertical_coordinate( self%eta, &
+                                  self%dz, &
+                                  self%nlayers, &
+                                  self%domain_top, &
+                                  extrusion_method_uniform )
 
     self%vert_cell_owner (:,:) = reshape( [ &
          9, 8, 5, 6, &  ! Cell 1
@@ -2747,12 +2089,12 @@ contains
 
 
       ! Domain limits
-      self % domain_size%minimum%x =  0.0_r_def
-      self % domain_size%maximum%x =  2.0_r_def*PI
-      self % domain_size%minimum%y = -0.5_r_def*PI
-      self % domain_size%maximum%y =  0.5_r_def*PI
-      self % domain_size%minimum%z =  0.0_r_def
-      self % domain_size%maximum%z =  self % domain_top
+      self%domain_size%minimum%x =  0.0_r_def
+      self%domain_size%maximum%x =  2.0_r_def*PI
+      self%domain_size%minimum%y = -0.5_r_def*PI
+      self%domain_size%maximum%y =  0.5_r_def*PI
+      self%domain_size%minimum%z =  0.0_r_def
+      self%domain_size%maximum%z =  self%domain_top
 
     else if (mesh_cfg == PLANE_BI_PERIODIC) then
       !=========================================================
@@ -2900,17 +2242,6 @@ contains
 
     end if
 
-  end subroutine mesh_constructor_unit_test_data
-  
-  !> No arguments, dellocates the primal mesh and thus the singleton
-  !! used in unit testing framework.
-  subroutine destroy_mesh_singleton()
-    implicit none
-
-    if( allocated(primal_mesh) ) then
-       deallocate(primal_mesh)
-    end if
-    
-  end subroutine destroy_mesh_singleton
+  end function mesh_constructor_unit_test_data
 
 end module mesh_mod

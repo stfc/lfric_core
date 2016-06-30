@@ -12,10 +12,11 @@ module compute_div_operator_kernel_mod_test
     use constants_mod,                 only : i_def, r_def
     use function_space_collection_mod, only : function_space_collection_type, &
                                               function_space_collection
+    use mesh_collection_mod,           only : mesh_collection_type, &
+                                              mesh_collection
     use field_mod,                     only : field_type,field_proxy_type
     use fs_continuity_mod,             only : W0, W2, W3
     use function_space_mod,            only : function_space_type
-    use mesh_mod,                      only : mesh_type
     use operator_mod,                  only : operator_type, operator_proxy_type
     use pFUnit_Mod
     use quadrature_mod,                only : quadrature_type, GAUSSIAN
@@ -28,7 +29,6 @@ module compute_div_operator_kernel_mod_test
   @TestCase
   type, extends(TestCase), public :: compute_div_operator_test_type
     private
-    type(mesh_type)                    :: mesh
     type(quadrature_type)              :: qr
     type(function_space_type), pointer :: w0_fs => null()
     type(function_space_type), pointer :: w2_fs => null()
@@ -38,6 +38,7 @@ module compute_div_operator_kernel_mod_test
     real(r_def), allocatable           :: diff_basis_w2(:,:,:,:), &
                                           basis_w3(:,:,:,:), &
                                           diff_basis_chi(:,:,:,:)
+    integer(i_def)                     :: mesh_id
   contains
     procedure setUp
     procedure tearDown
@@ -75,8 +76,9 @@ contains
     reference_element = finite_element_shape_quadrilateral
     call reference_cube()
 
+    ! Create top level mesh collection
+    mesh_collection = mesh_collection_type()
     ! Create top level function space collection
-
     function_space_collection = function_space_collection_type()
 
     this%qr  = quadrature_type(3, GAUSSIAN)
@@ -85,11 +87,18 @@ contains
     nqp_v=this%qr%get_nqp_v()
 
     ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
-    this%mesh = this%mesh%get_mesh_instance_test(PLANE_BI_PERIODIC)
+    this%mesh_id = mesh_collection%get_id_for_new_unit_test_mesh( &
+                                                             PLANE_BI_PERIODIC )
 
-    this%w0_fs => function_space_collection%get_fs( this%mesh%get_id(), element_order, W0 )
-    this%w2_fs => function_space_collection%get_fs( this%mesh%get_id(), element_order, W2 )
-    this%w3_fs => function_space_collection%get_fs( this%mesh%get_id(), element_order, W3 )
+    this%w0_fs => function_space_collection%get_fs( this%mesh_id, &
+                                                    element_order, &
+                                                    W0 )
+    this%w2_fs => function_space_collection%get_fs( this%mesh_id, &
+                                                    element_order, &
+                                                    W2 )
+    this%w3_fs => function_space_collection%get_fs( this%mesh_id, &
+                                                    element_order, &
+                                                    W3 )
 
     this%div = operator_type(this%w3_fs,this%w2_fs)
 
@@ -118,7 +127,6 @@ contains
   subroutine tearDown( this )
 
     use reference_element_mod, only : deallocate_reference
-    use mesh_mod,              only : destroy_mesh_singleton
 
     implicit none
 
@@ -128,7 +136,6 @@ contains
 
     call function_space_collection%clear()
     call deallocate_reference()
-    call destroy_mesh_singleton()
 
   end subroutine tearDown
 
@@ -137,6 +144,7 @@ contains
   subroutine test_all( this )
 
     use compute_div_operator_kernel_mod, only : compute_div_operator_code
+    use mesh_mod,                        only : mesh_type
 
     implicit none
 
@@ -144,6 +152,8 @@ contains
 
     type(operator_proxy_type) :: div_p
     type(field_proxy_type )   :: chi_p(3) 
+
+    type(mesh_type),pointer   :: mesh => null()
 
     real(kind=r_def), parameter :: tol = 1.0e-6_r_def
     real(kind=r_def), parameter :: dx = 6000.0_r_def, &
@@ -165,7 +175,8 @@ contains
     real(kind=r_def), pointer :: wh(:), wv(:) => null()
     real(kind=r_def), dimension(1,6) :: answer
 
-    call this%mesh%get_dz(dz_test)
+    mesh => mesh_collection%get_mesh( this%mesh_id )
+    call mesh%get_dz(dz_test)
     dz = dz_test(1)
 
     ! Make a coordinate field with a function space

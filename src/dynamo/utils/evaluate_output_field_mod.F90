@@ -38,9 +38,8 @@ contains
 !>@param[in]  cell      The horizontal cell that x_in lies within
 !>@param[in]  nz        The number of vertical points to evaluate
 !>@param[out] field_out The array containing field evaluates at x_in
-subroutine evaluate_output_field( mesh_id, field, chi, x_in, cell, nz, field_out )
+subroutine evaluate_output_field( field, chi, x_in, cell, nz, field_out )
 
-  integer(i_def),   intent(in)  :: mesh_id
   type(field_type), intent(in)  :: field, chi(3) 
   integer,          intent(in)  :: cell, nz
   real(kind=r_def), intent(in)  :: x_in(3,nz)
@@ -76,7 +75,7 @@ subroutine evaluate_output_field( mesh_id, field, chi, x_in, cell, nz, field_out
   map_f => field_proxy%vspace%get_cell_dofmap(cell)
   ndf_f = field_proxy%vspace%get_ndf() 
   nlayers = field_proxy%vspace%get_nlayers()
-  mesh => mesh%get_mesh_instance(mesh_id)
+  mesh => field_proxy%vspace%get_mesh()
   domain_top = mesh%get_domain_top()
 
   allocate ( chi_cell(ndf,3), dgamma(3,ndf), out_layer(nz) )

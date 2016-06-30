@@ -13,6 +13,8 @@ module operator_mod_test
   use constants_mod,                 only : i_def, r_def
   use function_space_collection_mod, only : function_space_collection_type, &
                                             function_space_collection
+  use mesh_collection_mod,           only : mesh_collection_type, &
+                                            mesh_collection
   use pFUnit_Mod
 
   implicit none
@@ -45,8 +47,9 @@ contains
     reference_element = finite_element_shape_quadrilateral
     call reference_cube()
 
+    ! Create top level mesh collection
+    mesh_collection = mesh_collection_type()
     ! Create top level function space collection
-
     function_space_collection = function_space_collection_type()
 
   end subroutine setUp
@@ -55,7 +58,6 @@ contains
   subroutine tearDown( this )
 
     use reference_element_mod, only : deallocate_reference
-    use mesh_mod,              only : destroy_mesh_singleton
 
     implicit none
 
@@ -63,7 +65,6 @@ contains
 
     call function_space_collection%clear()
     call deallocate_reference()
-    call destroy_mesh_singleton()
 
   end subroutine tearDown
 
@@ -83,7 +84,6 @@ contains
     type( operator_type )       :: Op
     type( operator_proxy_type ) :: Op_p
 
-    type(mesh_type)             :: mesh
     type(mesh_type),pointer     :: mesh_out => null()
     type( function_space_type ), pointer :: fs1  => null()
     type( function_space_type ), pointer :: fs2  => null()
@@ -91,12 +91,13 @@ contains
     integer(i_def) :: err
     integer(i_def) :: i, iface, iedge, lid, test_integer
     integer(i_def) :: ncell_3d_1, ncell_3d_2, ls_size
+    integer(i_def) :: mesh_id
 
     ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
-    mesh = mesh%get_mesh_instance_test(PLANE_BI_PERIODIC)
+    mesh_id = mesh_collection%get_id_for_new_unit_test_mesh( PLANE_BI_PERIODIC )
 
-    fs1 => function_space_collection%get_fs( mesh%get_id(), element_order, W1 )
-    fs2 => function_space_collection%get_fs( mesh%get_id(), element_order, W2 )
+    fs1 => function_space_collection%get_fs( mesh_id, element_order, W1 )
+    fs2 => function_space_collection%get_fs( mesh_id, element_order, W2 )
 
     ! make an operator
     Op = operator_type( fs2, fs1 )  ! fs1 --> fs2

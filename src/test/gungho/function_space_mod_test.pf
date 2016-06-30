@@ -12,6 +12,8 @@ module function_space_mod_test
   use fs_continuity_mod,     only : W0, W1, W2, W3, Wtheta, W2V, W2H
   use fs_test_data_mod  ! Will use everything in here as it's the static data
   use function_space_mod,    only : function_space_type
+  use mesh_collection_mod,   only : mesh_collection_type, &
+                                    mesh_collection
   use mesh_mod,              only : mesh_type
   use pFUnit_Mod
   use quadrature_mod,        only : quadrature_type, GAUSSIAN
@@ -35,7 +37,7 @@ module function_space_mod_test
   type, extends(ParameterizedTestCase), public :: test_function_space_type
     private
     integer(i_def)           :: function_space
-    type(mesh_type)          :: mesh
+    integer(i_def)           :: mesh_id
     real(r_def), allocatable :: test_diff_basis(:,:,:,:)
     real(r_def), allocatable :: test_basis(:,:,:,:)
   contains
@@ -117,8 +119,11 @@ contains
     reference_element = finite_element_shape_quadrilateral
     call reference_cube()
 
+    ! Create top level mesh collection
+    mesh_collection = mesh_collection_type()
     ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
-    this%mesh = this%mesh%get_mesh_instance_test(PLANE_BI_PERIODIC)
+    this%mesh_id = mesh_collection%get_id_for_new_unit_test_mesh( &
+                                                             PLANE_BI_PERIODIC )
 
     description = function_space_description(this%function_space)
 
@@ -135,7 +140,6 @@ contains
   subroutine tearDown( this )
 
     use reference_element_mod, only : deallocate_reference
-    use mesh_mod,              only : destroy_mesh_singleton
 
     implicit none
 
@@ -145,7 +149,6 @@ contains
     deallocate(this%test_diff_basis)
 
     call deallocate_reference()
-    call destroy_mesh_singleton
 
   end subroutine tearDown
 
@@ -229,7 +232,7 @@ contains
         basis_diff_function => fs2hk0_basis_diff_function
     end select
 
-    test_fs => function_space_type( this%mesh%get_id(),     &
+    test_fs => function_space_type( this%mesh_id,     &
                                     element_order, &
                                     this%function_space )
 
@@ -284,7 +287,7 @@ contains
     integer(i_def),            pointer :: stencil_map(:,:) => null()
     integer(i_def),            pointer :: map(:)           => null()
 
-    test_fs => function_space_type( this%mesh%get_id(),     &
+    test_fs => function_space_type( this%mesh_id,  &
                                     element_order, &
                                     this%function_space )
 
@@ -309,19 +312,22 @@ contains
     type(stencil_dofmap_type), pointer :: stencil_dofmap   => null()
     integer(i_def),            pointer :: stencil_map(:,:) => null()
     integer(i_def),            pointer :: map(:)           => null()
+    type(mesh_type),           pointer :: mesh
 
-    test_fs => function_space_type( this%mesh%get_id(),     &
+    test_fs => function_space_type( this%mesh_id,  &
                                     element_order, &
                                     this%function_space )
 
     stencil_dofmap => test_fs%get_stencil_dofmap( STENCIL_1DX, 3 )
     stencil_map    => stencil_dofmap%get_dofmap( 1 )
 
+    mesh =>mesh_collection%get_mesh(this%mesh_id)
+
     map => test_fs%get_cell_dofmap(1)
     @assertEqual( map, stencil_map(:,1) )
-    map => test_fs%get_cell_dofmap(this%mesh%get_cell_next( W, 1 ))
+    map => test_fs%get_cell_dofmap(mesh%get_cell_next( W, 1 ))
     @assertEqual( map, stencil_map(:,2) )
-    map => test_fs%get_cell_dofmap(this%mesh%get_cell_next( E, 1 ))
+    map => test_fs%get_cell_dofmap(mesh%get_cell_next( E, 1 ))
     @assertEqual( map, stencil_map(:,3) )
 
   end subroutine test_stencil_1dx
@@ -340,25 +346,28 @@ contains
     type(stencil_dofmap_type), pointer :: stencil_dofmap   => null()
     integer(i_def),            pointer :: stencil_map(:,:) => null()
     integer(i_def),            pointer :: map(:)           => null()
+    type(mesh_type),           pointer :: mesh
 
-    test_fs => function_space_type( this%mesh%get_id(),     &
+    test_fs => function_space_type( this%mesh_id,  &
                                     element_order, &
                                     this%function_space )
 
     stencil_dofmap => test_fs%get_stencil_dofmap( STENCIL_1DY, 5 )
     stencil_map => stencil_dofmap%get_dofmap(1)
 
+    mesh =>mesh_collection%get_mesh(this%mesh_id)
+
     map => test_fs%get_cell_dofmap(1)
     @assertEqual( map, stencil_map(:,1) )
-    map => test_fs%get_cell_dofmap(this%mesh%get_cell_next( N, 1 ))
+    map => test_fs%get_cell_dofmap(mesh%get_cell_next( N, 1 ))
     @assertEqual( map, stencil_map(:,2) )
-    map => test_fs%get_cell_dofmap(this%mesh%get_cell_next( S, 1 ))
+    map => test_fs%get_cell_dofmap(mesh%get_cell_next( S, 1 ))
     @assertEqual( map, stencil_map(:,3) )
     map => test_fs%get_cell_dofmap(&
-          this%mesh%get_cell_next(2,this%mesh%get_cell_next( N, 1 )))
+          mesh%get_cell_next(2,mesh%get_cell_next( N, 1 )))
     @assertEqual( map, stencil_map(:,4) )
     map => test_fs%get_cell_dofmap(&
-              this%mesh%get_cell_next(4,this%mesh%get_cell_next( S, 1 )))
+              mesh%get_cell_next(4,mesh%get_cell_next( S, 1 )))
     @assertEqual( map, stencil_map(:,5) )
 
   end subroutine test_stencil_1dy
@@ -377,19 +386,23 @@ contains
     type(stencil_dofmap_type), pointer :: stencil_dofmap   => null()
     integer(i_def),            pointer :: stencil_map(:,:) => null()
     integer(i_def),            pointer :: map(:)           => null()
+    type(mesh_type),           pointer :: mesh
 
     integer :: i
 
-    test_fs => function_space_type( this%mesh%get_id(),     &
+    test_fs => function_space_type( this%mesh_id,  &
                                     element_order, &
                                     this%function_space )
 
     stencil_dofmap => test_fs%get_stencil_dofmap(STENCIL_CROSS,5)
     stencil_map => stencil_dofmap%get_dofmap(1)
+
+    mesh =>mesh_collection%get_mesh(this%mesh_id)
+
     map => test_fs%get_cell_dofmap(1)
     @assertEqual( map, stencil_map(:,1) )
     do i = 1,4
-      map => test_fs%get_cell_dofmap(this%mesh%get_cell_next(i,1))
+      map => test_fs%get_cell_dofmap(mesh%get_cell_next(i,1))
       @assertEqual( map, stencil_map(:,i+1) )
     end do
 
@@ -405,7 +418,7 @@ contains
     type(function_space_type), pointer :: test_fs => null()
     type(mesh_type),           pointer :: mesh_out => null()
 
-    test_fs => function_space_type( this%mesh%get_id(),     &
+    test_fs => function_space_type( this%mesh_id,  &
                                     element_order, &
                                     this%function_space )
 
@@ -448,7 +461,7 @@ contains
 
     integer :: colour_idx
 
-    test_fs => function_space_type( this%mesh%get_id(),     &
+    test_fs => function_space_type( this%mesh_id,  &
                                     element_order, &
                                     this%function_space )
 

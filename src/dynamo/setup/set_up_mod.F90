@@ -31,6 +31,8 @@ module set_up_mod
                                         finite_element_shape_quadrilateral
   use partitioning_config_mod,   only : auto, panel_xproc, panel_yproc
   use global_mesh_mod,           only : global_mesh_type
+  use mesh_collection_mod,       only : mesh_collection_type, &
+                                        mesh_collection
   use reference_element_mod,     only : reference_cube, reference_element, &
                                         nfaces, nedges, nverts
   use mesh_mod,                  only : mesh_type
@@ -188,14 +190,15 @@ contains
                                local_rank, &
                                total_ranks)
 
-
-
     ! Generate the mesh
-    mesh => mesh%get_mesh_instance(global_mesh, partition, &
-                        number_of_layers, domain_top, method )
+    primal_mesh_id = mesh_collection%get_id_for_new_mesh( global_mesh, &
+                                                          partition, &
+                                                          number_of_layers, &
+                                                          domain_top, &
+                                                          method )
+    mesh => mesh_collection%get_mesh( primal_mesh_id )
+
     call mesh%set_colours()
-    ! return the primal_mesh_id
-    primal_mesh_id = mesh%get_id()
 
     return
   end subroutine set_up

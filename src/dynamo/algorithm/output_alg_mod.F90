@@ -22,6 +22,7 @@ module output_alg_mod
   use psykal_lite_mod,                   only: invoke_set_field_scalar
   use quadrature_mod,                    only: quadrature_type, GAUSSIAN
   use mesh_mod,                          only: mesh_type
+  use mesh_collection_mod,               only: mesh_collection
 
   implicit none
 
@@ -65,7 +66,7 @@ contains
     character(len=str_max_filename)  :: rank_name
 
     qr = quadrature_type(element_order+3, GAUSSIAN)
-    mesh => mesh%get_mesh_instance(mesh_id)
+    mesh => mesh_collection%get_mesh( mesh_id )
     ! Determine the rank and set rank_name
     ! No rank name appended for a serial run
 

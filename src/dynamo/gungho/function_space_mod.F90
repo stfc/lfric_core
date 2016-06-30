@@ -34,13 +34,14 @@ use reference_element_mod, only: tangent_to_edge, normal_to_face               &
                                , select_entity_all, select_entity_theta        &
                                , select_entity_w2h, select_entity_w2v
 
-use fs_continuity_mod, only: W0, W1, W2, W3, Wtheta, W2V, W2H
-use fs_setup_mod,      only: ndof_setup, basis_setup, dofmap_setup
+use fs_continuity_mod,     only: W0, W1, W2, W3, Wtheta, W2V, W2H
+use function_space_constructor_helper_functions_mod, &
+                           only: ndof_setup, basis_setup, dofmap_setup
 
 use linked_list_data_mod,  only : linked_list_data_type
 use linked_list_mod,       only : linked_list_type, &
                                   linked_list_item_type
-
+use mesh_collection_mod,   only : mesh_collection
 
 implicit none
 
@@ -101,7 +102,7 @@ type, extends(linked_list_data_type), public :: function_space_type
   !> or dofmap for the whole function space over the bottom level of the domain.
   type(master_dofmap_type) :: master_dofmap
 
-  !> Mesh object used to create this function space, later this will be a
+  !> Mesh object used to create this function space. This is a
   !> pointer to a mesh in a linked list of mesh objects
   type(mesh_type), pointer :: mesh => null()
 
@@ -422,12 +423,12 @@ function fs_constructor(mesh_id, element_order, dynamo_fs) result(instance)
 
   allocate(instance)
 
-  instance%mesh  => instance%mesh%get_mesh_instance(mesh_id)
+  instance%mesh => mesh_collection%get_mesh( mesh_id )
+
   ! Set the id in the base class
-  call instance%set_id(1000000*instance%mesh%get_id() + (1000*element_order) + dynamo_fs)
+  call instance%set_id(1000000*mesh_id + (1000*element_order) + dynamo_fs)
 
-  instance%fs    =  dynamo_fs
-
+  instance%fs = dynamo_fs
 
   instance%element_order =  element_order
 
@@ -1179,7 +1180,7 @@ function get_mesh(self) result (mesh)
   class(function_space_type), intent(in) :: self
   type(mesh_type), pointer :: mesh
 
-  mesh => self%mesh%get_mesh_noargs()
+  mesh => self%mesh
 
   return
 end function get_mesh

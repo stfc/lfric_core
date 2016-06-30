@@ -10,9 +10,11 @@ module compute_dof_level_kernel_mod_test
   use constants_mod,                 only : i_def, r_def
   use function_space_collection_mod, only : function_space_collection_type, &
                                             function_space_collection
+  use mesh_collection_mod,           only : mesh_collection_type, &
+                                            mesh_collection
   use field_mod,                     only : field_type, field_proxy_type
   use fs_continuity_mod,             only : W2
-  use mesh_mod,                      only : mesh_type, PLANE_BI_PERIODIC
+  use mesh_mod,                      only : PLANE_BI_PERIODIC
   use pFUnit_Mod
 
   implicit none
@@ -44,8 +46,9 @@ contains
     reference_element = finite_element_shape_quadrilateral
     call reference_cube()
 
+    ! Create top level mesh collection
+    mesh_collection = mesh_collection_type()
     ! Create top level function space collection
-
     function_space_collection = function_space_collection_type()
 
   end subroutine setUp
@@ -54,7 +57,6 @@ contains
   subroutine tearDown( this )
 
     use reference_element_mod, only : deallocate_reference
-    use mesh_mod,                  only : destroy_mesh_singleton
 
     implicit none
 
@@ -62,7 +64,6 @@ contains
 
     call function_space_collection%clear()
     call deallocate_reference()
-    call destroy_mesh_singleton()
 
   end subroutine tearDown
 
@@ -78,29 +79,27 @@ contains
 
     real(r_def), parameter :: tol = 1.0e-6_r_def
 
-    type(mesh_type)  :: mesh
-
     real(r_def) :: answer
 
-    integer :: k
-    integer :: element_order
+    integer(i_def) :: k
+    integer(i_def) :: element_order
 
     ! Variables for testing kernel
     type(field_type) :: level
     type(field_proxy_type) :: l_p
-    integer :: cell, ncell, ndf, undf
+    integer(i_def) :: cell, ncell, ndf, undf
     real(kind=r_def), pointer :: nodes(:,:) => null()
-    integer, pointer :: map(:) => null()
+    integer(i_def), pointer :: map(:) => null()
+    integer(i_def) :: mesh_id
 
-
-    mesh = mesh%get_mesh_instance_test( PLANE_BI_PERIODIC )
+    mesh_id = mesh_collection%get_id_for_new_unit_test_mesh( PLANE_BI_PERIODIC )
 
     ! Set element order
     element_order = 0
 
     ! Test flux computation
     level = field_type( vector_space =                                      &
-                function_space_collection%get_fs( mesh%get_id(), element_order, W2 ) )
+                function_space_collection%get_fs( mesh_id, element_order, W2 ) )
 
     ! Insert Psykal_lite unpacking code here
     l_p = level%get_proxy()

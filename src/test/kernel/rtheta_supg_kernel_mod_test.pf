@@ -12,10 +12,11 @@ module rtheta_supg_kernel_mod_test
   use constants_mod,                 only : i_def, r_def
   use function_space_collection_mod, only : function_space_collection_type, &
                                             function_space_collection
+  use mesh_collection_mod,           only : mesh_collection_type, &
+                                            mesh_collection
   use field_mod,                     only : field_type, field_proxy_type
   use fs_continuity_mod,             only : W0, W2, W3
   use function_space_mod,            only : function_space_type
-  use mesh_mod,                      only : mesh_type
   use pFUnit_Mod
   use quadrature_mod,                only : quadrature_type, GAUSSIAN
 
@@ -27,7 +28,6 @@ module rtheta_supg_kernel_mod_test
   @TestCase
   type, extends(TestCase), public :: rtheta_supg_test_type
     private
-    type(mesh_type)                    :: mesh
     type(quadrature_type)              :: qr
     type(function_space_type), pointer :: w0_fs => null()
     type(function_space_type), pointer :: w2_fs => null()
@@ -50,6 +50,7 @@ module rtheta_supg_kernel_mod_test
   real(r_def),    parameter :: alpha = 0.5
   integer(i_def), parameter :: outer_iterations = 2
   integer(i_def), parameter :: inner_iterations = 2
+  integer(i_def)            :: mesh_id
 
 contains
 
@@ -84,8 +85,9 @@ contains
     reference_element = finite_element_shape_quadrilateral
     call reference_cube()
 
+    ! Create top level mesh collection
+    mesh_collection = mesh_collection_type()
     ! Create top level function space collection
-
     function_space_collection = function_space_collection_type()
 
     this%qr  = quadrature_type(3, GAUSSIAN)
@@ -94,11 +96,11 @@ contains
     nqp_v=this%qr%get_nqp_v()
 
     ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
-    this%mesh = this%mesh%get_mesh_instance_test(PLANE_BI_PERIODIC)
+    mesh_id = mesh_collection%get_id_for_new_unit_test_mesh( PLANE_BI_PERIODIC )
 
-    this%w0_fs => function_space_collection%get_fs(this%mesh%get_id(), element_order, W0)
-    this%w2_fs => function_space_collection%get_fs(this%mesh%get_id(), element_order, W2)
-    this%w3_fs => function_space_collection%get_fs(this%mesh%get_id(), element_order, W3)
+    this%w0_fs => function_space_collection%get_fs(mesh_id, element_order, W0)
+    this%w2_fs => function_space_collection%get_fs(mesh_id, element_order, W2)
+    this%w3_fs => function_space_collection%get_fs(mesh_id, element_order, W3)
 
     this%f  = field_type( vector_space = this%w2_fs )
     f_proxy = this%f%get_proxy()
@@ -131,7 +133,6 @@ contains
   subroutine tearDown( this )
 
     use reference_element_mod, only : deallocate_reference
-    use mesh_mod,              only : destroy_mesh_singleton
 
     implicit none
 
@@ -145,7 +146,6 @@ contains
 
     call function_space_collection%clear()
     call deallocate_reference()
-    call destroy_mesh_singleton()
 
   end subroutine tearDown
 

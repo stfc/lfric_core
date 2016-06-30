@@ -1,5 +1,5 @@
-class setup::mesh {
-  -partition: partition
+class mesh_mod::mesh_type {
+  -partition: partition_type
   -domain_size: domain_limits
   -mesh_id: integer
   -nlayers: integer
@@ -31,10 +31,10 @@ class setup::mesh {
   -ncells_per_colour: integer[] <<allocatable>>
   -cells_in_colour: integer[::] <<allocatable>>
 
-  {static}+get_mesh_instance() : mesh <<pointer>>
-  {static}+get_mesh_instance( <<in>>mesh_id: integer ) : mesh <<pointer>>
-  {static}+get_mesh_instance( <<in>>global_mesh: global_mesh, <<in>>partition: partition, <<in>>nlayers_in: integer, <<in>>domain_top: real, <<in>>vgrid_option: integer ) : mesh <<pointer>>
-  {static}+get_mesh_instance_test( <<in>>grid_option: integer ) : mesh <<pointer>>
+  {static}+get_mesh_instance() : mesh_type <<pointer>>
+  {static}+get_mesh_instance( <<in>>mesh_id: integer ) : mesh_type <<pointer>>
+  {static}+get_mesh_instance( <<in>>global_mesh: global_mesh_type, <<in>>partition: partition_type, <<in>>nlayers_in: integer, <<in>>domain_top: real, <<in>>vgrid_option: integer ) : mesh_type <<pointer>>
+  {static}+get_mesh_instance_test( <<in>>grid_option: integer ) : mesh_type <<pointer>>
 
   +<<destroy>mesh_destructor()
 
@@ -89,5 +89,5 @@ class setup::mesh {
   -set_vertical_coordinate( <<in>>vgrid_option: integer )
 }
 
-setup::mesh o-> setup::partition
-setup::global_mesh - setup::mesh
+mesh_mod::mesh_type o-> partition_mod::partition_type
+global_mesh_mod::global_mesh_type - mesh_mod::mesh_type

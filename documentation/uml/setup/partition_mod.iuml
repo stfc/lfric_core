@@ -1,4 +1,4 @@
-class setup::partition {
+class partition_mod::partition_type {
   -local_rank : integer
   -total_ranks : integer
   -global_cell_id: integer[] <<allocatable>>
@@ -14,7 +14,7 @@ class setup::partition {
   -num_ghost: integer
   -global_num_cells: integer
 
-  +<<create>>partition_constructor( <<in>>global_mesh: global_mesh, <<in>>partitioner: partitioner_interface<<pointer>>, <<in>>xproc: integer, <<in>>yproc: integer, <<in>>max_stencil_depth: integer, <<in>>local_rank: integer, <<in>>total_ranks: integer )
+  +<<create>>partition_constructor( <<in>>global_mesh: global_mesh_type, <<in>>partitioner: partitioner_interface<<pointer>>, <<in>>xproc: integer, <<in>>yproc: integer, <<in>>max_stencil_depth: integer, <<in>>local_rank: integer, <<in>>total_ranks: integer )
   +<<create>>partition_constructor_unit_test_data()
   +<<destroy>>partition_destructor()
   +<<operator =>>partition_type_assign( <<out>>dest: partition, <<in>>source: partition )

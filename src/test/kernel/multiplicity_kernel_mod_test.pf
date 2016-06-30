@@ -10,6 +10,8 @@ module multiplicity_kernel_mod_test
   use constants_mod,                 only : i_def, r_def
   use function_space_collection_mod, only : function_space_collection_type, &
                                             function_space_collection
+  use mesh_collection_mod,           only : mesh_collection_type, &
+                                            mesh_collection
   use pFUnit_Mod
 
   implicit none 
@@ -42,8 +44,9 @@ contains
     reference_element = finite_element_shape_quadrilateral
     call reference_cube()
 
+    ! Create top level mesh collection
+    mesh_collection = mesh_collection_type()
     ! Create top level function space collection
-
     function_space_collection = function_space_collection_type()
 
   end subroutine setUp
@@ -52,7 +55,6 @@ contains
   subroutine tearDown( this )
 
     use reference_element_mod, only : deallocate_reference
-    use mesh_mod,              only : destroy_mesh_singleton
 
     implicit none
 
@@ -60,7 +62,6 @@ contains
 
     call function_space_collection%clear()
     call deallocate_reference()
-    call destroy_mesh_singleton()
 
   end subroutine tearDown
 
@@ -72,7 +73,7 @@ contains
                                         field_proxy_type
     use fs_continuity_mod,       only : W1, W2
     use function_space_mod,      only : function_space_type
-    use mesh_mod,                only : mesh_type, PLANE_BI_PERIODIC
+    use mesh_mod,                only : PLANE_BI_PERIODIC
     use multiplicity_kernel_mod, only : multiplicity_code
 
     implicit none
@@ -84,29 +85,30 @@ contains
     type(field_type) :: chi(3)
     type(field_proxy_type )   :: chi_p(3)
 
-    type(mesh_type)           :: mesh
     type(function_space_type), pointer :: w1_fs => null()
     type(function_space_type), pointer :: w2_fs => null()
 
     real(r_def) :: answer
 
-    integer :: df, cell
+    integer(i_def) :: df, cell
     integer(i_def) :: err
 
     ! Variables for testing multiplicity
     type( field_type ) :: m
 
-    integer          :: ndf, undf
+    integer(i_def)          :: ndf, undf
 
-    integer, pointer :: map(:) => null()
+    integer(i_def), pointer :: map(:) => null()
+
+    integer(i_def)          :: mesh_id
 
     type( field_proxy_type ) :: m_p
 
     ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
-    mesh = mesh%get_mesh_instance_test(PLANE_BI_PERIODIC)
+    mesh_id = mesh_collection%get_id_for_new_unit_test_mesh( PLANE_BI_PERIODIC )
 
-    w1_fs => function_space_collection%get_fs( mesh%get_id(), element_order, W1 )
-    w2_fs => function_space_collection%get_fs( mesh%get_id(), element_order, W2 )
+    w1_fs => function_space_collection%get_fs( mesh_id, element_order, W1 )
+    w2_fs => function_space_collection%get_fs( mesh_id, element_order, W2 )
 
     ! Test multiplicity computation for W1
     m = field_type( vector_space = w1_fs )

@@ -13,6 +13,8 @@
 module mesh_colouring_mod_test
 !-------------------------------------------------------------------------------
   use constants_mod,     only : i_def, r_def, str_def
+  use mesh_collection_mod,            only : mesh_collection_type, &
+                                             mesh_collection
   use pFUnit_Mod
   use suite_fixture_mod, only : get_esmf_handle
 
@@ -59,6 +61,9 @@ subroutine setUp(this)
   reference_element = finite_element_shape_quadrilateral
   call reference_cube()
 
+  ! Create top level mesh collection
+  mesh_collection = mesh_collection_type()
+
   this%total_ranks = 1
   this%local_rank = 0
   this%xproc = 1
@@ -71,7 +76,6 @@ end subroutine setUp
 subroutine tearDown(this)
 
   use reference_element_mod, only : deallocate_reference
-  use mesh_mod,              only : destroy_mesh_singleton
   implicit none
 
   class(compute_colours_test_type), intent(inout) :: this
@@ -79,7 +83,6 @@ subroutine tearDown(this)
   integer  :: rc
 
   call deallocate_reference()
-  call destroy_mesh_singleton
 
 end subroutine tearDown
 !-------------------------------------------------------------------------------
@@ -109,8 +112,9 @@ subroutine test_compute_colours_cubedsphere(this)
   integer(kind=i_def), pointer :: num_cell_per_colour(:)
   integer(kind=i_def), pointer :: cells_in_colour(:,:)
 
-  type(mesh_type) :: mesh
-  integer(i_def)  :: err
+  integer(i_def)           :: mesh_id
+  type(mesh_type), pointer :: mesh
+  integer(i_def)           :: err
 
   filename = "data/ugrid_quads_2d_cubedsphere_6x4x4.nc"
   global_mesh = global_mesh_type(filename)
@@ -124,14 +128,13 @@ subroutine test_compute_colours_cubedsphere(this)
                             this%local_rank, &
                             this%total_ranks)
 
-  ! Mesh is now constructed with num_layers and domain top instead of dz and
-  ! is uniform in vertical for purpose of the test
-  mesh = mesh%get_mesh_instance( &
-       global_mesh,     &
-       partition,       &
-       this%num_layers, &
-       10000.0_r_def,   &
-       extrusion_method_uniform )
+  ! Construct a mesh which is  uniform in vertical for purpose of the test
+  mesh_id = mesh_collection%get_id_for_new_mesh( global_mesh,     &
+                                                 partition,       &
+                                                 this%num_layers, &
+                                                 10000.0_r_def,   &
+                                                 extrusion_method_uniform )
+  mesh => mesh_collection%get_mesh( mesh_id )
 
   ! Mesh is not yet coloured...
   @assertFalse(mesh%is_coloured(), "Mesh is unexpectedly coloured")
@@ -195,8 +198,9 @@ subroutine test_compute_colours_biperiodic(this)
   integer(kind=i_def), pointer :: num_cell_per_colour(:)
   integer(kind=i_def), pointer :: cells_in_colour(:,:)
 
-  type(mesh_type) :: mesh
-  integer(i_def)  :: err
+  integer(i_def)           :: mesh_id
+  type(mesh_type), pointer :: mesh
+  integer(i_def)           :: err
 
   filename = "data/ugrid_quads_2d_biperiodic_8x8.nc"
   global_mesh = global_mesh_type(filename)
@@ -210,14 +214,13 @@ subroutine test_compute_colours_biperiodic(this)
                             this%local_rank, &
                             this%total_ranks)
 
-  ! Mesh is now constructed with num_layers and domain top instead of dz and
-  ! is uniform in vertical for purpose of the test
-  mesh = mesh%get_mesh_instance( &
-       global_mesh,     &
-       partition,       &
-       this%num_layers, &
-       10000.0_r_def,   &
-       extrusion_method_uniform )
+  ! Construct a mesh which is  uniform in vertical for purpose of the test
+  mesh_id = mesh_collection%get_id_for_new_mesh( global_mesh,     &
+                                                 partition,       &
+                                                 this%num_layers, &
+                                                 10000.0_r_def,   &
+                                                 extrusion_method_uniform )
+  mesh => mesh_collection%get_mesh( mesh_id )
 
   ! Mesh is not yet coloured...
   @assertFalse(mesh%is_coloured(), "Mesh is unexpectedly coloured")

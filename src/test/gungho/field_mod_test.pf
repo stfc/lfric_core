@@ -13,6 +13,8 @@ module field_mod_test
   use constants_mod,                  only : i_def, r_def
   use function_space_collection_mod,  only : function_space_collection_type, &
                                              function_space_collection
+  use mesh_collection_mod,            only : mesh_collection_type, &
+                                             mesh_collection
   use fs_continuity_mod,              only : W2
   use pFUnit_Mod
 
@@ -48,8 +50,9 @@ contains
     reference_element = finite_element_shape_quadrilateral
     call reference_cube()
 
+    ! Create top level mesh collection
+    mesh_collection = mesh_collection_type()
     ! Create top level function space collection
-
     function_space_collection = function_space_collection_type()
 
   end subroutine setUp
@@ -58,7 +61,6 @@ contains
   subroutine tearDown( this )
 
     use reference_element_mod, only : deallocate_reference
-    use mesh_mod,              only : destroy_mesh_singleton
 
     implicit none
 
@@ -66,7 +68,6 @@ contains
 
     call function_space_collection%clear()
     call deallocate_reference()
-    call destroy_mesh_singleton()
 
   end subroutine tearDown
 
@@ -88,7 +89,7 @@ contains
     type(field_proxy_type)    :: f1_p
     type(field_proxy_type)    :: f2_p
 
-    type(mesh_type)           :: mesh
+    integer(i_def)            :: mesh_id
 
     type(function_space_type), pointer :: w2_fs    => null()
     type(mesh_type),           pointer :: mesh_out => null()
@@ -98,10 +99,10 @@ contains
     real(r_def) :: sum, min, max
 
     ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
-    mesh = mesh%get_mesh_instance_test(PLANE_BI_PERIODIC)
+    mesh_id = mesh_collection%get_id_for_new_unit_test_mesh( PLANE_BI_PERIODIC )
 
     ! Make a field with a function space
-    w2_fs => function_space_collection%get_fs( mesh%get_id(), element_order, W2 )
+    w2_fs => function_space_collection%get_fs( mesh_id, element_order, W2 )
     f1 = field_type( vector_space = w2_fs )
 
     ! get the proxy

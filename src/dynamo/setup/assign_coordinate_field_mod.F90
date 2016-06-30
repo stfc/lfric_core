@@ -14,6 +14,7 @@ module assign_coordinate_field_mod
   use constants_mod,        only : r_def, i_def
   use log_mod,              only : log_event, LOG_LEVEL_ERROR
   use planet_config_mod,    only : scaled_radius
+  use mesh_collection_mod,  only : mesh_collection
 
 contains
 !> @brief Subroutine which assigns the values of the coordinates of the mesh
@@ -61,7 +62,7 @@ contains
       call log_event( " assign_coordinate_field: Unable to allocate "// &
                       "local array dz(nlayers) ", LOG_LEVEL_ERROR )
     end if
-    mesh => mesh%get_mesh_instance(mesh_id)
+    mesh => mesh_collection%get_mesh( mesh_id )
     call mesh%get_dz(dz)
 
     allocate( vert_coords(3,nverts,nlayers ) )

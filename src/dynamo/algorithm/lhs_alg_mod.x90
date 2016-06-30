@@ -53,22 +53,25 @@ contains
     type(field_type), intent(in) :: state(si_bundle_size)
 
     type(function_space_type), pointer :: rho_fs, u_fs => null()
-    integer(i_def),                    :: mesh
+    integer(i_def),                    :: mesh_id
     integer                            :: fs_handle
 
     allocate( lhs_tmp(si_bundle_size) )
     call clone_bundle(state, lhs_tmp, si_bundle_size)
 
+    ! Get the mesh for all lhs fields
+    mesh_id = state(3)%get_mesh_id()
+
     ! For computing lhs_theta
     fs_handle = state(3)%which_function_space()
-    rho_fs => function_space_collection%get_fs(mesh, element_order, fs_handle)
+    rho_fs => function_space_collection%get_fs(mesh_id, element_order, fs_handle)
     ones = field_type( vector_space = rho_fs )
     call invoke_set_field_scalar( 1.0_r_def, ones )
     r_rho = field_type( vector_space = rho_fs )
 
     ! for computing lhs rho
     fs_handle = state(1)%which_function_space()
-    u_fs => function_space_collection%get_fs(mesh, element_order, fs_handle)
+    u_fs => function_space_collection%get_fs(mesh_id, element_order, fs_handle)
     w2_multiplicity = field_type( vector_space = u_fs )
     call invoke_set_field_scalar( 0.0_r_def, w2_multiplicity )
     call invoke ( multiplicity_kernel_type( w2_multiplicity ) )

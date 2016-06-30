@@ -17,24 +17,32 @@ contains
   @test
   subroutine test_stencil_dofmap()
 
+    use constants_mod,       only: i_def
     use pFUnit_Mod
     use stencil_dofmap_mod,  only: stencil_dofmap_type, STENCIL_POINT
     use master_dofmap_mod,   only: master_dofmap_type
-    use mesh_mod,            only: mesh_type, PLANE_BI_PERIODIC, &
-                                   destroy_mesh_singleton
+    use mesh_collection_mod, only: mesh_collection_type, &
+                                   mesh_collection
+    use mesh_mod,            only: mesh_type, PLANE_BI_PERIODIC
 
     implicit none
 
-    type(stencil_dofmap_type)            :: dofmap
-    type(master_dofmap_type)             :: master_dofmap
-    integer, allocatable, dimension(:,:) :: master_map_init, master_map_copy
-    type(mesh_type)                      :: mesh
-    integer, pointer                     :: map(:,:) => null()
-    integer                              :: ncells, ndf, cell, df, id
-    integer :: err
+    type(stencil_dofmap_type)                   :: dofmap
+    type(master_dofmap_type)                    :: master_dofmap
+    integer(i_def), allocatable, dimension(:,:) :: master_map_init, &
+                                                   master_map_copy
+    type(mesh_type), pointer                    :: mesh => null()
+    integer, pointer                            :: map(:,:) => null()
+    integer(i_def)                              :: ncells, ndf, cell, df, id
+    integer(i_def)                              :: mesh_id
+    integer(i_def)                              :: err
+
+    ! Create top level mesh collection
+    mesh_collection = mesh_collection_type()
 
     ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
-    mesh = mesh%get_mesh_instance_test(PLANE_BI_PERIODIC)    
+    mesh_id = mesh_collection%get_id_for_new_unit_test_mesh( PLANE_BI_PERIODIC )
+    mesh => mesh_collection%get_mesh( mesh_id )
 
     ! Allocate the maps
     ncells = 4
@@ -61,8 +69,6 @@ contains
     end do
     id = STENCIL_POINT*100 + 1
     @assertEqual( id, dofmap%get_id() )
-
-    call destroy_mesh_singleton
 
     return
   end subroutine test_stencil_dofmap

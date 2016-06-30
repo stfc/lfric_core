@@ -10,7 +10,7 @@
 !>
 !> @details 
 !
-module fs_setup_mod
+module function_space_constructor_helper_functions_mod
 
 use constants_mod,         only: i_def, r_def
 use mesh_mod,              only: mesh_type
@@ -1529,4 +1529,4 @@ subroutine dofmap_setup( mesh, dynamo_fs, ncells_2d_with_ghost                 &
   return
 end subroutine dofmap_setup
 
-end module fs_setup_mod
+end module function_space_constructor_helper_functions_mod
