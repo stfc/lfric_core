@@ -310,7 +310,7 @@
     [[compile_with_{{label}}]]
         inherit = {{family}}, TARGET
         pre-script = """
-                     {{'\n'|commandList(TARGET_BASE_SETUP, TARGET_BUILD_SETUP, compiler_setup[compiler], TARGET_REVEAL_SETUP, 'rm -rf $DYNAMO_BUILD_ROOT/*')}}
+                     {{'\n'|commandList(TARGET_BASE_SETUP, compiler_setup[compiler], TARGET_BUILD_SETUP, TARGET_REVEAL_SETUP, 'rm -rf $DYNAMO_BUILD_ROOT/*')}}
                      """
         script      = rose task-run --app-key=compile
         post-script = """
@@ -353,7 +353,7 @@
     [[run_{{configuration_label}}]]
         inherit = {{family}}, TARGET
         pre-script = """
-                     {{'\n'|commandList(TARGET_BASE_SETUP, TARGET_RUN_SETUP, compiler_setup[compiler], TARGET_REVEAL_SETUP)}}
+                     {{'\n'|commandList(TARGET_BASE_SETUP, compiler_setup[compiler], TARGET_RUN_SETUP, TARGET_REVEAL_SETUP)}}
                      """
         script = rose task-run --app-key=dynamo --command-key={{TARGET_RUN_METHOD}} --opt-conf-key={{configuration}}
         post-script = """
@@ -443,7 +443,7 @@
     [[run_{{label}}_boundary_test]]
         inherit = {{family}}, TARGET
         pre-script = """
-                     {{'\n'|commandList(TARGET_BASE_SETUP, TARGET_RUN_SETUP, compiler_setup[compiler], TARGET_REVEAL_SETUP)}}
+                     {{'\n'|commandList(TARGET_BASE_SETUP, compiler_setup[compiler], TARGET_RUN_SETUP, TARGET_REVEAL_SETUP)}}
                      """
         script = rose task-run --app-key=boundary_test --command-key={{TARGET_RUN_METHOD}}
         post-script = cp boundary_test-checksums.txt $DYNAMO_DESTINATION_DIRECTORY/boundary_test.{{compiler}}.checksums.txt
@@ -458,7 +458,7 @@
     [[unit_test_with_{{label}}]]
         inherit = {{family}}, TARGET
         pre-script = """
-                     {{'\n'|commandList(TARGET_BASE_SETUP, TARGET_BUILD_SETUP, compiler_setup[compiler], TARGET_REVEAL_SETUP, "mkdir -p $DYNAMO_BUILD_ROOT", "cp -rp $DYNAMO_SOURCE_DIRECTORY/build/* $DYNAMO_BUILD_ROOT")}}
+                     {{'\n'|commandList(TARGET_BASE_SETUP, compiler_setup[compiler], TARGET_BUILD_SETUP, TARGET_REVEAL_SETUP, "mkdir -p $DYNAMO_BUILD_ROOT", "cp -rp $DYNAMO_SOURCE_DIRECTORY/build/* $DYNAMO_BUILD_ROOT")}}
                      """
         script = make -C $DYNAMO_SOURCE_DIRECTORY test
         post-script = """
@@ -477,7 +477,7 @@
     [[functional_test_with_{{label}}]]
         inherit = {{family}}, TARGET
         pre-script = """
-                     {{'\n'|commandList(TARGET_BASE_SETUP, TARGET_BUILD_SETUP, compiler_setup[compiler], TARGET_REVEAL_SETUP, "mkdir -p $DYNAMO_BUILD_ROOT", "cp -rp $DYNAMO_SOURCE_DIRECTORY/build/* $DYNAMO_BUILD_ROOT")}}
+                     {{'\n'|commandList(TARGET_BASE_SETUP, compiler_setup[compiler], TARGET_BUILD_SETUP, TARGET_REVEAL_SETUP, "mkdir -p $DYNAMO_BUILD_ROOT", "cp -rp $DYNAMO_SOURCE_DIRECTORY/build/* $DYNAMO_BUILD_ROOT")}}
                      """
         script = make -C $DYNAMO_SOURCE_DIRECTORY/src/functional-test
         post-script = """
@@ -496,7 +496,7 @@
     [[generate_mesh_{{mesh}}_{{label}}]]
         inherit = {{family}}, TARGET
         pre-script = """
-                     {{'\n'|commandList(TARGET_BASE_SETUP, TARGET_BUILD_SETUP, compiler_setup[compiler], TARGET_REVEAL_SETUP)}}
+                     {{'\n'|commandList(TARGET_BASE_SETUP, compiler_setup[compiler], TARGET_BUILD_SETUP, TARGET_REVEAL_SETUP)}}
                      """
         script = "rose task-run --app-key=mesh --command-key={{mesh}}"
         [[[directives]]]
