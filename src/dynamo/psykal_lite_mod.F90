@@ -40,7 +40,7 @@ contains
     !> will be introduced in modification of quadrature strategy, see ticket #723.
     SUBROUTINE invoke_compute_geopotential_kernel_type(geopotential, chi, evaluator)
       USE compute_geopotential_kernel_mod, ONLY: compute_geopotential_code
-      USE mesh_mod, ONLY: mesh_type
+      use mesh_mod, only: mesh_type
       TYPE(field_type), intent(inout)      :: geopotential, chi(3)
       TYPE(evaluator_xyz_type), intent(in) :: evaluator
 
@@ -48,7 +48,7 @@ contains
       INTEGER cell
       REAL(KIND=r_def), allocatable :: basis_chi(:,:,:)
       INTEGER ndf_w0, undf_w0, ndf_chi, undf_chi, dim_chi
-      TYPE(mesh_type) mesh
+      type(mesh_type), pointer :: mesh => null()
       INTEGER nlayers
       TYPE(field_proxy_type) geopotential_proxy, chi_proxy(3)
 
@@ -66,7 +66,7 @@ contains
       !
       ! Create a mesh object
       !
-      mesh = geopotential%get_mesh()
+      mesh => geopotential%get_mesh()
       !
       ! Initialise sizes and allocate any basis arrays for w0
       !
@@ -162,7 +162,7 @@ contains
 
     implicit none
 
-    type (mesh_type)                     :: mesh
+    type (mesh_type), pointer            :: mesh => null()
     type( field_type ), intent( in )     :: theta, f, rho
     type( field_type ), intent( inout )  :: r_theta_bd
     type( quadrature_type), intent( in ) :: qr
@@ -198,7 +198,7 @@ contains
     real(kind=r_def), pointer :: zp(:) => null()
     real(kind=r_def), pointer :: wh(:), wv(:) => null()
 
-    mesh = theta%get_mesh()
+    mesh => theta%get_mesh()
 
     r_theta_bd_proxy = r_theta_bd%get_proxy()
     theta_proxy      = theta%get_proxy()
@@ -321,7 +321,7 @@ contains
 
     implicit none
 
-    type( mesh_type )                    :: mesh
+    type( mesh_type ), pointer           :: mesh => null()
     type( field_type ), intent( in )     :: rho, theta
     type( field_type ), intent( inout )  :: r_u_bd
     type( quadrature_type), intent( in ) :: qr
@@ -357,7 +357,7 @@ contains
     real(kind=r_def), pointer :: zp(:) => null()
     real(kind=r_def), pointer :: wh(:), wv(:) => null()
 
-    mesh = rho%get_mesh()
+    mesh => rho%get_mesh()
 
     r_u_bd_proxy = r_u_bd%get_proxy()
     rho_proxy    = rho%get_proxy()
@@ -480,7 +480,7 @@ contains
 
     implicit none
 
-    type( mesh_type )                    :: mesh
+    type( mesh_type ), pointer           :: mesh => null()
     type( field_type ), intent( in )     :: exner, theta
     type( field_type ), intent( inout )  :: r_u_bd
     type( quadrature_type), intent( in ) :: qr
@@ -514,7 +514,7 @@ contains
     real(kind=r_def), pointer :: zp(:) => null()
     real(kind=r_def), pointer :: wh(:), wv(:) => null()
 
-    mesh = exner%get_mesh()
+    mesh => exner%get_mesh()
 
     r_u_bd_proxy = r_u_bd%get_proxy()
     exner_proxy  = exner%get_proxy()
@@ -633,7 +633,7 @@ contains
 
     implicit none
 
-    type( mesh_type )                    :: mesh
+    type( mesh_type ), pointer           :: mesh => null()
     type( field_type ), intent( in )     :: rho, theta, rho_ref, theta_ref
     type( field_type ), intent( inout )  :: r_u_bd
     type( quadrature_type), intent( in ) :: qr
@@ -669,7 +669,7 @@ contains
     real(kind=r_def), pointer :: zp(:) => null()
     real(kind=r_def), pointer :: wh(:), wv(:) => null()
 
-    mesh = rho%get_mesh()
+    mesh => rho%get_mesh()
 
     r_u_bd_proxy = r_u_bd%get_proxy()
     rho_proxy    = rho%get_proxy()
@@ -860,7 +860,7 @@ contains
                                         , field_res_proxy
     integer(kind=i_def)                :: i,undf
     integer(kind=i_def)                :: depth, dplp
-    type(mesh_type),  pointer          :: mesh => null()
+    type(mesh_type), pointer           :: mesh => null()
 
     field1_proxy = field1%get_proxy()
     field2_proxy = field2%get_proxy()
@@ -2177,7 +2177,7 @@ end subroutine invoke_calc_deppts
     type( field_proxy_type)            :: field1_proxy,field2_proxy
     integer(kind=i_def)                :: i,undf
     integer(kind=i_def)                :: depth, dplp
-    type(mesh_type)                    :: mesh
+    type(mesh_type), pointer           :: mesh => null()
 
     field1_proxy = field1%get_proxy()
     field2_proxy = field2%get_proxy()
@@ -2197,7 +2197,7 @@ end subroutine invoke_calc_deppts
     end do
     !$omp end parallel do
 
-    mesh = field1%get_mesh()
+    mesh => field1%get_mesh()
     depth = mesh%get_halo_depth()
 
     do dplp = 1, depth
@@ -2221,7 +2221,7 @@ end subroutine invoke_calc_deppts
     type( field_proxy_type)            :: x_proxy, y_proxy
     integer(kind=i_def)                :: i,undf
     integer(kind=i_def)                :: depth, dplp
-    type(mesh_type)                    :: mesh
+    type(mesh_type), pointer           :: mesh => null()
 
     x_proxy = x%get_proxy()
     y_proxy = y%get_proxy()
@@ -2241,7 +2241,7 @@ end subroutine invoke_calc_deppts
     end do
     !$omp end parallel do
 
-    mesh = y%get_mesh()
+    mesh => y%get_mesh()
     depth = mesh%get_halo_depth()
 
     do dplp = 1, depth
@@ -2262,12 +2262,12 @@ end subroutine invoke_calc_deppts
     use log_mod, only : log_event, LOG_LEVEL_ERROR
     use mesh_mod,only : mesh_type
     implicit none
-    type( field_type ), intent(inout)   ::field1
+    type( field_type ), intent(inout)  :: field1
     type( field_type ), intent(in)     :: field2
     type( field_proxy_type)            :: field1_proxy,field2_proxy
     integer(kind=i_def)                :: i,undf
     integer(kind=i_def)                :: depth, dplp
-    type(mesh_type)                    :: mesh
+    type(mesh_type), pointer           :: mesh => null()
 
     field1_proxy = field1%get_proxy()
     field2_proxy = field2%get_proxy()
@@ -2287,7 +2287,7 @@ end subroutine invoke_calc_deppts
     end do
     !$omp end parallel do
 
-    mesh = field1%get_mesh()
+    mesh => field1%get_mesh()
     depth = mesh%get_halo_depth()
 
     do dplp = 1, depth
@@ -2312,7 +2312,7 @@ end subroutine invoke_calc_deppts
                                           field_res_proxy
     integer(kind=i_def)                :: i,undf
     integer(kind=i_def)                :: depth, dplp
-    type(mesh_type)                    :: mesh
+    type(mesh_type), pointer           :: mesh => null()
 
     field1_proxy = field1%get_proxy()
     field2_proxy = field2%get_proxy()
@@ -2341,7 +2341,7 @@ end subroutine invoke_calc_deppts
     end do
     !$omp end parallel do
 
-    mesh = field_res%get_mesh()
+    mesh => field_res%get_mesh()
     depth = mesh%get_halo_depth()
 
     do dplp = 1, depth
@@ -2365,7 +2365,7 @@ end subroutine invoke_calc_deppts
     type( field_proxy_type)            :: field1_proxy,field2_proxy
     integer(kind=i_def)                :: i,undf
     integer(kind=i_def)                :: depth, dplp
-    type(mesh_type)                    :: mesh
+    type(mesh_type), pointer           :: mesh => null()
 
     field1_proxy = field1%get_proxy()
     field2_proxy = field2%get_proxy()
@@ -2386,7 +2386,7 @@ end subroutine invoke_calc_deppts
     end do
     !$omp end parallel do
 
-    mesh = field1%get_mesh()
+    mesh => field1%get_mesh()
     depth = mesh%get_halo_depth()
 
     do dplp = 1, depth
@@ -2411,7 +2411,7 @@ end subroutine invoke_calc_deppts
     type( field_proxy_type)            :: field1_proxy,field2_proxy
     integer(kind=i_def)                :: i,undf
     integer(kind=i_def)                :: depth, dplp
-    type(mesh_type)                    :: mesh
+    type(mesh_type), pointer           :: mesh => null()
 
     field1_proxy = field1%get_proxy()
     field2_proxy = field2%get_proxy()
@@ -2432,7 +2432,7 @@ end subroutine invoke_calc_deppts
     end do
     !$omp end parallel do
 
-    mesh = field1%get_mesh()
+    mesh => field1%get_mesh()
     depth = mesh%get_halo_depth()
 
     do dplp = 1, depth
@@ -2483,12 +2483,12 @@ subroutine invoke_set_boundary_kernel(field, bc)
   integer, pointer :: map(:) => null()
   integer :: cell,  nlayers
   integer :: ndf, undf
-  type(mesh_type)        :: mesh
-  type(field_proxy_type) :: f_proxy
+  type(mesh_type), pointer :: mesh => null()
+  type(field_proxy_type)   :: f_proxy
 
   f_proxy = field%get_proxy()
   nlayers = f_proxy%vspace%get_nlayers()
-  mesh = field%get_mesh()
+  mesh => field%get_mesh()
   undf = f_proxy%vspace%get_undf()
   ndf  = f_proxy%vspace%get_ndf()
       
@@ -2529,7 +2529,7 @@ end subroutine invoke_set_boundary_kernel
                                         , field_res_proxy
     integer(kind=i_def)                :: i,undf
     integer(kind=i_def)                :: depth, dplp
-    type(mesh_type)                    :: mesh
+    type(mesh_type), pointer           :: mesh => null()
 
     field1_proxy = field1%get_proxy()
     field2_proxy = field2%get_proxy()
@@ -2557,7 +2557,7 @@ end subroutine invoke_set_boundary_kernel
     end do
     !$omp end parallel do
 
-    mesh = field_res%get_mesh()
+    mesh => field_res%get_mesh()
     depth = mesh%get_halo_depth()
     
     do dplp = 1, depth
