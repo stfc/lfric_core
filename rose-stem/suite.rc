@@ -9,8 +9,9 @@
                                 'science(transport-rk)',
                                 'science(transport-cosmic)',
                                 'science(biperiodic_p0_gw)',
-                                'science(biperiodic_p1_gw)',                               
+                                'science(biperiodic_p1_gw)',
                                 'check_compilers(fast-debug)',
+                                'canned_test',
                                 'godlines',
                                 'cleanlines'],
                   'nightly': ['science(semi-implicit-360ts, True)',
@@ -61,6 +62,16 @@
 {%-   if plotting %}
             run_{{configuration|replace('-','foo')}}_{{label}} => plot_{{configuration|replace('-','foo')}}_{{label}}
             plot_{{configuration|replace('-','foo')}}_{{label}} => copy_results_{{configuration|replace('-','foo')}}_{{label}}
+{%-   endif %}
+{%- endmacro %}
+{#- #########################################################################}
+{%- macro canned_test() %}
+{%-   set label = TARGET_SCIENCE_COMPILER | lower + '_' + 'fastfoodebug' %}
+{%-   if TARGET_SCIENCE_COMPILER in TARGET_PERFORM_RUN %}
+            purge_local => purge_target
+            purge_target => export_for_{{label}}
+            export_for_{{label}} => compile_with_{{label}}
+            compile_with_{{label}} => run_canned_test_{{label}}
 {%-   endif %}
 {%- endmacro %}
 {#- #########################################################################}
@@ -297,6 +308,7 @@
 {%- endif %}
 
 ##############################################################################
+
 {%- for compiler in compiler_setup.keys() -%}
 {%-   for build in 'fast-debug', 'full-debug' %}
 {%-     set label = compiler | lower + '_' + build | lower|replace('-','foo') %}
@@ -367,6 +379,23 @@
             LOG_ERR  = $DYNAMO_DESTINATION_DIRECTORY/dynamo.{{compiler}}.err
 {%- endif %}
 
+{%-     if 'run_canned_test_' + label in scheduledTasks %}
+    [[run_canned_test_{{label}}]]
+        inherit = {{family}}, TARGET
+        pre-script = """
+                     {{'\n'|commandList(TARGET_BASE_SETUP, compiler_setup[compiler], TARGET_RUN_SETUP, TARGET_REVEAL_SETUP)}}
+                     """
+        script = rose task-run --app-key=canned_test --command-key={{TARGET_RUN_METHOD}}
+        [[[environment]]]
+            DYNAMO_SOURCE_DIRECTORY = $SOURCE_ROOT/{{label}}
+        [[[environment]]]
+            OMP_NUM_THREADS=2
+        [[[directives]]]
+{%-       for DIRECTIVE in TARGET_RUN_BATCHER_DIRECTIVES %}
+            {{DIRECTIVE}}
+{%-       endfor %}
+{%-     endif %}
+
 {%-     for configuration in science_configurations %}
 {%-       set configuration_label = configuration|lower|replace('-','foo') + '_' + label %}
 {%-       if 'run_' + configuration_label in scheduledTasks %}
@@ -385,7 +414,6 @@
                       """
         [[[environment]]]
             OMP_NUM_THREADS=2
-#            FOR_DIAGNOSTIC_LOG_FILE=$CYLC_TASK_WORK_DIR/diagnostic.log # Intel only option
         [[[directives]]]
 {%-         for DIRECTIVE in TARGET_RUN_BATCHER_DIRECTIVES %}
             {{DIRECTIVE}}
@@ -408,7 +436,6 @@
         post-script = """
                       chmod 754 $PLOT_DIR/*.png
                       """
-
         [[[environment]]]
              NODAL_DATA_DIR = ~/public_html/dynamo-{{TARGET_OPT}}/model_output/{{configuration_label}}/nodal_data
              PLOT_DIR = ~/public_html/dynamo-{{TARGET_OPT}}/model_output/{{configuration_label}}
