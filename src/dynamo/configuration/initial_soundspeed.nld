@@ -1,0 +1,3 @@
+namelist initial_soundspeed
+  cs_square : real ! The square of a constant sound speed [(m/s)^2]
+end namelist initial_soundspeed

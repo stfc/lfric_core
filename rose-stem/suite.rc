@@ -11,12 +11,14 @@
                                 'science(transport-cosmic)',
                                 'science(biperiodic_p0_gw)',
                                 'science(biperiodic_p1_gw)',
+                                'miniapp(boundary_test)',
                                 'check_compilers(fast-debug)',
                                 'canned_test',
                                 'godlines',
                                 'cleanlines'],
                   'nightly': ['science(semi-implicit-360ts, True)',
                               'science(dcmip301, True)',
+                              'miniapp(gravity_wave)',
                               'check_compilers(full-debug, True)',
                               'godlines(True)',
                               'publish_index']} %}
@@ -49,16 +51,14 @@
 
 {#- #########################################################################}
 {%- macro science( configuration, plotting=False ) %}
-{%-   set label =  TARGET_SCIENCE_COMPILER | lower|replace('-','foo') + '_fastfoodebug' %}
+{%-   set label = TARGET_SCIENCE_COMPILER | lower|replace('-','foo') + '_fastfoodebug' %}
             purge_local => purge_target
             purge_target => export_for_{{label}}
             export_for_{{label}} => compile_with_{{label}}
 {%-   if TARGET_SCIENCE_COMPILER in TARGET_PERFORM_RUN %}
             compile_with_{{label}} => run_{{configuration|replace('-','foo')}}_{{label}}
-            compile_with_{{label}} => run_{{label}}_boundary_test
 {%-     if TARGET_SCIENCE_COMPILER in TARGET_PERFORM_KGO_TESTS %}
             run_{{configuration|replace('-','foo')}}_{{label}} => check_{{configuration|replace('-','foo')}}_{{label}}
-            run_{{label}}_boundary_test => check_{{label}}_boundary_test
 {%-     endif %}
 {%-   endif %}
 {%-   if plotting %}
@@ -74,6 +74,19 @@
             purge_target => export_for_{{label}}
             export_for_{{label}} => compile_with_{{label}}
             compile_with_{{label}} => run_canned_test_{{label}}
+{%-   endif %}
+{%- endmacro %}
+{#- #########################################################################}
+{%- macro miniapp( appname ) %}
+{%-   set label = TARGET_SCIENCE_COMPILER | lower|replace('-','foo') + '_fastfoodebug' %}
+            purge_local => purge_target
+            purge_target => export_for_{{label}}
+            export_for_{{label}} => compile_with_{{label}}
+{%-   if TARGET_SCIENCE_COMPILER in TARGET_PERFORM_RUN %}
+            compile_with_{{label}} => run_{{label}}_{{appname}}
+{%-     if TARGET_SCIENCE_COMPILER in TARGET_PERFORM_KGO_TESTS %}
+            run_{{label}}_{{appname}} => check_{{label}}_{{appname}}
+{%-     endif %}
 {%-   endif %}
 {%- endmacro %}
 {#- #########################################################################}
@@ -491,6 +504,7 @@
 {%-       endif %}
 {%-     endfor %}{# science configurations #}
 
+{%-     if 'run_' + label + '_boundary_test' in scheduledTasks %}
     [[run_{{label}}_boundary_test]]
         inherit = {{family}}, TARGET
         pre-script = """
@@ -500,10 +514,45 @@
         post-script = cp boundary_test-checksums.txt $DYNAMO_DESTINATION_DIRECTORY/boundary_test.{{compiler}}.checksums.txt
         [[[environment]]]
             OMP_NUM_THREADS=2
+        [[[directives]]]
+{%-         for DIRECTIVE in TARGET_RUN_BATCHER_DIRECTIVES %}
+            {{DIRECTIVE}}
+{%-         endfor %}
+{%-       endif %}
 
+{%-     if 'check_' + label + '_boundary_test' in scheduledTasks %}
     [[check_{{label}}_boundary_test]]
         inherit = {{family}}, TARGET
         script = rose task-run --app-key=check_boundary
+{%-       endif %}
+
+{%-     if 'run_' + label + '_gravity_wave' in scheduledTasks %}
+    [[run_{{label}}_gravity_wave]]
+        inherit = {{family}}, TARGET
+        pre-script = """
+                     {{'\n'|commandList(TARGET_BASE_SETUP, compiler_setup[compiler], TARGET_RUN_SETUP, TARGET_REVEAL_SETUP)}}
+                     """
+        script = rose task-run --app-key=gravity_wave --command-key={{TARGET_RUN_METHOD}}
+        post-script = cp gravity_wave-checksums.txt $DYNAMO_DESTINATION_DIRECTORY/gravity_wave.{{compiler}}.checksums
+        [[[environment]]]
+            OMP_NUM_THREADS=2
+        [[[directives]]]
+{%-         for DIRECTIVE in TARGET_RUN_BATCHER_DIRECTIVES %}
+            {{DIRECTIVE}}
+{%-         endfor %}
+{%-       endif %}
+
+{%-     if 'check_' + label + '_gravity_wave' in scheduledTasks %}
+    [[check_{{label}}_gravity_wave]]
+        inherit = {{family}}, TARGET
+        script = rose task-run --app-key=check_gravity_wave
+        [[[environment]]]
+            TARGET_OPT = {{TARGET_OPT}}
+        [[[directives]]]
+{%-         for DIRECTIVE in TARGET_TECHNICAL_BATCHER_DIRECTIVES %}
+            {{DIRECTIVE}}
+{%-         endfor %}
+{%-       endif %}
 
 {%-     if 'unit_test_with_' + label in scheduledTasks %}
     [[unit_test_with_{{label}}]]

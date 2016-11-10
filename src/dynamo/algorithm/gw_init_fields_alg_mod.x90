@@ -1,0 +1,154 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+
+!>@brief Initialisation of prognostic fields for the gravity wave equations
+module gw_init_fields_alg_mod
+
+  use log_mod,                         only: log_event,         &
+                                             log_scratch_space, &
+                                             LOG_LEVEL_INFO,    &
+                                             LOG_LEVEL_TRACE
+  use constants_mod,                   only: r_def, i_def
+
+  use solver_mod,                      only: solver_algorithm
+  use solver_config_mod,               only: method
+
+  ! Configuration and restart/checkpoint options
+  use finite_element_config_mod,       only: element_order
+  use restart_control_mod,             only: restart_type
+  ! I/O tools
+  use field_io_mod,                    only: read_state_netcdf
+
+  ! PsyKAl-lite kernels
+  use psykal_lite_mod,                 only: invoke_set_field_scalar, &
+                                             invoke_initial_buoyancy_kernel
+
+  ! PsyKAl PSYClone kernels
+  use initial_u_kernel_mod,            only: initial_u_kernel_type
+  use compute_mass_matrix_kernel_w2_mod, only: compute_mass_matrix_kernel_w2_type
+
+  ! Derived Types
+  use function_space_collection_mod,   only: function_space_collection
+  use function_space_mod,              only: function_space_type
+  use field_mod,                       only: field_type
+  use quadrature_mod,                  only: quadrature_type, GAUSSIAN
+  use operator_mod,                    only: operator_type
+  use evaluator_xyz_mod,               only: evaluator_xyz_type
+
+  ! Handles
+  use fs_continuity_mod,               only: W2, W3, Wtheta
+
+  implicit none
+
+  private
+  public :: gw_init_fields_alg
+
+contains
+  !> @details An algorithm for initialising prognostic fields for 
+  !>          all solvers.
+  !> @param[in] mesh_id Id of Mesh object on which the model runs
+  !> @param[inout] chi  The finite element form of the coordinates
+  !> @param[inout] wind  The 3D wind field
+  !> @param[inout] pressure The pressure
+  !> @param[inout] buoyancy The buoyancy
+  !> @param[in] restart Checkpoint/restart type with timestepping information
+  subroutine gw_init_fields_alg( mesh_id, chi, wind, pressure, buoyancy, restart)
+
+    implicit none
+
+    ! Mesh id
+    integer(i_def),  intent(in) :: mesh_id
+    ! Coordinate fields
+    type( field_type ), intent( inout ) :: chi(3)
+    ! Prognostic fields
+    type( field_type ), intent( inout ) ::  wind, pressure, buoyancy
+    ! Control
+    type( restart_type ), intent(in) :: restart
+
+    type( quadrature_type )            :: qr
+    type( field_type ), allocatable    :: state(:)
+    type( field_type )                 :: r_u
+    type( operator_type )              :: mm_w2
+    type(function_space_type), pointer :: w2_fs, wtheta_fs => null()
+    type(evaluator_xyz_type)           :: evaluator
+    integer :: n_fields
+
+    qr = quadrature_type( element_order + 3, GAUSSIAN )
+
+    !=== Initialise global prognostic fields ==================================!
+
+    if (.not.restart%read_file()) then           ! No check point to start from
+
+      call log_event( "Gravity waves: Initialising prognostic fields", LOG_LEVEL_INFO )
+
+      wtheta_fs => function_space_collection%get_fs( mesh_id, element_order, &
+                                                     buoyancy%which_function_space() )
+      evaluator = evaluator_xyz_type( wtheta_fs%get_ndf( ), wtheta_fs%get_nodes( ))
+      call invoke_initial_buoyancy_kernel( buoyancy, chi, evaluator )
+
+      ! Initialise U and p according to formulation
+      r_u = field_type( vector_space =                                           &
+                  function_space_collection%get_fs(mesh_id, element_order, W2) )
+      call invoke_set_field_scalar(0.0_r_def, wind)
+      call invoke_set_field_scalar(0.0_r_def, r_u)
+      call invoke( initial_u_kernel_type( r_u, chi, qr ) )
+      w2_fs => function_space_collection%get_fs(mesh_id, &
+                                                element_order, &
+                                                W2)
+      mm_w2 = operator_type( w2_fs, w2_fs )
+      call invoke( compute_mass_matrix_kernel_w2_type(mm_w2, chi, qr) )
+      call solver_algorithm(wind, r_u, mesh_id, chi, method, mm=mm_w2)
+
+      call invoke_set_field_scalar(0.0_r_def, pressure)
+
+      call log_event( "Gravity waves: Initialised prognostic fields", LOG_LEVEL_INFO )
+
+    else                                   ! Recorded check point to start from
+
+      allocate(state(3))
+      n_fields = 1
+      write(log_scratch_space,'(A,A)') "Reading file:", &
+            trim(restart%startfname("pressure"))
+      call log_event(log_scratch_space,LOG_LEVEL_INFO)
+
+      state(1) = field_type(vector_space =                                     &
+                        function_space_collection%get_fs(mesh_id,element_order, W3))
+
+      call read_state_netcdf(n_fields, state(1), trim(restart%startfname("pressure")))
+      pressure = state(1)
+
+      write(log_scratch_space,'(A,A)') "Reading file:", &
+            trim(restart%startfname("wind"))
+      call log_event(log_scratch_space,LOG_LEVEL_INFO)
+
+      state(2) = field_type(vector_space =                                      &
+                       function_space_collection%get_fs(mesh_id, element_order, W2))
+
+      call read_state_netcdf(n_fields, state(2), trim(restart%startfname("wind")))
+      wind = state(2)
+
+      write(log_scratch_space,'(A,A)') "Reading file:", &
+            trim(restart%startfname("buoyancy"))
+      call log_event(log_scratch_space,LOG_LEVEL_INFO)
+
+      state(3) = field_type(vector_space =                                      &
+                        function_space_collection%get_fs(mesh_id, element_order, Wtheta))
+
+      call read_state_netcdf(n_fields, state(3), &
+           trim(restart%startfname("buoyancy")))
+      buoyancy = state(3)
+
+      deallocate(state)
+      call log_event( "Gravity waves: Read prognostic fields from files", LOG_LEVEL_INFO )
+
+    end if
+
+    !==========================================================================!
+
+  end subroutine gw_init_fields_alg
+
+end module gw_init_fields_alg_mod

@@ -1,0 +1,96 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+!
+!-------------------------------------------------------------------------------
+
+module analytic_buoyancy_profiles_mod_test
+
+  use constants_mod, only : r_def
+  use pFUnit_Mod
+
+  implicit none
+
+  private
+  public :: analytic_buoyancy_profiles_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: analytic_buoyancy_profiles_test_type
+    private
+  contains
+    procedure setUp
+    procedure test_all
+  end type analytic_buoyancy_profiles_test_type
+
+  real(r_def), parameter :: gravity = 10.0_r_def
+  real(r_def), parameter :: radius  = 6000000.0_r_def
+  real(r_def), parameter :: omega   = 8.0E-5_r_def
+  real(r_def), parameter :: p_zero  = 100000.0_r_def
+  real(r_def), parameter :: rd      = 300.0_r_def
+  real(r_def), parameter :: cp      = 1000.0_r_def
+  real(r_def), parameter :: scaling = 1.0_r_def
+
+  real(r_def), parameter :: bvf_square = 0.0001_r_def
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use feign_config_mod,     only : feign_base_mesh_config,       &
+                                     feign_planet_config,          &
+                                     feign_initial_temperature_config, &
+                                     feign_idealised_config,       &
+                                     feign_initial_wind_config
+    use initial_wind_config_mod, only: initial_wind_profile_none
+
+    use base_mesh_config_mod, only : base_mesh_geometry_spherical, &
+                                     base_mesh_partitioner_cubedsphere
+    use idealised_config_mod,  only: idealised_test_gravity_wave
+
+    implicit none
+
+    class(analytic_buoyancy_profiles_test_type), intent(inout) :: this
+
+    call feign_initial_temperature_config( bvf_square )
+    call feign_idealised_config( idealised_test_gravity_wave )
+    call feign_planet_config( gravity, radius, omega, rd, cp, p_zero, scaling )
+    call feign_base_mesh_config( 'foo',                             &
+                                 base_mesh_geometry_spherical,      &
+                                 base_mesh_partitioner_cubedsphere, &
+                                 .false., 0.0_r_def )
+    call feign_initial_wind_config( initial_wind_profile_none,      &
+                                    0.0_r_def, 0.0_r_def, 0.0_r_def )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all( this )
+
+    use analytic_buoyancy_profiles_mod, only: analytic_buoyancy
+    use constants_mod,                  only: PI
+    use planet_config_mod,              only: scaled_radius, gravity
+    use generate_global_gw_fields_mod,  only: generate_global_gw_pert
+    use reference_profile_mod,          only: reference_profile
+    use idealised_config_mod,           only: idealised_test_gravity_wave
+    use coord_transform_mod,            only: xyz2llr
+    implicit none
+
+    class(analytic_buoyancy_profiles_test_type), intent(inout) :: this
+
+    real(kind=r_def) :: llr(3), xyz(3)
+    real(kind=r_def) :: b, buoyancy
+    real(r_def), parameter :: tol = 1.0e-14
+
+    xyz = (/ scaled_radius, 0.0_r_def, 0.0_r_def /)
+    b = analytic_buoyancy(xyz)
+
+    buoyancy = 0.0_r_def
+    @assertEqual(buoyancy, b, tol)
+
+  end subroutine test_all
+
+end module analytic_buoyancy_profiles_mod_test

@@ -1,0 +1,82 @@
+&base_mesh
+  filename    = 'cubedsphere.12x12.nc'
+  geometry    = 'spherical'
+  partitioner = 'cubedsphere'
+  fplane      = .false.
+  f_lat_deg   = 45.0
+/
+
+&extrusion
+  method           = 'uniform'
+  domain_top       = 10000.0
+  number_of_layers = 10
+/
+
+&finite_element
+  shape         = 'quadrilateral'
+  element_order = 0
+  coordinate_order = 0
+  rehabilitate  = .true.
+  wtheta_on     = .false.
+/
+
+&initial_temperature
+  bvf_square = 0.0001
+/
+
+&gw_miniapp_constants
+  speed_of_sound = 340.0
+/
+
+&initial_wind
+  profile        = 'none'
+  u0             = 0.0
+  v0             = 0.0
+  rotation_angle = 0.0
+/
+
+&output
+  diag_stem_name            = 'gravity_wave'
+  write_interpolated_output = .true.
+  write_nodal_output        = .true.
+  diagnostic_frequency      = 360
+/
+
+&planet
+  gravity        = 9.80665
+  radius         = 6371229.0
+  omega          = 7.292116E-5
+  rd             = 287.05
+  cp             = 1005.0
+  p_zero         = 100000.0
+  scaling_factor = 125.0
+/
+
+&restart
+  filename = 'dynamo_restart.nml'
+/
+
+&solver
+  method             = 'bicgstab'
+  maximum_iterations = 99
+  tolerance          = 1.0e-4
+  preconditioner     = 'diagonal'
+  gcrk               = 32
+  helmholtz_solve    = .false.
+  use_operators      = .true.
+/
+
+
+&timestepping
+  method             = 'semi_implicit'
+  dt                 = 10.0
+  alpha              = 0.5
+  outer_iterations   = 2
+  inner_iterations   = 2
+  runge_kutta_method = 'ssp3'
+/
+
+&partitioning
+  auto        = .true.
+/
+

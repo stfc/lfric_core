@@ -1,0 +1,237 @@
+!-----------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown, 
+! Met Office and NERC 2014. 
+! However, it has been created with the help of the GungHo Consortium, 
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-----------------------------------------------------------------------------
+
+!> Test the initial buoyancy computation
+!>
+module initial_buoyancy_kernel_mod_test
+
+  use constants_mod,                 only : i_def, r_def
+  use function_space_collection_mod, only : function_space_collection_type, &
+                                            function_space_collection
+  use mesh_collection_mod,           only : mesh_collection_type, &
+                                            mesh_collection
+  use field_mod,                     only : field_type,      &
+                                            field_proxy_type
+  use function_space_mod,            only : function_space_type, W0, Wtheta
+  use pFUnit_Mod
+  use quadrature_mod,                only : quadrature_type, GAUSSIAN
+  use evaluator_xyz_mod,             only : evaluator_xyz_type
+
+  implicit none 
+
+  private
+  public :: initial_buoyancy_kernel_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: initial_buoyancy_kernel_test_type
+    private
+    type(function_space_type), pointer :: w0_fs => null()
+    type(function_space_type), pointer :: wt_fs => null()
+    type(field_type)                   :: chi(3)
+    type(field_type)                   :: buoyancy
+    real(r_def), allocatable           :: basis_chi(:,:,:)
+    integer(i_def)                     :: mesh_id
+    type(evaluator_xyz_type)           :: evaluator
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type initial_buoyancy_kernel_test_type
+
+  integer(i_def), parameter :: element_order = 0
+
+  real(r_def), parameter :: gravity = 9.80665_r_def
+  real(r_def), parameter :: radius  = 6371229.0_r_def
+  real(r_def), parameter :: omega   = 8.0E-5_r_def
+  real(r_def), parameter :: p_zero  = 100000.0_r_def
+  real(r_def), parameter :: rd      = 287.05_r_def
+  real(r_def), parameter :: cp      = 1005.0_r_def
+  real(r_def), parameter :: scaling = 1.0_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+
+    use base_mesh_config_mod,      only : base_mesh_geometry_planar, &
+                                          base_mesh_partitioner_planar
+    use finite_element_config_mod, only : finite_element_shape_quadrilateral
+    use feign_config_mod,          only : feign_base_mesh_config,           &
+                                          feign_idealised_config,           &
+                                          feign_initial_density_config,     &
+                                          feign_initial_temperature_config, &
+                                          feign_planet_config
+    use idealised_config_mod,      only : idealised_test_gravity_wave
+    use mesh_mod,                  only : PLANE_BI_PERIODIC
+    use reference_element_mod,     only : reference_cube, reference_element
+
+    implicit none
+
+    class(initial_buoyancy_kernel_test_type), intent(inout) :: this
+
+    type(field_proxy_type)    :: buoyancy_p
+    type(field_proxy_type)    :: chi_p(3)
+
+
+    integer(i_def) :: ndf_buoyancy, &
+                      ndf_chi, dim_chi
+
+    integer :: i
+
+    call feign_base_mesh_config( 'foo',                        &
+                                 base_mesh_geometry_planar,    &
+                                 base_mesh_partitioner_planar, &
+                                 .false., 0.0_r_def )
+    call feign_idealised_config( idealised_test_gravity_wave )
+    call feign_planet_config( gravity, radius, omega, rd, cp, p_zero, scaling )
+
+    reference_element = finite_element_shape_quadrilateral
+    call reference_cube()
+
+    ! Create top level mesh collection
+    mesh_collection = mesh_collection_type()
+    ! Create top level function space collection
+    function_space_collection = function_space_collection_type()
+
+    ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
+    this%mesh_id = mesh_collection%add_unit_test_mesh( PLANE_BI_PERIODIC )
+
+    this%w0_fs => function_space_collection%get_fs( this%mesh_id, &
+                                                    element_order, &
+                                                    W0 )
+    this%wt_fs => function_space_collection%get_fs( this%mesh_id, &
+                                                    element_order, &
+                                                    Wtheta )
+
+    this%buoyancy = field_type( vector_space = this%wt_fs )
+    buoyancy_p    = this%buoyancy%get_proxy()
+
+    ndf_buoyancy  = buoyancy_p%vspace%get_ndf( )
+
+    do i = 1,3
+      this%chi(i) = field_type( vector_space = this%w0_fs )
+      chi_p(i)    = this%chi(i)%get_proxy()
+    end do
+
+    ndf_chi  = chi_p(1)%vspace%get_ndf( )
+    dim_chi  = chi_p(1)%vspace%get_dim_space( )
+
+    allocate( this%basis_chi(dim_chi, ndf_chi, ndf_buoyancy) )
+
+    this%evaluator = evaluator_xyz_type( this%wt_fs%get_ndf( ), this%wt_fs%get_nodes() )
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use reference_element_mod, only : deallocate_reference
+
+    implicit none
+
+    class(initial_buoyancy_kernel_test_type), intent(inout) :: this
+
+    deallocate( this%basis_chi )
+
+    call function_space_collection%clear()
+    call deallocate_reference()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all( this )
+
+    use initial_buoyancy_kernel_mod, only : initial_buoyancy_code
+    use mesh_mod,                    only : mesh_type
+    use evaluate_function_mod,       only : BASIS
+
+    implicit none
+
+    class(initial_buoyancy_kernel_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-6_r_def
+    real(r_def), parameter :: dx = 6000.0_r_def, &
+                              dy = 2000.0_r_def
+
+    ! Information for testing initial buoyancy
+    type(field_proxy_type)    :: buoyancy_p
+    type(field_proxy_type )   :: chi_p(3)
+
+    type(mesh_type),pointer   :: mesh => null()
+
+    integer          :: ndf_buoyancy, undf_buoyancy, &
+                        ndf_chi, undf_chi, &
+                        nqp_h, nqp_v, dim_chi
+    real(kind=r_def), pointer :: nodes(:,:) => null()
+
+    integer, pointer :: map_buoyancy(:) => null(), &
+                        map_chi(:) => null()
+
+    real(r_def) :: answer
+
+    integer :: i, j, k, cell
+    integer(i_def) :: err
+
+    real(r_def) :: dz, dz_test(3)
+
+    mesh => mesh_collection%get_mesh( this%mesh_id )
+    call mesh%get_dz(dz_test)
+    dz = dz_test(1)
+
+    do i = 1,3
+      chi_p(i) = this%chi(i)%get_proxy()
+    end do
+
+    ! Compute coordinates
+    cell = 1
+    do j = 1,3
+      do i = 1,3
+        map_chi => chi_p(1)%vspace%get_cell_dofmap( cell )
+        do k = 0,3
+          chi_p(1)%data(map_chi(1) + k) = real(i-1)*dx
+          chi_p(2)%data(map_chi(1) + k) = real(j-1)*dy
+          chi_p(3)%data(map_chi(1) + k) = real(k)  *dz
+        end do
+        cell = cell + 1
+      end do
+    end do
+
+    ! Test initial buoyancy
+    buoyancy_p = this%buoyancy%get_proxy()
+
+    ndf_buoyancy  = buoyancy_p%vspace%get_ndf( )
+    undf_buoyancy = buoyancy_p%vspace%get_undf( )
+
+    dim_chi = chi_p(1)%vspace%get_dim_space( )
+    ndf_chi  = chi_p(1)%vspace%get_ndf( )
+    undf_chi = chi_p(1)%vspace%get_undf( )
+    call this%evaluator%compute_evaluate( BASIS, chi_p(1)%vspace, &
+                                          dim_chi, ndf_chi, this%basis_chi)
+    cell = 1
+    map_buoyancy => buoyancy_p%vspace%get_cell_dofmap( cell )
+    map_chi => chi_p(1)%vspace%get_cell_dofmap( cell )
+    call initial_buoyancy_code( buoyancy_p%vspace%get_nlayers(), &
+                                buoyancy_p%data,                 &
+                                chi_p(1)%data,                   &
+                                chi_p(2)%data,                   &
+                                chi_p(3)%data,                   &
+                                ndf_buoyancy,                    &
+                                undf_buoyancy,                   &
+                                map_buoyancy,                    &
+                                ndf_chi,                         &
+                                undf_chi,                        &
+                                map_chi,                         &
+                                this%basis_chi                   &
+                              )
+
+    answer = 0.6812726E-03_r_def
+    @assertEqual(answer, buoyancy_p%data(3), tol)
+
+  end subroutine test_all
+
+end module initial_buoyancy_kernel_mod_test

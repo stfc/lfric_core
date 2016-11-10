@@ -1,0 +1,129 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+
+!>@brief wrapper algorithm to compute the lhs of the prognostic
+!>       equations for the linear gravity wave equations
+module gw_lhs_alg_mod
+
+  use constants_mod,                     only: r_def, i_def
+  use function_space_collection_mod,     only: function_space_collection
+  use runtime_constants_mod,             only: get_div, &
+                                               get_mass_matrix, &
+                                               get_coordinates
+  use field_mod,                         only: field_type
+  use operator_mod,                      only: operator_type
+
+  implicit none
+
+  type(field_type),    private :: lhs_p
+  type(operator_type), private :: Q
+
+  private
+  public  :: gw_lhs_alg
+  public  :: gw_lhs_init
+contains
+
+!>@brief Initialise fields to be used for computing the lhs
+  subroutine gw_lhs_init(state)
+    use finite_element_config_mod, only: element_order
+    use function_space_mod,        only: function_space_type
+    use mesh_mod,                  only: mesh_type
+    use derived_config_mod,        only: bundle_size
+    use quadrature_mod,            only: quadrature_type, GAUSSIAN
+    use compute_q_operator_kernel_mod, only: compute_q_operator_type
+    implicit none
+
+    type(field_type), intent(in) :: state(bundle_size)
+    type(function_space_type), pointer :: u_fs, b_fs, p_fs => null()
+    integer(i_def),                    :: mesh_id
+    type(quadrature_type)              :: qr
+    type(field_type),          pointer :: chi(:) => null()
+
+    mesh_id = state(1)%get_mesh_id()
+    u_fs => function_space_collection%get_fs ( mesh_id, element_order,   &
+                                               state(1)%which_function_space() )
+
+    p_fs => function_space_collection%get_fs ( mesh_id, element_order,   &
+                                               state(2)%which_function_space() )
+    lhs_p =  field_type( vector_space = p_fs )
+
+    b_fs => function_space_collection%get_fs ( mesh_id, element_order,   &
+                                               state(3)%which_function_space() )
+
+    Q = operator_type( u_fs, b_fs)
+    qr = quadrature_type(element_order+2, GAUSSIAN)
+    chi => get_coordinates()
+    call invoke( compute_q_operator_type(Q, chi, qr) )
+
+  end subroutine gw_lhs_init
+  !============================================================================!
+!>@details A wrapper for computing the lhs of the prognostic
+!>         equations by choosing certain terms to approximate the 
+!>         Jacobian, namely:
+!>         \f[
+!>         \mathbf{L_u} = \mathbf{u}' - \alpha\Delta t\nabla p' - b\mathbf{z}
+!>         \f]
+!>         \f[ L_p = p' + \alpha\Delta t c^2\nabla.\mathbf{u}'
+!>         \f[ L_b = b' + \alpha\Delta t N^2\mathbf{u}'.\mathbf{z}\f]
+!>
+!>         Where primed terms are increments to the n timelevel field
+!> @param[inout] lhs The state vector to compute
+!> @param[inout] state The current model prognostic state
+  subroutine gw_lhs_alg(lhs, state)
+
+  use matrix_vector_kernel_mod,           only: matrix_vector_kernel_type
+  use operator_mod,                       only: operator_type
+  use derived_config_mod,                 only: bundle_size
+  use psykal_lite_mod,                    only: invoke_inc_axpy, &
+                                                invoke_set_field_scalar, &
+                                                invoke_scale_field_data
+  use transpose_matrix_vector_kernel_mod, only: transpose_matrix_vector_kernel_type
+  use dg_matrix_vector_kernel_mod,        only: dg_matrix_vector_kernel_type
+  use initial_temperature_config_mod,     only: bvf_square  
+  use gw_miniapp_constants_config_mod,    only: cs_square
+  use timestepping_config_mod,            only: dt, alpha
+  implicit none
+
+  ! Form of state and lhs is [u,theta,rho,exner]
+  type(field_type), target,        intent(inout) :: state(bundle_size)
+  type(field_type),                intent(inout) :: lhs(bundle_size)
+
+  type(operator_type), pointer :: mm_w2, mm_wt => null()
+  type(operator_type), pointer :: div, m3_inv => null()
+  type(field_type),    pointer :: u ,p, b => null()
+  
+  mm_wt => get_mass_matrix(5)
+  mm_w2 => get_mass_matrix(2)
+  div   => get_div() 
+  m3_inv => get_mass_matrix(4)
+
+  u => state(1)
+  p => state(2)
+  b => state(3)
+
+  call invoke_set_field_scalar( 0.0_r_def, lhs(1) )
+  call invoke_set_field_scalar( 0.0_r_def, lhs(3) )
+  call invoke( transpose_matrix_vector_kernel_type(lhs(1), p,     div), &
+               matrix_vector_kernel_type          (lhs(1), b,     Q), &
+               dg_matrix_vector_kernel_type       (lhs_p,  u,     div), &
+               dg_matrix_vector_kernel_type       (lhs(2), lhs_p, m3_inv), &
+               transpose_matrix_vector_kernel_type(lhs(3), u,     Q) )
+
+  call invoke_scale_field_data(-alpha*dt,           lhs(1))
+  call invoke_scale_field_data( alpha*dt*bvf_square,lhs(3))
+
+  ! Add time dependencies
+  call invoke( matrix_vector_kernel_type(lhs(1), u, mm_w2) )
+  call invoke( matrix_vector_kernel_type(lhs(3), b, mm_wt) )
+  call invoke_inc_axpy(alpha*dt*cs_square, lhs(2), p)
+
+  end subroutine gw_lhs_alg
+  !============================================================================!
+
+end module gw_lhs_alg_mod
+
+

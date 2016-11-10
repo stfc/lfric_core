@@ -1,0 +1,188 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+
+!>@brief A two time-level iterative time-discretisation of the linear 
+!>       gravity wave equations
+module gravity_wave_alg_mod
+
+  use constants_mod,                     only: i_def,r_def
+  use log_mod,                           only: log_event,         &
+                                               log_scratch_space, &
+                                               LOG_LEVEL_INFO,    &
+                                               LOG_LEVEL_TRACE
+
+  ! Configuration options
+  use finite_element_config_mod,      only: element_order
+  use timestepping_config_mod,        only: dt, alpha
+  use derived_config_mod,             only: bundle_size
+  use runtime_constants_mod,          only: get_div, &
+                                            get_mass_matrix, &
+                                            get_coordinates
+  use initial_temperature_config_mod, only: bvf_square  
+  use gw_miniapp_constants_config_mod,only: cs_square
+
+  ! PsyKAl-lite kernels
+  use psykal_lite_mod,                   only: invoke_copy_field_data,  &
+                                               invoke_set_field_scalar, &
+                                               invoke_scale_field_data
+  use field_bundle_mod,                  only: clone_bundle, & 
+                                               copy_bundle
+
+  ! Derived Types
+  use function_space_collection_mod,     only: function_space_collection
+  use field_mod,                         only: field_type
+  use function_space_mod,                only: function_space_type
+  use operator_mod,                      only: operator_type
+
+  ! Algorithms
+  use gw_si_solver_alg_mod,              only: gw_si_solver_alg, &
+                                               gw_si_solver_init
+  implicit none
+
+  private
+
+  ! 'State' items private to the algorithm that need to be 
+  !  created once but used every step
+  type( field_type ), allocatable :: state(:), state_n(:)
+  type( field_type ), allocatable :: rhs_n(:) 
+  type( field_type )              :: rhs_p
+  type(operator_type)             :: Q
+
+  public :: gravity_wave_alg_init
+  public :: gravity_wave_alg_step
+
+contains
+!=============================================================================!
+  !> @details Initialisation procedure for the timestepping algorithm
+  !>          Initialises various internal fields
+  !> @param[in]    mesh Mesh object on which the model runs
+  !> @param[inout] wind  The 3D wind field
+  !> @param[inout] pressure The pressure field
+  !> @param[inout] buoyancy The buoyancy field
+  subroutine gravity_wave_alg_init( mesh_id, wind, pressure, buoyancy)
+    use quadrature_mod,                only: quadrature_type, GAUSSIAN
+    use compute_q_operator_kernel_mod, only: compute_q_operator_type, &
+                                             compute_q_operator_init
+    use mesh_mod,                      only: mesh_type
+    use mesh_collection_mod,           only: mesh_collection
+
+    implicit none
+
+    ! Mesh
+    integer(i_def), intent(in) :: mesh_id 
+
+    ! Prognostic fields    
+    type( field_type ), intent( inout ) :: wind, pressure, buoyancy
+
+    type(function_space_type), pointer :: u_fs => null()
+    type(function_space_type), pointer :: p_fs => null()
+    type(function_space_type), pointer :: b_fs => null()
+    type(quadrature_type)              :: qr
+    type(field_type),          pointer :: chi(:) => null()
+    real(kind=r_def), allocatable      :: dz(:)
+    type(mesh_type),           pointer :: mesh => null()
+    integer(kind=i_def)                :: nlayers
+
+    !=== Allocate internal state field arrays ================================!
+    allocate(state(bundle_size))
+    allocate(state_n(bundle_size))
+    allocate(rhs_n(bundle_size))
+
+    !=== Initialise internal state field objects =============================!
+    u_fs => function_space_collection%get_fs ( mesh_id, element_order,   &
+                                               wind%which_function_space() )
+    p_fs => function_space_collection%get_fs ( mesh_id, element_order,  &
+                                               pressure%which_function_space() )
+    b_fs => function_space_collection%get_fs ( mesh_id, element_order,  &
+                                               buoyancy%which_function_space() )
+
+    state(1) = field_type( vector_space = u_fs )
+    state(2) = field_type( vector_space = p_fs )
+    state(3) = field_type( vector_space = b_fs )
+
+    call clone_bundle(state, state_n,   bundle_size)
+    call clone_bundle(state, rhs_n,     bundle_size)
+
+    rhs_p =  field_type( vector_space = p_fs )
+
+    !=== Copy prognostic field data to state arrays ===========================!
+    call invoke_copy_field_data(wind,     state(1))
+    call invoke_copy_field_data(pressure, state(2))
+    call invoke_copy_field_data(buoyancy, state(3))
+
+    ! Create Q operator
+    Q = operator_type( u_fs, b_fs)
+    qr = quadrature_type(element_order+2, GAUSSIAN)
+    chi => get_coordinates()
+    mesh => mesh_collection%get_mesh( mesh_id )
+    nlayers = mesh%get_nlayers()
+    allocate ( dz(nlayers) )
+    call mesh%get_dz(dz)
+    call compute_q_operator_init(dz, nlayers)
+    call invoke( compute_q_operator_type(Q, chi, qr) )
+
+    call gw_si_solver_init(state)
+
+    call log_event( "Gravity Wave: initialised timestepping algorithm", LOG_LEVEL_INFO )
+  end subroutine gravity_wave_alg_init
+!=============================================================================!
+
+  !> @details An algorithm for timestepping the 3D linear  gravity wave equations
+  !>         using a cnetred implicit method
+  !> @param[inout] wind  The 3D wind field
+  !> @param[inout] pressure The pressure field
+  !> @param[inout] buoyancy The buoyancy field
+  subroutine gravity_wave_alg_step(wind, pressure, buoyancy)
+
+  use matrix_vector_kernel_mod,           only: matrix_vector_kernel_type
+  use dg_matrix_vector_kernel_mod,        only: dg_matrix_vector_kernel_type
+  use transpose_matrix_vector_kernel_mod, only: transpose_matrix_vector_kernel_type
+  use enforce_bc_kernel_mod,              only: enforce_bc_kernel_type
+
+    implicit none
+
+    ! Prognostic fields    
+    type( field_type ), intent( inout ) :: wind, pressure, buoyancy
+
+    type(operator_type), pointer :: div, m3_inv => null()   
+  
+    !=== Do a single timestep ==============================================!
+    div => get_div()
+    m3_inv => get_mass_matrix(4)
+    call invoke_copy_field_data(wind,     state(1))
+    call invoke_copy_field_data(pressure, state(2))
+    call invoke_copy_field_data(buoyancy, state(3))
+    call copy_bundle(state, state_n, bundle_size)
+
+    ! Compute rhs
+    call invoke_set_field_scalar( 0.0_r_def, rhs_n(1) )
+    call invoke_set_field_scalar( 0.0_r_def, rhs_n(3) )
+    call invoke( transpose_matrix_vector_kernel_type(rhs_n(1), state_n(2), div), &
+                 matrix_vector_kernel_type          (rhs_n(1), state_n(3), Q), &
+                 dg_matrix_vector_kernel_type       (rhs_p,    state_n(1), div), &
+                 dg_matrix_vector_kernel_type       (rhs_n(2), rhs_p,      m3_inv), &
+                 transpose_matrix_vector_kernel_type(rhs_n(3), state_n(1), Q) )
+
+    ! Apply timestep scalings
+    call invoke_scale_field_data( dt,            rhs_n(1))
+    call invoke_scale_field_data(-dt*cs_square,  rhs_n(2))
+    call invoke_scale_field_data(-dt*bvf_square, rhs_n(3))
+
+    call invoke( enforce_bc_kernel_type(rhs_n(1)) )
+
+    ! Solve
+    call gw_si_solver_alg(state, rhs_n)
+       
+    ! Return fields
+    call invoke_copy_field_data(state(1), wind)
+    call invoke_copy_field_data(state(2), pressure)
+    call invoke_copy_field_data(state(3), buoyancy)
+
+  end subroutine gravity_wave_alg_step
+
+
+end module gravity_wave_alg_mod

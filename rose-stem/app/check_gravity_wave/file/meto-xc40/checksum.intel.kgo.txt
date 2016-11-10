@@ -1,0 +1,6 @@
+Fraction checksum u = 0.5703959038716109
+Exponent checksum u = 3308130
+Fraction checksum b = 0.0755819344290871
+Exponent checksum b = -775894
+Fraction checksum p = 0.4446860959354451
+Exponent checksum p = 43394

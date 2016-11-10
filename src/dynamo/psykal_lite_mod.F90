@@ -2806,8 +2806,6 @@ end subroutine invoke_set_boundary_kernel
   end subroutine invoke_times_field
 
 !-------------------------------------------------------------------------------   
-
-!-------------------------------------------------------------------------------   
 subroutine invoke_sample_poly_flux( flux, wind, density, stencil_extent, evaluator) 
 
   use sample_poly_flux_kernel_mod, only: sample_poly_flux_code
@@ -3100,5 +3098,89 @@ end subroutine invoke_sample_poly_adv
        
        
     end subroutine invoke_compute_tri_precon_kernel
+
+!-------------------------------------------------------------------------------   
+! Needs differential nodal basis for chi space which is not currently
+! supported by psyclone. Dynamo tickets #723, #734 address this as new types of
+! quadrature that will then need to be supported by psyclone
+  !> invoke_initial_buoyancy_kernel: invoke the buoyancy initialization
+  subroutine invoke_initial_buoyancy_kernel( b, chi, evaluator  )
+
+    use initial_buoyancy_kernel_mod, only : initial_buoyancy_code
+    use mesh_mod,                    only : mesh_type
+
+    implicit none
+
+    type( field_type ), intent( inout ) :: b
+    type( field_type ), intent( in )    :: chi(3)
+
+    integer          :: cell
+    integer          :: ndf_wt, undf_wt, &
+                        ndf_chi, undf_chi, dim_chi
+
+    integer, pointer        :: map_wt(:) => null()
+    integer, pointer        :: map_chi(:)    => null()
+
+    type( field_proxy_type )        :: b_proxy
+    type( field_proxy_type )        :: chi_proxy(3)
+
+    real(kind=r_def), allocatable :: basis_chi(:,:,:)
+
+    type(mesh_type),  pointer :: mesh => null()
+    type(evaluator_xyz_type), intent(in) :: evaluator
+
+    b_proxy  = b%get_proxy()
+    chi_proxy(1) = chi(1)%get_proxy()
+    chi_proxy(2) = chi(2)%get_proxy()
+    chi_proxy(3) = chi(3)%get_proxy()
+
+    mesh => b%get_mesh()
+
+    ndf_wt  = b_proxy%vspace%get_ndf( )
+    undf_wt = b_proxy%vspace%get_undf( )
+
+    ndf_chi  = chi_proxy(1)%vspace%get_ndf( )
+    undf_chi  = chi_proxy(1)%vspace%get_undf( )
+    dim_chi  = chi_proxy(1)%vspace%get_dim_space( )
+
+    allocate( basis_chi(dim_chi, ndf_chi, ndf_wt) )
+
+    call evaluator%compute_evaluate( BASIS, chi_proxy(1)%vspace, &
+                                     dim_chi, ndf_chi, basis_chi )
+
+    if (chi_proxy(1)%is_dirty(depth=1)) then
+      call chi_proxy(1)%halo_exchange(depth=1)
+    end if
+    if (chi_proxy(2)%is_dirty(depth=1)) then
+      call chi_proxy(2)%halo_exchange(depth=1)
+    end if
+    if (chi_proxy(3)%is_dirty(depth=1)) then
+      call chi_proxy(3)%halo_exchange(depth=1)
+    end if
+ 
+    do cell = 1,mesh%get_last_edge_cell()
+
+      map_wt => b_proxy%vspace%get_cell_dofmap( cell )
+      map_chi => chi_proxy(1)%vspace%get_cell_dofmap( cell )
+
+      call initial_buoyancy_code(       &
+        b_proxy%vspace%get_nlayers(),   &
+        b_proxy%data,                   &
+        chi_proxy(1)%data,              &
+        chi_proxy(2)%data,              &
+        chi_proxy(3)%data,              &
+        ndf_wt,                         &
+        undf_wt,                        &
+        map_wt,                         &
+        ndf_chi,                        &
+        undf_chi,                       &
+        map_chi,                        &
+        basis_chi                       &
+        )
+    end do
+
+    call b_proxy%set_dirty()
+  end subroutine invoke_initial_buoyancy_kernel
+  !------------------------------------------------------------------------------
 
 end module psykal_lite_mod
