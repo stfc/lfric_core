@@ -337,6 +337,12 @@ By default nightly tests will be run on the Met Office SPICE server farm.
 To run on Cray you need to specify the target explicitly using
 ``rose stem --group=nightly --opt-conf-key=meto-xc40``.
 
+If the optional configuration key ``meto-mail-list`` is used then the LFRic
+mailing list will be sent a message for each failing task in the test suite.
+This option is intended for use by timed runs of the suite only. If you want to
+be sent e-mails while running the suite interactively be careful. You probably
+don't want to send them to the developer mailing list.
+
 If you want to run the nightly tests as a "Cron" job the following ``crontab``
 should give you some pointers::
 

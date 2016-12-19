@@ -49,7 +49,6 @@
 [cylc]
     UTC mode = True
     [[events]]
-        mail events = timeout
         abort on timeout = True
 {%- if 'nightly' in groupsToRun %}
         abort on stalled = True
@@ -186,6 +185,7 @@
 {%- set scheduledTasks = schedule() | deduplicateSchedule() %}
 {{scheduledTasks}}
                     """
+
 [runtime]
     [[root]]
         initial scripting = """
@@ -194,7 +194,10 @@
                             """
         script = "rose task-run"
         [[[events]]]
-            mail events = retry, submission failed, submission timout, execution timeout
+{%- if TROUBLE_MAIL_ADDRESS is defined %}
+            mail to = {{TROUBLE_MAIL_ADDRESS}}
+            mail events = submission timeout, submission failed, timeout, failed, execution timeout
+{%- endif %}
             submission timeout = PT12H
             execution timeout  =  PT3H
         [[[environment]]]
