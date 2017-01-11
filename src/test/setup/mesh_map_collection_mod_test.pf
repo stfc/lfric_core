@@ -1,0 +1,275 @@
+!-----------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-----------------------------------------------------------------------------
+
+!> @brief pFunit tests for the mesh map collection
+!>
+module mesh_map_collection_mod_test
+
+  use constants_mod,              only: r_def, i_def, str_max_filename, imdi
+  use extrusion_config_mod,       only: extrusion_method_uniform
+  use global_mesh_map_collection_mod, &
+                                  only: global_mesh_map_collection_type
+  use global_mesh_collection_mod, only: global_mesh_collection_type, &
+                                        global_mesh_collection
+  use global_mesh_mod,            only: global_mesh_type
+  use global_mesh_map_mod,        only: global_mesh_map_type
+
+  use partition_mod,              only: partition_type, partitioner_interface, &
+                                        partitioner_cubedsphere_serial
+  use mesh_mod,                   only: mesh_type
+  use mesh_map_mod,               only: mesh_map_type
+  use mesh_map_collection_mod,    only: mesh_map_collection_type
+  use mesh_collection_mod,        only: mesh_collection_type, mesh_collection
+
+  use pFUnit_Mod                                            
+
+
+  implicit none
+
+  private
+  public :: mesh_map_collection_test_type, test_mesh_map_collection
+  
+  @testCase
+  type, extends( TestCase ) :: mesh_map_collection_test_type
+    private
+
+    type(global_mesh_map_type), pointer :: CoarseToFine_global_mesh_map => null()
+    type(mesh_type), pointer    :: coarse_mesh => null()
+    type(mesh_type), pointer    :: fine_mesh   => null()
+
+    integer(i_def), allocatable :: coarse_lid_gid_map(:)
+    integer(i_def), allocatable :: fine_lid_gid_map(:)
+    
+  contains
+    procedure :: setUp
+    procedure :: tearDown
+    procedure :: test_mesh_map_collection
+  end type mesh_map_collection_test_type
+
+  character(str_max_filename), parameter :: coarse_ugrid = 'data/CubedSphere96Cell.nc'  ! 4x4 panel
+  character(str_max_filename), parameter :: fine_ugrid   = 'data/CubedSphere384Cell.nc' ! 8x8 panel
+
+  integer(i_def), parameter :: local_rank  = 0_i_def
+  integer(i_def), parameter :: total_ranks = 1_i_def
+  integer(i_def), parameter :: max_stencil_depth = 0_i_def
+  integer(i_def), parameter :: xproc       = 1_i_def
+  integer(i_def), parameter :: yproc       = 1_i_def
+  integer(i_def), parameter :: nlayers     = 5_i_def
+  real(r_def),    parameter :: domain_top  = 10000.0_r_def
+
+  real(r_def),    parameter :: gravity = 10.0_r_def
+  real(r_def),    parameter :: radius  = 6371229.0_r_def
+  real(r_def),    parameter :: omega   = 8.0E-5_r_def
+  real(r_def),    parameter :: p_zero  = 100000.0_r_def
+  real(r_def),    parameter :: rd      = 300.0_r_def
+  real(r_def),    parameter :: cp      = 1000.0_r_def
+  real(r_def),    parameter :: scaling = 125.0_r_def
+
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use base_mesh_config_mod,      only : base_mesh_geometry_spherical, &
+                                          base_mesh_partitioner_cubedsphere
+    use finite_element_config_mod, only : finite_element_shape_quadrilateral
+    use feign_config_mod,          only : feign_base_mesh_config, &
+                                          feign_planet_config,    &
+                                          feign_extrusion_config
+    use reference_element_mod,     only : reference_cube, reference_element
+
+    implicit none
+
+    class( mesh_map_collection_test_type ), intent( inout ) :: this
+
+    type(global_mesh_type), pointer :: coarse_global_mesh => null()
+    type(global_mesh_type), pointer :: fine_global_mesh   => null()
+    type(partition_type)   :: coarse_partition
+    type(partition_type)   :: fine_partition
+    integer(i_def)         :: coarse_global_mesh_id
+    integer(i_def)         :: fine_global_mesh_id
+    integer(i_def)         :: coarse_mesh_id
+    integer(i_def)         :: fine_mesh_id
+
+    integer(i_def)         :: ncells
+    integer(i_def)         :: i
+    integer(i_def)         :: npanels
+
+    type(mesh_map_type), pointer :: mesh_map => null()
+
+    procedure (partitioner_interface), pointer :: partitioner_ptr => null()
+
+
+    call feign_base_mesh_config( 'foo',                             &
+                                 base_mesh_geometry_spherical,      &
+                                 base_mesh_partitioner_cubedsphere, &
+                                 .false., 0.0_r_def )
+    call feign_extrusion_config( extrusion_method_uniform, domain_top, nlayers )
+    call feign_planet_config( radius, gravity, omega, rd, cp, p_zero, scaling )
+
+    reference_element = finite_element_shape_quadrilateral
+    call reference_cube()
+
+
+    global_mesh_collection = global_mesh_collection_type()
+    mesh_collection        = mesh_collection_type()
+
+    partitioner_ptr => partitioner_cubedsphere_serial
+
+
+    npanels = 6
+    coarse_global_mesh_id = &
+        global_mesh_collection%add_new_global_mesh( coarse_ugrid, npanels )
+    fine_global_mesh_id   = &
+        global_mesh_collection%add_new_global_mesh( fine_ugrid,   npanels )
+
+    coarse_global_mesh => &
+        global_mesh_collection%get_global_mesh( coarse_global_mesh_id )
+    fine_global_mesh   => &
+        global_mesh_collection%get_global_mesh( fine_global_mesh_id   )
+
+    this%CoarseToFine_global_mesh_map => &
+         coarse_global_mesh%get_global_mesh_map( fine_global_mesh_id )
+
+    coarse_partition = partition_type( coarse_global_mesh, partitioner_ptr, &
+                                       xproc, yproc, max_stencil_depth,     &
+                                       local_rank, total_ranks )
+
+    ncells = coarse_partition%get_num_cells_in_layer()
+
+    fine_partition   = partition_type( fine_global_mesh, partitioner_ptr, &
+                                       xproc, yproc, max_stencil_depth,   &
+                                       local_rank, total_ranks )
+
+    coarse_mesh_id   = mesh_collection%add_new_mesh(                         &
+                                       coarse_global_mesh, coarse_partition, &
+                                       nlayers, domain_top,                  &
+                                       extrusion_method_uniform )
+
+    fine_mesh_id     = mesh_collection%add_new_mesh(                     &
+                                       fine_global_mesh, fine_partition, &
+                                       nlayers, domain_top,              &
+                                       extrusion_method_uniform )
+
+    this%coarse_mesh => mesh_collection%get_mesh( coarse_mesh_id )
+    this%fine_mesh   => mesh_collection%get_mesh( fine_mesh_id   )
+
+
+
+    ncells = coarse_partition%get_num_cells_in_layer()
+    allocate(this%coarse_lid_gid_map(ncells))
+    do i=1, ncells
+      this%coarse_lid_gid_map(i) = coarse_partition%get_gid_from_lid(i)
+    end do
+
+
+    ncells = fine_partition%get_num_cells_in_layer()
+    allocate(this%fine_lid_gid_map(ncells))
+    do i=1, ncells
+      this%fine_lid_gid_map(i) = fine_partition%get_gid_from_lid(i)
+    end do
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use reference_element_mod, only : deallocate_reference
+
+    implicit none
+
+    class( mesh_map_collection_test_type ), intent( inout ) :: this
+
+    deallocate(this%coarse_lid_gid_map)
+    deallocate(this%fine_lid_gid_map)
+
+    call global_mesh_collection%clear()
+    call mesh_collection%clear()
+
+    call deallocate_reference()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_mesh_map_collection( this )
+
+    implicit none
+
+    class( mesh_map_collection_test_type ), intent( inout ) :: this
+
+    type (mesh_map_collection_type) :: mesh_maps
+
+    type (mesh_map_type),  pointer :: mesh_map  => null()
+    type (mesh_map_type),  pointer :: mesh_map2 => null()
+    type (partition_type), pointer :: partition => null()
+
+    integer(i_def) :: test_integer, i
+    
+    integer(i_def) :: mesh_id
+    integer(i_def) :: global_mesh_id
+    integer(i_def) :: ncells_2d
+    integer(i_def) :: ntarget_cells_per_source_cell, nsource_cells
+
+    integer(i_def), allocatable :: map(:,:)
+
+    integer(i_def), allocatable :: mesh_lid_gid_map(:)
+
+
+    partition => this%coarse_mesh % get_partition()
+    ncells_2d = partition%get_num_cells_in_layer()
+
+
+    allocate(mesh_lid_gid_map(ncells_2d))
+    do i=1, ncells_2d
+      mesh_lid_gid_map(i) = partition%get_gid_from_lid(i)
+    end do
+
+    mesh_maps = mesh_map_collection_type()
+
+    ntarget_cells_per_source_cell = &
+        this%CoarseToFine_global_mesh_map%get_ntarget_cells_per_source_cell()
+    nsource_cells                 = &
+        this%CoarseToFine_global_mesh_map%get_nsource_cells()
+    allocate(map(ntarget_cells_per_source_cell,nsource_cells))
+
+    ! For this test we don't care what's in the map
+    map(:,:) = imdi
+
+    call mesh_maps % add_mesh_map( this%coarse_mesh%get_id(), &
+                                   this%fine_mesh%get_id(),   &
+                                   map )
+
+    mesh_map => mesh_maps % get_mesh_map( this%coarse_mesh%get_id(), &
+                                          this%fine_mesh%get_id()    )
+    @assertAssociated ( mesh_map )
+
+
+    call mesh_maps % add_mesh_map( this%coarse_mesh%get_id(), &
+                                   this%fine_mesh%get_id(),   &
+                                   map )
+
+
+    mesh_map2 => mesh_maps % get_mesh_map( this%coarse_mesh%get_id(), &
+                                           this%fine_mesh%get_id() )
+
+    @assertAssociated ( mesh_map2 )
+
+    @assertEqual ( associated(mesh_map, mesh_map2), .true. )
+
+    deallocate(mesh_lid_gid_map)
+    deallocate(map)
+
+    call mesh_maps % clear()
+
+    return
+  end subroutine test_mesh_map_collection
+
+end module mesh_map_collection_mod_test
+
+

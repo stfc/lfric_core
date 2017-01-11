@@ -15,21 +15,39 @@
 module global_mesh_collection_mod
 
   use constants_mod,   only: r_def, i_def, imdi, str_max_filename
-  use log_mod,         only: log_event, log_scratch_space,                     &
+  use log_mod,         only: log_event, log_scratch_space, &
                              LOG_LEVEL_ERROR, LOG_LEVEL_TRACE
   use linked_list_mod, only: linked_list_type, linked_list_item_type
   use global_mesh_mod, only: global_mesh_type
-  use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
 
   implicit none
 
   private
 
   type, public :: global_mesh_collection_type
-    private
-    type(linked_list_type) :: global_mesh_list
-    integer(i_def)         :: npanels = imdi
 
+    private
+
+    !> Linked list of the global_mesh_type objects in this collection
+    type(linked_list_type) :: global_mesh_list
+    !>
+    !> @brief Number of panels in the mesh layout. npanels is set to
+    !>        be the same as the 1st global mesh loaded into the collection.
+    !>        All subsequent global meshes added should have been specified
+    !>        with the same nume of panles
+    !> @deprecated  Once multiple global meshes and associated mappings
+    !>              are available in ugrid files.
+
+    ! At present, global_mesh_type objects which are described from ugrid
+    ! files which contain details for only one global mesh and thus contain no
+    ! information about mapping between global meshes at different resolutions.
+    ! As a consequence of this, mappings are calculated by the
+    ! global_mesh_collection as between subsequent global meshes as they are
+    ! added to the global mesh_collection. This calculation requires that all
+    ! meshes have the same number of panels in the mesh. npanels is set to
+    ! be the same as the 1st global mesh loaded into the collection.
+    integer(i_def)         :: npanels = imdi
+    !>
     !> An unused allocatable integer that prevents an intenal compiler error
     !> with the Gnu Fortran compiler. Adding an allocatable forces the compiler
     !> to accept that the object has a finaliser. It gets confused without it.
@@ -38,14 +56,56 @@ module global_mesh_collection_mod
     integer(i_def), allocatable :: dummy_for_gnu
 
   contains
+    !> @brief Adds a global mesh object to the collection from a
+    !>        ugrid file which contains a single global mesh.
+    !> @param [in] filename  File containing details of a single global
+    !>                       mesh object.
+    !> @return ID of the global mesh added to collection.
 
+    ! Adds a global mesh object to the collection from ugrid files
+    ! which contain a single global mesh per file. Maps between
+    ! each global mesh are created on the fly between subsequent
+    ! global meshes in the collection in the order that they are
+    ! added.
+    !
+    ! At present, there is no way to uniquely identify each global
+    ! mesh that is read in. Global meshes are currently identified
+    ! by an integer id counter which is assigned on creation of the
+    ! global mesh object. When multiple global meshes per file are
+    ! possible there will be a need to use a hash function to
+    ! identify each global mesh object read in.
     procedure, public  :: add_new_global_mesh
-
+    !>
+    !> @brief Adds hardwired global mesh object to the collection
+    !>        (for unit testing).
+    !> @return ID of the global mesh added to collection
     procedure, public  :: add_unit_test_global_mesh
+    !>
+    !> @brief Requests global mesh object with specified global_mesh_id from
+    !>        the collection.
+    !> @param [in] global_mesh_id  Integer id of global mesh object requested.
+    !> @return Global mesh object with requested global_mesh_id if present in
+    !>         collection, a null pointer is returned if there is no global
+    !>         mesh with the requested id.
     procedure, public  :: get_global_mesh
-
+    !>
+    !> @brief Forced clear of all the global mesh objects in the collection.
+    !>        This routine should not need to be called manually except
+    !>        (possibly) in pfunit tests
     procedure, public  :: clear
-    procedure, private :: map_global_meshes      !< @deprecated when multimesh ugrid file available
+    !>
+    !> @brief Internal routine to generate cell mappings (if possible) between
+    !>        subsequent global meshes added to the collection. This
+    !>        routine is present as mapping data is not currently available
+    !>        in the global mesh ugrid files. Mappings are created on a
+    !>        "per mesh panel" basis and is checked against the variable
+    !>        npanels.
+    !> @deprecated When ugrid files with multiple meshes/mappings are
+    !>             available
+    procedure, private :: map_global_meshes
+    !>
+    !> @brief Finalizer routine, should be called automatically by
+    !>        code when the object is out of scope
     final              :: global_mesh_collection_destructor
 
   end type global_mesh_collection_type
@@ -55,15 +115,17 @@ module global_mesh_collection_mod
   end interface
 
   ! Module variable allows access to the single mesh collection
-  type(global_mesh_collection_type), public :: global_mesh_collection
+  type(global_mesh_collection_type), public, allocatable :: &
+      global_mesh_collection
 
 contains
 
-!> Constructs the mesh collection object
-!> @return self The constructed mesh collection object
+!> @brief Constructs the mesh collection object
+!> @return The constructed mesh collection object
 function global_mesh_collection_constructor() result(self)
 
   implicit none
+
   type(global_mesh_collection_type) :: self
 
   self%global_mesh_list = linked_list_type()
@@ -71,19 +133,7 @@ function global_mesh_collection_constructor() result(self)
 end function global_mesh_collection_constructor
 
 
-!> @brief Add a global mesh object to the collection from ugrid files
-!>        which contain a single global meshes per file. Maps between
-!>        each global mesh are created on the fly dependent on the input
-!>        order.
-!>
-!> @param [in] filename  File containing details of a single global mesh
-!>                       object.
-
-! Need to generate a hash on each global mesh object read in. Though
-! Matthew thinks this best written in C
-! For there is no checking on uniqueness of global meshes read in
-! Assumption that there is one mesh per file.
-
+!==============================================================================
 function add_new_global_mesh( self, filename, npanels ) result (global_mesh_id)
 
   implicit none
@@ -126,11 +176,12 @@ function add_new_global_mesh( self, filename, npanels ) result (global_mesh_id)
       target_global_mesh_id = global_mesh_id
 
       call self%global_mesh_list%insert_item( global_mesh_to_add )
-      call self%map_global_meshes(source_global_mesh_id, target_global_mesh_id )
+      call self%map_global_meshes( source_global_mesh_id, &
+                                   target_global_mesh_id )
 
     else
-       write(log_scratch_space,'(A,I0)')                                       &
-           "This global mesh collection is for global meshes of npanels = ",   &
+       write(log_scratch_space,'(A,I0)')                                     &
+           "This global mesh collection is for global meshes of npanels = ", &
            self%npanels
        call log_event(log_scratch_space,LOG_LEVEL_ERROR)
        return
@@ -147,8 +198,10 @@ function add_new_global_mesh( self, filename, npanels ) result (global_mesh_id)
 end function add_new_global_mesh
 
 
-subroutine map_global_meshes(self, source_global_mesh_id, target_global_mesh_id)
-
+!==============================================================================
+subroutine map_global_meshes( self,                   &
+                              source_global_mesh_id,  &
+                              target_global_mesh_id )
 
   implicit none
 
@@ -160,8 +213,6 @@ subroutine map_global_meshes(self, source_global_mesh_id, target_global_mesh_id)
   type (global_mesh_type), pointer :: target_mesh => null()
   type (global_mesh_type), pointer :: coarse_mesh => null()
   type (global_mesh_type), pointer :: fine_mesh   => null()
-  type (global_mesh_map_collection_type), pointer :: coarse_mesh_maps => null()
-  type (global_mesh_map_collection_type), pointer :: fine_mesh_maps   => null()
 
   integer(i_def) :: i,j,n,count       ! counters
   integer(i_def) :: coarse_panel_start_id
@@ -305,8 +356,8 @@ subroutine map_global_meshes(self, source_global_mesh_id, target_global_mesh_id)
         end_x   = start_x + factor - 1
 
         coarse_to_fine_gid_map(:,coarse_panel_ids(i,j)) =                      &
-            reshape( fine_panel_ids( start_x:end_x, start_y:end_y )            &
-            , (/factor**2/) )
+            reshape( fine_panel_ids( start_x:end_x, start_y:end_y ),           &
+                     (/factor**2/) )
       end do
     end do
 
@@ -325,16 +376,10 @@ subroutine map_global_meshes(self, source_global_mesh_id, target_global_mesh_id)
   ! Now we have the intermesh gid maps from coarse to fine
   ! and fine to coarse meshes. Create a global_mesh_map for each
   ! direction.
-
-  ! Get the global mesh map collections for each of the global
-  ! mesh objects and add the maps to them.
-  coarse_mesh_maps => coarse_mesh%get_global_mesh_maps()
-  fine_mesh_maps   => fine_mesh%get_global_mesh_maps()
-
-  call coarse_mesh_maps % add_global_mesh_map( fine_id                         &
-                                             , coarse_to_fine_gid_map )
-  call fine_mesh_maps   % add_global_mesh_map( coarse_id                       &
-                                             , fine_to_coarse_gid_map )
+  call coarse_mesh % add_global_mesh_map( fine_mesh, &
+                                          coarse_to_fine_gid_map )
+  call fine_mesh   % add_global_mesh_map( coarse_mesh, &
+                                          fine_to_coarse_gid_map )
 
   deallocate( coarse_panel_ids )
   deallocate( fine_panel_ids   )
@@ -345,9 +390,7 @@ subroutine map_global_meshes(self, source_global_mesh_id, target_global_mesh_id)
 end subroutine map_global_meshes
 
 
-!> @brief Call to a global mesh collection to add a global mesh
-!>        object for unit tests.
-!> @return global_mesh_id Integer id of the global mesh added to collection
+!==============================================================================
 function add_unit_test_global_mesh(self) result(global_mesh_id)
 
   implicit none
@@ -368,7 +411,7 @@ function add_unit_test_global_mesh(self) result(global_mesh_id)
     call self%global_mesh_list%insert_item( global_mesh )
   else
     write(log_scratch_space,'(A)')                                             &
-         "Test global mesh must only be added to an "                        //& 
+         "Test global mesh must only be added to an "                        //&
           "empty global mesh collection."
     call log_event(log_scratch_space,LOG_LEVEL_ERROR)
     return
@@ -378,9 +421,7 @@ function add_unit_test_global_mesh(self) result(global_mesh_id)
 end function add_unit_test_global_mesh
 
 
-!> @brief Call to a global mesh collection to return a global mesh with
-!>        a specified global_mesh_id
-!> @param [in] global_mesh_id  Integer id of global mesh object required
+!==============================================================================
 function get_global_mesh( self, global_mesh_id ) result( global_mesh )
 
   implicit none
@@ -419,28 +460,32 @@ function get_global_mesh( self, global_mesh_id ) result( global_mesh )
 end function get_global_mesh
 
 
-!> Clear all items from the mesh collection linked list
+
+!==============================================================================
 subroutine clear(self)
 
+  ! Clear all items from the linked list in the collection
   implicit none
 
   class(global_mesh_collection_type), intent(inout) :: self
 
   call self%global_mesh_list%clear()
 
+  return
 end subroutine clear
 
 
-! Mesh collection destructor
+!==============================================================================
 subroutine global_mesh_collection_destructor(self)
 
+  ! Object finalizer
   implicit none
 
   type (global_mesh_collection_type), intent(inout) :: self
 
-  call self%clear()
-
+  return
 end subroutine global_mesh_collection_destructor
+
 
 
 end module global_mesh_collection_mod

@@ -1,0 +1,18 @@
+class mesh_map_mod::mesh_map_type{
+
+  -mesh_map: integer[::]<<allocatable>>
+
+  +<<create>>  mesh_map_constructor( source_mesh_id:<<integer>>, target_mesh_id:<<integer>>, map:<<integer[::]>> ) : mesh_map_type
+  +<<destroy>> mesh_map_desctructor()
+  +clear()
+
+  +get_source_id(): integer
+  +get_target_id(): integer
+  +get_nsource_cells(): integer
+  +get_ntarget_cells_per_source_cell(): integer
+  +get_map_from_cell(<<in>>source_lid:integer, <<out>>map:integer[:] )
+  +get_map_from_cells(<<in>>source_lids:integer[:], <<out>>map:integer[::])
+  +get_full_map(<<out>>map:integer[::])
+}
+
+

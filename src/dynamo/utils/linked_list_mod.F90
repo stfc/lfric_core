@@ -35,19 +35,24 @@ module linked_list_mod
     type(linked_list_item_type), pointer :: current => null()
 
   contains
-    procedure, public              :: insert_item
-    procedure, public              :: item_exists
-    procedure, public              :: get_length
-    procedure, public              :: get_current
-    procedure, public              :: get_head
-    procedure, public              :: get_tail
-    procedure, public              :: clear
+    procedure, public :: insert_item
+    procedure, public :: item_exists
+    procedure, public :: get_length
+    procedure, public :: get_current
+    procedure, public :: set_current
+    procedure, public :: get_head
+    procedure, public :: get_tail
+    procedure, public :: clear
+
+    !> Object finaliser
+    final             :: linked_list_destructor
+
   end type linked_list_type
 
   type, public :: linked_list_item_type
     class(linked_list_data_type), pointer :: payload => null()
-    type(linked_list_item_type), pointer :: prev => null()
-    type(linked_list_item_type), pointer :: next => null()
+    type(linked_list_item_type),  pointer :: prev    => null()
+    type(linked_list_item_type),  pointer :: next    => null()
   end type linked_list_item_type
 
   interface linked_list_type
@@ -88,6 +93,16 @@ function get_current(self) result(curr_item)
   curr_item => self%current
 
 end function get_current
+
+!> Set the item currently pointed to.
+subroutine set_current(self, new_item)
+
+  class(linked_list_type), intent (inout)  :: self
+  class(linked_list_item_type),pointer  :: new_item
+
+  self%current => new_item
+
+end subroutine set_current
 
 !> Gets the item at the head of the list
 !> @return head item
@@ -315,5 +330,23 @@ subroutine clear(self)
 
 end subroutine clear
 
+!-----------------------------------------------------------------------------
+! Linked list finalizer
+!-----------------------------------------------------------------------------
+
+subroutine linked_list_destructor(self)
+
+  implicit none
+
+  type (linked_list_type), intent(inout) :: self
+
+  call self%clear()
+
+  nullify(self%head)
+  nullify(self%tail)
+  nullify(self%current)
+
+  return
+end subroutine linked_list_destructor
 
 end module linked_list_mod

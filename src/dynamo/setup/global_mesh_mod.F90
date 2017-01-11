@@ -15,7 +15,9 @@ module global_mesh_mod
 use constants_mod,                  only: r_def, i_def, str_max_filename
 use linked_list_data_mod,           only: linked_list_data_type
 use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
-
+use global_mesh_map_mod,            only: global_mesh_map_type
+use log_mod,                        only: log_event, log_scratch_space, &
+                                          LOG_LEVEL_ERROR, LOG_LEVEL_TRACE
 implicit none
 
 private
@@ -52,7 +54,7 @@ type, extends(linked_list_data_type), public :: global_mesh_type
 !> maximum number of cells around a vertex
   integer(i_def)       :: max_cells_per_vertex
 !> Collection of global mesh maps in global cell ids
-  type(global_mesh_map_collection_type) :: global_mesh_maps
+  type(global_mesh_map_collection_type), allocatable :: global_mesh_maps
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
@@ -140,14 +142,33 @@ contains
   !> @return The global cell id that the edge has been allocated to
   procedure, public :: get_edge_cell_owner
 
-  !> Gets a pointer to this objects global mesh map collection
-  !> @return global_mesh_maps global_mesh_map_collection_type <pointer>
-  procedure, public :: get_global_mesh_maps
- 
-  !> Manually clear all allocatable arrays and items from
-  !> mesh maps collection.
+  !> @brief Adds a global mesh map to from this global mesh (source) to
+  !>        another global mesh (target).
+  !> @param [in] target_global_mesh
+  !>             Target global mesh object to map to.
+  !> @param [in] map
+  !>             Global id map from source to target mesh with array
+  !>             dimensions [ncells target cells per source cell, 
+  !>             ncells in source mesh].
+  procedure, public :: add_global_mesh_map
+
+  !> @brief Returns the global mesh map which maps cells from this
+  !>        global mesh (source) to the global mesh (target) with the
+  !>        specified global mesh id.
+  !> @param [in] target_global_mesh_id
+  !>             Id of the target global mesh.
+  !> @return Global mesh map object from this global mesh to a global
+  !>         mesh with a specified global_mesh_id. A null pointer is
+  !>         returned if the requested map object is unavailable.
+  procedure, public :: get_global_mesh_map
+
+  !> @brief Forced clear of all this oject from memory.
+  !>        This routine should not need to be called manually except
+  !>        (possibly) in pfunit tests
   procedure, public :: clear
 
+  !> @brief Finalizer routine, should be called automatically by
+  !>        code when the object is out of scope
   final :: global_mesh_destructor
 
 end type global_mesh_type
@@ -162,7 +183,7 @@ end interface
 ! -------------------------------------------------------------------------
 
 !> Counter variable to keep track of the next mesh id number to uniquely 
-!! identify each different mesh
+!> identify each different mesh
 integer(i_def), save :: global_mesh_id_counter = 0
 
 !-------------------------------------------------------------------------------
@@ -273,8 +294,9 @@ do ientity=1,nedge_in
 end do
 
 ! Initialise values in this objects global mesh maps collection
-self%global_mesh_maps = global_mesh_map_collection_type                        &
-                                                 ( self%get_id(), self%ncells )
+if (.not. allocated(self%global_mesh_maps) )                 &
+     allocate ( self%global_mesh_maps,                       &
+                source = global_mesh_map_collection_type() )
 
 end function global_mesh_constructor
 
@@ -615,17 +637,71 @@ function get_edge_cell_owner ( self, edge ) result ( cell )
 end function get_edge_cell_owner
 
 
-function get_global_mesh_maps(self) result(global_mesh_maps)
+subroutine add_global_mesh_map(self, target_global_mesh, map)
 
   implicit none
 
-  class(global_mesh_type), target :: self
-  type(global_mesh_map_collection_type), pointer :: global_mesh_maps
+  class(global_mesh_type), intent(inout)       :: self
+  type(global_mesh_type),  intent(in), pointer :: target_global_mesh
+  integer,                 intent(in)          :: map(:,:)
 
-  global_mesh_maps => self%global_mesh_maps
+  integer(i_def) :: source_global_mesh_id
+  integer(i_def) :: target_global_mesh_id
+
+  source_global_mesh_id = self%get_id()
+  target_global_mesh_id = target_global_mesh%get_id()
+
+  ! Perform tests to see if this is a valid map to add
+  !==========================================================================
+  if (source_global_mesh_id == target_global_mesh_id) then
+    write(log_scratch_space, '(A)') &
+        'Nothing to do, no need to map global mesh to itself.'
+    call log_event(log_scratch_space, LOG_LEVEL_TRACE)
+    return
+  end if
+
+  if (size(map,2) /= self%ncells) then
+    write(log_scratch_space, '(A,I0,A,I0,A)')                      &
+        'Invalid global mesh mapping: Number of source cells '   //&
+        'in global mesh map (', size(map,2), ') does not match ' //&
+        'number of source global mesh cells (', self%ncells, ')'
+    call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    return
+  end if
+
+
+  ! Ask the global mesh map collection to add this map to itself
+  call self%global_mesh_maps%add_global_mesh_map( source_global_mesh_id, &
+                                                  target_global_mesh_id, &
+                                                  map )
+  return
+
+end subroutine add_global_mesh_map
+
+function get_global_mesh_map(self, target_global_mesh_id) &
+                      result(global_mesh_map)
+
+  implicit none
+
+  class(global_mesh_type), intent(in) :: self
+  integer,                 intent(in) :: target_global_mesh_id
+
+  type(global_mesh_map_type), pointer :: global_mesh_map
+
+  integer(i_def) :: source_global_mesh_id
+
+  global_mesh_map => null()
+  source_global_mesh_id = self%get_id()
+
+  ! Ask the global mesh map collection to return the map
+  ! from source->target
+  global_mesh_map =>                                                     &
+      self%global_mesh_maps%get_global_mesh_map( source_global_mesh_id,  &
+                                                 target_global_mesh_id )
 
   return
-end function get_global_mesh_maps
+
+end function get_global_mesh_map
 
 
 !==============================================================================
@@ -765,8 +841,9 @@ function global_mesh_constructor_unit_test_data() result (self)
                              7, 8, 9, 7, 8, 9, 9, 7, 8, 9]
 
   ! Initialise values in this objects global mesh maps collection
-  self%global_mesh_maps = global_mesh_map_collection_type                      &
-                                                 ( self%get_id(), self%ncells )
+  if (.not. allocated(self%global_mesh_maps) )                 &
+       allocate ( self%global_mesh_maps,                       &
+                  source = global_mesh_map_collection_type() )
 
 end function global_mesh_constructor_unit_test_data
 
@@ -782,14 +859,15 @@ subroutine clear(self)
 
   class (global_mesh_type), intent(inout) :: self
 
-  if (allocated(self%vert_coords))       deallocate( self%vert_coords     )
-  if (allocated(self%cell_next_2d))      deallocate( self%cell_next_2d    )
+  if (allocated(self%vert_coords))       deallocate( self%vert_coords )
+  if (allocated(self%cell_next_2d))      deallocate( self%cell_next_2d )
   if (allocated(self%vert_on_cell_2d))   deallocate( self%vert_on_cell_2d )
   if (allocated(self%cell_on_vert_2d))   deallocate( self%cell_on_vert_2d )
   if (allocated(self%edge_on_cell_2d))   deallocate( self%edge_on_cell_2d )
   if (allocated(self%cell_on_edge_2d))   deallocate( self%cell_on_edge_2d )
   if (allocated(self%vert_cell_owner))   deallocate( self%vert_cell_owner )
   if (allocated(self%edge_cell_owner))   deallocate( self%edge_cell_owner )
+  if (allocated(self%global_mesh_maps))  deallocate( self%global_mesh_maps )
 
   return
 end subroutine clear

@@ -23,7 +23,6 @@ program gravity_wave
   use field_mod,                      only : field_type
   use finite_element_config_mod,      only : element_order
   use operator_mod,                   only : operator_type
-  use function_space_collection_mod,  only : function_space_collection
   use gravity_wave_alg_mod,           only : gravity_wave_alg_init, &
                                              gravity_wave_alg_step
   use log_mod,                        only : log_event,         &
@@ -90,7 +89,7 @@ program gravity_wave
 
 
   ! Create the mesh and function space collection
-  call init_gungho(mesh_id, local_rank, total_ranks, function_space_collection)
+  call init_gungho(mesh_id, local_rank, total_ranks)
 
   ! Create and initialise prognostic fields
   call init_gravity_wave(mesh_id, chi, wind, pressure, buoyancy, restart)

@@ -1,18 +1,15 @@
 class global_mesh_map_mod::global_mesh_map_type {
-  -source_mesh_id: integer
-  -target_mesh_id: integer
-  -nsource_cells:  integer
-  -ntarget_cells_per_source_cell: integer
-  -global_mesh_map: integer[::] <<allocatable>>
 
-  +<<create>>global_mesh_map_constructor( <<in>>source_id: integer, <<in>>target_id: integer, <<in>>global_mesh_map: integer[::] <<allocatable>> ) : global_mesh_map_type
-  +<<destroy>>global_mesh_map_destructor()
+  -global_mesh_map: integer[::]<<allocatable>>
+
+  +<<create>>  global_mesh_map_constructor(<<in>>source_global_mesh_id:<<integer>>, <<in>>target_global_mesh_id:<<integer>>, <<in>>map:<<integer[::]>> ) : global_mesh_map_type
+  +<<destroy>> global_mesh_map_destructor()
+  +clear()
 
   +get_source_id(): integer
   +get_target_id(): integer
   +get_nsource_cells(): integer
-  +get_get_ntarget_cells_per_source_cell(): integer
-  +get_cell_map( <<in>>cell_ids: integer[:], <<out>>gid_map: integer[::] )
+  +get_ntarget_cells_per_source_cell(): integer
+  +get_cell_map( <<in>>cell_ids:<<integer[:]>>, <<out>>gid_map:<<integer[::]>> )
 
-  +clear()
 }

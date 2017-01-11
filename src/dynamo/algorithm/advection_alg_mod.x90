@@ -133,7 +133,7 @@ contains
   type(field_type),    pointer :: chi(:) => null()
   type(operator_type), pointer :: mm_wt,mm_w2, mm_w1, div, curl => null()
   type(field_type),    pointer :: mmd_w2, mmd_w1 => null()
-  integer(i_def),              :: mesh 
+  integer(i_def)               :: mesh_id
 
   type(quadrature_type)     :: qr
   type(field_type), pointer :: u ,theta, rho, theta_np1, theta_n => null()
@@ -152,7 +152,7 @@ contains
   chi    => get_coordinates()
   div    => get_div()
   curl   => get_curl()
-  mesh = chi(1)%get_mesh_id()
+  mesh_id = chi(1)%get_mesh_id()
 
   u     => state(1)
   theta => state(2)
@@ -161,16 +161,16 @@ contains
   theta_np1 => state_np1(2)
   theta_n => state_n(2)
  
-  u_fs     => function_space_collection%get_fs( mesh, &
+  u_fs     => function_space_collection%get_fs( mesh_id, &
                                                 element_order, &
                                                 u%which_function_space() )
-  xi_fs    => function_space_collection%get_fs( mesh, &
+  xi_fs    => function_space_collection%get_fs( mesh_id, &
                                                 element_order, &
                                                 xi%which_function_space() )
-  rho_fs   => function_space_collection%get_fs( mesh, &
+  rho_fs   => function_space_collection%get_fs( mesh_id, &
                                                 element_order, &
                                                 rho%which_function_space() )
-  theta_fs => function_space_collection%get_fs( mesh, &
+  theta_fs => function_space_collection%get_fs( mesh_id, &
                                                 element_order, &
                                                 theta%which_function_space() )
 
@@ -195,7 +195,7 @@ contains
       call invoke(flux_rhs_kernel_type( advection(1), u, rho, chi, qr ) )
       call invoke(enforce_bc_kernel_type( advection(1) ) )
       call invoke_set_field_scalar( 0.0_r_def, mass_flux ) 
-      call solver_algorithm( mass_flux, advection(1), mesh, chi, method, &
+      call solver_algorithm( mass_flux, advection(1), mesh_id, chi, method, &
                              mm=mm_w2, mmd=mmd_w2, &
                              preconditioner_choice=solver_preconditioner_diagonal)
   end select
@@ -204,7 +204,7 @@ contains
   call invoke_set_field_scalar( 0.0_r_def, r_xi )
   call invoke( transpose_matrix_vector_kernel_type(r_xi, u, curl) )
   call invoke( enforce_bc_kernel_type( r_xi ) )
-  call solver_algorithm( xi, r_xi, mesh, chi, method, &
+  call solver_algorithm( xi, r_xi, mesh_id, chi, method, &
                          mm=mm_w1, mmd=mmd_w1, &
                          preconditioner_choice=solver_preconditioner_diagonal)
   call invoke_set_field_scalar( 0.0_r_def, advection(1) ) 
@@ -249,7 +249,7 @@ contains
   call invoke_set_field_scalar( 0.0_r_def, r_rho )
   call invoke( matrix_vector_kernel_type( r_rho, mass_flux, div) )
   call invoke_multiply_field(-1.0_r_def, r_rho, r_rho) 
-  call solver_algorithm( advection(3), r_rho, mesh, chi, method, qr=qr )
+  call solver_algorithm( advection(3), r_rho, mesh_id, chi, method, qr=qr )
 
   end subroutine advection_alg
 

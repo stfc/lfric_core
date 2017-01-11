@@ -1,48 +1,47 @@
 class mesh_mod::mesh_type {
-  -partition: partition_type
-  -domain_size: domain_limits
-  -mesh_id: integer
-  -nlayers: integer
-  -domain_top: real
-  -eta:real[] <<allocatable>>
-  -dz: real[] <<allocatable>>
-  -vertex_coords: real[::] <<allocatable>>
-  -nverts_2d: integer
-  -nedges_2d: integer
-  -ncells_2d: integer
-  -ncells_2d_with_ghost: integer
-  -nverts: integer
-  -nedges: integer
-  -nfaces: integer
-  -ncells: integer
-  -nverts_per_cell: integer
-  -nedges_per_cell: integer
-  -nfaces_per_cell: integer
-  -cell_lid_gid_map: integer[] <<allocatable>>
-  -cell_next: integer[::] <<allocatable>>
-  -vert_on_cell: integer[::] <<allocatable>>
-  -face_on_cell: integer[::] <<allocatable>>
-  -edge_on_cell: integer[::] <<allocatable>>
-  -vert_cell_owner: integer[::] <<allocatable>>
-  -edge_cell_owner: integer[::] <<allocatable>>
-  -vertex_ownership: integer[::] <<allocatable>>
-  -edge_ownership: integer[::] <<allocatable>>
-  -ncolours: integer
-  -ncells_per_colour: integer[] <<allocatable>>
-  -cells_in_colour: integer[::] <<allocatable>>
+  -partition:partition_type
+  -domain_size:domain_limits
+  -global_mesh_id:integer
+  -nlayers:integer
+  -domain_top:real
+  -eta:real[  ] <<allocatable>>
+  -dz:real[  ] <<allocatable>>
+  -vertex_coords:real[::] <<allocatable>>
+  -nverts_2d:integer
+  -nedges_2d:integer
+  -ncells_2d:integer
+  -ncells_2d_with_ghost:integer
+  -nverts:integer
+  -nedges:integer
+  -nfaces:integer
+  -ncells:integer
+  -nverts_per_cell:integer
+  -nedges_per_cell:integer
+  -nfaces_per_cell:integer
+  -mesh_maps:mesh_map_collection_type <<allocatable>>
+  -cell_lid_gid_map:integer[  ] <<allocatable>>
+  -cell_next:integer[::] <<allocatable>>
+  -vert_on_cell:integer[::] <<allocatable>>
+  -face_on_cell:integer[::] <<allocatable>>
+  -edge_on_cell:integer[::] <<allocatable>>
+  -vert_cell_owner:integer[::] <<allocatable>>
+  -edge_cell_owner:integer[::] <<allocatable>>
+  -vertex_ownership:integer[::] <<allocatable>>
+  -edge_ownership:integer[::] <<allocatable>>
+  -ncolours:integer
+  -ncells_per_colour:integer[  ] <<allocatable>>
+  -cells_in_colour:integer[::] <<allocatable>>
 
-  {static}+get_mesh_instance() : mesh_type <<pointer>>
-  {static}+get_mesh_instance( <<in>>mesh_id: integer ) : mesh_type <<pointer>>
-  {static}+get_mesh_instance( <<in>>global_mesh: global_mesh_type, <<in>>partition: partition_type, <<in>>nlayers_in: integer, <<in>>domain_top: real, <<in>>vgrid_option: integer ) : mesh_type <<pointer>>
-  {static}+get_mesh_instance_test( <<in>>grid_option: integer ) : mesh_type <<pointer>>
-
-  +<<destroy>mesh_destructor()
+  +<<create>>  mesh_constructor(<<in>>global_mesh: global_mesh_type, <<in>>partition: partition_type,<<in>>nlayers_in: integer, <<in>>domain_top: real,<<in>>vgrid_option: integer ) : mesh_type
+  +<<create>>  mesh_constructor_unit_test_data(<<in>>mesh_cfg: integer ) : mesh_type
+  +<<destroy>> mesh_destructor()
+  +clear()
 
   +get_cell_coords( <<in>>cell_lid: integer, <<out>>cell_coords: real[::] )
   +get_cell_gid( <<in>>cell_lid: integer ) : integer
   +get_cell_lid( <<in>>cell_gid: integer ) : integer
   +get_cell_next( <<in>>iface: integer, <<in>>cell_lid: integer ) : integer
-  +get_colours( <<out>>ncolours: integer, <<out>>ncells_per_colour: integer[]<<pointer>>, <<out>>colour_map: integer[::]<<pointer>>)
+  +get_colours(<<out>>ncolours: integer, <<out>>ncells_per_colour: integer[]<<pointer>>,<<out>>colour_map: integer[::]<<pointer>>)
   +get_column_coords( <<in>>cell_lid: integer, <<out>>column_coords: real[:::] )
   +get_domain_size() : domain_limits
   +get_domain_top() : real
@@ -52,8 +51,8 @@ class mesh_mod::mesh_type {
   +get_eta( <<out>>eta: real[] )
   +get_face_on_cell( <<in>>iface: integer, <<in>>icell: integer ) : integer
   +get_gid_from_lid( <<in>>cell_lid: integer ) : integer
+  +get_global_mesh_id() : integer
   +get_halo_depth() : integer
-  +get_id() : integer
   +get_inner_depth() : integer
   +get_last_edge_cell() : integer
   +get_last_halo_cell( <<in>>depth: integer ) : integer
@@ -76,6 +75,9 @@ class mesh_mod::mesh_type {
   +get_nverts() : integer
   +get_nverts_2d() : integer
   +get_nverts_per_cell() : integer
+  +add_mesh_map(<<in>>target_mesh: mesh_type<<pointer>>)
+  +get_mesh_map(<<in>>target_mesh_id: integer) : mesh_map_type <<pointer>>
+  +get_partition() : partition_type<<pointer>>
   +get_total_ranks() : integer
   +get_vertex_cell_owner( <<in>>vertex_index: integer, <<in>>cell_lid: integer ) : integer
   +get_vert_coords( <<in>>vert_lid: integer, <<out>>vertex_coords: real[] )
@@ -85,7 +87,5 @@ class mesh_mod::mesh_type {
   +is_edge_owned( <<in>>edge_index: integer, <<in>>cell_lid: integer ) : logical
   +is_vertex_owned( <<in>>vertex_index: integer, <<in>>cell_lid: integer ) : logical
   +set_colours()
-
   -set_vertical_coordinate( <<in>>vgrid_option: integer )
 }
-

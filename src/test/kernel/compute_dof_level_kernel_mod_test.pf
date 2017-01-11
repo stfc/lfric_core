@@ -62,6 +62,7 @@ contains
 
     class(compute_dof_level_test_type), intent(inout) :: this
 
+    call mesh_collection%clear()
     call function_space_collection%clear()
     call deallocate_reference()
 

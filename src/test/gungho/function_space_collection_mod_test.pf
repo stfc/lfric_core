@@ -85,6 +85,7 @@ contains
 
     call function_space_collection%clear()
     call deallocate_reference()
+    call mesh_collection%clear()
 
   end subroutine tearDown
 
@@ -102,6 +103,7 @@ contains
     integer(i_def) :: fs_2
     integer(i_def) :: fs_3
 
+    type(function_space_type), pointer :: test_fs => null()
 
     ! create 3 function spaces
 
@@ -132,7 +134,7 @@ contains
     ! it should have the correct id and the number of
     ! function spaces in the collection should not increase
 
-    this%temp_w0_fs => function_space_collection%get_fs( this%mesh_id, &
+    this%temp_w0_fs => function_space_collection%get_fs( this%mesh_id,  &
                                                          element_order, &
                                                          W0 )
 
@@ -140,6 +142,10 @@ contains
 
     @assertEqual(answer, function_space_collection%get_fs_collection_size())
 
+    ! Test you can get the same function space by it's id
+    test_fs => function_space_collection%get_fs_by_id(fs_0)
+    @assertAssociated(test_fs, this%temp_w0_fs)
+    
     
   end subroutine test_all
 

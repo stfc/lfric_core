@@ -22,7 +22,6 @@ module init_gungho_mod
                                              global_mesh_collection
   use mesh_collection_mod,            only : mesh_collection_type, &
                                              mesh_collection
-  use mesh_mod,                       only : mesh_type
   use set_up_mod,                     only : set_up
 
 
@@ -31,24 +30,34 @@ module init_gungho_mod
 
   contains
 
-  subroutine init_gungho(mesh_id, local_rank, total_ranks,                     &
-                         function_space_collection)
+  subroutine init_gungho(mesh_id, local_rank, total_ranks)
 
     integer(i_def), intent(out)   :: mesh_id
     integer(i_def), intent(in)    :: total_ranks
     integer(i_def), intent(in)    :: local_rank
 
-    type(function_space_collection_type)                                       &
-                  , intent(inout) :: function_space_collection
-
     ! Create top level collections
-    global_mesh_collection    = global_mesh_collection_type()
-    mesh_collection           = mesh_collection_type()
-    function_space_collection = function_space_collection_type()
+    allocate( global_mesh_collection, &
+              source = global_mesh_collection_type() )
+
+    allocate( mesh_collection, &
+              source = mesh_collection_type() )
+
+    allocate( function_space_collection, &
+              source = function_space_collection_type() )
+
     ! Set up mesh
     call set_up(local_rank, total_ranks, mesh_id)
 
-    write(log_scratch_space,'(A,I0)') "Gungho:Partition mesh, id=", mesh_id
+    ! Full global meshes no longer required, so reclaim the memory
+    ! from global_mesh_collection
+    write(log_scratch_space,'(A)') &
+        "Gungho: Meshes created, purging global mesh collection."
+    call log_event(log_scratch_space,LOG_LEVEL_INFO)
+
+    deallocate(global_mesh_collection)
+
+    write(log_scratch_space,'(A,I0)') "Gungho: Partition mesh, id=", mesh_id
     call log_event(log_scratch_space,LOG_LEVEL_INFO)
 
     call log_event( 'Gungho initialised', LOG_LEVEL_INFO )

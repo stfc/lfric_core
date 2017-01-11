@@ -110,7 +110,7 @@ contains
     type(field_type),             intent(in) :: x0(bundle_size)
     integer                                  :: iter
     type(function_space_type), pointer       :: exner_fs => null()
-    integer(i_def)                           :: mesh
+    integer(i_def)                           :: mesh_id
     integer(kind=i_def)                      :: fs_handle
 
 
@@ -141,10 +141,10 @@ contains
       call clone_bundle(x0, x0_ext, si_bundle_size)
     else
       call clone_bundle(x0, x0_ext(1:bundle_size), bundle_size)
-      mesh = x0(bundle_size)%get_mesh_id()
+      mesh_id = x0(bundle_size)%get_mesh_id()
       fs_handle = x0(bundle_size)%which_function_space()
 
-      exner_fs => function_space_collection%get_fs(mesh, &
+      exner_fs => function_space_collection%get_fs(mesh_id,       &
                                                    element_order, &
                                                    fs_handle)
       x0_ext(si_bundle_size) = field_type( exner_fs )

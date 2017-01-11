@@ -137,7 +137,7 @@ contains
 
     deallocate( this%basis_w3, this%basis_w2,  &
                 this%basis_w0, this%diff_basis_w0 )
-
+    call mesh_collection%clear()
     call function_space_collection%clear()
     call deallocate_reference()
 

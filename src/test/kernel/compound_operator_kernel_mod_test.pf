@@ -61,9 +61,8 @@ contains
     reference_element = finite_element_shape_quadrilateral
     call reference_cube()
 
-    ! Create top level mesh collection
+    ! Create top level collections
     mesh_collection = mesh_collection_type()
-    ! Create top level function space collection
     function_space_collection = function_space_collection_type()
 
     ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
@@ -93,6 +92,7 @@ contains
     class(compound_operator_test_type), intent(inout) :: this
 
     call function_space_collection%clear()
+    call mesh_collection%clear()
     call deallocate_reference()
 
   end subroutine tearDown
@@ -135,8 +135,6 @@ contains
     m_w3_1_p%local_stencil(:,:,:) = 0.0_r_def
     m_w3_2_p%local_stencil(:,:,:) = 0.0_r_def
 
-    cell = 1
-    
     do i = 1,ndf_w2
       do j = 1,ndf_w3
         d(j,i) = real(i*j,r_def)

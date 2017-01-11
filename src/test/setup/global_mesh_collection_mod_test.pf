@@ -165,8 +165,6 @@ contains
 
     type(global_mesh_collection_type) :: global_mesh_collection
     type(global_mesh_type), pointer   :: global_mesh => null()
-    type(global_mesh_map_collection_type), pointer                             &
-                                      :: global_mesh_map_collection => null()
 
     integer (i_def) :: global_mesh_id
     integer (i_def) :: global_mesh_duplicate_id
@@ -185,16 +183,7 @@ contains
     ! Test that it has the right id
     @assertTrue ( global_mesh%get_id() == global_mesh_id )
 
-    ! Get the global_mesh_map_collection
-    global_mesh_map_collection => global_mesh%get_global_mesh_maps()
-
-    ! Test the global mesh map collection
-    @assertAssociated ( global_mesh_map_collection )
-    @assertTrue ( global_mesh_map_collection%get_source_id()     == global_mesh_id )
-    @assertTrue ( global_mesh_map_collection%get_source_ncells() == global_mesh%get_ncells() )
-
     call global_mesh_collection%clear()
-    call global_mesh_map_collection%clear()
 
   end subroutine test_initial_global_mesh_map_collection
 
@@ -213,8 +202,6 @@ contains
 
 
     type(global_mesh_type), pointer :: tmp_global_mesh  => null()
-    type(global_mesh_map_collection_type), pointer :: &
-                                       global_mesh_map_collection => null()
 
     type(global_mesh_map_type), pointer :: &
                                        global_mesh_map => null()
@@ -260,51 +247,36 @@ contains
     ! Multigrid4  mesh should have 1 maps
     !===========================================================================
     ! MultiGrid 1
-    global_mesh                => global_mesh_collection %                     &
-                                    get_global_mesh(MultiGrid_id(1))
-    global_mesh_map_collection => global_mesh %                                &
-                                    get_global_mesh_maps()
-    global_mesh_map            => global_mesh_map_collection %                 &
-                                    get_global_mesh_map(MultiGrid_id(2))
+    global_mesh     => global_mesh_collection % get_global_mesh(MultiGrid_id(1))
+    global_mesh_map => global_mesh % get_global_mesh_map(MultiGrid_id(2))
     @assertAssociated( global_mesh_map )
 
 
     ! MultiGrid 2
-    global_mesh                => global_mesh_collection %                     &
-                                    get_global_mesh(MultiGrid_id(2))
-    global_mesh_map_collection => global_mesh %                                &
-                                    get_global_mesh_maps()
-
-    global_mesh_map => global_mesh_map_collection % get_global_mesh_map(MultiGrid_id(1))
+    global_mesh     => global_mesh_collection % get_global_mesh(MultiGrid_id(2))
+    global_mesh_map => global_mesh % get_global_mesh_map(MultiGrid_id(1))
     @assertAssociated( global_mesh_map )
-    global_mesh_map => global_mesh_map_collection % get_global_mesh_map(MultiGrid_id(3))
+    global_mesh_map => global_mesh % get_global_mesh_map(MultiGrid_id(3))
     @assertAssociated( global_mesh_map )
 
     ! MultiGrid 3
-    global_mesh                => global_mesh_collection %                     &
-                                    get_global_mesh(MultiGrid_id(3))
-    global_mesh_map_collection => global_mesh %                                &
-                                    get_global_mesh_maps()
-
-    global_mesh_map => global_mesh_map_collection % get_global_mesh_map(MultiGrid_id(2))
+    global_mesh     => global_mesh_collection % get_global_mesh(MultiGrid_id(3))
+    global_mesh_map => global_mesh % get_global_mesh_map(MultiGrid_id(2))
     @assertAssociated( global_mesh_map )
-    global_mesh_map => global_mesh_map_collection % get_global_mesh_map(MultiGrid_id(4))
+    global_mesh_map => global_mesh % get_global_mesh_map(MultiGrid_id(4))
     @assertAssociated( global_mesh_map )
 
     ! MultiGrid 4
-    global_mesh                => global_mesh_collection %                     &
-                                    get_global_mesh(MultiGrid_id(4))
-    global_mesh_map_collection => global_mesh % get_global_mesh_maps()
-    global_mesh_map => global_mesh_map_collection % get_global_mesh_map(MultiGrid_id(3))
+    global_mesh     => global_mesh_collection % get_global_mesh(MultiGrid_id(4))
+    global_mesh_map => global_mesh % get_global_mesh_map(MultiGrid_id(3))
     @assertAssociated( global_mesh_map )
 
 
     ! Check the maps
     !==============================================================================
     ! 96 cell --> 384 cell
-    global_mesh                => global_mesh_collection % get_global_mesh(MultiGrid_id(1))
-    global_mesh_map_collection => global_mesh % get_global_mesh_maps()
-    global_mesh_map            => global_mesh_map_collection % get_global_mesh_map(MultiGrid_id(2))
+    global_mesh     => global_mesh_collection % get_global_mesh(MultiGrid_id(1))
+    global_mesh_map => global_mesh % get_global_mesh_map(MultiGrid_id(2))
 
     tmp_int = global_mesh_map % get_source_id()
     @assertEqual( tmp_int, MultiGrid_id(1) )
@@ -337,9 +309,8 @@ contains
     deallocate(tmp_gid_map)
 
     ! 384 cell --> 96 cell
-    global_mesh                => global_mesh_collection % get_global_mesh(MultiGrid_id(2))
-    global_mesh_map_collection => global_mesh % get_global_mesh_maps()
-    global_mesh_map            => global_mesh_map_collection % get_global_mesh_map(MultiGrid_id(1))
+    global_mesh     => global_mesh_collection % get_global_mesh(MultiGrid_id(2))
+    global_mesh_map => global_mesh % get_global_mesh_map(MultiGrid_id(1))
 
     tmp_int = global_mesh_map%get_source_id()
     @assertEqual( tmp_int, MultiGrid_id(2) )
@@ -357,10 +328,10 @@ contains
     ! Check gid map
     allocate(tmp_gid_map(1,1))
 
-    call global_mesh_map%get_cell_map([1], tmp_gid_map )  ! On panel 1
+    call global_mesh_map%get_cell_map([1], tmp_gid_map )   ! On panel 1
     @assertEqual( [1], tmp_gid_map(:,1) )
 
-    call global_mesh_map%get_cell_map([55], tmp_gid_map ) ! On panel 1
+    call global_mesh_map%get_cell_map([55], tmp_gid_map )  ! On panel 1
     @assertEqual( [16], tmp_gid_map(:,1)  )
 
     call global_mesh_map%get_cell_map([160], tmp_gid_map ) ! On panel 3
@@ -374,9 +345,8 @@ contains
 
 
     ! 384 cell --> 1536 cell
-    global_mesh                => global_mesh_collection % get_global_mesh(MultiGrid_id(2))
-    global_mesh_map_collection => global_mesh % get_global_mesh_maps()
-    global_mesh_map            => global_mesh_map_collection % get_global_mesh_map(MultiGrid_id(3))
+    global_mesh     => global_mesh_collection % get_global_mesh(MultiGrid_id(2))
+    global_mesh_map => global_mesh % get_global_mesh_map(MultiGrid_id(3))
 
     tmp_int = global_mesh_map%get_source_id()
     @assertEqual( tmp_int, MultiGrid_id(2) )
@@ -411,11 +381,7 @@ contains
 
     ! Destroy global_mesh_collection
     call global_mesh_collection%clear()
-    call global_mesh_map_collection%clear()
-    call global_mesh_map%clear()
 
   end subroutine test_multigrid
-
-
 
 end module global_mesh_collection_mod_test

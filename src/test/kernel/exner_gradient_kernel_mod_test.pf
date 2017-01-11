@@ -155,6 +155,7 @@ contains
                 this%basis_w0, this%diff_basis_w0 )
 
     call deallocate_reference()
+    call mesh_collection%clear()
     call function_space_collection%clear()
 
   end subroutine tearDown

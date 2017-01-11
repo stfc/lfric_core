@@ -150,6 +150,7 @@ contains
     deallocate(this%test_diff_basis)
 
     call deallocate_reference()
+    call mesh_collection%clear()
 
   end subroutine tearDown
 

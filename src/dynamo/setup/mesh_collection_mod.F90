@@ -24,8 +24,18 @@ module mesh_collection_mod
   private
 
   type, public :: mesh_collection_type
+
     private
-    type(linked_list_type), private :: mesh_list
+
+    type(linked_list_type) :: mesh_list
+
+    !> An unused allocatable integer that prevents an intenal compiler error
+    !> with the Gnu Fortran compiler. Adding an allocatable forces the compiler
+    !> to accept that the object has a finaliser. It gets confused without it.
+    !> This is a workaround for GCC bug id 61767 - when this bug is fixed, the
+    !> integer can be removed.
+    integer(i_def), allocatable :: dummy_for_gnu
+
   contains
     private
     procedure, public :: add_new_mesh
@@ -43,7 +53,7 @@ module mesh_collection_mod
   end interface
 
   ! Module variable allows access to the single mesh collection
-  type(mesh_collection_type), public :: mesh_collection
+  type(mesh_collection_type), public, allocatable :: mesh_collection
 
 contains
 
@@ -51,8 +61,9 @@ contains
 !> @return self The constructed mesh collection object
 function mesh_collection_constructor() result(self)
 
-implicit none
-type(mesh_collection_type) :: self
+  implicit none
+
+  type(mesh_collection_type) :: self
 
   self%mesh_list = linked_list_type()
 
@@ -90,11 +101,11 @@ function add_new_mesh( self,          &
 
   type(mesh_type) :: mesh
 
-  mesh = mesh_type(global_mesh, &
-                   partition, &
-                   nlayers_in, &
-                   domain_top, &
-                   vgrid_option )
+  mesh = mesh_type( global_mesh, &
+                    partition,   &
+                    nlayers_in,  &
+                    domain_top,  &
+                    vgrid_option )
 
   mesh_id=mesh%get_id()
 
@@ -180,8 +191,6 @@ subroutine mesh_collection_destructor(self)
   implicit none
 
   type (mesh_collection_type), intent(inout) :: self
-
-  call self%clear()
 
 end subroutine mesh_collection_destructor
 

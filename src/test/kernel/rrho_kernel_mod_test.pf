@@ -116,6 +116,7 @@ contains
 
     call deallocate_reference()
     call function_space_collection%clear()
+    call mesh_collection%clear()
 
   end subroutine tearDown
 

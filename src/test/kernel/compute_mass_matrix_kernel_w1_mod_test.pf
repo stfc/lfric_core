@@ -121,6 +121,7 @@ contains
 
     deallocate( this%basis, this%diff_basis )
 
+    call mesh_collection%clear()
     call function_space_collection%clear()
     call deallocate_reference()
 

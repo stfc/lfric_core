@@ -173,6 +173,8 @@ contains
   !> Overloaded assigment operator
   procedure, public :: partition_type_assign
 
+  procedure, public :: clear
+
   !> Routine to destroy partition_type
   final             :: partition_destructor 
 
@@ -373,11 +375,11 @@ if (rc /= ESMF_SUCCESS) call log_event( &
 
 end function partition_constructor
 
-! Destroy a partition_type instance.
-subroutine partition_destructor(self)
+! Manually clear a partition_type instance (for unit testing)
+subroutine clear(self)
 
   implicit none
-  type(partition_type), intent(inout)    :: self
+  class (partition_type), intent(inout) :: self
 
   if ( allocated( self%cell_owner ) )      deallocate( self%cell_owner )
   if ( allocated( self%global_cell_id ) )  deallocate( self%global_cell_id )
@@ -385,6 +387,16 @@ subroutine partition_destructor(self)
   if ( allocated( self%last_halo_cell ) )  deallocate( self%last_halo_cell )
   if ( allocated( self%num_inner ) )       deallocate( self%num_inner )
   if ( allocated( self%last_inner_cell ) ) deallocate( self%last_inner_cell )
+
+end subroutine clear
+
+! Destroy a partition_type instance.
+subroutine partition_destructor(self)
+
+  implicit none
+  type (partition_type), intent(inout) :: self
+
+  call self%clear()
 
 end subroutine partition_destructor
 

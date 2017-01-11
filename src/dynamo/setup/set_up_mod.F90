@@ -18,8 +18,7 @@ module set_up_mod
   use base_mesh_config_mod,      only : filename, &
                                         geometry, &
                                         base_mesh_geometry_spherical
-  use constants_mod,             only : i_def, r_def, str_def, l_def, PI, imdi &
-                                      , str_max_filename
+  use constants_mod,             only : i_def, r_def, str_def, l_def
   use extrusion_config_mod,      only : number_of_layers,           &
                                         domain_top,                 &
                                         method,                     &
@@ -33,7 +32,6 @@ module set_up_mod
   use partitioning_config_mod,    only : auto, panel_xproc, panel_yproc
   use global_mesh_mod,            only : global_mesh_type
   use global_mesh_collection_mod, only : global_mesh_collection
-  use global_mesh_map_mod,        only : global_mesh_map_type
   use mesh_collection_mod,        only : mesh_collection
   use reference_element_mod,      only : reference_cube, reference_element, &
                                          nfaces, nedges, nverts
@@ -75,9 +73,11 @@ contains
 
     integer(i_def), parameter :: max_factor_iters = 10000
 
-    type (global_mesh_type), pointer :: global_mesh => null()
+    type (global_mesh_type), pointer :: global_mesh_ptr => null()
+    type (global_mesh_type)          :: global_mesh
     type (partition_type)            :: partition
-    type (mesh_type),        pointer :: mesh        => null()
+    type (mesh_type),        pointer :: prime_mesh_ptr  => null()
+    type (mesh_type)                 :: prime_mesh
 
     procedure (partitioner_interface), pointer :: partitioner_ptr => null ()
 
@@ -117,6 +117,8 @@ contains
     ! Setup reference cube
     call reference_cube()
 
+
+    ! Setup the partitioning strategy
     if ( geometry == base_mesh_geometry_spherical ) then
 
       npanels = 6
@@ -148,16 +150,6 @@ contains
       call log_event( "set_up: Setting up biperiodic plane partitioner ", &
                       LOG_LEVEL_INFO )
     end if
-
-    ! Generate the global mesh and choose a partitioning strategy by setting
-    ! a function pointer to point at the appropriate partitioning routine
-    global_mesh_id =  global_mesh_collection%add_new_global_mesh( filename     &
-                                                                , npanels )
-    global_mesh    => global_mesh_collection%get_global_mesh( global_mesh_id )
-
-    if ( .not. associated(global_mesh) )                                       &
-      call log_event( "set_up: Global mesh not in collection"                  &
-                    , LOG_LEVEL_ERROR )
 
 
     if(auto)then
@@ -203,12 +195,12 @@ contains
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
     end if
 
-
-    ! Generate the partition object
-    max_stencil_depth = 0
+    ! Determine max_stencil_depth
+    max_stencil_depth=0
     if ( operators == transport_operators_fv) then
       ! Need larger haloes for fv operators
-      max_fv_stencil = int(real(max(fv_flux_order,fv_advective_order)+1)/2.0,i_def)
+      max_fv_stencil = int(real(max(fv_flux_order,fv_advective_order)+1)/2.0,&
+                           i_def)
       max_stencil_depth = max(max_stencil_depth,max_fv_stencil)
     end if
     if ( scheme == transport_scheme_cosmic ) then
@@ -218,23 +210,36 @@ contains
     end if
     if ( wtheta_on ) max_stencil_depth = max(max_stencil_depth,1)
 
-    partition = partition_type( global_mesh, &
-                               partitioner_ptr, &
-                               xproc, &
-                               yproc, &
-                               max_stencil_depth, &
-                               local_rank, &
-                               total_ranks)
+
+    global_mesh_id = global_mesh_collection%add_new_global_mesh &
+                                                          ( filename, npanels )
+
+
+    global_mesh_ptr => global_mesh_collection%get_global_mesh( global_mesh_id )
+
+    if ( .not. associated(global_mesh_ptr) )                   &
+      call log_event( "set_up: Global mesh not in collection", &
+                      LOG_LEVEL_ERROR )
+
+    ! Generate the partition object
+    partition = partition_type( global_mesh_ptr,   &
+                                partitioner_ptr,   &
+                                xproc,             &
+                                yproc,             &
+                                max_stencil_depth, &
+                                local_rank,        &
+                                total_ranks )
 
     ! Generate the mesh
-    prime_mesh_id = mesh_collection%add_new_mesh( global_mesh,      &
+    prime_mesh_id = mesh_collection%add_new_mesh( global_mesh_ptr,  &
                                                   partition,        &
                                                   number_of_layers, &
                                                   domain_top,       &
                                                   method )
-    mesh => mesh_collection%get_mesh( prime_mesh_id )
 
-    call mesh%set_colours()
+    prime_mesh_ptr => mesh_collection%get_mesh( prime_mesh_id )
+
+    call prime_mesh_ptr%set_colours()
 
     return
   end subroutine set_up

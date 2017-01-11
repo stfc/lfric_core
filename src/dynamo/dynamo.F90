@@ -33,7 +33,6 @@ program dynamo
   use field_mod,                      only : field_type
   use finite_element_config_mod,      only : element_order
   use formulation_config_mod,         only : transport_only, use_moisture
-  use function_space_collection_mod,  only : function_space_collection
   use iter_timestep_alg_mod,          only : iter_alg_init, &
                                              iter_alg_step
   use runge_kutta_init_mod,           only : runge_kutta_init
@@ -77,7 +76,7 @@ program dynamo
 
   type(restart_type) :: restart
 
-  integer            :: mesh_id
+  integer(i_def)     :: mesh_id
 
   ! coordinate fields
   type( field_type ) :: chi(3)
@@ -105,10 +104,12 @@ program dynamo
   ! Initialise ESMF and get the rank information from the virtual machine
   CALL ESMF_Initialize(vm=vm, defaultlogfilename="dynamo.Log", &
                   logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
-  if (rc /= ESMF_SUCCESS) call log_event( 'Failed to initialise ESMF.', LOG_LEVEL_ERROR )
+  if (rc /= ESMF_SUCCESS) call log_event( 'Failed to initialise ESMF.', &
+                                          LOG_LEVEL_ERROR )
 
   call ESMF_VMGet(vm, localPet=localPET, petCount=petCount, rc=rc)
-  if (rc /= ESMF_SUCCESS) call log_event( 'Failed to get the ESMF virtual machine.', LOG_LEVEL_ERROR )
+  if (rc /= ESMF_SUCCESS) &
+    call log_event( 'Failed to get the ESMF virtual machine.', LOG_LEVEL_ERROR )
 
   total_ranks = petCount
   local_rank  = localPET
@@ -127,7 +128,7 @@ program dynamo
 
 
   ! Create the mesh and function space collection
-  call init_gungho(mesh_id, local_rank, total_ranks, function_space_collection)
+  call init_gungho(mesh_id, local_rank, total_ranks)
 
   ! Create and initialise prognostic fields
   call init_dynamo(mesh_id, chi, u, rho, theta, rho_in_wth, mr, xi, restart)

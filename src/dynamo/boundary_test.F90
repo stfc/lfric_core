@@ -24,7 +24,6 @@ program boundary_test
   use field_mod,                      only : field_type
   use finite_element_config_mod,      only : element_order
   use operator_mod,                   only : operator_type
-  use function_space_collection_mod,  only : function_space_collection
   use boundary_test_alg_mod,          only : boundary_test_alg_init, &
                                              boundary_test_alg
   use log_mod,                        only : log_event,         &
@@ -89,7 +88,7 @@ program boundary_test
 
 
   ! Create the mesh and function space collection
-  call init_gungho(mesh_id, local_rank, total_ranks, function_space_collection)
+  call init_gungho(mesh_id, local_rank, total_ranks)
 
   ! Create and initialise prognostic fields
   call init_boundary_test(mesh_id, chi, u, xi, restart)

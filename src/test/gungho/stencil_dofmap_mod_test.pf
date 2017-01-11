@@ -121,9 +121,6 @@ contains
   subroutine setUp( this )
 
     use master_dofmap_mod,   only: master_dofmap_type
-    use mesh_collection_mod, only: mesh_collection_type, &
-                                   mesh_collection
-    use mesh_mod,            only: mesh_type, PLANE_BI_PERIODIC
 
     implicit none
     integer(i_def)                              :: mesh_dimension_x, mesh_dimension_y
@@ -171,6 +168,8 @@ contains
 
     class(stencil_dofmap_test_type), intent( inout ) :: this
 
+    call mesh_collection%clear()
+
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -182,9 +181,7 @@ contains
                                                         STENCIL_CROSS, &
                                                         STENCIL_1DY
     use master_dofmap_mod,   only: master_dofmap_type
-    use mesh_collection_mod, only: mesh_collection_type, &
-                                   mesh_collection
-    use mesh_mod,            only: mesh_type, PLANE_BI_PERIODIC
+
    implicit none
    class(stencil_dofmap_test_type), intent( inout ) :: this
 

@@ -128,6 +128,8 @@ contains
     num_layers = mesh%get_nlayers()
     @assertEqual ( 5, num_layers )
  
+    call mesh_collection%clear()
+
   end subroutine test_all
 
 end module mesh_collection_mod_test

@@ -162,6 +162,7 @@ contains
     deallocate( this%basis_rho, this%basis_chi )
 
     call function_space_collection%clear()
+    call mesh_collection%clear()
     call deallocate_reference()
 
   end subroutine tearDown

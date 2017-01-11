@@ -107,6 +107,7 @@ contains
     deallocate( this%basis_u )
 
     call function_space_collection%clear()
+    call mesh_collection%clear()
     call deallocate_reference()
 
   end subroutine tearDown

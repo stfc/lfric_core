@@ -1,16 +1,14 @@
 class global_mesh_map_collection_mod::global_mesh_map_collection_type {
-  -global_mesh_map_list: linked_list_type
-  -source_id: integer
-  -source_ncells: integer
 
-  <<create>>  +global_mesh_map_collection_constructor() : global_mesh_map_collection_type
-  <<destroy>> +global_mesh_map_collection_destructor()
+  -global_mesh_map_list: linked_list_type <<payload_type=global_mesh_map_type>>
+
+  +<<create>>  global_mesh_map_collection_constructor() : global_mesh_map_collection_type
+  +<<destroy>> global_mesh_map_collection_destructor()
   +clear()
 
-  +get_source_id(): integer
-  +get_source_ncells(): integer
-  +add_global_mesh_map(<<in>>target_id:integer, <<in>>global_mesh_map:integer[::])
-  +get_global_mesh_map(<<in>>target_id:integer): global_mesh_map_type <<pointer>>
+  +add_global_mesh_map(<<in>>source_global_mesh_id:<<integer>>, <<in>>target_global_mesh_id:<<integer>>, <<in>>map:<<integer[::]>>)
+  +get_global_mesh_map(<<in>>source_global_mesh_id:<<integer>>, <<in>>target_global_mesh_id:<<integer>>): global_mesh_map_type <<pointer>>
+
 }
 
 

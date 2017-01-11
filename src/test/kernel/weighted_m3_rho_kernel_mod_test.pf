@@ -122,6 +122,7 @@ contains
     deallocate( this%basis, this%diff_basis )
 
     call function_space_collection%clear()
+    call mesh_collection%clear()
     call deallocate_reference()
 
   end subroutine tearDown

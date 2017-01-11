@@ -80,19 +80,18 @@ contains
     integer(i_def) :: i
 
     ! Create a mesh map collection
-    global_mesh_map_collection = global_mesh_map_collection_type(source_id, ncells_source)
-
-    tmp_int = global_mesh_map_collection%get_source_id()
-    @assertEqual(tmp_int, source_id )
-
-    tmp_int = global_mesh_map_collection%get_source_ncells()
-    @assertEqual(tmp_int, ncells_source )
-    
+    global_mesh_map_collection = global_mesh_map_collection_type()
 
     ! Test api to add and retrieve a global_mesh_map object from the collection
-    call global_mesh_map_collection%add_global_mesh_map(target_id, SourceToTarget_gid_map)
+    call global_mesh_map_collection %        &
+             add_global_mesh_map( source_id, &
+                                  target_id, &
+                                  SourceToTarget_gid_map )
 
-    test_global_mesh_map => global_mesh_map_collection%get_global_mesh_map(target_id)
+    test_global_mesh_map =>                  &
+        global_mesh_map_collection %         &
+            get_global_mesh_map( source_id,  &
+                                 target_id )
 
     ! Test that the global mesh map returned has the correct info
     tmp_int = test_global_mesh_map%get_source_id()
@@ -114,7 +113,9 @@ contains
     end do
     
     ! Test that a null pointer is returned if no map is present
-    test_global_mesh_map => global_mesh_map_collection%get_global_mesh_map(source_id)
+    test_global_mesh_map =>                                         &
+        global_mesh_map_collection%get_global_mesh_map( source_id,  &
+                                                        source_id )
     @assertNotAssociated(test_global_mesh_map) 
 
     ! Tear down the collection

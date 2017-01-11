@@ -67,7 +67,7 @@ contains
 !>         \f[
 !>         \mathbf{L_u} = \mathbf{u}' - \alpha\Delta t\nabla p' - b\mathbf{z}
 !>         \f]
-!>         \f[ L_p = p' + \alpha\Delta t c^2\nabla.\mathbf{u}'
+!>         \f[ L_p = p' + \alpha\Delta t c^2\nabla.\mathbf{u}'\f]
 !>         \f[ L_b = b' + \alpha\Delta t N^2\mathbf{u}'.\mathbf{z}\f]
 !>
 !>         Where primed terms are increments to the n timelevel field

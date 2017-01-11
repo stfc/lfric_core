@@ -1,14 +1,15 @@
 class mesh_collection_mod::mesh_collection_type {
-  -mesh_list: linked_list_type
 
-  <<create>>  +mesh_collection_constructor() : mesh_collection_type
-  <<destroy>> +mesh_collection_destructor()
+  -mesh_list: linked_list_type <<payload_type=mesh_type>>
+
+  +<<create>>  mesh_collection_constructor() : mesh_collection_type
+  +<<destroy>> mesh_collection_destructor()
   +clear()
 
-  +add_new_mesh( <<in>>global_mesh: global_mesh, <<in>>partition: partition, <<in>>nlayers_in: integer, <<in>>domain_top: real, <<in>>vgrid_option: integer ) : integer ) : mesh_id<<integer>>
-  +add_unit_test_mesh(<<in>>mesh_cfg: integer) : mesh_id<<integer>>
+  +add_new_mesh(<<in>>global_mesh: global_mesh, <<in>>partition: partition_type, <<in>>nlayers_in: integer, <<in>>domain_top: real, <<in>>vgrid_option: integer ) : mesh_id<<integer>>
+  +add_unit_test_mesh( <<in>>mesh_cfg: integer ) : mesh_id<<integer>>
+  +get_mesh( <<in>>mesh_id: integer ) : mesh_type<<pointer>>
 
-  +get_mesh( <<in>>mesh_id: integer ) : mesh_type <<pointer>>
 }
 
 

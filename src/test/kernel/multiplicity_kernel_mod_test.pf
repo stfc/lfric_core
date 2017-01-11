@@ -61,6 +61,7 @@ contains
     class(multiplicity_test_type), intent(inout) :: this
 
     call function_space_collection%clear()
+    call mesh_collection%clear()
     call deallocate_reference()
 
   end subroutine tearDown
