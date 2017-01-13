@@ -209,7 +209,7 @@ program dynamo
              call log_event( "Dynamo: Outputting initial fields", LOG_LEVEL_INFO )
              call conservation_algorithm(timestep, mesh_id, rho, u, theta, xi, geopotential, chi)
            end if
-           call iter_alg_step(chi, u, rho, theta, mr, xi)
+           call iter_alg_step(chi, u, rho, theta, mr, xi, timestep)
 
          case( timestepping_method_rk )             ! RK
            ! Initialise and output initial conditions on first timestep

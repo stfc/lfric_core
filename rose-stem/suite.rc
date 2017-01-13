@@ -4,7 +4,7 @@
                                  'transport-cosmic', 'transport-rk', 'transport-biperiodic',
                                  'biperiodic_p0_gw', 'biperiodic_p1_gw',
                                  'dcmip301', 'robert', 'robert-moist',
-                                 'sbr' %}
+                                 'sbr', 'sbr_spinupwinds', 'sbr_spinupalpha'%}
 {%- set groups = {'developer': ['science(semi-implicit)',
                                 'science(si-helmholtz)',
                                 'science(runge-kutta)',
@@ -23,7 +23,9 @@
                               'science(robert-moist)',
                               'science(biperiodic_p0_gw)',
                               'science(dcmip301)',
-                              'science(sbr)'],
+                              'science(sbr, True, T000060)',
+			      'science(sbr_spinupwinds, True, T000060)',
+			      'science(sbr_spinupalpha, True, T000060)',],
                   'nightly': ['science(semi-implicit-360ts, True, T000360)',
                               'science(dcmip301, True, T000018)',
                               'science(sbr, False, T000060)',

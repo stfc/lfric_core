@@ -51,6 +51,9 @@ module rtheta_supg_kernel_mod_test
   integer(i_def), parameter :: outer_iterations = 2
   integer(i_def), parameter :: inner_iterations = 2
   integer(i_def)            :: mesh_id
+  integer(i_def), parameter :: spinup_period = 0
+  logical, parameter :: spinup_winds  = .false.
+  logical, parameter :: spinup_alpha  = .false.
 
 contains
 
@@ -75,12 +78,16 @@ contains
     integer(i_def) :: ndf_w2, dim_w2
     integer(i_def) :: ndf_w3, dim_w3
 
-    call feign_timestepping_config( timestepping_method_semi_implicit, &
-                                    dt,                                &
-                                    alpha,                             &
-                                    outer_iterations,                  &
-                                    inner_iterations,                  &
-                                    timestepping_runge_kutta_method_ssp3 )
+    call feign_timestepping_config( timestepping_method_semi_implicit,   &
+                                    dt,                                  &
+                                    alpha,                               &
+                                    outer_iterations,                    &
+                                    inner_iterations,                    &
+                                    timestepping_runge_kutta_method_ssp3,&
+				    spinup_period,                       &
+				    spinup_alpha,                        &
+				    spinup_winds                         &
+				    )
 
     reference_element = finite_element_shape_quadrilateral
     call reference_cube()

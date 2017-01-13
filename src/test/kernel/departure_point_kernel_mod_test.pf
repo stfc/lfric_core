@@ -29,7 +29,9 @@ module departure_point_kernel_mod_test
   real(r_def), parameter :: alpha   = 0.5_r_def
   integer(i_def), parameter :: inner_iterations = 0
   integer(i_def), parameter :: outer_iterations = 0
-
+  integer(i_def), parameter :: spinup_period = 0
+  logical, parameter :: spinup_winds  = .false.
+  logical, parameter :: spinup_alpha  = .false.
 
 contains
 
@@ -45,12 +47,16 @@ contains
 
     class(developed_departure_point_test_type), intent(inout) :: this
 
-    call feign_timestepping_config( timestepping_method_semi_implicit, &
-                                    dt,                                &
-                                    alpha,                             &
-                                    outer_iterations,                  &
-                                    inner_iterations,                  &
-                                    timestepping_runge_kutta_method_ssp3 )
+    call feign_timestepping_config( timestepping_method_semi_implicit,   &
+                                    dt,                                  &
+                                    alpha,                               &
+                                    outer_iterations,                    &
+                                    inner_iterations,                    &
+                                    timestepping_runge_kutta_method_ssp3,&
+				    spinup_period,                       &
+				    spinup_alpha,                        &
+				    spinup_winds                         &
+				    )
 
 
   end subroutine setUp

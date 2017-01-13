@@ -7,5 +7,9 @@ namelist timestepping
   outer_iterations   : integer     ! Number of outer (advection) iterations to do
   inner_iterations   : integer     ! Number of inner (Newton) iterations to do
   runge_kutta_method : enumeration[ ssp2, ssp3, ssp4, ssp5 ] 
-
+  spinup_period      : integer  ! >= 0  number of timesteps for the spin up period
+                                ! if set to > 0 then the first spinup_period timesteps
+                                ! will use a different configuration
+  spinup_alpha       : logical  ! if true then spin up alpha over the spin up period
+  spinup_winds       : logical  ! if true then don't update winds over the spin up period
 end namelist timestepping

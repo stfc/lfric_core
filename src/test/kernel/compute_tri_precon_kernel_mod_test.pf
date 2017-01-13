@@ -59,6 +59,9 @@ module compute_tri_precon_kernel_mod_test
   real(r_def),    parameter :: alpha = 0.5_r_def
   integer(i_def), parameter :: nout = 1_i_def 
   integer(i_def), parameter :: nin  = 1_i_def 
+  integer(i_def), parameter :: spinup_period = 0
+  logical, parameter :: spinup_winds  = .false.
+  logical, parameter :: spinup_alpha  = .false.
   
 contains
 
@@ -89,7 +92,11 @@ contains
                                  .false., 0.0_r_def)
     call feign_planet_config( gravity, radius, omega, rd, cp, p_zero, scaling )
 
-    call feign_timestepping_config(method, dt, alpha, nout, nin, rk_method)
+    call feign_timestepping_config(method, dt, alpha, nout, nin, rk_method,&
+				    spinup_period,                         &
+				    spinup_alpha,                          &
+				    spinup_winds                           &
+				    )
 
     reference_element = finite_element_shape_quadrilateral
     call reference_cube()

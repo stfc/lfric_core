@@ -21,8 +21,9 @@ module iter_timestep_alg_mod
   use formulation_config_mod,    only: use_moisture
   use output_config_mod,         only: diagnostic_frequency
   use solver_config_mod,         only: method, helmholtz_solve, use_operators
-  use timestepping_config_mod,   only: dt, alpha, beta, &
-                                       outer_iterations, inner_iterations
+  use timestepping_config_mod,   only: dt, alpha, &
+                                       outer_iterations, inner_iterations, &
+				       spinup_period, spinup_alpha, spinup_winds
   use idealised_config_mod,      only: test, idealised_test_held_suarez
   use derived_config_mod,        only: bundle_size
   use runtime_constants_mod,     only: get_geopotential, &
@@ -99,7 +100,6 @@ contains
     ! Prognostic fields    
     type( field_type ), intent( inout ) :: u, rho, theta
 
-
     type(function_space_type), pointer :: theta_fs => null()
     type(function_space_type), pointer :: rho_fs   => null()
     type(function_space_type), pointer :: u_fs     => null()
@@ -174,7 +174,7 @@ contains
   !> @param[inout] theta Potential temperature
   !> @param[inout] xi Vorticity field
 
-  subroutine iter_alg_step(chi, u, rho, theta, mr, xi)
+  subroutine iter_alg_step(chi, u, rho, theta, mr, xi, timestep)
 
     implicit none
 
@@ -186,18 +186,38 @@ contains
     type( field_type ), intent( inout ) :: u, rho, theta, xi
     type( field_type ), intent( inout ) :: mr(nummr)
 
+    ! Timestep value
+    integer, intent(in) :: timestep  
+
     ! quadrature object
     type(quadrature_type)       :: qr
 
     integer            :: outer, inner
+    real(kind=r_def)   :: varalpha, varbeta ! alpha, beta weight to use
+                                            ! these may differ from input values
+                                            ! during the spinup period
 
     qr = get_qr()
 
+    !Pass updated fields into state
+    if (spinup_winds .and. timestep <= spinup_period)then
+      call invoke_copy_field_data(u,     state(1))
+      call invoke_copy_field_data(theta, state(2))
+      call invoke_copy_field_data(rho,   state(3))
+    end if
+
+    if (spinup_alpha .and. timestep <= spinup_period)then
+      varalpha = alpha + (spinup_period - timestep + 1) * & 
+         (1.0 - alpha)/spinup_period
+    else
+      varalpha = alpha
+    end if
+    varbeta=1.0 - varalpha
 
     !=== Do a single timestep ==============================================!
     call copy_bundle(state, state_n, bundle_size)
     if ( helmholtz_solve .or. use_operators ) call compute_si_operators(state_n)
-    call rhs_alg(rhs_n, beta*dt, state_n)
+    call rhs_alg(rhs_n, varbeta*dt, state_n)
     !=== Section 3.1:  Outer (advection loop) ==============================!
     do outer = 1,outer_iterations
       ! Some idealized (fast) physics terms
@@ -209,12 +229,12 @@ contains
       end if
 
       ! Set advecting velocity & terms
-      call bundle_axpby(alpha, state, beta, state_n, state_adv, bundle_size)
+      call bundle_axpby(varalpha, state, varbeta, state_n, state_adv, bundle_size)
       call advection_alg(rhs_adv, state_adv, state, state_n, xi)
       call bundle_ax(dt, rhs_adv, rhs_adv, bundle_size) 
       !=== Section 3.2: Inner (nonlinear, coriolis loop) ===================!
       do inner = 1,inner_iterations
-        call rhs_alg(rhs_np1, -alpha*dt, state)
+        call rhs_alg(rhs_np1, -varalpha*dt, state)
 
         ! === Section 3.3: Solve for increments ============================!
         ! Add on advective terms: rhs = rhs_n - rhs_np1 + rhs_adv
@@ -241,12 +261,15 @@ contains
     ! Now advect the tracers using a time centered wind
     
     if (use_moisture)then
-      call invoke_axpby(alpha, state_n(1), beta, state(1), u_adv)
+      call invoke_axpby(varalpha, state_n(1), varbeta, state(1), u_adv)
       call advection_mr_alg(mr, u_adv)
     end if
     
     ! Return fields in u, theta, rho arrays
-    call invoke_copy_field_data(state(1), u)
+    ! The if statement prevents this update if spinup_winds is true
+    if (.not. (spinup_winds .and. timestep <= spinup_period))then
+      call invoke_copy_field_data(state(1), u)
+    end if
     call invoke_copy_field_data(state(2), theta)
     call invoke_copy_field_data(state(3), rho)
 
