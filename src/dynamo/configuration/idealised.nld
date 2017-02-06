@@ -1,7 +1,8 @@
 namelist idealised
   test : enumeration[none,
                      gravity_wave,        ! Gravity wave test (planar or spherical)
-                     cold_bubble,         ! Straka density cold current test (planar domain only)
+                     cold_bubble_x,       ! Straka density cold current test in x direction (planar domain only)
+                     cold_bubble_y,       ! Straka density cold current test in y direction (planar domain only)
                      warm_bubble,         ! Warm bubble test (planar domain only)
                      gaussian_hill,       ! Pair of Gaussian hills (planer or spherical)
                      cosine_hill,         ! Pair of cosine hills (planer or spherical)

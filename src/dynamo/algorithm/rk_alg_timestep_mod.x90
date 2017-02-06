@@ -32,11 +32,14 @@ module rk_alg_timestep_mod
                                        get_qr
   use transport_config_mod,      only: operators, &
                                        transport_operators_fv
+  use mixing_config_mod,         only: viscosity
   ! PsyKAl-lite kernels
   use psykal_lite_mod,                   only: invoke_copy_field_data,  &
                                                invoke_set_field_scalar, &
                                                invoke_ru_bd_kernel, &
-                                               invoke_divide_field
+                                               invoke_divide_field, &
+                                               invoke_viscosity
+
   use field_bundle_mod,                  only: clone_bundle, &
                                                bundle_axpy, & 
                                                bundle_axpby, &
@@ -283,6 +286,13 @@ contains
 
     end do
 
+    ! Apply viscosity
+    if ( viscosity ) then
+      call log_event( 'Applying Viscosity', LOG_LEVEL_INFO )      
+      call invoke_viscosity(inc(2), theta, inc(1), u, chi)
+      call invoke_set_field_scalar( 0.0_r_def, inc(3) )
+      call bundle_axpy(dt, inc, state, state, 3)
+    end if
 
     ! Return fields in u, theta, rho arrays
     call invoke_copy_field_data(state(1), u)

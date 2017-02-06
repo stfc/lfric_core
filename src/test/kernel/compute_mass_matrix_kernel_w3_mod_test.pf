@@ -53,7 +53,7 @@ contains
   subroutine setUp( this )
 
     use finite_element_config_mod, only : finite_element_shape_quadrilateral
-    use feign_config_mod,           only : feign_finite_element_config
+    use feign_config_mod,          only : feign_finite_element_config
     use mesh_mod,                  only : PLANE_BI_PERIODIC
     use reference_element_mod,     only : reference_cube, reference_element
 
@@ -71,7 +71,7 @@ contains
     integer :: i
 
     call feign_finite_element_config( finite_element_shape_quadrilateral, &
-                                      0, 1, .true., .false., .false. )
+                                      0, 1, .true., .false., .false., .false. )
 
     reference_element = finite_element_shape_quadrilateral
     call reference_cube()

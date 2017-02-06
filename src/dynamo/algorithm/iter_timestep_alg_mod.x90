@@ -34,7 +34,9 @@ module iter_timestep_alg_mod
   ! PsyKAl-lite kernels
   use psykal_lite_mod,                   only: invoke_copy_field_data,  &
                                                invoke_set_field_scalar, &
-                                               invoke_axpby
+                                               invoke_axpby,            &
+                                               invoke_viscosity
+
 
 
   use field_bundle_mod,                  only: clone_bundle, & 
@@ -65,6 +67,9 @@ module iter_timestep_alg_mod
 
   ! Moisture species
   use mr_indices_mod,                    only: nummr
+
+  ! Mixing settings
+  use mixing_config_mod,                 only: viscosity
   implicit none
 
   private
@@ -73,7 +78,7 @@ module iter_timestep_alg_mod
   !  created once but used every step
   type( field_type ), allocatable :: state(:), state_n(:), state_adv(:)
   type( field_type ), allocatable :: rhs_n(:), rhs_np1(:), rhs_adv(:)
-  type( field_type ), allocatable :: rhs_heldsuarez(:)
+  type( field_type ), allocatable :: rhs_heldsuarez(:), inc(:)
   type( field_type ) :: u_adv   ! Advective wind (centered in time)
 
 
@@ -114,6 +119,7 @@ contains
     allocate(rhs_np1(bundle_size))
     allocate(rhs_adv(bundle_size))
     allocate(rhs_heldsuarez(bundle_size))
+    allocate(inc(bundle_size))
 
 
     !=== Initialise internal state field objects =============================!
@@ -135,6 +141,7 @@ contains
     call clone_bundle(state, rhs_np1,   bundle_size)
     call clone_bundle(state, rhs_adv,   bundle_size)
     call clone_bundle(state, rhs_heldsuarez,   bundle_size)
+    call clone_bundle(state, inc,       bundle_size)
 
     ! If held-suarez forcing is not used, then we want the following to be 
     ! initialized to zero
@@ -257,7 +264,13 @@ contains
       !=== End Section 3.2 =================================================!
     end do ! OUTER
     !=== End Section 3.1 ===================================================!
-    
+    ! Apply viscosity
+    if ( viscosity ) then
+      call log_event( 'Applying Viscosity', LOG_LEVEL_INFO )      
+      call invoke_viscosity(inc(2), theta, inc(1), u, chi)
+      call invoke_set_field_scalar( 0.0_r_def, inc(3) )
+      call bundle_axpy(dt, inc, state, state, 3)
+    end if    
     ! Now advect the tracers using a time centered wind
     
     if (use_moisture)then

@@ -19,9 +19,11 @@ module advection_alg_mod
                                             get_mass_matrix_diagonal
   use field_bundle_mod,               only: bundle_ax
   use field_mod,                      only: field_type
-  use finite_element_config_mod,      only: element_order, wtheta_on, supg
+  use finite_element_config_mod,      only: element_order, wtheta_on, supg, &
+                                            lumped_m1
   use function_space_mod,             only: function_space_type
   use matrix_vector_kernel_mod,       only: matrix_vector_kernel_type
+  use matrix_vector_nobc_kernel_mod,  only: matrix_vector_nobc_kernel_type
   use operator_mod,                   only: operator_type
   use psykal_lite_mod,                only: invoke_set_field_scalar,  &
                                             invoke_multiply_field,    &
@@ -142,6 +144,7 @@ contains
   type(evaluator_xyz_type)           :: evaluator_u, evaluator_theta
 
   type(field_type)                   :: mt_lumped, ones_wt, temp
+  type(field_type)                   :: m1_lumped, ones_w1
 
   mm_w1  => get_mass_matrix(1)
   mm_w2  => get_mass_matrix(2)
@@ -203,9 +206,23 @@ contains
   call invoke_set_field_scalar( 0.0_r_def, r_xi )
   call invoke( transpose_matrix_vector_kernel_type(r_xi, u, curl) )
   call invoke( enforce_bc_kernel_type( r_xi ) )
-  call solver_algorithm( xi, r_xi, mesh_id, chi, method, &
-                         mm=mm_w1, mmd=mmd_w1, &
-                         preconditioner_choice=solver_preconditioner_diagonal)
+  if ( lumped_m1 ) then
+    ! use lumped mass matrix
+    ones_w1  = field_type( vector_space = xi_fs )
+    m1_lumped = field_type( vector_space = xi_fs )
+    call invoke_set_field_scalar( 1.0_r_def, ones_w1 )
+    call invoke_set_field_scalar( 0.0_r_def,  m1_lumped)
+    ! Use a special version of matrix vector to avoid psyclone generatung the
+    ! enforce_bc call, otherwise the invoke_divide_field below will divide by zero
+    ! See #678
+    call invoke(matrix_vector_nobc_kernel_type(m1_lumped, ones_w1, mm_w1) )      
+    call invoke_divide_field(r_xi,m1_lumped,xi)
+    call invoke( enforce_bc_kernel_type( xi ) )
+  else
+    call solver_algorithm( xi, r_xi, mesh_id, chi, method, &
+                           mm=mm_w1, mmd=mmd_w1, &
+                           preconditioner_choice=solver_preconditioner_diagonal)
+  end if
   call invoke_set_field_scalar( 0.0_r_def, advection(1) ) 
   call invoke( vorticity_advection_kernel_type( advection(1), mass_flux, rho, xi, chi, qr ) )
   call invoke( enforce_bc_kernel_type( advection(1) ) )

@@ -3279,5 +3279,92 @@ end subroutine invoke_sample_poly_adv
     call b_proxy%set_dirty()
   end subroutine invoke_initial_buoyancy_kernel
   !------------------------------------------------------------------------------
+! Needs stencil support and reformatting of kernel to use stencils
+  subroutine invoke_viscosity( theta_inc, theta_n, u_inc, u_n, chi )
+   
+    use viscosity_kernel_mod, only : viscosity_code
+    use mesh_mod,             only : mesh_type 
+    use stencil_dofmap_mod,   only : stencil_dofmap_type, STENCIL_CROSS
+
+    implicit none
+
+    type( field_type ), intent( in ) :: theta_inc, theta_n, u_inc, u_n, chi(3)
+    type( mesh_type ), pointer       :: mesh => null()
+    integer                 :: cell, nlayers
+    integer                 :: ndf_w0, ndf_w2, ndf_chi
+    integer                 :: undf_w0, undf_w2, undf_chi
+
+    type( field_proxy_type )  :: theta_inc_proxy, theta_n_proxy, &
+                                 u_inc_proxy, u_n_proxy, &
+                                 chi_proxy(3)
+
+    integer, pointer        :: map_chi(:)    => null()
+
+    type(stencil_dofmap_type), pointer :: cross_stencil_w2 => null()
+    type(stencil_dofmap_type), pointer :: cross_stencil_w0 => null()
+
+    integer, pointer        :: cross_stencil_w2_map(:,:,:) => null()
+    integer                 :: cross_stencil_w2_size
+
+    integer, pointer        :: cross_stencil_w0_map(:,:,:) => null()
+    integer                 :: cross_stencil_w0_size
+
+    theta_inc_proxy = theta_inc%get_proxy()
+    theta_n_proxy   = theta_n%get_proxy()
+    u_inc_proxy = u_inc%get_proxy()
+    u_n_proxy   = u_n%get_proxy()
+
+    chi_proxy(1) = chi(1)%get_proxy()
+    chi_proxy(2) = chi(2)%get_proxy()
+    chi_proxy(3) = chi(3)%get_proxy()
+
+    nlayers = theta_inc_proxy%vspace%get_nlayers()
+    ndf_w0  = theta_inc_proxy%vspace%get_ndf( )
+    undf_w0 = theta_inc_proxy%vspace%get_undf()
+
+    ndf_w2  = u_inc_proxy%vspace%get_ndf( )
+    undf_w2 = u_inc_proxy%vspace%get_undf()
+
+    ndf_chi  = chi_proxy(1)%vspace%get_ndf( )
+    undf_chi = chi_proxy(1)%vspace%get_undf()
+
+    mesh => theta_inc%get_mesh()
+
+    if (theta_n_proxy%is_dirty(depth=1)) CALL theta_n_proxy%halo_exchange(depth=2)
+    if (    u_n_proxy%is_dirty(depth=1)) CALL     u_n_proxy%halo_exchange(depth=2)
+
+    cross_stencil_w2 => u_inc_proxy%vspace%get_stencil_dofmap(STENCIL_CROSS, 1)
+    cross_stencil_w2_map => cross_stencil_w2%get_whole_dofmap()
+    cross_stencil_w2_size = cross_stencil_w2%get_size()
+
+    cross_stencil_w0 => theta_inc_proxy%vspace%get_stencil_dofmap(STENCIL_CROSS, 1)
+    cross_stencil_w0_map => cross_stencil_w0%get_whole_dofmap()
+    cross_stencil_w0_size = cross_stencil_w0%get_size()
+    
+    do cell = 1, mesh%get_last_halo_cell(1)
+       map_chi => chi_proxy(1)%vspace%get_cell_dofmap( cell )
+
+       call viscosity_code(nlayers,                   &
+                           theta_inc_proxy%data,      &
+                           theta_n_proxy%data,        &
+                           u_inc_proxy%data,          &
+                           u_n_proxy%data,            &
+                           chi_proxy(1)%data,         &
+                           chi_proxy(2)%data,         &
+                           chi_proxy(3)%data,         &
+                           ndf_w0, undf_w0,           &
+                           cross_stencil_w0_map(:,:,cell), &
+                           cross_stencil_w0_size,          &
+                           ndf_w2, undf_w2,           &
+                           cross_stencil_w2_map(:,:,cell), &
+                           cross_stencil_w2_size,          &
+                           ndf_chi, undf_chi, map_chi &
+                          )
+    end do
+     
+   call theta_inc_proxy%set_dirty()
+   call     u_inc_proxy%set_dirty()
+
+  end subroutine invoke_viscosity
 
 end module psykal_lite_mod

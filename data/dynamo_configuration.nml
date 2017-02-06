@@ -19,6 +19,7 @@
   rehabilitate  = .true.
   wtheta_on = .false.
   supg = .false. 
+  lumped_m1 = .false.
 /
 
 &formulation
@@ -127,4 +128,9 @@
   planar_domain_max_x =  1.0
   planar_domain_min_y = -1.0
   planar_domain_max_y =  1.0
+/
+
+&mixing
+  viscosity = .false.
+  viscosity_mu = 0.0
 /

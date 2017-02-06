@@ -1,0 +1,4 @@
+namelist mixing
+  viscosity     : logical ! Apply constant viscosity to theta & u,v,w
+  viscosity_mu  : real    ! Viscosity constant to use
+end namelist mixing

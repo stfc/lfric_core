@@ -16,7 +16,8 @@ use coord_transform_mod,            only : xyz2llr
 use finite_element_config_mod,      only : wtheta_on
 use generate_global_gw_fields_mod,  only : generate_global_gw_fields
 use idealised_config_mod,           only : idealised_test_gravity_wave, &
-                                           idealised_test_cold_bubble,  &
+                                           idealised_test_cold_bubble_x,&
+                                           idealised_test_cold_bubble_y,&
                                            idealised_test_warm_bubble,  &
                                            idealised_test_held_suarez
 use initial_temperature_config_mod, only : bvf_square
@@ -67,7 +68,8 @@ else                     ! BIPERIODIC PLANE DOMAIN
       theta_s = THETA_SURF * exp ( nsq_over_g * z )
       exner_s = EXNER_SURF - gravity**2/(Cp*THETA_SURF*bvf_square)   &
                 * (1.0_r_def - exp ( - nsq_over_g * z ))
-    case( idealised_test_cold_bubble )   ! Density current test
+    case( idealised_test_cold_bubble_x, &
+          idealised_test_cold_bubble_y )   ! Density current test
       theta_s = theta_surf
       exner_s = exner_surf - gravity/(Cp*THETA_SURF)*z
     case( idealised_test_warm_bubble )   ! Warm bubble test
@@ -126,7 +128,8 @@ else                     ! BIPERIODIC PLANE DOMAIN
       theta_s = THETA_SURF * exp ( nsq_over_g * z )
       exner_s = EXNER_SURF - gravity**2/(Cp*THETA_SURF*bvf_square)   &
                 * (1.0_r_def - exp ( - nsq_over_g * z ))
-    case( idealised_test_cold_bubble )   ! Density current test
+    case( idealised_test_cold_bubble_x, &
+          idealised_test_cold_bubble_y  )   ! Density current test
       theta_s = theta_surf
       exner_s = exner_surf - gravity/(Cp*THETA_SURF)*z
     case( idealised_test_warm_bubble )   ! Warm bubble test

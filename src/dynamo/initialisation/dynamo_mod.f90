@@ -39,7 +39,7 @@ contains
     integer, intent(in) :: file_unit
 
     character(*), parameter :: &
-                            required_configuration(13) = ['finite_element   ', &
+                            required_configuration(14) = ['finite_element   ', &
                                                           'formulation      ', &
                                                           'base_mesh        ', &
                                                           'initial_wind     ', &
@@ -51,7 +51,8 @@ contains
                                                           'biperiodic_deppt ', &
                                                           'extrusion        ', &
                                                           'transport        ', &
-                                                          'domain_size      ']
+                                                          'domain_size      ', &
+                                                          'mixing           ']
 
     logical              :: okay
     logical, allocatable :: success_map(:)

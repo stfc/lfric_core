@@ -16,7 +16,8 @@ use log_mod,                      only : log_event,                &
                                          LOG_LEVEL_ERROR
 use coord_transform_mod,          only : xyz2llr, central_angle
 use finite_element_config_mod,    only : wtheta_on
-use idealised_config_mod,         only : idealised_test_cold_bubble,   &
+use idealised_config_mod,         only : idealised_test_cold_bubble_x, &
+                                         idealised_test_cold_bubble_y, &
                                          idealised_test_gaussian_hill, &
                                          idealised_test_cosine_hill,   &
                                          idealised_test_slotted_cylinder, &
@@ -99,8 +100,15 @@ function analytic_temperature(chi, choice, chi_surf) result(temperature)
                             / ( 1.0_r_def + ( chi(1) - XC )**2/A**2 )
     end if  
   
-  case ( idealised_test_cold_bubble ) 
+  case ( idealised_test_cold_bubble_x ) 
     l = sqrt( ((chi(1)-XC)/XR)**2 + ((chi(3)-ZC_cold)/ZR)**2 )
+    if ( l <= 1.0_r_def ) then
+      dt =  15.0_r_def/2.0_r_def*(cos(PI*l)+1.0_r_def)
+      temperature = temperature - dt/pressure
+    end if
+
+  case ( idealised_test_cold_bubble_y ) 
+    l = sqrt( ((chi(2)-XC)/XR)**2 + ((chi(3)-ZC_cold)/ZR)**2 )
     if ( l <= 1.0_r_def ) then
       dt =  15.0_r_def/2.0_r_def*(cos(PI*l)+1.0_r_def)
       temperature = temperature - dt/pressure

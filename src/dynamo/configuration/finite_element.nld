@@ -18,4 +18,5 @@ namelist finite_element
   supg          : logical ! Use Streamline-Upwind-Petrov-Galerkin method for
                           ! stabilisation of CG advection
 
+  lumped_m1     : logical ! Use a lumped W1 mass matrix in the computation of voticity
 end namelist finite_element

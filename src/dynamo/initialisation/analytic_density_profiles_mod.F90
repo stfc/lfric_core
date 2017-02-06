@@ -15,7 +15,8 @@ use log_mod,                    only : log_event,                &
                                        log_scratch_space,        &
                                        LOG_LEVEL_ERROR
 use coord_transform_mod,        only : xyz2llr, central_angle
-use idealised_config_mod,       only : idealised_test_cold_bubble,   &
+use idealised_config_mod,       only : idealised_test_cold_bubble_x, &
+                                       idealised_test_cold_bubble_y, &
                                        idealised_test_warm_bubble,   &
                                        idealised_test_gaussian_hill, &
                                        idealised_test_cosine_hill,   &
@@ -60,6 +61,7 @@ function analytic_density(chi, choice) result(density)
   real(kind=r_def)             :: chi_surf(3)
   real(kind=r_def)             :: u, v, w
 
+  integer                      :: id
           
   if ( geometry == base_mesh_geometry_spherical ) then
     call xyz2llr(chi(1),chi(2),chi(3),long,lat,radius)
@@ -77,9 +79,14 @@ function analytic_density(chi, choice) result(density)
   case ( idealised_test_gravity_wave) 
     call reference_profile(pressure, density, temperature, chi, choice)
  
-  case ( idealised_test_cold_bubble ) 
+  case ( idealised_test_cold_bubble_x, idealised_test_cold_bubble_y ) 
+    if ( choice == idealised_test_cold_bubble_x ) then
+      id = 1
+    else
+      id = 2
+    end if
     call reference_profile(pressure, density, temperature, chi, choice)
-    l = sqrt( ((chi(1)-XC)/XR)**2 + ((chi(3)-ZC_cold)/ZR)**2 )
+    l = sqrt( ((chi(id)-XC)/XR)**2 + ((chi(3)-ZC_cold)/ZR)**2 )
     if ( l <= 1.0_r_def ) then
       dt =  15.0_r_def/2.0_r_def*(cos(PI*l)+1.0_r_def)
       temperature = temperature - dt/pressure

@@ -59,7 +59,7 @@ contains
     class(columnwise_op_appinv_test_type), intent(inout) :: this
 
     call feign_finite_element_config( finite_element_shape_quadrilateral, &
-         0, 0, .true., .false., .false. )
+         0, 0, .true., .false., .false., .false. )
 
     reference_element = finite_element_shape_quadrilateral
     call reference_cube()
