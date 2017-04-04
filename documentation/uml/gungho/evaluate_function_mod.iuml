@@ -1,3 +1,8 @@
+' (c) The copyright relating to this work is owned jointly by the Crown,
+' Met Office and NERC 2014. However, it has been created with the help of the
+' GungHo Consortium, whose members are identified at
+' https://puma.nerc.ac.uk/trac/GungHo/wiki
+
 abstract class evaluate_function_mod::evaluate_function_type {
   +evaluate_function( <<in>> func_to_call: integer, <<in>> df: integer, <<in>> xi: real(:) ) : real[:]
 }

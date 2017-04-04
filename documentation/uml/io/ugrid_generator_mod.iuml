@@ -1,3 +1,8 @@
+' (c) The copyright relating to this work is owned jointly by the Crown,
+' Met Office and NERC 2014. However, it has been created with the help of the
+' GungHo Consortium, whose members are identified at
+' https://puma.nerc.ac.uk/trac/GungHo/wiki
+
 interface ugrid_generator_mod::ugrid_generator_type{
 +{abstract} generate()
 +{abstract} get_dimensions( <<out>> num_nodes: integer, <<out>> num_edges: integer, <<out>> num_faces: integer, <<out>> num_nodes_per_face: integer, <<out>> num_edges_per_face: integer, <<out>> num_nodes_per_edge: integer )
