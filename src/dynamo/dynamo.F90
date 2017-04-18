@@ -47,6 +47,8 @@ program dynamo
                                              rk_transport_final
   use cosmic_transport_alg_mod,       only : cosmic_transport_init, &
                                              cosmic_transport_step
+  use cusph_cosmic_transport_alg_mod, only : cusph_cosmic_transport_init, &
+                                             cusph_cosmic_transport_step
   use conservation_algorithm_mod,     only : conservation_algorithm
   use log_mod,                        only : log_event,         &
                                              log_set_level,     &
@@ -68,6 +70,7 @@ program dynamo
   use mr_indices_mod,                 only : imr_v, imr_c, imr_r, imr_nc, &
                                              imr_nr, nummr
   use set_rho_alg_mod,                only : set_rho_alg
+  use runtime_constants_mod,          only : get_cell_orientation
 
   implicit none
 
@@ -87,6 +90,9 @@ program dynamo
 
   ! Array to hold fields for checkpoint output
   type( field_type ), allocatable   :: checkpoint_output(:)
+
+  ! Array to hold cell orientation values in W3 field
+  type( field_type )               :: cell_orientation
 
   integer                          :: timestep, ts_init
 
@@ -133,6 +139,10 @@ program dynamo
   timestep = 0
   call init_dynamo(mesh_id, u, rho, theta, rho_in_wth, mr, xi, restart)
 
+  if ( transport_only .and. scheme == transport_scheme_cusph_cosmic) then
+    cell_orientation = get_cell_orientation()
+  end if
+
   ! Initial output
   ts_init = max( (restart%ts_start() - 1), 0 ) ! 0 or t previous.
   call output_alg('theta', ts_init, theta, mesh_id)
@@ -178,7 +188,13 @@ program dynamo
           end if
           call cosmic_transport_step(rho)
         case ( transport_scheme_cusph_cosmic)
+          if (timestep == restart%ts_start()) then 
+            ! Initialise and output initial conditions on first timestep
+            call cusph_cosmic_transport_init(mesh_id, u)
+            call log_event( "Dynamo: Outputting initial fields", LOG_LEVEL_INFO )
+          end if
           call set_rho_alg(rho, timestep)
+          call cusph_cosmic_transport_step(mesh_id, rho, cell_orientation)
         case default
          call log_event("Dynamo: Incorrect transport option chosen, "// &
                         "stopping program! ",LOG_LEVEL_ERROR)
