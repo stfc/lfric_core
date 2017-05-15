@@ -52,4 +52,22 @@ function linear_calc_exner_pointwise(rho, theta, exner_s, rho_s, theta_s) result
 
 end function linear_calc_exner_pointwise
 
+!-------------------------------------------------------------------------------
+! Contained functions/subroutines
+!-------------------------------------------------------------------------------
+!> @brief Function to compute the full pressure from the nonlinear equation of state
+!> @details Compute the full pressure from the equation of state:
+!>          pressure = ( Rd/p0 * rho * theta ) ^ (  kappa / ( 1 - kappa ) )
+!! @param[in] rho   Density perturbation
+!! @param[in] theta Potential temperature perturbation
+!! @result    pressure Pressure perturbation
+function calc_pressure_pointwise(rho, theta) result(pressure)
+
+  real(kind=r_def)              :: pressure
+  real(kind=r_def), intent(in)  :: rho, theta
+
+  pressure = p_zero * ( Rd/p_zero * rho * theta ) ** (  1.0_r_def / ( 1.0_r_def - kappa ) )
+
+end function calc_pressure_pointwise
+
 end module calc_exner_pointwise_mod

@@ -30,9 +30,10 @@ program gungho
   use field_io_mod,                   only : write_state_netcdf
   use field_mod,                      only : field_type
   use finite_element_config_mod,      only : element_order
-  use formulation_config_mod,         only : transport_only, use_moisture
+  use formulation_config_mod,         only : transport_only, use_moisture, use_physics
   use init_gungho_mod,                only : init_gungho
   use init_dynamo_mod,                only : init_dynamo
+  use init_physics_mod,               only : init_physics
   use iter_timestep_alg_mod,          only : iter_alg_init, &
                                              iter_alg_step
   use runge_kutta_init_mod,           only : runge_kutta_init
@@ -88,6 +89,9 @@ program gungho
   ! prognostic fields
   type( field_type ) :: u, rho, theta, xi, mr(nummr), rho_in_wth
 
+  ! prognostic fields in non-native spaces (e.g. for physics)
+  type( field_type ) :: u1_in_w3, u2_in_w3, u3_in_w3, theta_in_w3, p_in_w3, p_in_wth
+
   ! Array to hold fields for checkpoint output
   type( field_type ), allocatable   :: checkpoint_output(:)
 
@@ -138,6 +142,12 @@ program gungho
   ! Create and initialise prognostic fields
   timestep = 0
   call init_dynamo(mesh_id, u, rho, theta, rho_in_wth, mr, xi, restart)
+
+  if (use_physics)then
+    call init_physics(mesh_id, u, rho, theta, rho_in_wth,         &
+                      u1_in_w3, u2_in_w3, u3_in_w3, theta_in_w3,  &
+                      p_in_w3, p_in_wth)
+  end if
 
   if ( transport_only .and. scheme == transport_scheme_cusph_cosmic) then
     cell_orientation = get_cell_orientation()
@@ -210,7 +220,10 @@ program gungho
              call log_event( "Dynamo: Outputting initial fields", LOG_LEVEL_INFO )
              call conservation_algorithm(timestep, rho, u, theta, xi)
            end if
-           call iter_alg_step(u, rho, theta, mr, xi, timestep)
+           call iter_alg_step(u, rho, theta, mr, xi,           &
+                              u1_in_w3, u2_in_w3, u3_in_w3, &
+                              rho_in_wth, theta_in_w3,      &
+                              p_in_w3, p_in_wth, timestep)
 
          case( timestepping_method_rk )             ! RK
            ! Initialise and output initial conditions on first timestep

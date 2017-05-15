@@ -27,6 +27,11 @@ module map_rho_to_theta_mod
 
 contains
 
+  !> @details An algorithm for mapping rho in its native w3 space
+  !>          to the same space as theta
+  !> @param[inout] rho Density
+  !> @param[inout] theta Potential temperature
+  !> @param[inout] rho_in_wth rho on wth space
   subroutine map_rho_to_theta(rho, theta, rho_in_wth)
     
     ! Prognostic fields

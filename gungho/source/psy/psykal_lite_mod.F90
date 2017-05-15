@@ -3867,17 +3867,14 @@ end subroutine invoke_sample_poly_adv
 
   end subroutine invoke_viscosity
 
-!> invoke_raise_field: Raise a field to a integer exponent
+!> invoke_raise_field: Raise a field to an integer exponent
 !> x => x^a
   subroutine invoke_raise_field(x, a)
-    use mesh_mod,only : mesh_type
     implicit none
     type( field_type ), intent(inout)  :: x
     integer(i_def),     intent(in)     :: a
     type( field_proxy_type)            :: xp
     integer(kind=i_def)                :: i,undf
-    integer(kind=i_def)                :: depth, dplp
-    type(mesh_type), pointer           :: mesh => null()
 
     xp = x%get_proxy()
 
@@ -3890,6 +3887,27 @@ end subroutine invoke_sample_poly_adv
 
     call xp%set_dirty()
   end subroutine invoke_raise_field
+
+!> invoke_raise_field: Raise a field to a real exponent
+!> x => x^a
+  subroutine invoke_real_raise_field(x, a)
+    implicit none
+    type( field_type ), intent(inout)  :: x
+    real(r_def),        intent(in)     :: a
+    type( field_proxy_type)            :: xp
+    integer(kind=i_def)                :: i,undf
+
+    xp = x%get_proxy()
+
+    undf = xp%vspace%get_last_dof_owned()
+    !$omp parallel do schedule(static), default(none), shared(xp, undf, a),  private(i)
+    do i = 1,undf
+      xp%data(i) = xp%data(i)**a
+    end do
+    !$omp end parallel do
+
+    call xp%set_dirty()
+  end subroutine invoke_real_raise_field
 
 !-------------------------------------------------------------------------------
 ! Implmented in #965, kernel requires stencil support. Note that the w2_field is

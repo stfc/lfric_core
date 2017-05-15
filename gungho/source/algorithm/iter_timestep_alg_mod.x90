@@ -17,7 +17,7 @@ module iter_timestep_alg_mod
 
   ! Configuration options
   use restart_control_mod,       only: restart_type
-  use formulation_config_mod,    only: use_moisture
+  use formulation_config_mod,    only: use_moisture, use_physics
   use output_config_mod,         only: diagnostic_frequency, subroutine_timers
   use solver_config_mod,         only: method, helmholtz_solve, use_operators
   use timestepping_config_mod,   only: dt, alpha, &
@@ -28,45 +28,49 @@ module iter_timestep_alg_mod
   use runtime_constants_mod,     only: get_qr, get_coordinates
 
   ! PsyKAl-lite kernels
-use psykal_lite_mod,                   only: invoke_axpby, &
-                                             invoke_viscosity, &
-                                             invoke_inner_prod
+  use psykal_lite_mod,           only: invoke_axpby, &
+                                       invoke_viscosity, &
+                                       invoke_inner_prod
 
-  use field_bundle_mod,                  only: clone_bundle, & 
-                                               bundle_axpy, & 
-                                               bundle_axpby, &
-                                               add_bundle, &
-                                               copy_bundle, &
-                                               set_bundle_scalar, &
-                                               bundle_ax 
+  use field_bundle_mod,          only: clone_bundle, & 
+                                       bundle_axpy, & 
+                                       bundle_axpby, &
+                                       add_bundle, &
+                                       copy_bundle, &
+                                       set_bundle_scalar, &
+                                       bundle_ax 
 
   ! PsyKAl PSYClone kernels
-  use held_suarez_kernel_mod,            only: held_suarez_kernel_type
-  use enforce_bc_kernel_mod,             only: enforce_bc_kernel_type
+  use held_suarez_kernel_mod,    only: held_suarez_kernel_type
+  use enforce_bc_kernel_mod,     only: enforce_bc_kernel_type
 
   ! Derived Types
-  use field_mod,                         only: field_type
-  use quadrature_mod,                    only: quadrature_type
+  use field_mod,                 only: field_type
+  use quadrature_mod,            only: quadrature_type
 
   ! Algorithms
-  use solver_mod,                        only: solver_algorithm
-  use rhs_alg_mod,                       only: rhs_alg
-  use advection_alg_mod,                 only: advection_alg, advection_alg_init, advection_mr_alg
-  use si_solver_alg_mod,                 only: si_solver_alg, si_solver_init
-  use si_operators_alg_mod,              only: create_si_operators, compute_si_operators
-  use helmholtz_solver_alg_mod,          only: helmholtz_solver_init, &
-                                               compute_inv_hb
+  use solver_mod,                only: solver_algorithm
+  use rhs_alg_mod,               only: rhs_alg
+  use advection_alg_mod,         only: advection_alg, advection_alg_init, advection_mr_alg
+  use si_solver_alg_mod,         only: si_solver_alg, si_solver_init
+  use si_operators_alg_mod,      only: create_si_operators, compute_si_operators
+  use helmholtz_solver_alg_mod,  only: helmholtz_solver_init, &
+                                       compute_inv_hb
+
+  ! Field mappings
+  use map_rho_to_theta_mod,      only: map_rho_to_theta
+  use map_physics_fields_alg_mod,only: map_physics_fields_alg
 
   ! Moisture species
-  use mr_indices_mod,                    only: nummr
+  use mr_indices_mod,            only: nummr
 
   ! Field indices
-  use field_indices_mod,                 only: igh_u, igh_t, igh_d, igh_p
+  use field_indices_mod,         only: igh_u, igh_t, igh_d, igh_p
 
   ! Mixing settings
-  use mixing_config_mod,                 only: viscosity
+  use mixing_config_mod,         only: viscosity
 
-  use timer_mod,                         only: timer
+  use timer_mod,                 only: timer
 
   implicit none
 
@@ -162,14 +166,29 @@ contains
   !> @param[inout] u  3D wind field
   !> @param[inout] rho Density
   !> @param[inout] theta Potential temperature
+  !> @param[inout] mr Mixing ratios
   !> @param[inout] xi Vorticity field
+  !> @param[inout] u1_in_w3 component of wind on w3 space
+  !> @param[inout] u2_in_w3 component of wind on w3 space
+  !> @param[inout] u3_in_w3 component of wind on w3 space
+  !> @param[inout] rho_in_wth rho on wth space
+  !> @param[inout] theta_in_w3 theta on w3 space
+  !> @param[inout] p_in_w3 pressure on w3 space
+  !> @param[inout] p_in_wth pressure on wth space
+  !> @param[in]    timestep model timestep number
 
-  subroutine iter_alg_step(u, rho, theta, mr, xi, timestep)
+  subroutine iter_alg_step(u, rho, theta, mr, xi,        &
+                           u1_in_w3, u2_in_w3, u3_in_w3, &
+                           rho_in_wth, theta_in_w3,      &
+                           p_in_w3, p_in_wth, timestep)
 
     implicit none
 
     ! Prognostic fields    
     type( field_type ), intent( inout ) :: u, rho, theta, xi
+    type( field_type ), intent( inout ) :: u1_in_w3, u2_in_w3, u3_in_w3
+    type( field_type ), intent( inout ) :: rho_in_wth, theta_in_w3
+    type( field_type ), intent( inout ) :: p_in_w3, p_in_wth
     type( field_type ), intent( inout ) :: mr(nummr)
 
     ! Timestep value
@@ -205,6 +224,19 @@ contains
       varalpha = alpha
     end if
     varbeta=1.0 - varalpha
+
+    !============================================================================
+    ! Fields for physics
+    !============================================================================
+    if (use_physics)then
+      call map_rho_to_theta(rho, theta, rho_in_wth) 
+      call map_physics_fields_alg(u, rho, theta, rho_in_wth,                    &
+                                  u1_in_w3, u2_in_w3, u3_in_w3, theta_in_w3,    &
+                                  p_in_w3, p_in_wth)
+      call p_in_wth%log_minmax(LOG_LEVEL_INFO, 'p_in_wth')
+      call p_in_w3%log_minmax(LOG_LEVEL_INFO, 'p_in_w3')
+      call log_event( "Dynamo: generated physics fields.", LOG_LEVEL_INFO )
+    end if
 
     !=== Do a single timestep ==============================================!
     call copy_bundle(state, state_n, bundle_size)

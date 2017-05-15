@@ -4,5 +4,6 @@ namelist formulation
   rotating        : logical ! Turn on/off Coriolis terms
   eliminate_p     : logical ! Eliminate p from the si solver
   use_moisture    : logical ! Use moisture variables.
+  use_physics     : logical ! Use subgrid physics parametrizations
   shallow         : logical ! Run in shallow atmosphere mode
 end namelist formulation

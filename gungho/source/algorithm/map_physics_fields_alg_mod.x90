@@ -1,0 +1,77 @@
+!-------------------------------------------------------------------------------
+! (C) Crown copyright 2017 Met Office. All rights reserved.
+!-------------------------------------------------------------------------------
+
+!>@brief Map fields to spaces required by the FD physics routines
+module map_physics_fields_alg_mod
+
+  use constants_mod,                         only: r_def, i_def
+  use field_mod,                             only: field_type
+  use planet_config_mod,                     only: rd, kappa, p_zero
+  use physics_mappings_mod,                  only: map_physics_winds, map_physics_scalars
+  use psykal_lite_mod,                       only: invoke_real_raise_field
+  implicit none
+
+  private
+
+  public :: map_physics_fields_alg
+
+contains
+
+  !> @details An algorithm for mapping native FE fields to the lowest order 
+  !>          equivalents for use in the FD physics codes.
+  !> @param[inout] u  3D wind field
+  !> @param[inout] rho Density
+  !> @param[inout] theta Potential temperature
+  !> @param[inout] u1_in_w3 component of wind on w3 space
+  !> @param[inout] u2_in_w3 component of wind on w3 space
+  !> @param[inout] u3_in_w3 component of wind on w3 space
+  !> @param[inout] rho_in_wth rho on wth space
+  !> @param[inout] theta_in_w3 theta on w3 space
+  !> @param[inout] p_in_w3 pressure on w3 space
+  !> @param[inout] p_in_wth pressure on wth space
+  subroutine map_physics_fields_alg(u, rho, theta, rho_in_wth,                    &
+                                    u1_in_w3, u2_in_w3, u3_in_w3, theta_in_w3,    &
+                                    p_in_w3, p_in_wth)
+    
+    ! Prognostic fields
+    type( field_type ), intent(inout)        :: u, rho, theta, rho_in_wth
+    type( field_type ), intent(inout)        :: u1_in_w3, u2_in_w3, u3_in_w3, theta_in_w3
+    type( field_type ), intent(inout)        :: p_in_w3, p_in_wth
+    
+    ! Local variables
+    real(kind=r_def)   :: coeff, exponent
+
+    ! First map the scalar fields (only theta, since rho_in_wth done separately -
+    ! This may not be true in the long term)
+    call map_physics_scalars(theta_in_w3, theta)
+
+    ! Now the winds (this currently doesn't currently re-orientate the winds
+    ! so they are not necessarily perpendicular or aligned lat-lon)
+    call map_physics_winds(u1_in_w3, u2_in_w3, u3_in_w3, u)
+
+    ! Now use the co-located theta and rho to diagnose pressure fields where we
+    ! want them.  Again this might not be consistent with a dynamics pressure
+    ! field and should be re-visited if/when the dynamics introduces a prognostic 
+    ! pressure variable
+
+    ! Note that ticket #1045 has been opened to look into changing the following
+    ! into a bespoke built-in.
+    exponent = 1.0_r_def/(1.0_r_def - kappa)
+    coeff    = Rd/p_zero
+
+    ! First p_in_wth = p0*(Rd/p0*rho_in_wth*theta)**(1./(1-kappa))
+    call invoke( multiply_fields(rho_in_wth, theta, p_in_wth) )
+    call invoke( scale_field(coeff, p_in_wth) )
+    call invoke_real_raise_field(p_in_wth, exponent)
+    call invoke( scale_field(p_zero, p_in_wth) )
+
+    ! Now p_in_w3 = p0*(Rd/p0*rho*theta_in_w3)**(1./(1-kappa))
+    call invoke( multiply_fields(rho, theta_in_w3, p_in_w3) )
+    call invoke( scale_field(coeff, p_in_w3) )
+    call invoke_real_raise_field(p_in_w3, exponent)
+    call invoke( scale_field(p_zero, p_in_w3) )
+
+  end subroutine map_physics_fields_alg
+  
+end module map_physics_fields_alg_mod

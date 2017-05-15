@@ -1,0 +1,78 @@
+!-------------------------------------------------------------------------------
+! (C) Crown copyright 2017 Met Office. All rights reserved.
+!-------------------------------------------------------------------------------
+
+!>@brief A wrapper for mappings of FE fields to physics fields
+module physics_mappings_mod
+
+  use constants_mod,                         only: r_def, i_def
+  use field_mod,                             only: field_type
+  use function_space_mod,                    only: function_space_type
+  use function_space_collection_mod,         only: function_space_collection
+  use quadrature_mod,                        only: quadrature_type, GAUSSIAN 
+  use finite_element_config_mod,             only: element_order
+  use galerkin_projection_algorithm_mod,     only: galerkin_projection_algorithm
+
+  implicit none
+
+  private
+
+  public :: map_physics_scalars, map_physics_winds
+
+contains
+
+  !> @details An algorithm to map native FE scalar fields to the appropriate
+  !>          location for the FD physics codes
+  !> @param[inout] target_field Field in the target space
+  !> @param[inout] source_field Field in the source (native) space
+  subroutine map_physics_scalars(target_field, source_field)
+    
+    ! Prognostic fields
+    type( field_type ), intent( inout ) :: target_field
+    type( field_type ), intent( inout ) :: source_field
+    ! quatrature rule
+    type( quadrature_type )  :: qr
+    type( field_type )       :: projected_field(1)
+    integer(i_def)           :: mesh_id
+
+    qr = quadrature_type( element_order + 3, GAUSSIAN )
+    
+    mesh_id =  source_field%get_mesh_id() ! Currently only coded for fields on the same mesh
+    projected_field(1) = field_type( vector_space = target_field%get_function_space() )
+    call galerkin_projection_algorithm(projected_field, source_field, mesh_id, &
+       1, qr) 
+    call invoke( copy_field(projected_field(1), target_field) )
+
+  end subroutine map_physics_scalars
+  
+  !> @details An algorithm to map native FE wind fields to the appropriate
+  !>          location for the FD physics codes
+  !> @param[inout] u1_field Component of wind in the target space
+  !> @param[inout] u2_field Component of wind in the target space
+  !> @param[inout] u3_field Component of wind in the target space
+  !> @param[inout] source_field Wind field in the source (native) space
+  subroutine map_physics_winds(u1_field, u2_field, u3_field, source_field)
+    
+    ! Prognostic fields
+    type( field_type ), intent( inout ) :: u1_field, u2_field, u3_field
+    type( field_type ), intent( inout ) :: source_field
+    ! quatrature rule
+    type( quadrature_type )  :: qr
+    type( field_type )       :: projected_field(3)
+    integer(i_def)           :: mesh_id
+
+    qr = quadrature_type( element_order + 3, GAUSSIAN )
+    
+    mesh_id =  source_field%get_mesh_id() ! Currently only coded for fields on the same mesh
+    projected_field(1) = field_type( vector_space = u1_field%get_function_space() )
+    projected_field(2) = field_type( vector_space = u2_field%get_function_space() )
+    projected_field(3) = field_type( vector_space = u3_field%get_function_space() )
+    call galerkin_projection_algorithm(projected_field, source_field, mesh_id, &
+       3, qr) 
+    call invoke( copy_field(projected_field(1), u1_field) )
+    call invoke( copy_field(projected_field(2), u2_field) )
+    call invoke( copy_field(projected_field(3), u3_field) )
+
+  end subroutine map_physics_winds
+
+end module physics_mappings_mod

@@ -64,7 +64,7 @@ contains
 
     call feign_formulation_config(transport_only=.false., rotating=.true., &
                                   eliminate_p=.false., use_moisture=.false., &
-                                  shallow=.false.)
+                                  shallow=.false., use_physics=.false.)
 
   end subroutine setUp
 

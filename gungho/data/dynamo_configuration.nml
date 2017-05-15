@@ -28,6 +28,7 @@
   eliminate_p    = .true.
   use_moisture   = .false.
   shallow        = .false.
+  use_physics    = .false.
 /
 
 &idealised
