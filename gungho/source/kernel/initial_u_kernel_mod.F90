@@ -28,11 +28,11 @@ type, public, extends(kernel_type) :: initial_u_kernel_type
   private
   type(arg_type) :: meta_args(2) = (/                                  &
        arg_type(GH_FIELD,   GH_INC,  W2),                              &
-       ARG_TYPE(GH_FIELD*3, GH_READ, ANY_SPACE_9)                               &
+       ARG_TYPE(GH_FIELD*3, GH_READ, ANY_SPACE_9)                      &
        /)
   type(func_type) :: meta_funcs(2) = (/                                &
        func_type(W2, GH_BASIS),                                        &
-       func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                          &
+       func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                 &
        /)
   integer :: iterates_over = CELLS
   integer :: evaluator_shape = QUADRATURE_XYoZ
@@ -145,13 +145,13 @@ subroutine initial_u_code(nlayers, &
     do qp2 = 1, nqp_v
       do qp1 = 1, nqp_h
         ! Compute analytical vector wind in physical space
+        xyz(:) = 0.0_r_def
+        do df = 1, ndf_chi
+          xyz(1) = xyz(1) + chi_1_cell(df)*chi_basis(1,df,qp1,qp2)
+          xyz(2) = xyz(2) + chi_2_cell(df)*chi_basis(1,df,qp1,qp2)
+          xyz(3) = xyz(3) + chi_3_cell(df)*chi_basis(1,df,qp1,qp2)
+        end do
         if ( geometry == base_mesh_geometry_spherical ) then
-          xyz(:) = 0.0_r_def
-          do df = 1, ndf_chi
-            xyz(1) = xyz(1) + chi_1_cell(df)*chi_basis(1,df,qp1,qp2)
-            xyz(2) = xyz(2) + chi_2_cell(df)*chi_basis(1,df,qp1,qp2)
-            xyz(3) = xyz(3) + chi_3_cell(df)*chi_basis(1,df,qp1,qp2)
-          end do
           call xyz2llr(xyz(1), xyz(2), xyz(3), llr(1), llr(2), llr(3))
           option = (/U0, rotation_angle/)
           u_spherical = analytic_wind(llr, profile, 2, option)
