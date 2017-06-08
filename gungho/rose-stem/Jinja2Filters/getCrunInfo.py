@@ -6,18 +6,19 @@
 # should have received as part of this distribution.
 ##############################################################################
 '''
-Implements a Jinja2 filter to run a macro specified by a string.
+Implements a Jinja2 filter to strip the crun info.
 '''
 from jinja2 import contextfilter
 import re
 import ast
 
 @contextfilter
-def getEnvMacro(context, call):
+def getCrunInfo(context, call):
     '''
-    Takes a string and parses any instances of an env dictionary. 
-    @param [inout] context Jinja2 instance to run macro against.
-    @param [in]    call    Invokation string.
+    Takes a string return dictionary values related to crunning:
+        crun: Number of runs to do in the crun.
+        ...
+    @param [in] context Jinja2 instance to run macro against.
     @return String resulting from setting the environment.
     '''
     if call.find('(') == -1:
@@ -44,21 +45,9 @@ def getEnvMacro(context, call):
         key, value = re.split(' *= *', argument)
         argumentDictionary[key] = value
 
-    # We only do work on the 'env' dictionary
-    if 'env' in argumentDictionary.keys():
-        envDict=ast.literal_eval(argumentDictionary['env'])
-    else:
-        envDict={}
-
-    envVariables=[]
-    for key, value in envDict.items():
-        envVariables.append('%s = %s' % (key, value) )
-            
-    values='\n'.join(envVariables)
-
-    if arguments == '':
-        return_value = None, None
-    else:
-        return_value = arguments[0], values
+    # Return info about the crun arguments
+    return_value={}
+    if 'crun' in argumentDictionary.keys():
+        return_value.update({'crun':int(argumentDictionary['crun'])})
 
     return return_value

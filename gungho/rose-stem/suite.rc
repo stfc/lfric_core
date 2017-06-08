@@ -9,39 +9,43 @@
                                  'biperiodic-cosmic',
                                  'baroclinic'%}
 {%- set miniapp_configurations = ['gravity_wave'] %}
-{%- set groups = {'developer': ['science(semi-implicit, env={"nrun":3})',
-                                'science(runge-kutta, env={"nrun":30})',
+{%- set groups = {'developer': ['science(semi-implicit)',
+                                'science(runge-kutta)',
                                 'science(transport-rk)',
                                 'science(transport-biperiodic)',
                                 'science(biperiodic_p0_gw_short)',
                                 'science(biperiodic_p1_gw)',
                                 'science(straka_y, plotstr="straka_plot_y.py $NODAL_DATA_DIR theta T000090 $PLOT_DIR")',
-                                'science(robert_short, env={"crun":3, "nrun":5})',	
+                                'science(robert_short, crun=3, env={"nrun":5})',	
                                 'science(baroclinic, plotstr="slices.py diagDynamo $NODAL_DATA_DIR theta:rho:1u:2u:3u T000010 180 50 0 $PLOT_DIR")',
                                 'check_compilers(fast-debug)',
                                 'canned_test',
                                 'godlines',
-                                'cleanlines'],	
+                                'cleanlines'],
+                  'csar':    ['science(robert, crun=3, env={"nrun":50}, checkkgo=False)',
+                              'science(robert-moist, checkkgo=False)',
+                              'science(biperiodic_p0_gw, checkkgo=False, plotstr="gw_cart_plot.py $NODAL_DATA_DIR theta T000000:T000100:T000200:T000300 $PLOT_DIR" )',
+                              'science(dcmip301, checkkgo=False,plotstr="dcmip301.py $NODAL_DATA_DIR theta T000180:T000252:T000324:T000360 $PLOT_DIR")',
+                              'science(sbr, checkkgo=False, plotstr="create_plots $NODAL_DATA_DIR theta:rho T000060 $PLOT_DIR")',
+                              'science(sbr_spinupwinds, checkkgo=False, plotstr="create_plots $NODAL_DATA_DIR theta:rho T000060 $PLOT_DIR")',
+                              'science(sbr_spinupalpha, checkkgo=False, plotstr="create_plots $NODAL_DATA_DIR theta:rho T000060 $PLOT_DIR")',
+                              'science(straka_x, plotstr="straka_plot_x.py $NODAL_DATA_DIR theta T000090 $PLOT_DIR" )',
+                              'science(straka_y, plotstr="straka_plot_y.py $NODAL_DATA_DIR theta T000090 $PLOT_DIR" )'],
                   'nightly': ['science(biperiodic_p0_gw, checkkgo=False, plotstr="gw_cart_plot.py $NODAL_DATA_DIR theta T000000:T000100:T000200:T000300 $PLOT_DIR")',
                               'science(biperiodic_p0_gw_fem, plotstr="gw_cart_plot.py $NODAL_DATA_DIR theta T000000:T000100:T000200:T000300 $PLOT_DIR")',
-                              'science(robert,      env={"crun":3, "nrun":50}, checkkgo=True)',
-                              'science(robert-moist,env={"crun":3, "nrun":50}, checkkgo=True)',
+                              'science(robert,      crun=3, env={"nrun":50}, checkkgo=True)',
+                              'science(robert-moist,crun=3, env={"nrun":50}, checkkgo=True)',
                               'science(straka_200m, plotstr="straka_plot_x.py $NODAL_DATA_DIR theta T000360 $PLOT_DIR")',
                               'science(straka_x, plotstr="straka_plot_x.py $NODAL_DATA_DIR theta T000090 $PLOT_DIR" )',
                               'science(straka_y, plotstr="straka_plot_y.py $NODAL_DATA_DIR theta T000090 $PLOT_DIR" )',
                               'science(dcmip301, plotstr="dcmip301.py $NODAL_DATA_DIR theta T000180:T000252:T000324:T000360 $PLOT_DIR")',
                               'science(biperiodic-cosmic,plotstr="biperiodic-cosmic_plot.py $NODAL_DATA_DIR rho T000000:T000500 $PLOT_DIR")',
-                              'science(sbr, env={"nrun":60})',
+                              'science(sbr)',
                               'miniapp(gravity_wave, plotstr="slices.py gravity_wave $NODAL_DATA_DIR buoyancy T000036 150 0 6 $PLOT_DIR")',
                               'check_compilers(full-debug, True)',
                               'godlines(True)',
                               'publish_commit']} %}
 
-{# The csar groups are now included in the following #}
-%include inc/csar.rc
-{%- do groups.update(csar_groups) %}
-
-{%- set mesh_types = ['cubedsphere', 'biperiodic'] %}
 {%- set plot_config = {} %}
 {%- set compiler_setup = {} -%}
 {%- for compiler, setup in TARGET_COMPILER_SETUP|batch(2) -%}
@@ -58,49 +62,30 @@
 {%-   set groupsToRun = ['developer'] %}
 {%- endif %}
 
-
 {%- if MIRROR_UPLOAD_URL and MIRROR_UPLOAD_URL|list|last != '/' %}
 {%-   set MIRROR_UPLOAD_URL = MIRROR_UPLOAD_URL + '/' %}
 {%- endif %}
 
 {#- #########################################################################}
 {%-   set SCIENCE_LABEL =  TARGET_SCIENCE_COMPILER + '_fast-debug' %}
-{%- macro science( configuration, resolutions="None", checkkgo=True, plotstr="None", env=None) %}
+{%- macro science( configuration, checkkgo=True, plotstr="None", crun=0, env=None) %}
 {%-   set label = SCIENCE_LABEL %}
-
-{% set crun = 1 %}
-{% if env is not none %}
-{%   if 'crun' in env.keys() %}
-{%     set crun = env['crun'] %}
-{%   endif %}
-{% endif %}
-
-{%-  if resolutions == "None" %}
-{%-     set resolutions=[('')] %}
-{%-  endif %}
-{%-  for resolution in resolutions %}
-{%-   set resname = resolution if resolution is string else (resolution[0] if resolution|length>1 else '') %}
-{%-   set dt_vals = [''] if (resolution is string or (resolution|length<2)) else resolution[1:] %}
-{%-  for dt in dt_vals %}
-
-{%-    set label_res = label + ('' if resname=='' else '_') + resname + ('' if dt=='' else '_dt-') ~ dt %}
-{%-    set label_res = label_res|replace('.','p') %} {# we can't have '.' in a task name, to replace with a 'p' #}
 {%- if crun > 1  %}
          [[[R{{crun}}/P1/{{crun}}]]]
             graph = """
-            run_{{configuration}}_{{label_res}}[-P1] => run_{{configuration}}_{{label_res}}
+            run_{{configuration}}_{{label}}[-P1] => run_{{configuration}}_{{label}}
                  """
          [[[R1/P{{crun}}/{{crun}}]]]
             graph = """
 {%-     if checkkgo %}
 {%-        if TARGET_SCIENCE_COMPILER in TARGET_PERFORM_KGO_TESTS  %}
-            run_{{configuration}}_{{label_res}} => check_{{configuration}}_{{label_res}}
+            run_{{configuration}}_{{label}} => check_{{configuration}}_{{label}}
 {%-        endif %}
 {%-     endif %}
 {%-   if plotstr != "None" %}
 {%-     do plot_config.update( {configuration : plotstr} ) %}
-            run_{{configuration}}_{{label_res}}:finish => plot_{{configuration}}_{{label_res}}
-            plot_{{configuration}}_{{label_res}}:finish  => publish_{{configuration}}_{{label_res}}_plots
+            run_{{configuration}}_{{label}}:finish => plot_{{configuration}}_{{label}}
+            plot_{{configuration}}_{{label}}:finish  => publish_{{configuration}}_{{label}}_plots
 {%-   endif %}
                  """
 {%- endif %}
@@ -109,30 +94,21 @@
             purge_local => purge_target
             purge_target => export_for_{{label}}
             export_for_{{label}} => compile_with_{{label}}
-{%- if do_meshes %}
-	    compile_with_{{label}} => GENERATE_MESHES_{{label|upper}}
 {%-   if TARGET_SCIENCE_COMPILER in TARGET_PERFORM_RUN %}
-            GENERATE_MESHES_{{label|upper}}:finish-all=> run_{{configuration}}_{{label_res}}
-{%-   endif %}
-{%- else %}
-	    compile_with_{{label}} => run_{{configuration}}_{{label_res}}
-{%-   endif %}
-{%-   if checkkgo  %}
-{%-   if TARGET_SCIENCE_COMPILER in TARGET_PERFORM_RUN %}
+            compile_with_{{label}} => run_{{configuration}}_{{label}}
+{%-     if checkkgo  %}
 {%-     if TARGET_SCIENCE_COMPILER in TARGET_PERFORM_KGO_TESTS and crun < 2  %}
-            run_{{configuration}}_{{label_res}} => check_{{configuration}}_{{label_res}}
+            run_{{configuration}}_{{label}} => check_{{configuration}}_{{label}}
 {%-     endif %}
 {%-     endif %}
 {%-   endif %}
 {%-   if plotstr != "None" and crun < 2 %}
-            run_{{configuration}}_{{label_res}} => publish_{{configuration}}_{{label_res}}
+            run_{{configuration}}_{{label}} => publish_{{configuration}}_{{label}}
 {%-     do plot_config.update( {configuration : plotstr} ) %}
-            run_{{configuration}}_{{label_res}} => plot_{{configuration}}_{{label_res}}
-            plot_{{configuration}}_{{label_res}} => publish_{{configuration}}_{{label_res}}_plots
+            run_{{configuration}}_{{label}} => plot_{{configuration}}_{{label}}
+            plot_{{configuration}}_{{label}} => publish_{{configuration}}_{{label}}_plots
 {%-   endif %}
                  """
-{%-  endfor  %}
-{%-  endfor  %}
 {%- endmacro %}
 {#- #########################################################################}
 {%- macro canned_test() %}
@@ -185,10 +161,12 @@
             purge_local => purge_target
             purge_target => export_for_{{label}}
             export_for_{{label}} => api_documentation
+            export_for_{{label}} => uml_documentation
             export_for_{{label}} => design_documentation
 {%-     if publish %}
             api_documentation    => publish_api_documentation
             api_documentation    => publish_api_log
+            uml_documentation    => publish_uml_documentation
             design_documentation => publish_design_documentation
 {%-     endif %}
 {%-   endif %}
@@ -240,43 +218,29 @@
 {%-   endfor %}
 {%- endmacro %}
 {#- #########################################################################}
-{%- macro setTaskEnv(scheduledTasksDict) %}
+{%- macro setTaskEnv(scheduledTasksEnv) %}
 {%-   for group in groupsToRun %}
-{%-      for mission in groups[group] %}
-{%-           set k,envDict = mission | getEnvMacro() %}
-{%-        if k is not none %}
+{%-       for mission in groups[group] %}
+{%-           set k,v = mission | getEnvMacro() %}
+{%-       if k is not none %}
 {%            set key = k + '_' + SCIENCE_LABEL %} 
-{%-           do scheduledTasksDict.update({key: envDict}) %}
-{%-        endif %}
-{%-      endfor %}
+{%-           do scheduledTasksEnv.update({key : v})  -%}
+{%-       endif %}
+{%-       endfor %}
 {%-   endfor %}
 {%- endmacro %}
 {#- #########################################################################}
-{%- macro setCrunInfo(crunInfo,scheduledTasksDict) %}
-{%-   for key, envDict in scheduledTasksDict.items() %}
-{%-      if 'crun' in envDict.keys() %}
-{%          if envDict['crun'] > crunInfo['maxcrun']  %}
-{%-           do crunInfo.update({'maxcrun':envDict['crun']})  -%}
-{%-         endif  -%}
-{%-      endif %}
-{%-   endfor %}
-{%- endmacro %}
-{#- #########################################################################}
-{%- macro setResolutions(resolution_choices) %}
+{%- macro setCrunInfo(crunInfo) %}
 {%-   for group in groupsToRun %}
-{%-      for mission in groups[group] %}
-{%-         set configuration,resList,resDict = mission | getResolutionMacro() %}
-{%          if resList != [] %}
-{%-          if configuration not in resolution_choices.keys() %}
-{%-            do resolution_choices.update({configuration:[]})  -%}
-{%-          endif %}
-{%-          for res in resList %}
-{%-            if res not in resolution_choices[configuration] %}
-{%-               do resolution_choices[configuration].append(res) -%}
-{%-            endif %}
-{%-          endfor %}
-{%-         endif %}
-{%-      endfor %}
+{%-       for mission in groups[group] %}
+{%-           set missionCrunInfo = mission | getCrunInfo()  %}
+{%-           if 'crun' in missionCrunInfo.keys() %}
+{%-              set missionCrun = missionCrunInfo['crun'] %}
+{%-              if missionCrun > crunInfo['maxcrun']  %}
+{%-                do crunInfo.update({'maxcrun':missionCrun})  -%}
+{%-              endif  -%}
+{%-           endif  -%}
+{%-       endfor %}
 {%-   endfor %}
 {%- endmacro %}
 
@@ -285,31 +249,13 @@
 # construct the graph for cruns:
 #     maxcrun specifies the maximum number of cycles
 # scheduledTasksEnv is a dictionary of environment variables to be 
-# passed from the mission to the task - these are evalulated as a string
-# of variable = value pairs
-# scheduledTasksDict is as scheduledTasksEnv, but the python dictionary
-# rather than a string - this is then used in setting the directives
+# passed from the mission to the task.
 # These are updated from the mission calls
 #}
-
-{%- set crunInfo = {'maxcrun':1} %}  {# 'maxcrun' is used as the number of cycles based on the requested jobs #}
-{%- set MAXRUNAHEAD = 50 %} {# The maximum allowable runahead limit - if we need more thant this then maybe split up the suite, or just be patient! #}
+{%- set crunInfo = {'maxcrun':1} %} 
+{%- set dummy = setCrunInfo(crunInfo) -%}
 {%- set scheduledTasksEnv = {} %}
-{%- set scheduledTasksDict = {} %}
-{%- set dummy = setTaskEnv(scheduledTasksDict) -%} {# sets the environment configurations for each job #}
-{%- set dummy = setCrunInfo(crunInfo, scheduledTasksDict) -%} {# sets the crunInfo #}
-
-{%- set resolution_choices = {} %}
-{%- set dummy = setResolutions(resolution_choices) %} {# sets the requested resolutions #}
-{# Based on the resolutions and configurations, work out which meshes we need to generate #}
-{%- set mesh_names = [] %}
-{%- for config, resolutions in resolution_choices.items() %}
-{%-   for resolution in resolutions %}
-{%-     set mesh_name = resolution if resolution is string else (resolution[0] if resolution|length>1 else '') %}
-{%-     do mesh_names.append(mesh_name) if mesh_name not in mesh_names%}
-{%-   endfor %}
-{%- endfor %}
-{%- set do_meshes = mesh_names|length > 0 %}{# Only make meshes if we need to #}
+{%- set dummy = setTaskEnv(scheduledTasksEnv) -%}
 
 {%- macro deleteDirectory( directory ) %}
 test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( echo ** Unable to delete "{{directory}}", not writable >&2; false )
@@ -329,8 +275,6 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
     cycling mode        = integer
     initial cycle point = 1
     final cycle point   = {{ crunInfo['maxcrun'] }}
-    max active cycle points = {{ crunInfo['maxcrun'] if crunInfo['maxcrun'] < MAXRUNAHEAD else MAXRUNAHEAD  }}
-    
     [[queues]]
         [[[host_throttle]]]
             limit = {{ TARGET_THROTTLE }}
@@ -468,11 +412,20 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
         pre-script = """
                      {{'\n'|commandList( LOCAL_BASE_SETUP, LOCAL_TECHNICAL_SETUP, LOCAL_REVEAL_SETUP, 'mkdir -p $DESTINATION_DIRECTORY') }}
                      """
-        script = make -C $SOURCE_DIRECTORY/documentation api-documents
+        script = make -C $SOURCE_DIRECTORY document-api-gungho
         post-script = """
                       # Future publisher stages need this information
                       echo $CYLC_TASK_LOG_ROOT > $DESTINATION_DIRECTORY/api.doxygen.log.path
                       """
+{%- endif %}
+
+{%- if 'uml_documentation' in allTasks %}
+    [[uml_documentation]]
+      inherit = None, LOCAL, TECHNICAL
+        pre-script = """
+                     {{'\n'|commandList( LOCAL_BASE_SETUP, LOCAL_TECHNICAL_SETUP, LOCAL_REVEAL_SETUP, 'mkdir -p $DESTINATION_DIRECTORY') }}
+                     """
+        script = make -C $SOURCE_DIRECTORY document-uml-gungho
 {%- endif %}
 
 {%- if 'publish_api_log' in allTasks %}
@@ -507,7 +460,7 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
         pre-script = """
                      {{'\n'|commandList( LOCAL_BASE_SETUP, LOCAL_TECHNICAL_SETUP, LOCAL_REVEAL_SETUP) }}
                      """
-        script = make -C $SOURCE_DIRECTORY/documentation design-documents.tar
+        script = make -C $SOURCE_DIRECTORY document-latex-gungho
 {%- endif %}
 
 {%- if 'publish_design_documentation' in allTasks %}
@@ -571,7 +524,6 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
         [[[environment]]]
             WORKING_DIR          = {{TARGET_BUILD_ROOT}}/{{label}}
             TARGET               = build-gungho
-	    MESH_TARGET          = build-mesh_tools
             PROFILE              = {{build}}
             OPTIMISATION_PROFILE = {{TARGET_OPT}}
         [[[directives]]]
@@ -616,41 +568,15 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
 {%-       endfor %}
 {%-     endif %}
 
-{%-     for configuration in science_configurations %} {# science configurations #}
-{%-       if configuration in resolution_choices %}
-{%-           set resolution_options=resolution_choices[configuration] %}
-{%-       else  %}
-{%-           set resolution_options=[''] %}
-{%-       endif %}
+{%-     for configuration in science_configurations %}
 {%-       set configuration_label = configuration|lower + '_' + label %}
-{%-       for resolution in resolution_options %} {# science resolutions #}
-{%-         set resname = resolution if resolution is string else (resolution[0] if resolution|length>1 else '') %}
-{%-         set dt_vals = [''] if (resolution is string or (resolution|length<2)) else resolution[1:] %}
-{%-         for dt in dt_vals %} {# resolutions timestep values #}
-{%-           set configuration_label_res = configuration_label + ('' if resname=='' else '_') + resname + ('' if dt=='' else '_dt-') ~ (dt|replace('.','p')) %}
-{%-        if 'run_' + configuration_label_res in allTasks %}
-{% if configuration_label in scheduledTasksDict.keys() %}
-   {%- set command_key = TARGET_NORMAL_RUN_METHOD if 'directives' in scheduledTasksDict[configuration_label].keys() else TARGET_RUN_METHOD%}
-{% else  %}
-   {%- set command_key = TARGET_RUN_METHOD%}
-{% endif %}
-    [[run_{{configuration_label_res}}]]
+{%-       if 'run_' + configuration_label in allTasks %}
+    [[run_{{configuration_label}}]]
         inherit = {{family}}, TARGET
         pre-script = """
                      {{'\n'|commandList(TARGET_BASE_SETUP, compiler_setup[compiler], TARGET_RUN_SETUP, TARGET_REVEAL_SETUP)}}
                      """
-
-{# If the mpi is configured by the suite, then we will use the setcores optional configuration, so let's check that here #}
-{% set mpi_parts = '' %}
-{% if configuration_label in scheduledTasksDict.keys() %}
-{%   if 'directives' in scheduledTasksDict[configuration_label].keys() %}
-{%     set directiveKey = resname if resname in scheduledTasksDict[configuration_label]['directives'].keys() else 'default'%}
-{%     set directiveDict = scheduledTasksDict[configuration_label]['directives'][directiveKey] %}
-{%     set mpi_parts = directiveDict['mpi_parts'] %}
-{%   endif %}
-{% endif %}
-
-        script = rose task-run --app-key=gungho --command-key={{command_key}} --opt-conf-key={{configuration}} --opt-conf-key='({{'empty' if resname=='' else resname}})' --opt-conf-key='({{'empty' if dt=='' else 'setdt'}})' --opt-conf-key='({{'empty' if mpi_parts=='' else 'setcores_x'}})' 
+        script = rose task-run --app-key=gungho --command-key={{TARGET_RUN_METHOD}} --opt-conf-key={{configuration}}
         post-script = """
                       mkdir -p $DESTINATION_DIRECTORY/{{configuration}}
                       cp dynamo-checksums.txt $DESTINATION_DIRECTORY/{{configuration}}/{{compiler}}.checksums
@@ -660,60 +586,25 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
                       echo $CYLC_TASK_LOG_ROOT > $DESTINATION_DIRECTORY/{{configuration}}/lfric.gungho.{{compiler}}.log.path
                       """
         [[[environment]]]
-{# If the mpi is configured by the suite, then we will use the setcores optional configuration, so let's check that here #}
-{% if configuration_label in scheduledTasksDict.keys() %} {# configuration_label in scheduledTasksDict #}
-{{    scheduledTasksDict[configuration_label] | dictToAssign }}
-{# If the directives are configured by the suite, then we will expand those in the environment #}
-{%    if 'directives' in scheduledTasksDict[configuration_label].keys() %}
-{%       set directiveKey = resname if resname in scheduledTasksDict[configuration_label]['directives'].keys() else 'default'%}
-{%       set directiveDict = scheduledTasksDict[configuration_label]['directives'][directiveKey] %}
-{{          directiveDict | dictToAssign() }}
-{%    endif %}
-
-{# If we have nrun dependent on resolution / timestep then we need to set that in the environment too#}
-{%    if 'nrun' in scheduledTasksDict[configuration_label].keys() %}
-{%       if scheduledTasksDict[configuration_label]['nrun'] is not number %}
-{%          set nrunKey = resname if dt=='' else (resname, dt) %}
-{%          set nrunKey = nrunKey if nrunKey in scheduledTasksDict[configuration_label]['nrun'].keys() else 'default' %}
-            nrun = {{scheduledTasksDict[configuration_label]['nrun'][nrunKey] }}
-{%       endif %}
-{%    endif %}
-{%  endif %}{# configuration_label in scheduledTasksDict #}
-            DT            = {{dt}}
-	    CRUN_LENGTH   = $(echo ${crun:-1})
-            OMP_NUM_THREADS=$(echo ${threads:-1})
-            MPI_PARTS     = $(echo ${mpi_parts:-})  # We leave this empty if we want the default value from the .conf file
+            OMP_NUM_THREADS=1
+{% if configuration_label in scheduledTasksEnv.keys() %}
+{{          scheduledTasksEnv[configuration_label] }}
+{% endif %}
             RESTART_NTS   = $(echo ${nrun:-1})
             RESTART_NO    = $(echo $[$CYLC_TASK_CYCLE_POINT -1])
             RESTART       = $(if [ $CYLC_TASK_CYCLE_POINT == $CYLC_SUITE_INITIAL_CYCLE_POINT ] && [ $CYLC_TASK_TRY_NUMBER -eq 1 ]; then echo ""; else echo "true"; fi)
             RESTART_START = $(echo $[$RESTART_NO*$RESTART_NTS + 1])
             RESTART_STOP  = $(echo $[$RESTART_NO*$RESTART_NTS + $RESTART_NTS])
             RESTART_READ  = $(if [[ $RESTART ]]; then echo ".true."; else echo ".false."; fi) 
-            RESTART_WRITE = $(if [ $CRUN_LENGTH -gt $CYLC_TASK_CYCLE_POINT ]; then echo ".true."; else echo ".false."; fi) 
 
         [[[directives]]]
-{# 
-#If the directives are configured by the suite, then we will expand these in the directives.  This may also require a different batcher
-# e.g if setting directives requires a parallel queue, rather than the default shared queue. 
-#}
-{%        set run_batcher = TARGET_RUN_BATCHER_DIRECTIVES %}
-{% if configuration_label in scheduledTasksDict.keys() %}{# configuration_label in scheduledTasksDict #}
-{%     if 'directives' in scheduledTasksDict[configuration_label].keys() %}
-{%       set directiveKey = resname if resname in scheduledTasksDict[configuration_label]['directives'].keys() else 'default'%}
-{%        set directiveDict = scheduledTasksDict[configuration_label]['directives'][directiveKey] %}
-{%        set mpi_parts = directiveDict['mpi_parts'] %}
-{%        set wallclock = directiveDict['wallclock'] %}
-{%        set threads = directiveDict['threads'] %}
-{%        set run_batcher = TARGET_PARAM_RUN_BATCHER_DIRECTIVES| directiveModifier(mpi_parts*threads, wallclock) %}
-{%     endif  %}
-{% endif  %}
-{%-         for DIRECTIVE in run_batcher %}
-            {{DIRECTIVE }}
+{%-         for DIRECTIVE in TARGET_RUN_BATCHER_DIRECTIVES %}
+            {{DIRECTIVE}}
 {%-         endfor %}
-{%-       endif %} {# configuration_label in scheduledTasksDict #}
+{%-       endif %}
 
-{%-       if 'publish_' + configuration_label_res in allTasks %}
-    [[publish_{{configuration_label_res}}]]
+{%-       if 'publish_' + configuration_label in allTasks %}
+    [[publish_{{configuration_label}}]]
         inherit = PUBLISH, {{family}}, LOCAL
         pre-script = """
 {{ensureDestination()}}
@@ -732,15 +623,15 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
             LOG_ERR       = $DESTINATION_DIRECTORY/lfric.gungho.{{configuration}}.{{compiler}}.err
 {%-       endif %}
 
-{%-       if 'plot_' + configuration_label_res in allTasks %}
+{%-       if 'plot_' + configuration_label in allTasks %}
 {%-         set plot_label = configuration %}
-    [[plot_{{configuration_label_res}}]]
+    [[plot_{{configuration_label}}]]
         inherit = PUBLISH, {{family}}, TARGET
         pre-script = """
  {{ensureDestination()}}
                      mkdir -p $PLOT_DIR
                      # remove old plots before running new ones
-                     rm -rf $PLOT_DIR/*.png
+                     test -w $PLOT_DIR && rm -rf $PLOT_DIR/*.png || ( echo Unable to delete "$PLOT_DIR/*.png", not writable; false )
                      """
         script = rose task-run --app-key=plot
         [[[environment]]]
@@ -749,18 +640,18 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
              PLOT_CONFIG = {{plot_config[plot_label]}}
 {%-       endif %}
 
-{%-       if 'publish_' + configuration_label_res + '_plots' in allTasks %}
-    [[publish_{{configuration_label_res}}_plots]]
+{%-       if 'publish_' + configuration_label + '_plots' in allTasks %}
+    [[publish_{{configuration_label}}_plots]]
         inherit = PUBLISH, {{family}}, LOCAL
         script = """
-                 mkdir -p $DESTINATION/model_output/{{configuration_label_res}}/plots
+                 mkdir -p $DESTINATION/model_output/{{configuration_label}}/plots
                  RELATIVE_DESTINATION_DIRECTORY=`echo $DESTINATION_DIRECTORY | sed "s|$HOME/||"`
-                 scp -r {{TARGET_HOST}}:$RELATIVE_DESTINATION_DIRECTORY/{{configuration}}/plots $DESTINATION/model_output/{{configuration_label_res}}
+                 scp -r {{TARGET_HOST}}:$RELATIVE_DESTINATION_DIRECTORY/{{configuration}}/plots $DESTINATION/model_output/{{configuration_label}}
                  """
 {%-       endif %}
 
-{%-       if 'check_' + configuration_label_res in allTasks %}
-    [[check_{{configuration_label_res}}]]
+{%-       if 'check_' + configuration_label in allTasks %}
+    [[check_{{configuration_label}}]]
         inherit = {{family}}, TARGET
         script = rose task-run --app-key=check_gungho
         [[[environment]]]
@@ -771,11 +662,9 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
             {{DIRECTIVE}}
 {%-         endfor %}
 {%-       endif %}
-
-{# These terminate the for loops started way back up there somewhere, as indicated by the comments #}
-{%-     endfor %}{# resolutions timestep values #}
-{%-     endfor %}{# science resolutions #}
 {%-     endfor %}{# science configurations #}
+
+########################################################################################
 
 {%-     for configuration in miniapp_configurations %}
 {%-       set configuration_label = configuration|lower + '_' + label %}
@@ -857,67 +746,5 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
 {%-       endfor %}
 {%-     endif %}
 
-{%-     for mesh in mesh_types %}
-{%-       if 'generate_mesh_' + mesh + '_' + label in allTasks %}
-    [[generate_mesh_{{mesh}}_{{label}}]]
-        inherit = {{family}}, TARGET
-        pre-script = """
-                     {{'\n'|commandList(TARGET_BASE_SETUP, compiler_setup[compiler], TARGET_BUILD_SETUP, TARGET_REVEAL_SETUP)}}
-                     """
-        script = "rose task-run --app-key=mesh --opt-conf-key={{mesh}}"
-        [[[environment]]]
-            OUTPUT_FILE = $DESTINATION_DIRECTORY/{{mesh}}.nc
-        [[[directives]]]
-{%-         for DIRECTIVE in TARGET_RUN_BATCHER_DIRECTIVES %}
-            {{DIRECTIVE}}
-{%-         endfor %}
-{%-       endif %}
-
-{%-       if 'check_mesh_' + mesh + '_' + label in allTasks %}
-    [[check_mesh_{{mesh}}_{{label}}]]
-        inherit = {{family}}, TARGET
-        pre-script = """
-                     {{'\n'|commandList(TARGET_BASE_SETUP, compiler_setup[compiler], TARGET_REVEAL_SETUP)}}
-                     """
-        script = rose task-run --app-key=check_{{mesh}}
-        [[[environment]]]
-            MESH_FILE = $DESTINATION_DIRECTORY/{{mesh}}.nc
-        [[[directives]]]
-{%-         for DIRECTIVE in TARGET_TECHNICAL_BATCHER_DIRECTIVES %}
-            {{DIRECTIVE}}
-{%-         endfor %}
-{%-       endif %}
-{%-   endfor %}
-{%-   endfor %}
-{%-   endfor %}
-
-{##########################################################################}
-{###########                 Mesh Generation                    ###########}
-{##########################################################################}
-{% if do_meshes %}
-{%-   for compiler in compiler_setup.keys() %}
-{%-   for build in 'fast-debug', 'full-debug' %}
-{%-     set label = (compiler + '_' + build) %}
-{%-     set family = label|upper %}
-    [[GENERATE_MESHES_{{family}}]]
-        inherit= None, {{family}}, TARGET
-        pre-script = """
-                     mkdir -p $DESTINATION_DIRECTORY/meshes
-                     {{'\n'|commandList(TARGET_BASE_SETUP, compiler_setup[compiler], TARGET_BUILD_SETUP, TARGET_REVEAL_SETUP)}}
-                     """
-        [[[directives]]]
-{%-         for DIRECTIVE in TARGET_RUN_BATCHER_DIRECTIVES %}
-            {{DIRECTIVE}}
-{%-         endfor %}
-{%-  for mesh_name in mesh_names %}
-
-    [[generate_mesh_{{mesh_name}}_{{label}}]]
-        inherit = GENERATE_MESHES_{{family}}
-        script = "rose task-run --app-key=mesh --opt-conf-key={{mesh_name}}"
-        [[[environment]]]
-            OUTPUT_FILE = $DESTINATION_DIRECTORY/meshes/mesh_{{mesh_name}}.nc
-
-{%-   endfor %}
-{%-   endfor %}
-{%-   endfor %}
-{%-  endif %}
+{%-   endfor %} {#- Build #}
+{%- endfor %} {#- Compiler #}

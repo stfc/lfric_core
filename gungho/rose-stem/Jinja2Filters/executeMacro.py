@@ -10,9 +10,14 @@ Implements a Jinja2 filter to run a macro specified by a string.
 '''
 from jinja2 import contextfilter
 import re
-import science_parser
-import ast
 
+def checkBoolean(string):
+    ''' If string is a boolean or None, i.e. "False", "True" or "None", then
+    return the appropriate boolean value or None rather than the string '''
+    if string=="True": string=True
+    if string=="False": string=False
+    if string=="None": string=None
+    return string
 
 @contextfilter
 def executeMacro(context, call):
@@ -32,7 +37,7 @@ def executeMacro(context, call):
         arguments = ''
     else:
         macroName = call[:call.index('(')]
-        arguments = science_parser.science_parser(call[call.index('(')+1:call.rindex(')')])
+        arguments = re.split(', *', call[call.index('(')+1:call.rindex(')')])
 
     normalArguments  = [argument for argument in arguments \
                         if argument.find('=') == -1]
@@ -42,13 +47,13 @@ def executeMacro(context, call):
     argumentList = []
     for argument in normalArguments:
         if argument[0] == '"':
-            argumentList.append(  (argument[1:-2]) )
+            argumentList.append( checkBoolean(argument[1:-2]) )
         else:
-            argumentList.append( (argument) )
+            argumentList.append( checkBoolean(argument) )
 
     argumentDictionary = {}
     for argument in keywordArguments:
         key, value = re.split(' *= *', argument)
-        argumentDictionary[key] = ast.literal_eval(value)
+        argumentDictionary[key] = checkBoolean(value)
 
     return context.vars[macroName]( *argumentList, **argumentDictionary )
