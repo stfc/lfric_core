@@ -579,6 +579,9 @@ contains
     test_integer=mesh_1%get_last_halo_cell( 1 )
     @assertEqual( 9, test_integer )
 
+    test_integer=mesh_1%get_last_halo_cell( )
+    @assertEqual( 9, test_integer )
+
     !-------------------------------------------------------------------
     ! Test get_num_cells_ghost
     test_integer=( mesh_1%get_num_cells_ghost() )

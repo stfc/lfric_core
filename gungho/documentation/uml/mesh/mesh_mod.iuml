@@ -56,6 +56,7 @@ class mesh_mod::mesh_type {
   +get_halo_depth() : integer
   +get_inner_depth() : integer
   +get_last_edge_cell() : integer
+  +get_last_halo_cell() : integer
   +get_last_halo_cell( <<in>>depth: integer ) : integer
   +get_last_inner_cell( <<in>>depth: integer ) : integer
   +get_local_rank() : integer

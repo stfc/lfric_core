@@ -153,7 +153,7 @@ $(DOCUMENT_DIR)/%.svg: $(SOURCE_DIR)/%.puml \
                       $$(addprefix $$(SOURCE_DIR)/,$$(shell sed -n -e 's/!include[ ]*\([^ \n]*\)/\1/p' $$(SOURCE_DIR)/$$*.puml))
 	$(call MESSAGE,Generating,$@)
 	$(Q)mkdir -p $(DOCUMENT_DIR)
-	$(Q)plantuml $(SHORT_VERBOSE_ARG) -tsvg -o $(realpath $(dir $@)) $(abspath $<)
+	$(Q)plantuml $(SHORT_VERBOSE_ARG) -tsvg -o $(abspath $(dir $@)) $(abspath $<)
 
 ##############################################################################
 # Run integration tests.

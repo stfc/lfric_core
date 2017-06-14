@@ -284,8 +284,14 @@ contains
   !> Gets the index within the dofmap of the last "owned" dof
   procedure get_last_dof_owned
 
+  !> Gets the index in the dofmap of the last dof in any depth of halo
+  procedure get_last_dof_halo_any
+
   !> Gets the index in the dofmap of the last dof in the deepest depth of halo
-  procedure get_last_dof_halo
+  procedure get_last_dof_halo_deepest
+
+  generic             :: get_last_dof_halo => get_last_dof_halo_any, &
+                                              get_last_dof_halo_deepest
 
   !> Get the instance of a stencil dofmap with for a given id
   procedure, public   :: get_stencil_dofmap
@@ -1019,9 +1025,25 @@ function get_last_dof_owned(self) result (last_dof_owned)
 end function get_last_dof_owned
 
 !-----------------------------------------------------------------------------
+! Gets the index within the dofmap of the last dof in the specified halo
+!-----------------------------------------------------------------------------
+function get_last_dof_halo_any(self, depth) result (last_dof_halo)
+
+  implicit none
+  class(function_space_type) :: self
+  integer(i_def), intent(in) :: depth
+
+  integer(i_def) :: last_dof_halo
+
+  last_dof_halo = self%last_dof_halo(depth)
+
+  return
+end function get_last_dof_halo_any
+
+!-----------------------------------------------------------------------------
 ! Gets the index within the dofmap of the last dof in the deepest halo
 !-----------------------------------------------------------------------------
-function get_last_dof_halo(self) result (last_dof_halo)
+function get_last_dof_halo_deepest(self) result (last_dof_halo)
 
   implicit none
   class(function_space_type) :: self
@@ -1031,7 +1053,7 @@ function get_last_dof_halo(self) result (last_dof_halo)
   last_dof_halo = self%last_dof_halo(size(self%last_dof_halo))
 
   return
-end function get_last_dof_halo
+end function get_last_dof_halo_deepest
 
 
 !> Get the instance of a stencil dofmap with for a given shape and size

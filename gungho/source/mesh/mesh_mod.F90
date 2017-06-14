@@ -214,7 +214,10 @@ module mesh_mod
     procedure, public :: get_last_edge_cell
     procedure, public :: get_halo_depth
     procedure, public :: get_num_cells_halo
-    procedure, public :: get_last_halo_cell
+    procedure, public :: get_last_halo_cell_any
+    procedure, public :: get_last_halo_cell_deepest
+    generic           :: get_last_halo_cell => get_last_halo_cell_any, &
+                                               get_last_halo_cell_deepest
     procedure, public :: get_num_cells_ghost
     procedure, public :: get_gid_from_lid
     procedure, public :: get_mesh_map
@@ -1444,14 +1447,14 @@ contains
 
   end function get_num_cells_halo
 
-  !> @brief  Gets the index of the last cell in a halo 
+  !> @brief  Gets the index of the last cell in the specified halo 
   !> @details Returns the index of the last cell in a particular depth
   !>          of halo in a 2d slice on the local partition
   !> @param[in] depth The depth of the halo being queried
   !> @return last_halo_cell The index of the last cell in the particular depth
   !>         of halo on the local partition
   !============================================================================
-  function get_last_halo_cell( self, depth ) result ( last_halo_cell )
+  function get_last_halo_cell_any( self, depth ) result ( last_halo_cell )
     implicit none
 
     class(mesh_type), intent(in) :: self
@@ -1465,7 +1468,24 @@ contains
       last_halo_cell = self%partition%get_last_halo_cell(depth)
     end if
 
-  end function get_last_halo_cell
+  end function get_last_halo_cell_any
+
+  !> @brief  Gets the index of the last cell in the deepest halo 
+  !> @details Returns the index of the last cell in a particular depth
+  !>          of halo in a 2d slice on the local partition
+  !> @return last_halo_cell The index of the last cell in the particular depth
+  !>         of halo on the local partition
+  !============================================================================
+  function get_last_halo_cell_deepest( self ) result ( last_halo_cell )
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    integer(i_def)             :: last_halo_cell
+
+    last_halo_cell = self%partition%get_last_halo_cell( self%get_halo_depth() )
+
+  end function get_last_halo_cell_deepest
 
   !> @details Get the total number of ghost cells in a slice around
   !>          the local partition

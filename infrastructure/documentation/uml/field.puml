@@ -8,9 +8,4 @@
 !include field/quadrature_mod.iuml
 !include field/scalar_mod.iuml
 
-field_mod::field_type o---> function_space_mod::function_space_type
-
-function_space_mod -[hidden]- quadrature_mod : layout
-function_space_mod -[hidden]- operator_mod : layout
-
 @enduml

@@ -24,7 +24,7 @@ module function_space_mod_test
   public :: test_function_space_constructor, getParameters,   &
             test_space, test_stencil_point, test_stencil_1dx, &
             test_stencil_1dy, test_stencil_cross, test_mesh, test_colouring, &
-            test_get_whole_dofmap
+            test_get_whole_dofmap, test_get_last_dof
 
   @testParameter
   type, public, extends(AbstractTestParameter) :: function_space_parameter_type
@@ -51,6 +51,7 @@ module function_space_mod_test
     procedure test_stencil_cross
     procedure test_mesh
     procedure test_colouring
+    procedure test_get_last_dof
   end type test_function_space_type
 
   integer(i_def), parameter :: element_order = 0
@@ -541,5 +542,43 @@ contains
     end do
 
   end subroutine test_colouring
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_get_last_dof( this )
+
+    implicit none
+
+    class(test_function_space_type), intent(inout) :: this
+
+    type(function_space_type), pointer :: test_fs => null()
+
+    integer(i_def) :: undf, last_dof
+
+    test_fs => function_space_type( this%mesh_id,  &
+                                    element_order, &
+                                    this%function_space )
+
+    ! Get the total number of unique dofs in this function space
+    undf = test_fs%get_undf()
+
+    ! Get the last of the owned dofs
+    last_dof = test_fs%get_last_dof_owned()
+    ! In a serial test such as this the last owned dof should be the same
+    ! as the total number of dofs
+    @assertEqual ( undf, last_dof )
+    
+    !Get the last dof of the deepest halo
+    last_dof = test_fs%get_last_dof_halo()
+    ! In a serial test such as this the last halo dof of the deepest halo
+    ! should be the same as the total number of dofs
+    @assertEqual ( undf, last_dof )
+
+    last_dof = test_fs%get_last_dof_halo(1)
+    ! In a serial test such as this the last halo dof of halo depth=1
+    ! should be the same as the total number of dofs
+    @assertEqual ( undf, last_dof )
+
+  end subroutine test_get_last_dof
 
 end module function_space_mod_test

@@ -52,6 +52,7 @@ class function_space_mod::function_space_type {
     +get_global_dof_id( <<inout>>global_dof_id: integer[] )
     +get_haloHandle( <<in>>depth: integer ): ESMF_RouteHandle
     +get_last_dof_halo() : integer
+    +get_last_dof_halo( <<in>>depth: integer ) : integer
     +get_last_dof_owned() : integer
     +get_mesh(): mesh_type <<pointer>>
     +get_mesh_id(): integer
