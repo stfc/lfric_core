@@ -211,8 +211,9 @@ contains
 
       ! Invert mass matrices
       if ( operators == transport_operators_fv) then
-        ! Use lumped mass matrix
-        call invoke_multiply_field_data(rhs(igh_t), mm_lumped_inv_wtheta, inc(igh_t))
+        ! Equation is in pointwise form already so dont need to do any mass
+        ! matrix inversions   
+        call invoke( copy_field(rhs(igh_t), inc(igh_t)) )
       else
         ! Use full mass matrix
         call solver_algorithm( inc(igh_t), rhs(igh_t) )

@@ -61,6 +61,8 @@ module advection_alg_mod
   use field_indices_mod,              only: igh_u, igh_t, igh_d
   use output_config_mod,              only: subroutine_timers 
   use timer_mod,                      only: timer
+  use timestepping_config_mod,        only: time_method => method, &
+                                            timestepping_method_rk   
 
   implicit none
 
@@ -84,8 +86,6 @@ contains
     use mesh_collection_mod,               only: mesh_collection
     use sample_poly_flux_kernel_mod,       only: sample_poly_flux_init
     use sample_poly_adv_kernel_mod,        only: sample_poly_adv_init
-    use timestepping_config_mod,           only: time_method => method, &
-                                                 timestepping_method_rk   
     integer(i_def),  intent(in) :: mesh_id
 
     type(mesh_type), pointer :: mesh => null()
@@ -269,16 +269,24 @@ contains
                          rtheta_prediction(stage)) 
   end do
 
-  ! Return the advective increment in the correct form, this means multiplying
-  ! by Mtheta if fv operators are used to transform the pointwise field into a
+  ! Return the advective increment in the correct form, this means for 
+  ! si timestepping multiplying by Mtheta if fv operators are used to transform the pointwise field into a
   ! FEM field in the correct space.
   ! If FEM operators are used we need to cancel out the mt_lumped_inv factor
   ! used to update the theta_adv field.
-  call invoke( set_field_scalar(0.0_r_def, advection(2)) )
-  if ( operators == transport_operators_fv ) then    
-    call invoke( matrix_vector_kernel_type(advection(2), u_grad_theta, mm_wt) )
+  ! For RK timestepping with FV operators the full equation is solved in a
+  ! pointwise fashion and so nothing needs to be done
+  if ( operators == transport_operators_fv ) then   
+    if ( time_method == timestepping_method_rk ) then
+      ! Solve equation in pointwise form (fully fv equation)
+      call invoke( copy_field(u_grad_theta, advection(igh_t) ) )
+    else
+      ! Solve equation weak pointwise form (fully fem equation)
+      call invoke( set_field_scalar(0.0_r_def, advection(igh_t)), &
+                   matrix_vector_kernel_type(advection(igh_t), u_grad_theta, mm_wt) )
+    end if
   else
-    call invoke_divide_field(u_grad_theta, mt_lumped_inv, advection(2)) 
+    call invoke_divide_field(u_grad_theta, mt_lumped_inv, advection(igh_t)) 
   end if
 
   ! 3) Vorticity advection
@@ -299,10 +307,10 @@ contains
 
   ! 4) Vorticity advection of u ( F/rho \cross curl(u))
   call log_event( "Computing advective wind increment...", LOG_LEVEL_INFO)
-  call invoke( set_field_scalar(0.0_r_def, advection(1)) )
-  call invoke( vorticity_advection_kernel_type(advection(1), mass_flux, rho, &
+  call invoke( set_field_scalar(0.0_r_def, advection(igh_u)) )
+  call invoke( vorticity_advection_kernel_type(advection(igh_u), mass_flux, rho, &
                                                xi, chi, qr) )
-  call invoke( enforce_bc_kernel_type(advection(1)) )
+  call invoke( enforce_bc_kernel_type(advection(igh_u)) )
 
   ! 5) advection update for the continuity equation divergence of mass flux: 
   !    M3^-1(div(F))
@@ -310,7 +318,7 @@ contains
   call invoke( set_field_scalar(0.0_r_def, r_rho) )
   call invoke( matrix_vector_kernel_type(r_rho, mass_flux, div) )
   call invoke_scale_field_data(-1.0_r_def, r_rho)
-  call invoke( dg_matrix_vector_kernel_type(advection(3), r_rho, mm_w3_inv) )
+  call invoke( dg_matrix_vector_kernel_type(advection(igh_d), r_rho, mm_w3_inv) )
 
   if ( subroutine_timers ) call timer('advection_alg')
   end subroutine advection_alg
