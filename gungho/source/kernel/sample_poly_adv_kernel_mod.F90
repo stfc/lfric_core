@@ -33,7 +33,7 @@ implicit none
 real(kind=r_def), allocatable,    private :: coeff_matrix(:,:)
 real(kind=r_def), allocatable,    private :: coeff(:), tracer_stencil(:)
 integer(kind=i_def), allocatable, private :: stencil(:,:)
-integer(kind=i_def), allocatable, private :: np_v(:)
+integer(kind=i_def), allocatable, private :: np_v(:,:)
 integer(kind=i_def),              private :: np
 real(kind=r_def),                 private :: x0
 real(kind=r_def), allocatable,    private :: dx0(:)
@@ -128,7 +128,7 @@ subroutine sample_poly_adv_code( nlayers,              &
   integer(kind=i_def), dimension(ndf_wt,stencil_size), intent(in) :: stencil_map
 
   ! Internal variables
-  integer(kind=i_def) :: k, df, dft, p, dir, id
+  integer(kind=i_def) :: k, df, dft, p, dir, id, idx
   real(kind=r_def)    :: u(3,nlayers+1)
   real(kind=r_def)    :: polynomial_tracer, advection_update, z0 
 
@@ -198,20 +198,22 @@ subroutine sample_poly_adv_code( nlayers,              &
     ! Compute z stencil, dir < 0 if w > 0
     if (  u(3,k+dft) >= 0.0_r_def ) then
       dir = -1
+      idx = 1
     else
       dir = 1
+      idx = 2
     end if
-    do p = 1,np_v(k) 
-      id = stencil_map(dft,1) + k + dir*(np_v(k)/2 - (p-1))
+    do p = 1,np_v(k,idx) 
+      id = stencil_map(dft,1) + k + dir*(np_v(k,idx)/2 - (p-1))
       tracer_stencil(p) = tracer( id )
     end do
 
     ! Use appropriate inverse matrix for the order of this point
-    coeff(1:np_v(k)) = matmul(coeff_matrix_v(1:np_v(k),1:np_v(k),np_v(k)), &
-                              tracer_stencil(1:np_v(k)))
-    z0 = real(np_v(k)/2,r_def)
+    coeff(1:np_v(k,idx)) = matmul(coeff_matrix_v(1:np_v(k,idx),1:np_v(k,idx),np_v(k,idx)), &
+                                  tracer_stencil(1:np_v(k,idx)))
+    z0 = real(np_v(k,idx)/2,r_def)
     polynomial_tracer = 0.0_r_def
-    do p = 1,np_v(k)-1
+    do p = 1,np_v(k,idx)-1
       polynomial_tracer = polynomial_tracer + coeff(p+1)*real(p,r_def)*z0**(p-1)
     end do
     ! Polynomial tracer contains the directional derivative
@@ -316,13 +318,24 @@ subroutine sample_poly_adv_init(order, nlayers)
   ! For vertical terms we may need to reduce orders near the boundaries
   ! due to lack of points so for each cell compute order and 
   ! number of points in stencil of vertical terms
-  allocate( np_v(0:nlayers) )
+  ! np_v(:,1) is used if w > 0
+  ! np_v(:,2) is used if w < 0
+  allocate( np_v(0:nlayers,2) )
+  np_v(:,:) = np
 
-  np_v(0) = 1_i_def
-  do k = 1,nlayers-1
-    np_v(k) = int(min(np,min(2*k+1,2*(nlayers-k)+1)),i_def)
+  ! Reduce to linear/cubic on levels 1 & n-1
+  np_v(1,1) = min(np,2_i_def)
+  np_v(1,2) = min(np,4_i_def)
+  np_v(nlayers-1,2) = min(np,2_i_def)
+  np_v(nlayers-1,1) = min(np,4_i_def)
+
+  ! Reduce to constant on first and last levels
+  np_v(0,:) = 1_i_def
+  np_v(nlayers,:) = 1_i_def
+
+  do k = 2,nlayers-2
+    np_v(k,:) = int(min(np,min(2*k+1,2*(nlayers-k)+1)),i_def)
   end do
-  np_v(nlayers) = 1_i_def
   
 ! Compute inverses for vertical
 ! Each lower order matrix is just a subset of the high order matrix

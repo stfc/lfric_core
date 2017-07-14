@@ -119,7 +119,7 @@ def make_figure(plotpath, field, timestep):
     dz[i,:] = zi[0,i,:] - 300.0
  
   matplotlib.rcParams['contour.negative_linestyle'] = 'solid'
-  cc = np.linspace(-17, 1, 19)
+  cc = np.linspace(-16, -1, 16)
   cf = plt.contourf(xi *r2d, yi * r2d, np.round(dz,10), cc)
   cl = plt.contour(xi * r2d, yi*r2d, np.round(dz,10), cc, linewidths=1.0,colors='k', linestyle="", extend='min')
   plt.axis([0, 16, 0, 5])
@@ -127,7 +127,6 @@ def make_figure(plotpath, field, timestep):
   plt.ylabel("z (km)")
   plt.title('max: %2.4e, min: %2.4e'%(np.max(dz),np.min(dz)))
   plt.colorbar(cf,  cmap=cm.spectral)
-  plt.show()
 
   out_file_name = plotpath + "/" + 'straka_x' + "_" + timestep +  ".png"
   slice_fig.savefig(out_file_name , bbox_inches='tight')

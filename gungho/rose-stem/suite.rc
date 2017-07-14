@@ -22,7 +22,7 @@
                                 'check_compilers(fast-debug)',                     
                                 'canned_test',
                                 'godlines',
-                                'cleanlines'],	
+                                'cleanlines'],
                   'nightly': ['science(biperiodic_p0_gw, checkkgo=False, plotstr="gw_cart_plot.py $NODAL_DATA_DIR theta T000000:T000100:T000200:T000300 $PLOT_DIR")',
                               'science(biperiodic_p0_gw_fem, plotstr="gw_cart_plot.py $NODAL_DATA_DIR theta T000000:T000100:T000200:T000300 $PLOT_DIR")',
                               'science(robert,      env={"crun":3, "nrun":50}, checkkgo=True)',

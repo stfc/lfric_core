@@ -33,7 +33,7 @@ implicit none
 real(kind=r_def), allocatable,    private :: coeff_matrix(:,:)
 real(kind=r_def), allocatable,    private :: coeff(:), density_stencil(:)
 integer(kind=i_def), allocatable, private :: stencil(:,:)
-integer(kind=i_def), allocatable, private :: np_v(:,:)
+integer(kind=i_def), allocatable, private :: np_v(:)
 integer(kind=i_def),              private :: np
 real(kind=r_def),                 private :: x0
 real(kind=r_def), allocatable,    private :: x_to_p(:)
@@ -155,24 +155,17 @@ subroutine sample_poly_flux_code( nlayers,              &
   end do
 
   ! Vertical terms
-  ! Bottom cell - apply zero flux on bottom boundary (df=5)
-  !             - apply first order upwind on top boundary (df=6) 
-  k = 0
-  df = 5
-  flux(map_w2(df)) = 0.0_r_def
-  df = 6
-  direction = dot_product( wind(map_w2(df) + k )*basis_w2(:,df,df), &
-                           out_face_normal(:,df))
-  if ( direction >= 0.0_r_def ) &
-    flux(map_w2(df)) = wind(map_w2(df))*density(stencil_map(1,1))
+  ! Boundary cells - apply zero flux on bottom boundary (df=5) of k=0
+  !                  and top buondary (df=6) of k=nlayers-1
 
-  ! Internal cells
-  do k = 1,nlayers - 2
-    df = 5
+  ! fluxes on the bottom of each cell
+  df = 5
+  flux(map_w2(df) ) = 0.0_r_def
+  do k = 1,nlayers - 1
     direction = dot_product( wind(map_w2(df) + k )*basis_w2(:,df,df), &
                              out_face_normal(:,df))
     if ( direction >= 0.0_r_def ) then
-      nv = np_v(1,k)
+      nv = np_v(k)
       do p = 1,nv
         i = stencil_map(1,1) + k + (nv-1)/2 ! Location of first upwind point
         density_stencil(p) = density( i - (p-1)  )
@@ -187,12 +180,15 @@ subroutine sample_poly_flux_code( nlayers,              &
       end do
       flux(map_w2(df) + k ) = wind(map_w2(df) + k)*polynomial_density      
     end if
+  end do
 
-    df = 6
+  ! fluxes on the top of each cell
+  df = 6
+  do k = 0,nlayers - 2
     direction = dot_product( wind(map_w2(df) + k )*basis_w2(:,df,df), &
                              out_face_normal(:,df))
     if ( direction >= 0.0_r_def ) then
-      nv = np_v(2,k)
+      nv = np_v(k)
       do p = 1,nv
         i =  stencil_map(1,1) + k - (nv-1)/2 ! Location of first upwind point
         density_stencil(p) = density( i + (p-1) )
@@ -208,17 +204,7 @@ subroutine sample_poly_flux_code( nlayers,              &
       flux(map_w2(df) + k ) = wind(map_w2(df) + k)*polynomial_density      
     end if
   end do
-
-  ! Top cell - apply zero flux on top boundary (df=6)
-  !          - apply first order upwind on bottom boundary (df=5) 
-  k = nlayers - 1
-  df = 5
-  direction = dot_product( wind(map_w2(df) + k )*basis_w2(:,df,df), &
-                           out_face_normal(:,df))
-  if ( direction >= 0.0_r_def ) &
-    flux(map_w2(df)+k) = wind(map_w2(df)+k)*density(stencil_map(1,1)+k)
-  df = 6
-  flux(map_w2(df)+k) = 0.0_r_def
+  flux(map_w2(df) + nlayers-1 ) = 0.0_r_def
 
 end subroutine sample_poly_flux_code
 
@@ -233,7 +219,7 @@ subroutine sample_poly_flux_init(order, nlayers)
   implicit none
   
   integer(kind=i_def), intent(in) :: order, nlayers
-  integer(kind=i_def)             :: p, i, j, k
+  integer(kind=i_def)             :: p, i, j, k, nup, ndown
   integer(kind=i_def)             :: nupwindcells, ndownwindcells
   real(kind=r_def), allocatable   :: inv_coeff_matrix(:,:)
 
@@ -315,21 +301,23 @@ subroutine sample_poly_flux_init(order, nlayers)
 
   ! For vertical terms we may need to reduce orders near the boundaries
   ! due to lack of points so for each cell compute order and 
-  ! number of points in stencil of vertical terms
-  allocate( np_v(2,nlayers) )
+  ! number of points (order+1) in stencil of vertical terms
+  allocate( np_v(0:nlayers-1) )
 
-  ! max polynomial order p = min(2#up -1,2#down)
-  ! np = p + 1
-  ! first index of array is for bottom boundary of cell 
-  ! and second for the top boundary
-  np_v(:,1) = 1_i_def
-  do k = 1,nlayers-2  
-    ! #down = k, #up = nl - k
-    np_v(1,k+1) = int(min(np,min(2*(nlayers - k)-1, 2*k) + 1),i_def) 
-    ! #down = nl - k - 1, #up = k + 1
-    np_v(2,k+1) = int(min(np,min(2*(k+1) -1  , 2*(nlayers-1-k)) + 1),i_def)
+  ! For a stencil symmetric about cell k (so that it is upwinded for both the
+  ! dof on the top and bottom of the cell) the maximum number of points
+  ! available is 2*min(nup,ndown)+1 where nup and ndown are the number of cells
+  ! above and below the current cell 
+  do k = 1,nlayers-2 
+    ! # down = k
+    ! # up   = (nlayers-1)-k
+    ndown = k
+    nup   = (nlayers-1)-k
+    np_v(k) = min(np,2*min(ndown,nup)+1)
   end do
-  np_v(:,nlayers) = 1_i_def
+  ! For the boundary cells we use a constant approximation
+  np_v(0)         = 1_i_def
+  np_v(nlayers-1) = 1_i_def
 
   ! Compute inverses for vertical terms
   ! Each lower order matrix is just a subset of the high order matrix
