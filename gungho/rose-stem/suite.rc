@@ -351,6 +351,7 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
 
 [runtime]
     [[root]]
+        env-script = "eval $(rose task-env)"
         init-script = """
                       export CYLC_VERSION={{CYLC_VERSION}}
                       export ROSE_VERSION={{ROSE_VERSION}}
@@ -700,6 +701,8 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
 
         script = rose task-run --app-key=gungho --command-key={{command_key}} --opt-conf-key={{configuration}} --opt-conf-key='({{'empty' if resname=='' else resname}})' --opt-conf-key='({{'empty' if dt=='' else 'setdt'}})' --opt-conf-key='({{'empty' if mpi_parts=='' else 'setcores_x'}})' 
         post-script = """
+                      find . -regex '.*PET[0-9]+\..+\.Log' -exec cp {} $ROSE_TASK_LOG_DIR \;
+                      find . -regex '.*PET0+\..+\.Log' -exec cat {} \;
                       mkdir -p $DESTINATION_DIRECTORY/{{configuration}}
                       cp dynamo-checksums.txt $DESTINATION_DIRECTORY/{{configuration}}/{{compiler}}.checksums
                       mkdir -p $DESTINATION_DIRECTORY/{{configuration}}/results
