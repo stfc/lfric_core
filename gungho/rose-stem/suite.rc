@@ -434,6 +434,11 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
                       export ROSE_VERSION={{ROSE_VERSION}}
                       """
         script = "rose task-run"
+{%- if TARGET_REQUIRES_POLLING is defined %}
+        [[[job]]]
+            submission polling intervals = PT10S, PT20S, PT30S, PT1M
+            execution polling intervals  = PT1M, 2*PT2M, 3*PT3M, 4*PT4M, PT5M
+{%- endif %}
         [[[events]]]
 {%- if TROUBLE_MAIL_ADDRESS is defined %}
             mail to = {{TROUBLE_MAIL_ADDRESS}}
