@@ -54,7 +54,7 @@ contains
       INTEGER :: df_w0, df_chi
       type(mesh_type), pointer :: mesh => null()
       INTEGER nlayers
-      TYPE(field_proxy_type) geopotential_proxy, chi_proxy(3)
+      type(field_proxy_type) geopotential_proxy, chi_proxy(3)
       !
       ! Initialise field proxies
       !
