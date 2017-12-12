@@ -127,6 +127,13 @@ subroutine initial_u_code(nlayers, &
   real(kind=r_def), dimension(ndf_chi)         :: chi_1_cell, chi_2_cell, chi_3_cell
   real(kind=r_def), dimension(3)               :: u_physical, u_spherical, xyz, llr
   real(kind=r_def)                             :: integrand
+  real(kind=r_def), dimension(2)               :: optionset2
+  real(kind=r_def), dimension(3)               :: optionset3
+
+  ! Options for Spherical domains
+  optionset3 = (/ U0, sbr_angle_lat, sbr_angle_lon /)
+  ! Options for cartesian domains
+  optionset2 = (/ U0, V0 /)
 
   do k = 0, nlayers-1
     do df = 1, ndf_chi
@@ -154,11 +161,10 @@ subroutine initial_u_code(nlayers, &
         end do
         if ( geometry == base_mesh_geometry_spherical ) then
           call xyz2llr(xyz(1), xyz(2), xyz(3), llr(1), llr(2), llr(3))
-          u_spherical = analytic_wind(llr, time, profile, 3,                  &
-                                     (/ U0, sbr_angle_lat, sbr_angle_lon /))
+          u_spherical = analytic_wind(llr, time, profile, 3, optionset3)
           u_physical = sphere2cart_vector(u_spherical,llr) 
         else
-          u_physical = analytic_wind(xyz, time, profile, 2, (/ U0, V0 /))
+          u_physical = analytic_wind(xyz, time, profile, 2, optionset2)
         end if
         do df = 1, ndf 
           integrand = dot_product(matmul(jacobian(:,:,qp1,qp2),&
