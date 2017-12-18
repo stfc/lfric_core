@@ -21,66 +21,66 @@
 
 {%- set groups = {
 'developer': [
-    'run_application( gungho, agnesi_orog_cartesian,  resolutions=[["BiP40x4-100x100",3.0]] )',
-    'run_application( gungho, baroclinic,             resolutions=[["C24",600.0]],
-                      env={"crun":1, "nrun": {"default":10},
-                                              "directives":{"default":{"mpi_parts":6,
-                                                                       "threads":1,
-                                                                       "wallclock":"00:15:00"} } },
+    'run_application( gungho, agnesi_orog_cartesian,  resolutions=[("BiP40x4-100x100",3.0)] )',
+    'run_application( gungho, baroclinic,             resolutions=[("C24",600.0)],
+                      env={"crun":1, "nrun":10,
+                           "directives":{"default":{"mpi_parts":6,"threads":1,"wallclock":"00:15:00"} } },
                       plotstr="slices.py diagDynamo $NODAL_DATA_DIR theta:rho:1u:2u:3u T000010 180 50 0 $PLOT_DIR" )',
-    'run_application( gungho, biperiodic_p0_gw_short, resolutions=[["BiP300x4-1000x2000",10.0]] )',
-    'run_application( gungho, biperiodic_p1_gw,       resolutions=[["BiP30x4-12000x2000",10.0]] )',
-    'run_application( gungho, cosine_hill_45deg,      resolutions=[["C32",4050.0]],
+    'run_application( gungho, biperiodic_p0_gw_short, resolutions=[("BiP300x4-1000x2000",10.0)] )',
+    'run_application( gungho, biperiodic_p1_gw,       resolutions=[("BiP30x4-12000x2000",10.0)] )',
+    'run_application( gungho, cosine_hill_45deg,      resolutions=[("C32",4050.0)],
                       plotstr="slices.py diagDynamo $NODAL_DATA_DIR rho T000000:T000032:T000064:T000096:T000128:T000160:T000192:T000224:T000256 -1 -91 0 $PLOT_DIR" )',
-    'run_application( gungho, robert_short,           resolutions=[["BiP50x4-20x20",0.5]], env={"crun":3, "nrun":5})',
-    'run_application( gungho, runge-kutta,            resolutions=[["C12",1.0]], env={"nrun":30} )',
-    'run_application( gungho, semi-implicit,          resolutions=[["C12",10.0]], env={"nrun":3} )',
-    'run_application( gungho, static_isentropic_x,    resolutions=[["BiP4x4-600x400",10.0]], env={"nrun":10},
+    'run_application( gungho, robert_short,           resolutions=[("BiP50x4-20x20",0.5)], env={"crun":3, "nrun":5})',
+    'run_application( gungho, runge-kutta,            resolutions=[("C12",1.0)], env={"nrun":30} )',
+    'run_application( gungho, semi-implicit,          resolutions=[("C12",10.0)], env={"nrun":3} )',
+    'run_application( gungho, static_isentropic_x,    resolutions=[("BiP4x4-600x400",10.0)], env={"nrun":10},
                       plotstr="dofs.py diagDynamo $NODAL_DATA_DIR w3projection_u1:w3projection_u2:w3projection_u3 T000000:T000010 $PLOT_DIR")',
-    'run_application( gungho, static_isentropic_y,    resolutions=[["BiP4x4-600x400",10.0]], env={"nrun":10},
+    'run_application( gungho, static_isentropic_y,    resolutions=[("BiP4x4-600x400",10.0)], env={"nrun":10},
                       plotstr="dofs.py diagDynamo $NODAL_DATA_DIR w3projection_u1:w3projection_u2:w3projection_u3 T000000:T000010 $PLOT_DIR")',
-    'run_application( gungho, straka_y,               resolutions=[["BiP4x128-400x400",10.0]],
+    'run_application( gungho, straka_y,               resolutions=[("BiP4x128-400x400",10.0)],
                       plotstr="straka_plot_y.py $NODAL_DATA_DIR theta T000090 $PLOT_DIR" )',
-    'run_application( gungho, straka_y_ugrid,         resolutions=[["BiP4x128-400x400",10.0]],
-                      plotstr="straka_plot_y_ugrid.py $NODAL_DATA_DIR/lfric_diag.nc air_potential_temperature full_levels_faces T90 $PLOT_DIR")',
-    'run_application( gungho, transport-biperiodic,   resolutions=[["BiP40x40-5x5",1.0]],
+    'run_application( gungho, straka_y_ugrid,         resolutions=[("BiP4x128-400x400",10.0)], checkkgo=False,
+                      plotstr="straka_plot_y_ugrid.py $NODAL_DATA_DIR/lfric_diag.nc air_potential_temperature faces_levels T90 $PLOT_DIR")',
+    'run_application( gungho, transport-biperiodic,   resolutions=[("BiP40x40-5x5",1.0)],
                       plotstr="biperiodic-cosmic_plot.py $NODAL_DATA_DIR rho T000000:T000020:T000040:T000060:T000080:T000100 $PLOT_DIR" )',
-    'run_application( gungho, transport-rk,           resolutions=[["C12",7200.0]] )',
-    'run_application( gungho, weak_hs_short,          resolutions=[["C24",600.0]],
-                      env={"crun":3, "nrun": {"default":3}, "directives":{"default":{"mpi_parts":6,"threads":1,"xios_nodes":1,"wallclock":"00:05:00"}}})',
-    'check_compilers( gungho, semi-implicit, fast-debug, resolutions=[["C12",10.0]], publish=False )',
+    'run_application( gungho, transport-rk,           resolutions=[("C12",7200.0)] )',
+    'run_application( gungho, weak_hs_short,          resolutions=[("C24",600.0,900.0)],
+                      env={"crun":3,
+                           "nrun":{("C24",600.0):3,
+                                   ("C24",900.0):2},
+                           "directives":{"default":{"mpi_parts":6,"threads":1,"xios_nodes":1,"wallclock":"00:05:00"}}})',
+    'check_compilers( gungho, semi-implicit, fast-debug, resolutions=[("C12",10.0)], publish=False )',
     'canned_test(gravity_wave)',
     'canned_test(gungho)',
     'godlines',
     'cleanlines'],
 'nightly': [
-    'run_application( gravity_wave, default,          resolutions=[["C24",100.0]], support_meshes=["C12","C6","C3"],
+    'run_application( gravity_wave, default,          resolutions=[("C24",100.0)], support_meshes=["C12","C6","C3"],
                       plotstr="slices.py gravity_wave $NODAL_DATA_DIR buoyancy T000036 150 0 6 $PLOT_DIR" )',
-    'run_application( gungho, biperiodic-cosmic,      resolutions=[["BiP200x200-5x5",1.0]],
+    'run_application( gungho, biperiodic-cosmic,      resolutions=[("BiP200x200-5x5",1.0)],
                       plotstr="biperiodic-cosmic_plot.py $NODAL_DATA_DIR rho T000000:T000500 $PLOT_DIR" )',
-    'run_application( gungho, biperiodic_p0_gw,       resolutions=[["BiP300x4-1000x2000",10.0]], checkkgo=False,
+    'run_application( gungho, biperiodic_p0_gw,       resolutions=[("BiP300x4-1000x2000",10.0)], checkkgo=False,
                       plotstr="gw_cart_plot.py $NODAL_DATA_DIR theta T000000:T000100:T000200:T000300 $PLOT_DIR" )',
-    'run_application( gungho, biperiodic_p0_gw_fem,   resolutions=[["BiP300x4-1000x2000",10.0]],
+    'run_application( gungho, biperiodic_p0_gw_fem,   resolutions=[("BiP300x4-1000x2000",10.0)],
                       plotstr="gw_cart_plot.py $NODAL_DATA_DIR theta T000000:T000100:T000200:T000300 $PLOT_DIR" )',
-    'run_application( gungho, dcmip301,               resolutions=[["C24",10.0]],
+    'run_application( gungho, dcmip301,               resolutions=[("C24",10.0)],
                       plotstr="dcmip301.py $NODAL_DATA_DIR theta T000180:T000252:T000324:T000360 $PLOT_DIR" )',
-    'run_application( gungho, divergence_cosmic,      resolutions=[["C32",1.0]],
+    'run_application( gungho, divergence_cosmic,      resolutions=[("C32",1.0)],
                       plotstr="slices.py diagDynamo $NODAL_DATA_DIR rho T000000:T000050:T000100:T000150:T000200:T000250:T000300:T000350:T000400:T000450:T000500 -1 -91 0 $PLOT_DIR" )',
-    'run_application( gungho, robert,                 resolutions=[["BiP50x4-20x20",0.5]], env={"crun":3, "nrun":50} )',
-    'run_application( gungho, robert-moist,           resolutions=[["BiP50x4-20x20",0.5]], env={"crun":3, "nrun":50} )',
-    'run_application( gungho, sbr,                    resolutions=[["C24",600.0]], env={"nrun":60} )',
-    'run_application( gungho, semi-implicit,          resolutions=[["C12",10.0]], env={"nrun":3})',
-    'run_application( gungho, straka_200m,            resolutions=[["BiP256x4-200x200",5.0]],
+    'run_application( gungho, robert,                 resolutions=[("BiP50x4-20x20",0.5)], env={"crun":3, "nrun":50} )',
+    'run_application( gungho, robert-moist,           resolutions=[("BiP50x4-20x20",0.5)], env={"crun":3, "nrun":50} )',
+    'run_application( gungho, sbr,                    resolutions=[("C24",600.0)], env={"nrun":60} )',
+    'run_application( gungho, semi-implicit,          resolutions=[("C12",10.0)], env={"nrun":3})',
+    'run_application( gungho, straka_200m,            resolutions=[("BiP256x4-200x200",5.0)],
                       plotstr="straka_plot_x.py $NODAL_DATA_DIR theta T000360 $PLOT_DIR" )',
-    'run_application( gungho, straka_x,               resolutions=[["BiP128x4-400x400",10.0]],
+    'run_application( gungho, straka_x,               resolutions=[("BiP128x4-400x400",10.0)],
                       plotstr="straka_plot_x.py $NODAL_DATA_DIR theta T000090 $PLOT_DIR" )',
-    'run_application( gungho, straka_y,               resolutions=[["BiP4x128-400x400",10.0]],
+    'run_application( gungho, straka_y,               resolutions=[("BiP4x128-400x400",10.0)],
                       plotstr="straka_plot_y.py $NODAL_DATA_DIR theta T000090 $PLOT_DIR" )',
-    'run_application( io_miniapp, default,            resolutions=[["C12"]], checkkgo=False )',
-    'check_compilers( gungho, semi-implicit, full-debug, resolutions=[["C12",10.0]], publish=True )',
+    'run_application( io_miniapp, default,            resolutions=[("C12",)], checkkgo=False )',
+    'check_compilers( gungho, semi-implicit, full-debug, resolutions=[("C12",10.0)], publish=True )',
     'godlines(publish=True)',
     'publish_commit']} %}
-
 
 {# The csar groups are now included in the following #}
 %include inc/csar.rc
@@ -125,7 +125,7 @@
 {#- required and give the app name and the configuration to use              #}
 
 {%- macro run_application( appName, configuration,
-                           plotstr=None, resolutions=[['']],
+                           plotstr=None, resolutions=[('')],
                            run_with_compilers=[TARGET_SCIENCE_COMPILER],
                            support_meshes=[''], env=None, checkkgo=True ) %}
 
@@ -272,7 +272,7 @@
 {%- endmacro %}
 
 {#- #########################################################################}
-{%- macro check_compilers( appName, configuration, build, resolutions=[['']], publish=False ) %}
+{%- macro check_compilers( appName, configuration, build, resolutions=[('')], publish=False ) %}
       [[[R1]]]
 
 {%-   set perform_run = [] %}
@@ -947,7 +947,7 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
 {%-           if appLabel in resolution_choices %}
 {%-             set resolution_options=resolution_choices[appLabel] %}
 {%-           else %}
-{%-             set resolution_options=[['']] %}
+{%-             set resolution_options=[('')] %}
 {%-           endif %}
 {%-           for resolution in resolution_options %}
 {%-             set res_value, dt_values, res_label, dt_labels, res_opt = resolution | getResolutionLabels() %}
@@ -993,7 +993,7 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
 {%-           if appLabel in resolution_choices %}
 {%-             set resolution_options=resolution_choices[appLabel] %}
 {%-           else %}
-{%-             set resolution_options=[['']] %}
+{%-             set resolution_options=[('')] %}
 {%-           endif %}
 
 {%-           for resolution in resolution_options %} {# science resolutions #}
@@ -1043,6 +1043,11 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
 {%-                   endif %}
 {%-                 endif %}
 
+{%-                 if configuration_res == '' %}
+{%                    set pathFragment = appName ~ '/' ~ configuration %}
+{%-                 else  %}
+{%                    set pathFragment = appName ~ '/' ~ configuration ~ '/' ~ configuration_res %}
+{%-                 endif %}
 
 {# RUN THE APPS #}
     [[run_{{configuration_label_res}}]]
@@ -1060,26 +1065,24 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
         post-script = """
                       find . -regex '.*PET0+\..+\.Log' -exec cp {} $ROSE_TASK_LOG_DIR \;
                       find . -regex '.*PET0+\..+\.Log' -exec cat {} \;
-                      mkdir -p $DESTINATION_DIRECTORY/{{appLabel}}
-                      mkdir -p $DESTINATION_DIRECTORY/{{appLabel}}/results
-                      test -f {{appName}}-checksums.txt && cp {{appName}}-checksums.txt $DESTINATION_DIRECTORY/{{appLabel}}/{{compiler}}.checksums
+                      mkdir -p $DESTINATION_DIRECTORY/{{pathFragment}}
+                      mkdir -p $DESTINATION_DIRECTORY/{{pathFragment}}/results
+                      test -f {{appName}}-checksums.txt && cp {{appName}}-checksums.txt $DESTINATION_DIRECTORY/{{pathFragment}}/{{compiler}}.checksums
 
                       # Copy nodal .m output
                       touch $CYLC_TASK_WORK_DIR/tmp.m
-                      cp $CYLC_TASK_WORK_DIR/*.m $DESTINATION_DIRECTORY/{{appLabel}}/results/
+                      cp $CYLC_TASK_WORK_DIR/*.m $DESTINATION_DIRECTORY/{{pathFragment}}/results/
 
                       # Copy XIOS netCDF (if it exists)
-                      test -f $CYLC_TASK_WORK_DIR/lfric_diag.nc && cp $CYLC_TASK_WORK_DIR/lfric_diag.nc $DESTINATION_DIRECTORY/{{appLabel}}/results/
-                      test -f $CYLC_TASK_WORK_DIR/lfric_initial.nc && cp $CYLC_TASK_WORK_DIR/lfric_initial.nc $DESTINATION_DIRECTORY/{{appLabel}}/results/
+                      test -f $CYLC_TASK_WORK_DIR/lfric_diag.nc && cp $CYLC_TASK_WORK_DIR/lfric_diag.nc $DESTINATION_DIRECTORY/{{pathFragment}}/results/
+                      test -f $CYLC_TASK_WORK_DIR/lfric_initial.nc && cp $CYLC_TASK_WORK_DIR/lfric_initial.nc $DESTINATION_DIRECTORY/{{pathFragment}}/results/
 
                       # Future publisher stages need this information
                       RELATIVE_LOG_ROOT=$(echo $CYLC_TASK_LOG_ROOT | sed "s|$HOME/||")
-                      echo $RELATIVE_LOG_ROOT > $DESTINATION_DIRECTORY/{{appLabel}}.log.path
+                      echo $RELATIVE_LOG_ROOT > $DESTINATION_DIRECTORY/{{pathFragment}}/run_log.path
                       """
 
         [[[environment]]]
-{#                  If the mpi is configured by the suite, then we will use         #}
-{#                  the setcores optional configuration, so let's check that here   #}
 {%-                 if configuration_label in scheduledTasksDict.keys() %}
 {%-                   set configTaskDict = scheduledTasksDict[configuration_label] %}
 
@@ -1095,12 +1098,10 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
 
 {#                    If we have nrun dependent on resolution / timestep then we  #}
 {#                    need to set that in the environment too                     #}
-{%-                   if 'nrun' in configTaskDict.keys() %}
-{%-                     if configTaskDict['nrun'] is not number %}
-{%-                       set nrunKey = res_value if dt_values[i]=='' else (res_value, dt_values[i]) %}
-{%-                       set nrunKey = nrunKey if nrunKey in configTaskDict['nrun'].keys() else 'default' %}
+{%                    if 'nrun' in configTaskDict.keys() and configTaskDict['nrun'] is not number %}
+{%-                     set nrunKey = res_value if dt_values[i]=='' else (res_value, dt_values[i]) %}
+{%-                     set nrunKey = nrunKey if nrunKey in configTaskDict['nrun'].keys() else 'default' %}
             nrun = {{configTaskDict['nrun'][nrunKey] }}
-{%-                     endif %}
 {%-                   endif %}
 
 {%-                 endif %} {# configuration_label #}
@@ -1132,8 +1133,10 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
         [[[environment]]]
             app_name   = {{appName}}
             TARGET_OPT = {{TARGET_OPT}}
-            CONFIG = {{appLabel}}
-            RES    = {{res_label}}{{dt_labels[i]}}
+            CONFIG     = {{configuration}}
+            RES        = {{res_value}}{{dt_labels[i]}}
+            RES_LABEL  = {{res_label}}{{dt_labels[i]}}
+
         [[[directives]]]
 {%-                 for DIRECTIVE in TARGET_TECHNICAL_BATCHER_DIRECTIVES %}
             {{DIRECTIVE}}
@@ -1160,8 +1163,8 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
                      """
         script = rose task-run --app-key=plot
         [[[environment]]]
-             NODAL_DATA_DIR = $DESTINATION_DIRECTORY/{{appLabel}}/results
-             PLOT_DIR = $DESTINATION_DIRECTORY/{{appLabel}}/plots
+             NODAL_DATA_DIR = $DESTINATION_DIRECTORY/{{pathFragment}}/results
+             PLOT_DIR = $DESTINATION_DIRECTORY/{{pathFragment}}/plots
              PLOT_CONFIG = {{plot_config[plot_label]}}
 {%-               endif %}
 
@@ -1178,21 +1181,22 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
         inherit = PUBLISH_OUTPUT, {{appLabel|upper}}_{{label|upper}}
         pre-script = """
                      {{ensureDestination()}}
-                     mkdir -p $DESTINATION_DIRECTORY/{{appLabel}}
+                     mkdir -p $DESTINATION_DIRECTORY/{{pathFragment}}
                      RELATIVE_DESTINATION_DIRECTORY=`echo $DESTINATION_DIRECTORY | sed "s|$HOME/||"`
-                     cd $DESTINATION_DIRECTORY/{{appLabel}}
-                     scp {{TARGET_HOST}}:$RELATIVE_DESTINATION_DIRECTORY/{{appLabel}}.log.path .
-                     scp {{TARGET_HOST}}:$(cat {{appLabel}}.log.path).status .
-                     scp {{TARGET_HOST}}:$(cat {{appLabel}}.log.path).out .
-                     scp {{TARGET_HOST}}:$(cat {{appLabel}}.log.path).err .
+                     cd $DESTINATION_DIRECTORY/{{pathFragment}}
+                     scp {{TARGET_HOST}}:$RELATIVE_DESTINATION_DIRECTORY/{{pathFragment}}/run_log.path .
+                     scp {{TARGET_HOST}}:$(cat run_log.path).status .
+                     scp {{TARGET_HOST}}:$(cat run_log.path).out .
+                     scp {{TARGET_HOST}}:$(cat run_log.path).err .
                      """
         script = rose task-run --app-key=publish --command-key=run
         [[[environment]]]
+            app_name      = {{appName}}
             CONTEXT       = {{build}}
-            CONFIGURATION = {{appLabel}}
+            CONFIGURATION = {{configuration}}
             COMPILER      = {{compiler}}
-            LOG_STATUS    = $DESTINATION_DIRECTORY/{{appLabel}}/job.status
-            LOG_ERR       = $DESTINATION_DIRECTORY/{{appLabel}}/job.err
+            LOG_STATUS    = $DESTINATION_DIRECTORY/{{pathFragment}}/job.status
+            LOG_ERR       = $DESTINATION_DIRECTORY/{{pathFragment}}/job.err
 {%-               endif %}
 
 
@@ -1207,10 +1211,10 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
     [[publish_{{configuration_label_res}}_plots]]
         inherit = PUBLISH_OUTPUT, {{appLabel|upper}}_{{label|upper}}
         script = """
-                 mkdir -p $DESTINATION/{{compiler}}/{{build}}/{{appLabel}}_{{configuration_res}}
+                 mkdir -p $DESTINATION/{{compiler}}/{{build}}/{{pathFragment}}
                  RELATIVE_DESTINATION_DIRECTORY=`echo $DESTINATION_DIRECTORY | sed "s|$HOME/||"`
-                 rsync -avz {{TARGET_HOST}}:$RELATIVE_DESTINATION_DIRECTORY/{{appLabel}}/plots/ \
-                            $DESTINATION/{{compiler}}/{{build}}/{{appLabel}}_{{configuration_res}}/
+                 rsync -avz {{TARGET_HOST}}:$RELATIVE_DESTINATION_DIRECTORY/{{pathFragment}}/plots/ \
+                            $DESTINATION/{{compiler}}/{{build}}/{{pathFragment}}/
                  """
 {%-               endif %}
 

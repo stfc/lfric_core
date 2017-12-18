@@ -3,9 +3,9 @@
 
 {%- set cosmic_groups = {
                'cosmic-northpole_cosine_hill':['run_application(gungho, northpole_cosine_hill,
-                                         resolutions=[["C24", 8100.0],
-                                                      ["C48", 4050.0],
-                                                      ["C96", 2025.0]],
+                                         resolutions=[("C24", 8100.0),
+                                                      ("C48", 4050.0),
+                                                      ("C96", 2025.0)],
                                          env={"crun": 1,
                                               "nrun":{("C24", 8100.0): 128,
                                                       ("C48", 4050.0): 256,
@@ -22,9 +22,9 @@
                                          checkkgo=False)'
                                ],
                'cosmic-equator_cosine_hill':['run_application(gungho, equator_cosine_hill,
-                                         resolutions=[["C24", 8100.0],
-                                                      ["C48", 4050.0],
-                                                      ["C96", 2025.0]],
+                                         resolutions=[("C24", 8100.0),
+                                                      ("C48", 4050.0),
+                                                      ("C96", 2025.0)],
                                          env={"crun": 1,
                                               "nrun":{("C24", 8100.0): 128,
                                                       ("C48", 4050.0): 256,
@@ -41,9 +41,9 @@
                                          checkkgo=False)'
                                ],
                'cosmic-corner_cosine_hill':['run_application(gungho, corner_cosine_hill,
-                                         resolutions=[["C24", 8100.0],
-                                                      ["C48", 4050.0],
-                                                      ["C96", 2025.0]],
+                                         resolutions=[("C24", 8100.0),
+                                                      ("C48", 4050.0),
+                                                      ("C96", 2025.0)],
                                          env={"crun": 1,
                                               "nrun":{("C24", 8100.0): 128,
                                                       ("C48", 4050.0): 256,
