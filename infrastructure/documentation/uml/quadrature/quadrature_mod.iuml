@@ -2,5 +2,5 @@
 ' For further details please refer to the file LICENCE which you should have
 ' received as part of this distribution.
 
-abstract class abstract_quadrature_mod::abstract_quadrature_type {
+abstract class quadrature_mod::quadrature_type {
 }

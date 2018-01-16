@@ -27,7 +27,7 @@ module quadrature_xyz_mod
 use constants_mod,           only: r_def, i_def, PI, EPS
 use log_mod,                 only: LOG_LEVEL_ERROR, log_event, log_scratch_space
 use quadrature_rule_mod,     only: quadrature_rule_type
-use abstract_quadrature_mod, only: abstract_quadrature_type
+use quadrature_mod,          only: quadrature_type
 use function_space_mod,      only: function_space_type
 
 implicit none
@@ -42,7 +42,7 @@ private
 ! xyz quadrature type
 !-------------------------------------------------------------------------------
 
-type, public, extends(abstract_quadrature_type) :: quadrature_xyz_type
+type, public, extends(quadrature_type) :: quadrature_xyz_type
 
   private
 

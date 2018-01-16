@@ -6,7 +6,7 @@
 ! Abstract base quadrature type.
 !-------------------------------------------------------------------------------
 !> @brief Abstract base type for for quadrature
-module abstract_quadrature_mod
+module quadrature_mod
 implicit none
 private
 
@@ -14,9 +14,9 @@ private
 ! Public types
 !-------------------------------------------------------------------------------
 
-type, public, abstract :: abstract_quadrature_type
+type, public, abstract :: quadrature_type
   private
 
 end type
 
-end module abstract_quadrature_mod
+end module quadrature_mod

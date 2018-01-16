@@ -32,5 +32,5 @@ class quadrature_xoyoz_mod::quadrature_xoyoz_proxy_type {
   +points_z : real[:] <<pointer>>
 }
 
-abstract_quadrature_mod::abstract_quadrature_type <|-- quadrature_xoyoz_mod::quadrature_xoyoz_type
+quadrature_mod::quadrature_type <|-- quadrature_xoyoz_mod::quadrature_xoyoz_type
 quadrature_xoyoz_mod::quadrature_xoyoz_proxy_type -> quadrature_xoyoz_mod::quadrature_xoyoz_type

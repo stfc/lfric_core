@@ -22,5 +22,5 @@ class quadrature_xyz_mod::quadrature_xyz_proxy_type {
   +points_xyz : real[::] <<pointer>>
 }
 
-abstract_quadrature_mod::abstract_quadrature_type <|-- quadrature_xyz_mod::quadrature_xyz_type
+quadrature_mod::quadrature_type <|-- quadrature_xyz_mod::quadrature_xyz_type
 quadrature_xyz_mod::quadrature_xyz_proxy_type -> quadrature_xyz_mod::quadrature_xyz_type

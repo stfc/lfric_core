@@ -1,13 +1,15 @@
-' Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
-' For further details please refer to the file LICENCE.original which you
-' should have received as part of this distribution.
+' (C) Crown copyright 2017 Met Office. All rights reserved.
+' For further details please refer to the file LICENCE which you should have
+' received as part of this distribution.
 
 @startuml
 
 !include look.iuml
-!include field/quadrature_rule_mod.iuml
-!include field/quadrature_rule_gaussian_mod.iuml
-!include field/quadrature_rule_newton_cotes_mod.iuml
+!include quadrature/quadrature_mod.iuml
+
+!include quadrature/quadrature_xoyoz_mod.iuml
+!include quadrature/quadrature_xyz_mod.iuml
+!include quadrature/quadrature_xyoz_mod.iuml
 
 quadrature_xoyoz_mod -[hidden]- quadrature_xyz_mod
 quadrature_xyz_mod -[hidden]- quadrature_xyoz_mod

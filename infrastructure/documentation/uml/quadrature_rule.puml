@@ -5,7 +5,8 @@
 @startuml
 
 !include look.iuml
-!include quadrature/quadrature_xyoz_mod.iuml
-!include field/scalar_mod.iuml
+!include field/quadrature_rule_mod.iuml
+!include field/quadrature_rule_gaussian_mod.iuml
+!include field/quadrature_rule_newton_cotes_mod.iuml
 
 @enduml
