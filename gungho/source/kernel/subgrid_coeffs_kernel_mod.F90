@@ -104,6 +104,7 @@ subroutine subgrid_coeffs_code(                                               &
 
   use subgrid_rho_mod, only: minmod_function, maxmod_function, second_order_coeffs
   use cosmic_flux_mod,    only : stencil_ordering_and_orientation
+  use log_mod,          only : log_event, LOG_LEVEL_ERROR, LOG_LEVEL_INFO, log_scratch_space
 
   ! Arguments
   integer, intent(in)               :: nlayers
@@ -131,50 +132,56 @@ subroutine subgrid_coeffs_code(                                               &
   ! If stencil is of length 5 for example, the stencil_ordering array returned is either
   ! (/ 4, 2, 1, 3, 5 /) or (/ 5, 3, 1, 2, 4 /) depending on the cell orientation and
   ! direction (x or y)
-  call stencil_ordering_and_orientation(stencil_length,int(cell_orientation(stencil_map(1,1)),i_def),direction,stencil_ordering)
+
+  if (cell_orientation(stencil_map(1,1)) > 0_i_def .and. cell_orientation(stencil_map(1,1)) < 5_i_def) then
+    call stencil_ordering_and_orientation(stencil_length,int(cell_orientation(stencil_map(1,1)),i_def),direction,stencil_ordering)
 
 
-  do k=0,nlayers-1
+    do k=0,nlayers-1
 
-    ! Rearrange the rho values such that array rho_local is an array of rho values
-    ! from left to right with rho_local(1) the rho value for the left most cell,
-    ! rho_local(2) the value one cell to the right and so on.
-    do ii=1,stencil_length
-      rho_local(ii) = rho( stencil_map(1,stencil_ordering(ii))+k )
+      ! Rearrange the rho values such that array rho_local is an array of rho values
+      ! from left to right with rho_local(1) the rho value for the left most cell,
+      ! rho_local(2) the value one cell to the right and so on.
+      do ii=1,stencil_length
+        rho_local(ii) = rho( stencil_map(1,stencil_ordering(ii))+k )
+      end do
+
+      select case(subgridrho_option)
+        case (subgrid_rho_approximation_constant_subgrid)
+          a0(stencil_map(1,1)+k) = rho(stencil_map(1,1)+k)
+          a1(stencil_map(1,1)+k) = 0.0_r_def
+          a2(stencil_map(1,1)+k) = 0.0_r_def
+
+        case (subgrid_rho_approximation_constant_positive)
+          a0(stencil_map(1,1)+k) = max(rho(stencil_map(1,1)+k),0.0_r_def)
+          a1(stencil_map(1,1)+k) = 0.0_r_def
+          a2(stencil_map(1,1)+k) = 0.0_r_def
+
+        case (subgrid_rho_approximation_ppm_no_limiter)
+          positive=.false.
+          monotone=.false.
+          call second_order_coeffs(rho_local,coeffs,positive,monotone)
+          a0(stencil_map(1,1)+k) = coeffs(1)
+          a1(stencil_map(1,1)+k) = coeffs(2)
+          a2(stencil_map(1,1)+k) = coeffs(3)
+
+        case (subgrid_rho_approximation_ppm_positive_only, &
+              subgrid_rho_approximation_ppm_positive_monotone)
+          positive=.true.
+          monotone=.false.
+          if ( subgridrho_option == subgrid_rho_approximation_ppm_positive_monotone) monotone=.true.
+          call second_order_coeffs(rho_local,coeffs,positive,monotone)
+          a0(stencil_map(1,1)+k) = coeffs(1)
+          a1(stencil_map(1,1)+k) = coeffs(2)
+          a2(stencil_map(1,1)+k) = coeffs(3)
+
+      end select
+
     end do
+  else
+    call log_event( "Cell orientation not assigned in subgrid_coeffs", LOG_LEVEL_INFO )
+  end if
 
-    select case(subgridrho_option)
-      case (subgrid_rho_approximation_constant_subgrid)
-        a0(stencil_map(1,1)+k) = rho(stencil_map(1,1)+k)
-        a1(stencil_map(1,1)+k) = 0.0_r_def
-        a2(stencil_map(1,1)+k) = 0.0_r_def
-
-      case (subgrid_rho_approximation_constant_positive)
-        a0(stencil_map(1,1)+k) = max(rho(stencil_map(1,1)+k),0.0_r_def)
-        a1(stencil_map(1,1)+k) = 0.0_r_def
-        a2(stencil_map(1,1)+k) = 0.0_r_def
-
-      case (subgrid_rho_approximation_ppm_no_limiter)
-        positive=.false.
-        monotone=.false.
-        call second_order_coeffs(rho_local,coeffs,positive,monotone)
-        a0(stencil_map(1,1)+k) = coeffs(1)
-        a1(stencil_map(1,1)+k) = coeffs(2)
-        a2(stencil_map(1,1)+k) = coeffs(3)
-
-      case (subgrid_rho_approximation_ppm_positive_only, &
-            subgrid_rho_approximation_ppm_positive_monotone)
-        positive=.true.
-        monotone=.false.
-        if ( subgridrho_option == subgrid_rho_approximation_ppm_positive_monotone) monotone=.true.
-        call second_order_coeffs(rho_local,coeffs,positive,monotone)
-        a0(stencil_map(1,1)+k) = coeffs(1)
-        a1(stencil_map(1,1)+k) = coeffs(2)
-        a2(stencil_map(1,1)+k) = coeffs(3)
-
-    end select
-
-  end do
 
 end subroutine subgrid_coeffs_code
 

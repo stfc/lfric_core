@@ -72,8 +72,6 @@ subroutine cosmic_halo_correct_x_code( nlayers,              &
                                        undf_w3,              &
                                        map_w3 )
 
-  use log_mod, only : log_event, LOG_LEVEL_ERROR
-
   ! Arguments
   integer, intent(in)                                   :: nlayers
   integer, intent(in)                                   :: ndf_w3
@@ -95,8 +93,6 @@ subroutine cosmic_halo_correct_x_code( nlayers,              &
       rho_out(map_w3(1)+k) = rho_x_in(map_w3(1)+k)
     elseif (orientation == 2 .OR. orientation == 4 ) then
       rho_out(map_w3(1)+k) = rho_y_in(map_w3(1)+k)
-    else
-      call log_event( "Cell orientation not assigned", LOG_LEVEL_ERROR )
     endif
 
   end do

@@ -282,8 +282,6 @@ contains
           stencil_order_out(ii) = 2*ii-(stencil_length+1)
         end do
 
-      else
-        call log_event( "Error 1, orientation not specified", LOG_LEVEL_ERROR )
       end if
     elseif (direction == y_direction ) then
       if (orientation == 1 .or. orientation == 4) then
@@ -304,8 +302,6 @@ contains
           stencil_order_out(ii) = 2*ii-(stencil_length+1)
         end do
 
-      else
-        call log_event( "Error 2, orientation not specified", LOG_LEVEL_ERROR )
       end if
     end if
 

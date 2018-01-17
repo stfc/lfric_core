@@ -88,7 +88,6 @@ subroutine extract_y_code( nlayers,                      &
 
 
   use cosmic_flux_mod, only : w2_dof
-  use log_mod, only : log_event, log_scratch_space, LOG_LEVEL_ERROR
 
   implicit none
 
@@ -109,10 +108,7 @@ subroutine extract_y_code( nlayers,                      &
 
   orientation_of_cell = int(cell_orientation(map_w3(1)))
 
-  if (orientation_of_cell > 4.5_r_def .or. orientation_of_cell < 0.5_r_def ) then
-    write( log_scratch_space, '( A, I6 )' ) "ERROR: orientation_of_cell is ", orientation_of_cell
-    call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-  else
+  if (orientation_of_cell > 0_i_def .and. orientation_of_cell < 5_i_def ) then
     dof_vector = (/ w2_dof(orientation_of_cell,2),     &
                     w2_dof(orientation_of_cell,3),     &
                     w2_dof(orientation_of_cell,4),     &

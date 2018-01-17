@@ -45,6 +45,8 @@ module init_mesh_mod
                                         transport_scheme_cusph_cosmic
   use ugrid_2d_mod,               only: ugrid_2d_type
   use ugrid_file_mod,             only: ugrid_file_type
+  use transport_config_mod,       only: scheme, &
+                                        transport_scheme_cusph_cosmic
 
   implicit none
 
@@ -142,6 +144,12 @@ subroutine init_mesh( local_rank, total_ranks, prime_mesh_id, twod_mesh_id )
     end if
 
     if (total_ranks == 1) then
+      if (scheme == transport_scheme_cusph_cosmic) then
+        call log_event( "For Cosmic the total number of processors must be "// &
+                        "greater than 1 and a multiple of 6 for a          "// &
+                        "cubed-sphere domain.", &
+                        LOG_LEVEL_ERROR )
+      end if
       ranks_per_panel = 1
       partitioner_ptr => partitioner_cubedsphere_serial
       call log_event( "Using serial cubed sphere partitioner", &
