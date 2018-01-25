@@ -157,22 +157,51 @@ SPICE server farm. This is useful during development.
 Building The Documentation
 --------------------------
 
-The Documentation can be built and run from the top level directory with the
+The relevant documentation can be built and run from the top directory of the appropriate sub-project (currently either gungho or infrastructure) with the
 following::
 
   make docs
 
-To view Doxygen documentation for the !GungHo science code point a browser at::
-``documentation/gungho/api/index.html``
+Science Documentation
+~~~~~~~~~~~~~~~~~~~~~
 
-For the software infrastructure, point a browser at:
-``documentation/infrastructure/api/index.html``
+To obtain the science documentation apply the build instructions to the gungho sub-project. Then from within that sub-project's top directory:
 
-A pdf of the scientific formulation is found at:
-``documentation/gungho/formulation.pdf``
+- To view Doxygen documentation for the GungHo science code point a browser at: 
 
-A pdf that provides an introduction to the data model is found at:
-``documentation/gungho/datamodel.pdf``
+  ``documents/api/index.html``
+
+- A PDF of the scientific formulation is found at: 
+
+  ``documents/dynamo_formulation.pdf``
+
+- A PDF of the scientific glossary is found at: 
+
+  ``documents/glossary.pdf``
+
+- A PDF that provides an introduction to the data model is found at: 
+
+  ``documents/dynamo_datamodel.pdf``
+
+- Various UML diagrams (in both SVG and PDF formats) are found at:
+
+  ``documents/uml``
+
+Infrastructure Documentation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To obtain the infrastructure documentation apply the build instructions to the infrastructure sub-project. Then from within that sub-project's top directory:
+
+- For the software infrastructure, point a browser at: 
+
+  ``documents/api/index.html``
+
+- Various UML diagrams (in both SVG and PDF formats) are found at:
+
+  ``documents/uml``
+
+Requirements
+~~~~~~~~~~~~
 
 To build the documentation you will need:
 
@@ -185,6 +214,7 @@ To build the documentation you will need:
 +----------+----------+-------------------------------------------------------------+
 | LaTeX    | 2e       | Technical and science documentation is prepared using LaTeX |
 +----------+----------+-------------------------------------------------------------+
+
 
 Possible Issues
 ---------------
