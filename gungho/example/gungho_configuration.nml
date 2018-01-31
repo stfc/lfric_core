@@ -19,8 +19,8 @@
   coordinate_order = 2
   rehabilitate     = .true.
   wtheta_on        = .true.
-  supg             = .false. 
-  lumped_m1        = .false.
+  supg             = .false.
+  vorticity_in_w1  = .true. 
 /
 
 &formulation

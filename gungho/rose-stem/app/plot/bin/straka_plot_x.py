@@ -75,12 +75,20 @@ def make_figure(plotpath, nx, ny, field, component, timestep):
   y_i, x_i = np.meshgrid(z2d, x2d) 
 
   dz = np.zeros([nx,len(levels)])
+  back = 0.0
+  if field == 'theta':
+    back = 300.0
+    cc = np.linspace(-16, -1, 16)
+  elif field == 'w3projection_xi2':
+    cc =  np.linspace(-0.06,0.06,11)
+  else:
+    cc = np.linspace(np.amin(zi),np.amax(zi), 11)
+
   for i in range(nx):
-    dz[i,:] = zi[0,i,:] - 300.0
+    dz[i,:] = zi[0,i,:] - back
 
   matplotlib.rcParams['contour.negative_linestyle'] = 'solid'
   c_map = cm.summer
-  cc = np.linspace(-16, -1, 16)
   cf = plt.contourf(x_i * r2d, y_i * r2d, np.round(dz,10), cc, cmap=c_map)
   cl = plt.contour(x_i * r2d, y_i * r2d, np.round(dz,10), cc, linewidths=1.0,colors='k', linestyle="", extend='min')
   plt.axis([0, 16, 0, 5])
@@ -89,7 +97,7 @@ def make_figure(plotpath, nx, ny, field, component, timestep):
   plt.title('max: %2.4e, min: %2.4e'%(np.max(dz),np.min(dz)))
   plt.colorbar(cf,  cmap=c_map)
 
-  out_file_name = plotpath + "/" + 'straka_x' + "_" + timestep +  ".png"
+  out_file_name = plotpath + "/" + 'straka_x_' + field + "_" + timestep +  ".png"
   slice_fig.savefig(out_file_name , bbox_inches='tight')
 
 

@@ -65,7 +65,7 @@ contains
          cellshape = finite_element_cellshape_quadrilateral,               &
          element_order = 0, coordinate_order = 0,                          & 
          rehabilitate = .true., wtheta_on = .true.,                        &
-         supg = .false., lumped_m1=.false., fd_vorticity=.false. )
+         supg = .false., vorticity_in_w1 =.false. )
 
   end subroutine setUp
 

@@ -20,7 +20,7 @@ module advection_alg_mod
                                             theta_space_id
   use field_mod,                      only: field_type
   use finite_element_config_mod,      only: element_order, wtheta_on, supg, &
-                                            lumped_m1, fd_vorticity
+                                            vorticity_in_w1
   use function_space_mod,             only: function_space_type
   use matrix_vector_kernel_mod,       only: matrix_vector_kernel_type
   use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
@@ -41,6 +41,9 @@ module advection_alg_mod
   use vorticity_advection_kernel_mod, only: vorticity_advection_kernel_type
   use vorticity_rhs_kernel_mod,       only: vorticity_rhs_kernel_type
   use derived_config_mod,             only: bundle_size 
+  use w2_to_w1_projection_kernel_mod, only: w2_to_w1_projection_kernel_type
+  use w2_vorticity_advection_kernel_mod, &
+                                      only: w2_vorticity_advection_kernel_type
 
   use transport_config_mod,           only: operators,              &
                                             fv_flux_order,          &
@@ -57,9 +60,8 @@ module advection_alg_mod
   use output_config_mod,              only: subroutine_timers 
   use timer_mod,                      only: timer
   use timestepping_config_mod,        only: time_method => method, &
-                                            timestepping_method_rk   
-  use fd_vorticity_kernel_mod,        only: fd_vorticity_kernel_type
-
+                                            timestepping_method_rk  
+  use strong_curl_kernel_mod,         only: strong_curl_kernel_type
   implicit none
 
   private
@@ -68,6 +70,7 @@ module advection_alg_mod
   type( field_type ), allocatable :: mr_prediction(:)
   integer(i_def)                  :: nstage_adv
   real(r_def),        allocatable :: ak_adv(:,:)
+  type(function_space_type), pointer :: w1_fs => null()
 
   public  :: advection_alg
   public  :: advection_alg_init
@@ -84,6 +87,8 @@ contains
     use mesh_collection_mod,               only: mesh_collection
     use sample_poly_flux_kernel_mod,       only: sample_poly_flux_init
     use sample_poly_adv_kernel_mod,        only: sample_poly_adv_init
+    use fs_continuity_mod,                 only: W1
+    use function_space_collection_mod,     only: function_space_collection
 
     implicit none
 
@@ -119,6 +124,9 @@ contains
 
       allocate ( mr_prediction(nstage_adv) )
     end if
+
+    if ( .not. vorticity_in_w1 ) &
+      w1_fs => function_space_collection%get_fs( mesh_id, element_order, W1 )
 
   end subroutine advection_alg_init
 
@@ -164,7 +172,7 @@ contains
   type(function_space_type), pointer :: xi_fs => null(), u_fs => null(), &
                                         rho_fs => null(), theta_fs => null()
   type(field_type), pointer          :: mt_lumped_inv => null()
-  type(field_type), pointer          :: m1_lumped_inv => null()
+  type(field_type)                   :: u_in_w1, r_u
   integer(i_def)                     :: stage, st
 
   ! Auxiliary constants to group invokes
@@ -186,7 +194,6 @@ contains
   mass_flux = field_type( vector_space = u_fs  )
 
   
-  r_xi      = field_type( vector_space = xi_fs  )
   r_rho     = field_type( vector_space = rho_fs )
   r_theta   = field_type( vector_space = theta_fs)
 
@@ -296,36 +303,46 @@ contains
     call invoke( X_divideby_Y(advection(igh_t), u_grad_theta, mt_lumped_inv) )
   end if
 
-  ! 3) Vorticity advection
+  ! 3) Vorticity computation ( xi = curl(u) )
+  ! 4) Vorticity advection of u ( u \cross curl(u))
   ! Currently this is just a single stage approximation using xi = curl(u), it 
   ! should later be updated to use a RK scheme for the vorticity
-  if ( fd_vorticity ) then
-    call log_event( "Computing fd advective vorticity...", LOG_LEVEL_INFO)
-    call invoke( setval_c(xi, 0.0_r_def), &
-                 fd_vorticity_kernel_type(xi, advecting_wind, chi, qr) )
-  else
-    call log_event( "Computing advective vorticity...", LOG_LEVEL_INFO)
-    curl   => get_curl()
+  if ( vorticity_in_w1 ) then
+    ! Compute the vorticity field xi in W1 using the weak curl and then
+    ! project it into W2 as part of the advection kernel
+    call log_event( "Computing advective vorticity in W1...", LOG_LEVEL_INFO)
+    r_xi = field_type( vector_space = xi_fs  )
+    curl => get_curl()
     call invoke( name = "Compute advective vorticity",                            &
                  setval_c(r_xi, 0.0_r_def),                                       &
                  transpose_matrix_vector_kernel_type(r_xi, advecting_wind, curl), &
                  enforce_bc_kernel_type(r_xi) )
-    if ( lumped_m1 ) then
-      m1_lumped_inv => get_inverse_lumped_mass_matrix(w1_id)
-      call invoke( X_times_Y(xi, r_xi, m1_lumped_inv), &
-                   enforce_bc_kernel_type(xi) )
-    else
-      call solver_algorithm( xi, r_xi)
-    end if
+    call solver_algorithm( xi, r_xi)
+    call log_event( "Computing advective wind increment...", LOG_LEVEL_INFO)
+    call invoke( name = "Compute advective wind increment",    &
+                 setval_c(advection(igh_u), 0.0_r_def),        &
+                 vorticity_advection_kernel_type(advection(igh_u), advecting_wind, &
+                                                 xi, chi, qr), &
+                 enforce_bc_kernel_type(advection(igh_u)) )
+  else
+    ! Compute the W1 representation of the wind field by galerkin projection and
+    ! then compute the vorticity field xi in W2 using the strong curl
+    call log_event( "Computing advective wind in W1...", LOG_LEVEL_INFO)
+    u_in_w1 = field_type( vector_space = w1_fs )
+    r_u     = field_type( vector_space = w1_fs )
+    call invoke( name = "Compute advective wind in W1",                        &
+                 setval_c(r_u, 0.0_r_def),                                     &
+                 w2_to_w1_projection_kernel_type(r_u, advecting_wind, qr) )
+    call solver_algorithm( u_in_w1, r_u, .false.)  
+    call log_event( "Computing advective wind increment...", LOG_LEVEL_INFO)
+    call invoke( name = "Compute advective wind increment using u in W1",      &
+                 strong_curl_kernel_type(xi, u_in_w1),                         &
+                 setval_c(advection(igh_u), 0.0_r_def),                        &
+                 w2_vorticity_advection_kernel_type(advection(igh_u),          &
+                                                    advecting_wind,            &
+                                                    xi, chi, qr),              &
+                 enforce_bc_kernel_type(advection(igh_u)) )
   end if
-
-  ! 4) Vorticity advection of u ( F/rho \cross curl(u))
-  call log_event( "Computing advective wind increment...", LOG_LEVEL_INFO)
-  call invoke( name = "Compute advective wind increment",    &
-               setval_c(advection(igh_u), 0.0_r_def),        &
-               vorticity_advection_kernel_type(advection(igh_u), advecting_wind, &
-                                               xi, chi, qr), &
-               enforce_bc_kernel_type(advection(igh_u)) )
 
   ! 5) Advection update for the continuity equation divergence of mass flux: 
   !    M3^-1(div(F))

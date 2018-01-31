@@ -72,8 +72,7 @@ contains
     integer :: i
 
     call feign_finite_element_config( finite_element_cellshape_quadrilateral, &
-                                      0, 1, .true., .false., .false., .false.,&
-                                      .false. )
+                                      0, 1, .true., .false., .false., .false.)
 
     reference_element = finite_element_cellshape_quadrilateral
     call reference_cube()

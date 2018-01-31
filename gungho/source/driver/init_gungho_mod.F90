@@ -15,7 +15,8 @@ module init_gungho_mod
                                              write_interface, &
                                              checkpoint_interface, &
                                              restart_interface
-  use finite_element_config_mod,      only : element_order, wtheta_on
+  use finite_element_config_mod,      only : element_order, wtheta_on, &
+                                             vorticity_in_w1
   use fs_continuity_mod,              only : W0, W1, W2, W3, Wtheta
   use function_space_collection_mod , only : function_space_collection
   use init_prognostic_fields_alg_mod, only : init_prognostic_fields_alg
@@ -86,9 +87,15 @@ contains
       theta = field_type( vector_space = &
                           function_space_collection%get_fs(mesh_id, element_order, W0) )
     end if
-    xi    = field_type( vector_space = &
-                        function_space_collection%get_fs(mesh_id, element_order, W1), &
-                        output_space = W3)
+    if ( vorticity_in_w1 ) then
+      xi    = field_type( vector_space = &
+                          function_space_collection%get_fs(mesh_id, element_order, W1), &
+                          output_space = W3)
+    else
+      xi    = field_type( vector_space = &
+                          function_space_collection%get_fs(mesh_id, element_order, W2), &
+                          output_space = W3)
+    end if
     u     = field_type( vector_space = &
                         function_space_collection%get_fs(mesh_id, element_order, W2), &
                         output_space = W3)

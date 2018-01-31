@@ -17,7 +17,8 @@ module conservation_algorithm_mod
   use constants_mod,                   only: r_def, i_def
   use function_space_collection_mod,   only: function_space_collection
   use field_mod,                       only: field_type
-  use finite_element_config_mod,       only: element_order, wtheta_on
+  use finite_element_config_mod,       only: element_order, wtheta_on, &
+                                             vorticity_in_w1
   use fs_continuity_mod,               only: W3
   use function_space_mod,              only: function_space_type
   use log_mod,                         only: log_event,         &
@@ -102,7 +103,7 @@ contains
                  sum_X(total_aam, aam) )
 
     ! Gradient of theta not defined for the Wtheta case, TBD
-    if (.not. wtheta_on) then
+    if (.not. wtheta_on .and. vorticity_in_w1 ) then
       ! Compute Ertel PV
       pv = field_type( vector_space = w3_fs )
       call invoke( name = "Compute total PV",                            &
@@ -110,7 +111,7 @@ contains
                    sum_X(total_pv, pv) )
     end if
 
-    if (wtheta_on) then
+    if (wtheta_on .or. .not. vorticity_in_w1) then
       write( log_scratch_space, '(A,I4,4E32.24)')  &
              'Conservation  = ',&
               tstep, total_mass, total_energy, total_aam

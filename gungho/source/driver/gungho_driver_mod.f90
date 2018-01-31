@@ -235,8 +235,8 @@ contains
         call output_nodal('m_v',   ts_init, mr(imr_v),   mesh_id)
         call output_nodal('m_c',   ts_init, mr(imr_c),   mesh_id)
         call output_nodal('m_r',   ts_init, mr(imr_r),   mesh_id)
-        call output_nodal('m_nc',   ts_init, mr(imr_nc),   mesh_id)
-        call output_nodal('m_nr',   ts_init, mr(imr_nr),   mesh_id)
+        call output_nodal('m_nc',  ts_init, mr(imr_nc),   mesh_id)
+        call output_nodal('m_nr',  ts_init, mr(imr_nr),   mesh_id)
         end if
 
       end if
@@ -375,8 +375,8 @@ contains
             call output_nodal('m_v',    timestep, mr(imr_v),   mesh_id)
             call output_nodal('m_c',    timestep, mr(imr_c),   mesh_id)
             call output_nodal('m_r',    timestep, mr(imr_r),   mesh_id)
-            call output_nodal('m_nc',    timestep, mr(imr_nc),   mesh_id)
-            call output_nodal('m_nr',    timestep, mr(imr_nr),   mesh_id)
+            call output_nodal('m_nc',   timestep, mr(imr_nc),   mesh_id)
+            call output_nodal('m_nr',   timestep, mr(imr_nr),   mesh_id)
           end if
 
         end if

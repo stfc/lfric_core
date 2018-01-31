@@ -78,6 +78,10 @@ def make_figure(plotpath, nx, ny, field, component, timestep):
   background = 0.0
   if field == 'theta':
     background = 303.05
+    cc = np.linspace(-0.1, 0.6, 15)
+  else:
+    cc = np.linspace(np.amin(zi), np.amax(zi), 11)
+
   for i in range(nx):
     dz[i,:] = zi[0,i,:] - background 
 
@@ -92,7 +96,7 @@ def make_figure(plotpath, nx, ny, field, component, timestep):
   plt.title('max: %2.4e, min: %2.4e'%(np.max(dz),np.min(dz)))
   plt.colorbar(cf,  cmap=c_map)
 
-  out_file_name = plotpath + "/" + 'robert' + "_" + timestep +  ".png"
+  out_file_name = plotpath + "/" + 'robert_' + field + "_" + timestep +  ".png"
   slice_fig.savefig(out_file_name , bbox_inches='tight')
 
 

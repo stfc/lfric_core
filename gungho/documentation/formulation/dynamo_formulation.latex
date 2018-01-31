@@ -236,7 +236,7 @@ The last term in \eqref{eq:vorticity_split-1} is the vorticity flux
 term that appears in the shallow water equations. The mass flux term
 could be computed using any form of finite volume/discontinuous Galerkin
 method and the potential temperature equation could be, for example, computed in
-a semi-Lagrangian manner.
+a semi-Lagrangian manner. For more details on the advection schemes see Section \ref{sec:Advection}.
 
 \subsubsection{\label{sub:theta_space}Horizontally discontinuous $\theta$}
 
@@ -819,8 +819,8 @@ A^{+}_{ij,k}\left(\Pi'\right)_{ij}^{k+1} + A^{0}_{ij,k}\left(\Pi'\right)_{ij}^{k
 where $ij$ is the horizontal index, $k$ is the layer index and $A^+,\,A^0,\,A^-$ are the upper, centre and lower diagonal terms respectively, with this set up \eqref{eq:tri_precon} is suitable to be solved exactly using the Thomas algorithm provided that it is diagonally dominant, that is $\left|A^0\right| >> \left|A^+ + A^-\right|$. Working though the terms in \eqref{eq:helmholtz_rhs_simplified} and neglecting any horizontal terms, lumping all mass matrices and averaging the $\theta$ terms to vertical velocity points yields
 \begin{eqnarray}
 A^+ & = & -\frac{\tau_{\rho}\Delta t}{\rho^*\det\left(J\right)}\overline{\rho^*\det\left(J\right)}^{z}\widetilde{H_B}^{-1}\tau_u\Delta t c_{pd}\theta^* - \frac{\tau_{\theta}\Delta t}{2\theta^*}\left(\widetilde{H_B}^{-1}\tau_u\Delta t c_{pd}\theta^{*}\frac{\partial\theta^*}{\partial\hat{\chi}_3}\right),\label{eq:tri_precon_Ap}\\
-A^- & = & -\frac{\tau_{\rho}\Delta t}{\rho^*\det\left(J\right)}\overline{\rho^*\det\left(J\right)}^{z}\widetilde{H_B}^{-1}\tau_u\Delta t c_{pd}\theta^* + \frac{\tau_{\theta}\Delta t}{2\theta^*}\left(\widetilde{H_B}^{-1}\tau_u\Delta t c_{pd}\theta^{*}\frac{\partial\theta^*}{\partial\hat{\chi}_3}\right),\label{eq:tri_precon_Ap}\\
-A^0 & = &\frac{1-\kappa}{\kappa}\left(\Pi^*\right)^{-1} - A^+ - A^-,\label{eq:tri_precon_Ap}\\
+A^- & = & -\frac{\tau_{\rho}\Delta t}{\rho^*\det\left(J\right)}\overline{\rho^*\det\left(J\right)}^{z}\widetilde{H_B}^{-1}\tau_u\Delta t c_{pd}\theta^* + \frac{\tau_{\theta}\Delta t}{2\theta^*}\left(\widetilde{H_B}^{-1}\tau_u\Delta t c_{pd}\theta^{*}\frac{\partial\theta^*}{\partial\hat{\chi}_3}\right),\label{eq:tri_precon_Am}\\
+A^0 & = &\frac{1-\kappa}{\kappa}\left(\Pi^*\right)^{-1} - A^+ - A^-,\label{eq:tri_precon_A0}\\
 \end{eqnarray}
 All derivatives are computed in computational space, $\frac{\partial f}{\partial\hat{\chi}_3} = f^+ - f^-$ and $\widetilde{H_B}$ is an approximation to the true $H_B$
 \begin{equation}
@@ -866,18 +866,39 @@ into the mass flux space
 \begin{equation}
 \left\langle \mathbf{v},\widetilde{\mathbf{F}}\right\rangle =\left\langle \mathbf{v},\rho\overline{\mathbf{u}}\right\rangle .\label{eq:fem_mass_flux}
 \end{equation}
- The vorticity is defined as the projection of the weak curl of the
-velocity into the $\mathbb{W}_{1}$ space.
+There are two options for computing the vorticity, either the vorticity is defined as the projection of the weak curl of the
+velocity into the $\mathbb{W}_{1}$ space or as the strong curl of the wind projected into the $\mathbb{W}_{1}$ space. The first method, $\xi \in \mathbb{W}_{1}$, is
 \begin{equation}
 \left\langle \mathbf{c},\bm{\xi}\right\rangle =\left\langle \nabla\times\mathbf{c},\overline{\mathbf{u}}\right\rangle ,\label{eq:fem_vorticity}
 \end{equation}
- and the vorticity advection terms is defined as the projection into
+and the vorticity advection terms is defined as the projection into
 $\mathbb{W}_{2}$ of the cross product of the vorticity and the mass
 flux
 \begin{equation}
 \left\langle \mathbf{v},\left(\frac{\bm{\xi}}{\rho}\right)\times\widetilde{\mathbf{F}}\right\rangle .\label{eq:fem_momentum_adv}
 \end{equation}
- Finally the potential temperature advection term defined as
+Applying the Piola transforms the vorticity computation becomes
+\begin{equation}
+\left\langle J^{-T}\hat{\mathbf{c}},J^{-T}\hat{\bm{\xi}}\det\left(J\right)\right\rangle =\left\langle J\hat{\nabla}\times\hat{\mathbf{c}},\frac{J\hat{\overline{\mathbf{u}}}}{\det\left(J\right)}\right\rangle ,\label{eq:fem_vorticity_pullback}
+\end{equation}
+and the advection term is 
+\begin{equation}
+\left\langle J\hat{\mathbf{v}},\left(\frac{J^{-T}\hat{\bm{\xi}}}{\hat{\rho}\det\left(J\right)}\right)\times J\widetilde{\mathbf{F}}\right\rangle .\label{eq:fem_momentum_adv_pullback}
+\end{equation}
+The second method involves first computing the projection of the wind field into $\mathbb{W}_{1}$, denoted $\mathbf{u}^{\left(1\right)}$, as
+\begin{equation}
+\left\langle \mathbf{c},\mathbf{u}^{\left(1\right)}\right\rangle =\left\langle \mathbf{c},\overline{\mathbf{u}}\right\rangle ,\label{eq:fem_wind_w1}
+\end{equation}
+then the vorticity $\bm{\xi}\in\mathbb{W}_2$ is given by the strong curl $\bm{\xi}\equiv\nabla\times\mathbf{u}^{\left(1\right)}$ and the advection term is again given by \eqref{eq:fem_momentum_adv}. Applying the Piola transforms the wind projection becomes
+\begin{equation}
+\left\langle J^{-T}\hat{\mathbf{c}},J^{-T}\hat{\mathbf{u}}^{\left(1\right)}\det\left(J\right)\right\rangle =\left\langle \hat{\mathbf{c}},\hat{\overline{\mathbf{u}}}\right\rangle ,\label{eq:fem_wind_w1_pullback}
+\end{equation}
+and the advection term is 
+\begin{equation}
+\left\langle J\hat{\mathbf{v}},\left(\frac{J\hat{\bm{\xi}}}{\hat{\rho}\det\left(J\right)}\right)\times \frac{J\widetilde{\mathbf{F}}}{\det\left(J\right)}\right\rangle ,\label{eq:fem_momentum_adv_pullback_xi_w2}
+\end{equation}
+note this has changed discrete form since $\bm{\xi}$ is now in $\mathbb{W}_2$ and not $\mathbb{W}_1$.
+Finally the potential temperature advection term defined as
 the projection into the potential temperature space, which for $\theta\in\mathbb{W}_{0}$
 is
 \begin{equation}

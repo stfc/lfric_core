@@ -13,10 +13,10 @@
 !! discontinuous systems an exact solver can be used
 module solver_mod
 
-  use constants_mod,                 only : r_def, str_def, i_def
-  use field_mod,                     only : field_type
-  use fs_continuity_mod,             only : W0, W1, W2, W3, Wtheta, W2v, W2h, fs_name
-  use function_space_mod,            only : function_space_type
+  use constants_mod,             only : r_def, str_def, i_def
+  use field_mod,                 only : field_type
+  use fs_continuity_mod,         only : W0, W1, W2, W3, Wtheta, W2v, W2h, fs_name
+  use function_space_mod,        only : function_space_type
   use log_mod,                   only : log_event,         &
                                         log_scratch_space, &
                                         LOG_LEVEL_ERROR,   &
@@ -65,27 +65,42 @@ contains
 !! jacobi: a fixed number of jacobi iterations
 !> @param[inout] lhs Field to be solved for (x)
 !> @param[inout] rhs Right hand side field (b)
-
-  subroutine solver_algorithm( lhs, rhs )
+!> @param[in] bc_flag Flag to overide default boundary condition application
+  subroutine solver_algorithm( lhs, rhs, bc_flag )
     use dg_matrix_vector_kernel_mod,  only : dg_matrix_vector_kernel_type
 
     implicit none
 
     type(field_type), intent(inout) :: lhs
     type(field_type), intent(inout) :: rhs
+    logical, intent(in), optional :: bc_flag
 
     type(operator_type), pointer :: mm => null()
     type(field_type),    pointer :: mmd => null()
 
     integer(i_def) :: fs_l, fs_r
 
+    logical :: apply_bc
+
     if ( subroutine_timers ) call timer('solver_alg')
+
 
     fs_l = lhs%which_function_space()
     fs_r = rhs%which_function_space()
 
     if ( fs_l /= fs_r ) & 
       call log_event('Non matching function spaces in solver algorithm', LOG_LEVEL_ERROR )
+
+    ! Check boundary conditions need to be applied
+    if (fs_l == w1 .or. fs_l == w2 .or. fs_l == w2h .or. fs_l == w2v) then
+      apply_bc = .true.
+    else
+      apply_bc = .false.
+    end if
+    ! Override the default with the value in bc_flag if it is present
+    ! This allows us finer control in certain situations, e.g dont apply bc's where
+    ! we naturally would
+    if ( present(bc_flag) )  apply_bc = bc_flag
 
     if(fs_l == W3) then
       mm => get_mass_matrix(w3inv_id)
@@ -110,15 +125,15 @@ contains
       end select
       select case ( method )
         case ( solver_method_cg )
-          call cg_solver_algorithm(lhs, rhs, mm, mmd)
+          call cg_solver_algorithm(lhs, rhs, mm, mmd, apply_bc)
         case ( solver_method_bicgstab )
-          call bicg_solver_algorithm(lhs, rhs, mm, mmd)
+          call bicg_solver_algorithm(lhs, rhs, mm, mmd, apply_bc)
         case ( solver_method_jacobi )
-          call jacobi_solver_algorithm(lhs, rhs, mm)
+          call jacobi_solver_algorithm(lhs, rhs, mm, apply_bc)
         case ( solver_method_gmres )
-          call gmres_solver_algorithm( lhs, rhs, mm, mmd )
+          call gmres_solver_algorithm( lhs, rhs, mm, mmd, apply_bc)
         case ( solver_method_gcr )
-          call gcr_solver_algorithm(lhs, rhs, mm, mmd)
+          call gcr_solver_algorithm(lhs, rhs, mm, mmd, apply_bc)
         case default
           write( log_scratch_space, '(A)' )  'Invalid linear solver choice, stopping'
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
@@ -136,12 +151,14 @@ contains
 !! @param[inout] lhs_field The answer, x
 !! @param[in] mm operator type, Mass matrix
 !! @param[in] mmd Mass matrix diagonal
-  subroutine bicg_solver_algorithm(lhs, rhs, mm, mmd)
+!! @param[in] apply_bc Flag to determine if boundary conditions are applied
+  subroutine bicg_solver_algorithm(lhs, rhs, mm, mmd, apply_bc)
     implicit none
     type(field_type),    intent(inout) :: lhs
     type(field_type),    intent(in)    :: rhs
     type(operator_type), intent(in)    :: mm
     type(field_type),    intent(in)    :: mmd
+    logical ,intent(in) :: apply_bc
 
     type(function_space_type), pointer :: rhs_fs => null()
 
@@ -210,16 +227,14 @@ contains
       call precondition( y, p, preconditioner, mmd )
       call invoke( setval_c(v, 0.0_r_def), &
                    matrix_vector_kernel_type(v, y, mm) )
-      if (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) &
-        call invoke( enforce_bc_kernel_type( v ) )
+      if (apply_bc) call invoke( enforce_bc_kernel_type( v ) )
       call invoke( X_innerproduct_Y(norm, rhs, v) )
       alpha = rho/norm
       call invoke( X_minus_bY(s, res, alpha, v) )
       call precondition( z, s, preconditioner, mmd )
       call invoke( setval_c(t, 0.0_r_def), &
                    matrix_vector_kernel_type(t, z, mm) )
-      if (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) &
-        call invoke( enforce_bc_kernel_type( t ) )
+      if (apply_bc) call invoke( enforce_bc_kernel_type( t ) )
 
       call invoke( X_innerproduct_X(tt, t), &
                    X_innerproduct_Y(ts, t, s) )
@@ -269,12 +284,14 @@ contains
 !! @param[inout] lhs_field The answer, x
 !! @param[in] mm Mass matrix
 !! @param[in] mmd Mass matrix diagonal
-  subroutine cg_solver_algorithm(lhs, rhs, mm, mmd)
+!! @param[in] apply_bc Flag to determine if boundary conditions are applied
+  subroutine cg_solver_algorithm(lhs, rhs, mm, mmd, apply_bc)
     implicit none
     type(field_type),    intent(inout) :: lhs
     type(field_type),    intent(in)    :: rhs
     type(operator_type), intent(in)    :: mm
     type(field_type),    intent(in)    :: mmd
+    logical,             intent(in)    :: apply_bc
 
     type(function_space_type), pointer :: rhs_fs => null()
 
@@ -304,8 +321,7 @@ contains
 
     call invoke( setval_c(lhs, 0.0_r_def), &
                  matrix_vector_kernel_type(Ap, lhs, mm) )
-    if (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) &
-      call invoke( enforce_bc_kernel_type( Ap ) )
+    if (apply_bc) call invoke( enforce_bc_kernel_type( Ap ) )
 
     call invoke( X_minus_Y(res, rhs, Ap) )
     call precondition( z, res, preconditioner, mmd )
@@ -330,8 +346,7 @@ contains
     do iter = 1, maximum_iterations
        call invoke( setval_c(Ap, 0.0_r_def), &
                     matrix_vector_kernel_type(Ap, p, mm) )
-       if (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) &
-          call invoke( enforce_bc_kernel_type( Ap ) )
+       if (apply_bc) call invoke( enforce_bc_kernel_type( Ap ) )
 
       call invoke( X_innerproduct_Y(rs_new, p, Ap) )
       alpha = rs_old/rs_new
@@ -384,13 +399,15 @@ contains
 !! @param[in] rhs_field Input b
 !! @param[inout] lhs_field The answer, x
 !! @param[in] mm Mass matrix
-  subroutine jacobi_solver_algorithm(lhs, rhs, mm)
+!! @param[in] apply_bc Flag to determine if boundary conditions are applied
+  subroutine jacobi_solver_algorithm(lhs, rhs, mm, apply_bc)
 
   use mm_diagonal_kernel_mod, only: mm_diagonal_kernel_type
   implicit none
 
   type(field_type),    intent(inout) :: lhs, rhs
   type(operator_type), intent(in)    :: mm
+  logical,             intent(in)    :: apply_bc
   type(field_type)                   :: Ax, diagonal, res
 
   real(kind=r_def), parameter :: MU = 0.9_r_def
@@ -416,8 +433,7 @@ contains
   do iter = 1,maximum_iterations
     call invoke( setval_c(Ax, 0.0_r_def), &
                  matrix_vector_kernel_type(Ax, lhs, mm) )
-    if (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) &
-      call invoke( enforce_bc_kernel_type( Ax ) )
+    if (apply_bc) call invoke( enforce_bc_kernel_type( Ax ) )
 
     call invoke( X_minus_Y(res, rhs, Ax),         &
                  inc_X_divideby_Y(res, diagonal), &
@@ -440,14 +456,16 @@ contains
 !! @param[inout] lhs Answer, x
 !! @param[in] mm Mass matrix
 !! @param[in] mmd Diagonal mass matrix used for conditioning
-  subroutine gmres_solver_algorithm(lhs, rhs, mm, mmd)
+!! @param[in] apply_bc Flag to determine if boundary conditions are applied
+  subroutine gmres_solver_algorithm(lhs, rhs, mm, mmd, apply_bc)
 
     implicit none
     type(field_type),    intent(inout) :: lhs
     type(field_type),    intent(in)    :: rhs
     type(operator_type), intent(in)    :: mm
     type(field_type),    intent(in)    :: mmd
-  
+    logical,             intent(in)    :: apply_bc
+ 
     ! The temporary fields
     type(field_type)                   :: Ax, r, s, w, v(GCRK)
 
@@ -492,8 +510,7 @@ contains
     end if
     call invoke( setval_c(Ax, 0.0_r_def), &
                  matrix_vector_kernel_type(Ax, lhs, mm) )
-    if (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) &
-      call invoke( enforce_bc_kernel_type( Ax ) )
+    if (apply_bc) call invoke( enforce_bc_kernel_type( Ax ) )
 
     call invoke( X_minus_Y(r, rhs, Ax) )
 
@@ -517,8 +534,7 @@ contains
         call precondition( w, v(j), postcond_option, mmd )
         call invoke( setval_c(s, 0.0_r_def), &
                      matrix_vector_kernel_type(s, w, mm) )
-        if (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) &
-          call invoke( enforce_bc_kernel_type( s ) )
+        if (apply_bc) call invoke( enforce_bc_kernel_type( s ) )
  
         call precondition( w, s, precond_option, mmd )
 
@@ -568,8 +584,7 @@ contains
       ! Check for convergence
       call invoke( setval_c(Ax, 0.0_r_def), &
                    matrix_vector_kernel_type(Ax, lhs, mm) )
-      if (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) &
-        call invoke( enforce_bc_kernel_type( Ax ) )
+      if (apply_bc) call invoke( enforce_bc_kernel_type( Ax ) )
 
       call invoke( X_minus_Y(r, rhs, Ax) )
 
@@ -616,7 +631,8 @@ contains
 !! @param[inout] lhs_field Answer, x
 !! @param[in] mm Mass matrix
 !! @param[in] mmd Mass matrix diagonal
-  subroutine gcr_solver_algorithm( lhs, rhs, mm, mmd )
+!! @param[in] apply_bc Flag to determine if boundary conditions are applied
+  subroutine gcr_solver_algorithm( lhs, rhs, mm, mmd, apply_bc )
 
     implicit none
 
@@ -624,7 +640,7 @@ contains
     type(field_type),    intent(in)    :: rhs
     type(operator_type), intent(in)    :: mm
     type(field_type),    intent(in)    :: mmd
-
+    logical,             intent(in)    :: apply_bc
     ! The temporary fields
     type(field_type)                   :: Ax, r, s(GCRK), v(GCRK)
 
@@ -662,8 +678,7 @@ contains
     end if
     call invoke( setval_c(Ax, 0.0_r_def), &
                  matrix_vector_kernel_type(Ax, lhs, mm) )
-    if (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) &
-      call invoke( enforce_bc_kernel_type( Ax ) )
+    if (apply_bc) call invoke( enforce_bc_kernel_type( Ax ) )
 
     call invoke( X_minus_Y(r, rhs, Ax) )
 
@@ -673,8 +688,7 @@ contains
         call precondition( s(m), r, preconditioner, mmd )
         call invoke( setval_c(v(m), 0.0_r_def), &
                      matrix_vector_kernel_type(v(m), s(m), mm) )
-        if (fs == w1 .or. fs == w2 .or. fs == w2h .or. fs == w2v) &
-          call invoke( enforce_bc_kernel_type( v(m) ) )
+        if (apply_bc) call invoke( enforce_bc_kernel_type( v(m) ) )
 
 
         do n = 1, m-1
