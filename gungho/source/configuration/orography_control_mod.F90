@@ -17,7 +17,8 @@ module orography_control_mod
                                      base_mesh_geometry_spherical
   use orography_config_mod,   only : profile,                  &
                                      orography_profile_schar,  & 
-                                     orography_profile_agnesi
+                                     orography_profile_agnesi, &
+                                     orography_profile_dcmip200
   use log_mod,                only : log_event,         &
                                      log_scratch_space, &
                                      LOG_LEVEL_INFO
@@ -73,6 +74,13 @@ contains
           ! Read parameters for Schar mountain in Cartesian coordinates and 
           ! initialise the corresponding type
            call set_orography_schar_cartesian()
+        end if
+      ! DCMIP200 orography
+      case( orography_profile_dcmip200 )
+        if ( geometry == base_mesh_geometry_spherical ) then
+          ! Read parameters for dcmip200 mountain in spherical
+          ! coordinates and initialise the corresponding type
+          call set_orography_dcmip200_spherical()
         end if
       ! No orography (default) 
       case default   
@@ -223,6 +231,36 @@ contains
 
     return 
   end subroutine set_orography_schar_cartesian
+
+  !=============================================================================
+  !> @brief Initialises analytic orography type for DCMIP200 mountain in
+  !>        spherical coordinates using corresponding namelist parameters.
+  !=============================================================================
+  subroutine set_orography_dcmip200_spherical()
+
+    use dcmip200_orography_spherical_mod,        only : dcmip200_spherical_type
+    use orography_dcmip200_spherical_config_mod, only : mountain_height, &
+                                                     radius,             &
+                                                     osc_half_width,     &
+                                                     lambda_centre,      &
+                                                     phi_centre
+
+    implicit none
+
+    ! ----------- Initialise DCMIP200 spherical orography type ----------------!
+    allocate( orography_profile,                                 &
+              source = dcmip200_spherical_type( mountain_height, &
+                                                radius,          &
+                                                osc_half_width,  &
+                                                lambda_centre,   &
+                                                phi_centre ) )
+
+    write(log_scratch_space,'(A,A)') "set_orography_dcmip200_spherical: "// &
+          "Set analytic orography type to spherical dcmip200 mountain."
+    call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
+    return
+  end subroutine set_orography_dcmip200_spherical
 
 end module orography_control_mod
 

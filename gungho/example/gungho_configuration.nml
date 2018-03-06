@@ -210,6 +210,14 @@
   phi_centre_dec    = 0.0
 /
 
+&orography_dcmip200_spherical
+mountain_height     = 2000.0
+radius_dec          = 0.75
+osc_half_width_dec  = 0.0625
+lambda_centre_dec   = 1.5
+phi_centre_dec      = 0.0
+/
+
 &damping_layer
   dl_base = 800.0
   dl_str  = 0.5

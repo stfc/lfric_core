@@ -1,0 +1,14 @@
+namelist orography_dcmip200_spherical
+
+  mountain_height     : real      ! Height of mountain [m]
+  PI                  : constant  ! Multiply mountain coordinates by PI
+  radius_dec          : real      ! Mountain radius unscaled by PI
+  osc_half_width_dec  : real      ! Oscillation half-width of orography function unscaled by PI 
+  lambda_centre_dec   : real      ! Latitude of mountain centre unscaled by PI
+  phi_centre_dec      : real      ! Longitude of mountain centre unscaled by PI
+  radius              : real[ 'radius_dec*PI']          ! Mountain radius [radian]
+  osc_half_width      : real[ 'osc_half_width_dec*PI']  ! Oscillation half-width of orography function [radian] 
+  lambda_centre       : real[ 'lambda_centre_dec*PI' ]  ! Latitude of mountain centre [rad]
+  phi_centre          : real[ 'phi_centre_dec*PI' ]     ! Longitude of mountain centre [rad]
+
+end namelist orography_dcmip200_spherical

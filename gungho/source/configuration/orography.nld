@@ -1,8 +1,9 @@
 namelist orography
 
-  profile  : enumeration[ none,   ! No orography (flat surface)
-                          schar,  ! Schar mountain profile
-                          agnesi  ! Witch-of-Agnesi mountain profile
+  profile  : enumeration[ none,    ! No orography (flat surface)
+                          schar,   ! Schar mountain profile
+                          agnesi,  ! Witch-of-Agnesi mountain profile
+                          dcmip200 ! DCMIP2.0.0 mountain profile
                                  ]
 
 end namelist orography

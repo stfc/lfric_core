@@ -13,13 +13,14 @@ use base_mesh_config_mod,           only : geometry, &
 use constants_mod,                  only : r_def, i_def
 use coord_transform_mod,            only : xyz2llr
 use generate_global_gw_fields_mod,  only : generate_global_gw_fields
-use idealised_config_mod,           only : idealised_test_gravity_wave,   &
-                                           idealised_test_cold_bubble_x,  &
-                                           idealised_test_cold_bubble_y,  &
-                                           idealised_test_isot_atm,       &
-                                           idealised_test_warm_bubble,    &
-                                           idealised_test_warm_bubble_3d, &
-                                           idealised_test_held_suarez,    &
+use idealised_config_mod,           only : idealised_test_gravity_wave,     &
+                                           idealised_test_cold_bubble_x,    &
+                                           idealised_test_cold_bubble_y,    &
+                                           idealised_test_isot_atm,         &
+                                           idealised_test_const_lapse_rate, &
+                                           idealised_test_warm_bubble,      &
+                                           idealised_test_warm_bubble_3d,   &
+                                           idealised_test_held_suarez,      &
                                            idealised_test_isentropic
 use initial_temperature_config_mod, only : bvf_square
 use planet_config_mod,              only : scaled_radius, gravity, Cp, Rd, &
@@ -50,6 +51,7 @@ real(kind=r_def),    intent(out)          :: exner_s, rho_s, theta_s
 real(kind=r_def), parameter :: theta_surf     = 300.0_r_def
 real(kind=r_def), parameter :: theta_surf_hot = 303.05_r_def
 real(kind=r_def), parameter :: exner_surf     = 1.0_r_def
+real(kind=r_def), parameter :: lapse_rate     = 0.0065_r_def
 real(kind=r_def)            :: nsq_over_g, z, u_s(3), lat, lon, r, lon_surf, lat_surf, r_surf
 
 if ( geometry == base_mesh_geometry_spherical ) then  ! SPHERICAL DOMAIN
@@ -76,6 +78,11 @@ else                     ! BIPERIODIC PLANE DOMAIN
           idealised_test_isentropic )
       theta_s = theta_surf
       exner_s = exner_surf - gravity/(Cp*theta_surf)*z
+    case( idealised_test_const_lapse_rate )
+      theta_s = theta_surf * ((1.0_r_def - lapse_rate/theta_surf * z) &
+                  **(1.0_r_def-gravity/(Cp*lapse_rate)))
+      exner_s = exner_surf * ((1.0_r_def - lapse_rate/theta_surf * z) &
+                  **(gravity/(Cp*lapse_rate)))
     case( idealised_test_warm_bubble )   ! Warm bubble test
       theta_s = theta_surf_hot
       exner_s = exner_surf - gravity/(Cp*theta_surf_hot)*z
