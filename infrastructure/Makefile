@@ -46,7 +46,7 @@ documentation doc docs: document-uml document-api
 	$(Q)echo > /dev/null
 
 .PHONY: test-suite
-test-suite: SUITE_NAME   = $(notdir $(realpath $(shell pwd)/..))-infrastructure
+test-suite: SUITE_BASE_NAME = $(notdir $(realpath $(shell pwd)/..))-$(PROJECT_NAME)
 test-suite: SUITE_CONFIG = rose-stem
 test-suite: launch-test-suite
 	$(Q)echo > /dev/null

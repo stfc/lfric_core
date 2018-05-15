@@ -206,16 +206,17 @@ api-documentation: ALWAYS
 ##############################################################################
 # Launch test suite
 #
-# SUITE_CONFIG - Path to rose-stem directory.
-# SUITE_NAME   - Base name for suites.
+# SUITE_CONFIG    - Path to rose-stem directory.
+# SUITE_BASE_NAME - Name for suites.
 #
 .PHONY: launch-test-suite
-launch-test-suite: SUITE_GROUP  ?= developer
+launch-test-suite: SUITE_GROUP ?= developer
 launch-test-suite: TEST_SUITE_TARGETS ?= $(error Please set the TEST_SUITE_TARGETS environment variable.)
+launch-test-suite: SUITE_NAME = $(SUITE_BASE_NAME)-$$target-$(SUITE_GROUP)
 launch-test-suite:
 	$(Q)umask 022; for target in $(TEST_SUITE_TARGETS) ; do \
 	echo Launching $(PROJECT_NAME) test suite against $$target with $(SUITE_GROUP) group ; \
-	rose stem --name=$(SUITE_NAME)-$$target-$(SUITE_GROUP) \
+	rose stem --name=$(SUITE_NAME) \
 	          --config=$(SUITE_CONFIG) \
 	          --opt-conf-key=$$target \
 	          $(CLEAN_OPT) $(QUIET_ARG) \
