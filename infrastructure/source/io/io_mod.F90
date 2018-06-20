@@ -396,7 +396,7 @@ subroutine xios_diagnostic_domain_init(mesh_id, chi)
 
   ! Local variables 
 
-  integer(i_def)                       :: i, err
+  integer(i_def)                       :: i
 
 
   ! Node domain (W0)
@@ -543,8 +543,6 @@ subroutine xios_diagnostic_domain_init(mesh_id, chi)
   !!!!!!!!!!!!  Global domain calculation !!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   call all_gather ( local_undf, all_undfs, 1 )
-  if (err /= MPI_SUCCESS) &
-      call log_event("Error doing allGather for domain sizes", LOG_LEVEL_ERROR)
 
   ! Adjust size of data taking into account how many levels we have (same for each
   ! partition as we only partition horizontally)
@@ -635,8 +633,6 @@ subroutine xios_diagnostic_domain_init(mesh_id, chi)
   !!!!!!!!!!!!  Global domain calculation !!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   call all_gather ( local_undf, all_undfs, 1 )
-  if (err /= MPI_SUCCESS) &
-      call log_event("Error doing allGather for domain sizes", LOG_LEVEL_ERROR)
 
   ! Adjust size of data taking into account how many levels we have (same for each
   ! partition as we only partition horizontally)
@@ -764,7 +760,7 @@ subroutine xios_restart_domain_init(mesh_id, chi)
 
   ! Local variables
 
-  integer(i_def)    :: i, err
+  integer(i_def)    :: i
   integer(i_native) :: fs_index
 
   ! Restart domain
@@ -851,9 +847,6 @@ subroutine xios_restart_domain_init(mesh_id, chi)
     !!!!!!!!!!!!  Global domain calculation !!!!!!!!!!!!!!!!!!!!!!!!!!
 
     call all_gather ( local_undf, all_undfs_restart_domain, 1 )
-    if (err /= MPI_SUCCESS) &
-    call log_event("Error doing allGather for restart domain sizes", &
-                  LOG_LEVEL_ERROR)
 
     ! Now get the global sum of undf across all ranks to set the global domain sizes
     ! for restart domain
