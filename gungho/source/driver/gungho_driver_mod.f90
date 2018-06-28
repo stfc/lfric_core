@@ -13,6 +13,7 @@ module gungho_driver_mod
   use conservation_algorithm_mod, only : conservation_algorithm
   use constants_mod,              only : i_def, imdi
   use yz_bip_cosmic_alg_mod,      only : yz_bip_cosmic_step
+  use cosmic_threed_alg_mod,      only : cosmic_threed_transport_step
   use cusph_cosmic_transport_alg_mod, &
                                   only : cusph_cosmic_transport_init, &
                                          cusph_cosmic_transport_step
@@ -79,7 +80,8 @@ module gungho_driver_mod
                                          timestepping_method_rk
   use transport_config_mod,       only : scheme, &
                                          transport_scheme_method_of_lines, &
-                                         transport_scheme_yz_bip_cosmic, &
+                                         transport_scheme_yz_bip_cosmic,   &
+                                         transport_scheme_cosmic_3D,      &
                                          transport_scheme_horz_cosmic
   use xios
   use count_mod,                  only : count_type, halo_calls
@@ -326,6 +328,9 @@ contains
           case ( transport_scheme_horz_cosmic )
             call cusph_cosmic_transport_init(mesh_id, u, timestep)
             call cusph_cosmic_transport_step( mesh_id, rho)
+          case ( transport_scheme_cosmic_3D )
+            call cusph_cosmic_transport_init(mesh_id, u, timestep)
+            call cosmic_threed_transport_step( rho, u, mesh_id, timestep )
           case default
           call log_event("Dynamo: Incorrect transport option chosen, "// &
                           "stopping program! ",LOG_LEVEL_ERROR)

@@ -65,12 +65,14 @@ function hadley_like_dcmip(lat,height,time) result(u)
   real(kind=r_def), dimension(3)  :: u
 
   real(kind=r_def)             :: u0, w0, k, top_of_atmosphere, l, z
-  real(kind=r_def)             :: tau, time_period
+  real(kind=r_def)             :: tau, time_period, rho, scale_height
 
   ! Equations below have been taken from Allen and Zerroukat, "A deep
   !> non-hydrostatic compressible atmospheric model on a Yin-Yang grid", JCP, 2016,
   !> or equivalently Kent, Ullrich, Jablonowski, "Dynamical core intercomparison project:
   !> Tracer transport test cases", QJRMS 2014.
+  !> Note that there is a missing negative sign in Allen and Zerroukat,
+  !> equation (5.2).
 
   u0 = 40.0_r_def
   w0 = 0.03_r_def
@@ -80,10 +82,12 @@ function hadley_like_dcmip(lat,height,time) result(u)
   time_period = 24.0_r_def*60.0_r_def*60.0_r_def
   tau = pi/time_period
   z = height-scaled_radius
+  scale_height = 300.0_r_def*287.0_r_def/9.80616_r_def
+  rho = exp(-z/scale_height)
 
   u(1) = u0*cos(lat)
-  u(2) = (-scaled_radius*w0*l)*cos(lat)*sin(k*lat)*cos(l*z)*cos(tau*time)
-  u(3) = w0*(-2.0_r_def*sin(k*lat)*sin(lat)+k*cos(k*lat)*cos(lat))*sin(l*z)*cos(tau*time)
+  u(2) = (1.0_r_def/rho)*(-scaled_radius*w0*l)*cos(lat)*sin(k*lat)*cos(l*z)*cos(tau*time)
+  u(3) = (1.0_r_def/rho)*w0*(-2.0_r_def*sin(k*lat)*sin(lat)+k*cos(k*lat)*cos(lat))*sin(l*z)*cos(tau*time)
 
 end function hadley_like_dcmip
 

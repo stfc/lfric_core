@@ -20,7 +20,7 @@
                                                               'baroclinic', 'static_isentropic_x', 'static_isentropic_y',
                                                               'static_isothermal_x', 'static_isothermal_y', 'static_isothermal_x_long',
                                                               'agnesi_hyd_cart', 'agnesi_nhyd_cart', 'schar3d_cart_8s',
-                                                              'schar_cart_8s', 'schar_cart_40s',
+                                                              'schar_cart_8s', 'schar_cart_40s', 'hadley_like_dcmip',
                                                               'default' ] } %}
 
 {%- set canned_configurations  = ['gungho'] %}
@@ -98,6 +98,11 @@
                       publish=True )',
     'run_application( gungho, dcmip301,               resolutions=[("C24",10.0)],
                       plotstr="dcmip301.py $NODAL_DATA_DIR theta T000180:T000252:T000324:T000360 $PLOT_DIR",
+                      publish=True )',
+    'run_application( gungho, hadley_like_dcmip,      resolutions=[("C48",300.0)],
+                      env={"crun":1, "nrun":288,
+                           "directives":{"default":{"mpi_parts":12,"threads":1,"wallclock":"00:40:00"} } }, 
+                      plotstr="slices.py diagDynamo $NODAL_DATA_DIR rho T000000:T000072:T000144:T000216:T000288 45 -1000 -1000 $PLOT_DIR",
                       publish=True )',
     'run_application( gungho, divergence_cosmic,      resolutions=[("C32",1.0)],
                       plotstr="slices.py diagDynamo $NODAL_DATA_DIR rho T000000:T000050:T000100:T000150:T000200:T000250:T000300:T000350:T000400:T000450:T000500 -1 -91 0 $PLOT_DIR",

@@ -297,7 +297,7 @@ contains
 
     @assertEqual(40.0_r_def, u(1), tol)
     @assertEqual(0.0_r_def, u(2), tol)
-    @assertEqual(0.137396342255513_r_def, u(3), tol)
+    @assertEqual(0.229381563122066_r_def, u(3), tol)
 
     initial_time = 82800.0_r_def
     llr = (/ PI/4.0_r_def, 0.0_r_def, 6000000.0_r_def + 4500.0_r_def /)
@@ -305,7 +305,7 @@ contains
 
     @assertEqual(40.0_r_def, u(1), tol)
     @assertEqual(0.0_r_def, u(2), tol)
-    @assertEqual(-0.137396342255513_r_def, u(3), tol)
+    @assertEqual(-0.229381563122066_r_def, u(3), tol)
 
   end subroutine test_all
 
