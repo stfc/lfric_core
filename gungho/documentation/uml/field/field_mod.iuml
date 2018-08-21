@@ -12,6 +12,7 @@ class field_mod::field_type {
   -vspace : function_space_type <<pointer>>
   -ospace : integer
   -data_extant : logical
+  -name : string
   -write_field_method : procedure <<pointer>>
   -checkpoint_method : procedure <<pointer>>
   -restart_method : procedure <<pointer>>

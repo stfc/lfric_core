@@ -4,8 +4,9 @@
 
 class field_collection_mod::field_collection_type {
   -field_list: linked_list_type
+  -name: string
 
-  <<create>>+field_collection_constructor() : field_collection_type
+  <<create>>+field_collection_constructor(<<in optional>> name : string ) : field_collection_type
   <<destroy>>+field_collection_destructor()
   +add_field( <<in>>field: field_type ) : 
   +get_field( <<in>>field_name: string ) : <<pointer>> field_type

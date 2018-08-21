@@ -75,7 +75,7 @@ contains
     !========================================================================
     ! Here we create some field collections
     !========================================================================
-    derived_fields  =  field_collection_type()
+    derived_fields  =  field_collection_type(name='derived_fields')
    
     ! Wtheta fields
     vector_space=>function_space_collection%get_fs(mesh_id, 0, Wtheta)
@@ -108,7 +108,7 @@ contains
     !========================================================================
     ! Here we create some 2d fields for the UM physics
     !========================================================================
-    twod_fields = field_collection_type()
+    twod_fields = field_collection_type(name='twod_fields')
     vector_space=> function_space_collection%get_fs(twod_mesh_id, 0, W3) 
 
     call add_physics_field(twod_fields, 'tstar', vector_space)
@@ -119,7 +119,7 @@ contains
     !========================================================================
     ! ...and some fields for use with clouds
     !========================================================================
-    cloud_fields = field_collection_type()
+    cloud_fields = field_collection_type(name='cloud_fields')
     vector_space=>function_space_collection%get_fs(mesh_id, 0, Wtheta)
 
     call add_physics_field(cloud_fields, 'area_fraction', vector_space)

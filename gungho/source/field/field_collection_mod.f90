@@ -13,7 +13,7 @@
 !
 module field_collection_mod
 
-  use constants_mod,      only: i_def, l_def
+  use constants_mod,      only: i_def, l_def, str_def
   use field_mod,          only: field_type
   use log_mod,            only: log_event, log_scratch_space, &
                                 LOG_LEVEL_ERROR, LOG_LEVEL_INFO
@@ -28,7 +28,12 @@ module field_collection_mod
   ! Type that holds a collection of fields in a linked list
   !-----------------------------------------------------------------------------
   type, public :: field_collection_type
+
     private
+    !> The name of the field collection if provided. 
+    character(str_def)     :: name = 'unnamed_collection'
+
+    !> A linked list of the fields contained within the collection
     type(linked_list_type) :: field_list
 
   contains
@@ -47,16 +52,19 @@ module field_collection_mod
 contains
 
 !> Constructor for a field collection
-function field_collection_constructor() result(self)
+!> @param [in] name The name given to the collection
+function field_collection_constructor(name) result(self)
 
   implicit none
+
+  character(*), intent(in), optional :: name
 
   type(field_collection_type) :: self
 
   self%field_list = linked_list_type()
+  if (present(name))self%name = trim(name)
 
 end function field_collection_constructor
-
 
 !> Adds a field to the collection. The field maintained in the collection will
 !> be a copy of the original.
@@ -68,7 +76,32 @@ subroutine add_field(self, field)
   class(field_collection_type), intent(inout) :: self
   type(field_type), intent(in) :: field
 
-  call self%field_list%insert_item( field )
+  ! Pointer to linked list - used for looping through the list
+  type(linked_list_item_type), pointer :: loop => null()
+
+  ! start at the head of the mesh collection linked list
+  loop => self%field_list%get_head()
+
+  do
+    ! If list is empty or we've got to the end of list and we didn't find the
+    ! field, then we can add it and go home
+    if ( .not. associated(loop) ) then
+      call self%field_list%insert_item( field )
+      exit
+    end if
+
+    ! otherwise if we already have the field, then exit with error
+    select type(f => loop%payload)
+      type is (field_type)
+      if ( trim(field%get_name()) == trim(f%get_name()) ) then
+        write(log_scratch_space, '(4A)') 'Field [', trim(field%get_name()), &
+           '] already exists in field collection: ', trim(self%name)
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR)
+      end if
+    end select
+
+    loop => loop%next
+  end do
 
 end subroutine add_field
 
@@ -86,17 +119,18 @@ function get_field(self, field_name) result(field)
   type(field_type), pointer :: field
 
   ! Pointer to linked list - used for looping through the list
-  type(linked_list_item_type),pointer :: loop => null()
+  type(linked_list_item_type), pointer :: loop => null()
 
   ! start at the head of the mesh collection linked list
   loop => self%field_list%get_head()
 
   do
     ! If list is empty or we're at the end of list and we didn't find the
-    ! field, return a null pointer
+    ! field, fail with an error
     if ( .not. associated(loop) ) then
-      nullify(field)
-      exit
+      write(log_scratch_space, '(4A)') 'No field [', trim(field_name), &
+         '] in field collection: ', trim(self%name)
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR)
     end if
     ! otherwise search list for the name of field we want
 
