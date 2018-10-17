@@ -109,12 +109,23 @@ CXX ?= g++
 #
 CXX_COMPILER := $(firstword $(subst -, ,$(notdir $(CXX))))
 
-# Of course Crays are different, they don't need this stuff
-#
-ifndef CRAY_ENVIRONMENT
-  include $(LFRIC_BUILD)/cxx/$(CXX_COMPILER).mk
-  export CXX_RUNTIME_LIBRARY
+# Attempt to identify Cray systems...
+ifdef CRAY_ENVIRONMENT
+  ifeq '$(PE_ENV)' 'CRAY'
+    CXX_COMPILER = craycc
+  else ifeq '$(PE_ENV)' 'INTEL'
+    CXX_COMPILER = icc
+  else ifeq '$(PE_ENV)' 'GNU'
+    CXX_COMPILER = g++
+  else ifeq '$(PE_ENV)' 'PGI'
+    CXX_COMPILER = pgc++
+  else
+    $(error Unrecognised Cray programming environment)
+  endif
 endif
+
+include $(LFRIC_BUILD)/cxx/$(CXX_COMPILER).mk
+export CXX_RUNTIME_LIBRARY
 
 # The compile options file overrides compile options based on file-name pattern matching.
 # Use the miniapp-specific file if it exists. Otherwise use the infrastructure file.
