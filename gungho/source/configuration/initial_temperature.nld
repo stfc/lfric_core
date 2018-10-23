@@ -1,4 +1,0 @@
-namelist initial_temperature
-  bvf_square : real ! The square of Brunt-Vaisala frequency [1/s^2]
-  theta_surf : real ! Value of temperature at z=0
-end namelist initial_temperature

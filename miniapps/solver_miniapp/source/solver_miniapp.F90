@@ -13,7 +13,6 @@ program solver_miniapp
 
   use constants_mod,                  only : i_def
   use cli_mod,                        only : get_initial_filename
-  use solver_miniapp_mod,             only : load_configuration
   use init_mesh_mod,                  only : init_mesh
   use init_fem_mod,                   only : init_fem  
   use init_solver_miniapp_mod,        only : init_solver_miniapp
@@ -25,7 +24,9 @@ program solver_miniapp
                                              global_mesh_collection_type
   use field_mod,                      only : field_type
   use field_vector_mod,               only : field_vector_type
-  use solver_miniapp_alg_mod,         only : solver_miniapp_alg
+  use solver_miniapp_alg_mod,           only : solver_miniapp_alg
+  use solver_miniapp_configuration_mod, only : final_configuration
+  use solver_miniapp_mod,               only : load_configuration
   use log_mod,                        only : log_event,         &
                                              log_set_level,     &
                                              log_scratch_space, &
@@ -123,6 +124,9 @@ program solver_miniapp
   !-----------------------------------------------------------------------------
   ! Driver layer finalise
   !-----------------------------------------------------------------------------
+
+  ! Finalise namelist configurations
+  call final_configuration()
 
   ! Finalise YAXT
   call xt_finalize()

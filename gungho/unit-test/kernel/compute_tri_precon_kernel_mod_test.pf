@@ -16,10 +16,10 @@ module compute_tri_precon_kernel_mod_test
   use mesh_collection_mod,           only : mesh_collection_type, &
                                             mesh_collection
   use pFUnit_Mod
-  use timestepping_config_mod,  only : timestepping_runge_kutta_method_ssp4, &
-                                            timestepping_method_semi_implicit
-  use yaxt,                          only : xt_initialize, xt_finalize
-  use mpi_mod,                       only : store_comm, clear_comm
+  use timestepping_config_mod,   only : timestepping_runge_kutta_method_ssp4, &
+                                        timestepping_method_semi_implicit
+  use yaxt,                      only : xt_initialize, xt_finalize
+  use mpi_mod,                   only : store_comm, clear_comm
 
   implicit none
 
@@ -104,9 +104,19 @@ contains
                               rd=rd, cp=cp, p_zero=p_zero,                 &
                               scaling_factor=scaling )
 
-    call feign_timestepping_config(method, dt, alpha, tau_u, tau_t, tau_r, &
-                                   nout, nin, rk_method,&
-                                   spinup_period, spinup_alpha, spinup_winds    )
+    call feign_timestepping_config(    &
+         method=method,                &
+         dt=dt,                        &
+         alpha=alpha,                  &
+         tau_u=tau_u,                  &
+         tau_t=tau_t,                  &
+         tau_r=tau_r,                  &
+         outer_iterations=nout,        &
+         inner_iterations=nin,         &
+         runge_kutta_method=rk_method, &
+         spinup_period=spinup_period,  &
+         spinup_alpha=spinup_alpha,    &
+         spinup_winds=spinup_winds )
 
     ! Create top level mesh collection
     mesh_collection = mesh_collection_type()
@@ -144,6 +154,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use gungho_configuration_mod, only: final_configuration
+
     implicit none
 
     class(compute_tri_precon_test_type), intent(inout) :: this
@@ -152,6 +164,7 @@ contains
 
     call function_space_collection%clear()
     call mesh_collection%clear()
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()

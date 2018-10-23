@@ -64,28 +64,32 @@ contains
     call feign_biperiodic_deppt_config( method = biperiodic_deppt_method_trapezoidal,  &
                                         n_dep_pt_iterations=n_dep_pt_iterations  )
 
-    call feign_timestepping_config( timestepping_method_semi_implicit,   &
-                                    dt,                                  &
-                                    alpha,                               &
-                                    tau_u,                               &
-                                    tau_t,                               &
-                                    tau_r,                               &
-                                    outer_iterations,                    &
-                                    inner_iterations,                    &
-                                    timestepping_runge_kutta_method_ssp3,&
-                                    spinup_period,                       &
-                                    spinup_alpha,                        &
-                                    spinup_winds                         &
-                                    )
+    call feign_timestepping_config(                                   &
+             method=timestepping_method_semi_implicit,                &
+             dt=dt,                                                   &
+             alpha=alpha,                                             &
+             tau_u=tau_u,                                             &
+             tau_t=tau_t,                                             &
+             tau_r=tau_r,                                             &
+             outer_iterations=outer_iterations,                       &
+             inner_iterations=inner_iterations,                       &
+             runge_kutta_method=timestepping_runge_kutta_method_ssp3, &
+             spinup_period=spinup_period,                             &
+             spinup_alpha=spinup_alpha,                               &
+             spinup_winds=spinup_winds )
 
   end subroutine setUp
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use gungho_configuration_mod, only: final_configuration
+
     implicit none
 
     class(vertical_trapezoidal_test_type), intent(inout) :: this
+
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()

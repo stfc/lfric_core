@@ -135,6 +135,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use gungho_configuration_mod, only: final_configuration
+
     implicit none
 
     class(geopotential_gradient_test_type), intent(inout) :: this
@@ -143,6 +145,7 @@ contains
 
     call function_space_collection%clear()
     call mesh_collection%clear()
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()

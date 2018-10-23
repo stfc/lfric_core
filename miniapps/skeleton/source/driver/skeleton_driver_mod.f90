@@ -11,7 +11,6 @@ module skeleton_driver_mod
 
   use constants_mod,                  only : i_def
   use cli_mod,                        only : get_initial_filename
-  use skeleton_mod,                   only : load_configuration
   use init_mesh_mod,                  only : init_mesh
   use init_fem_mod,                   only : init_fem
   use init_skeleton_mod,              only : init_skeleton
@@ -20,6 +19,8 @@ module skeleton_driver_mod
                                              global_mesh_collection_type
   use field_mod,                      only : field_type
   use skeleton_alg_mod,               only : skeleton_alg
+  use skeleton_configuration_mod,     only : final_configuration
+  use skeleton_mod,                   only : load_configuration
   use derived_config_mod,             only : set_derived_config
   use log_mod,                        only : log_event,         &
                                              log_set_level,     &
@@ -211,6 +212,9 @@ contains
 
     ! Finalise XIOS
     call xios_finalize()
+
+    ! Finalise namelist configurations
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()

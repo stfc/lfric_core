@@ -87,12 +87,16 @@ contains
 
     this%stencil_u => u_p%vspace%get_stencil_dofmap(STENCIL_CROSS,1)
 
-    call feign_mixing_config(.false., 10.0_r_def, .false.)
+    call feign_mixing_config( smagorinsky  = .false., &
+                              viscosity    = .false., &
+                              viscosity_mu = 10.0_r_def )
 
   end subroutine setUp
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
+
+    use gungho_configuration_mod, only: final_configuration
 
     implicit none
 
@@ -100,6 +104,7 @@ contains
 
     call function_space_collection%clear()
     call mesh_collection%clear()
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()

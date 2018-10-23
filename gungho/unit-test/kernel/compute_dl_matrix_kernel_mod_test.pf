@@ -53,20 +53,32 @@ module compute_dl_matrix_kernel_mod_test
     procedure test_all
   end type compute_dl_matrix_test_type
 
-  integer(i_def), parameter :: element_order = 0
+  integer(i_def), parameter :: element_order = 0_i_def
+
+  real(r_def), parameter :: gravity = 10.0_r_def
+  real(r_def), parameter :: radius  = 6000000_r_def
+  real(r_def), parameter :: omega   = 8.0E-5_r_def
+  real(r_def), parameter :: p_zero  = 100000.0_r_def
+  real(r_def), parameter :: rd      = 300.0_r_def
+  real(r_def), parameter :: cp      = 1000.0_r_def
+  real(r_def), parameter :: scaling = 1.0_r_def
 
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use mesh_mod,                  only : PLANE_BI_PERIODIC
-    use gungho_feign_config_mod,   only : feign_damping_layer_config, &
-                                          feign_extrusion_config,     & 
-                                          feign_timestepping_config
-    use timestepping_config_mod,   only : timestepping_method_semi_implicit, &
-                                          timestepping_runge_kutta_method_ssp3
-    use extrusion_config_mod,      only : extrusion_method_uniform
+    use mesh_mod,                  only: PLANE_BI_PERIODIC
+    use gungho_feign_config_mod,   only: feign_damping_layer_config,  &
+                                         feign_extrusion_config,      & 
+                                         feign_timestepping_config,   & 
+                                         feign_finite_element_config, &
+                                         feign_planet_config
+
+    use timestepping_config_mod,   only: timestepping_method_semi_implicit, &
+                                         timestepping_runge_kutta_method_ssp3
+    use extrusion_config_mod,      only: extrusion_method_uniform
+    use finite_element_config_mod, only: finite_element_cellshape_quadrilateral
 
     implicit none
 
@@ -90,17 +102,30 @@ contains
 
     call feign_damping_layer_config( dl_base=800.0_r_def, dl_str=0.015_r_def )
 
-    call feign_extrusion_config( extrusion_method_uniform,  &
-                                 domain_top=6000.0_r_def,   &
+    call feign_extrusion_config( domain_top=6000.0_r_def,         &
+                                 method=extrusion_method_uniform, &
                                  number_of_layers=3_i_def )
 
-    call feign_timestepping_config( method=timestepping_method_semi_implicit,                &
-                                    dt=1.0_r_def, alpha=0.5_r_def, tau_u=0.5_r_def,          &
-                                    tau_t=0.5_r_def, tau_r=0.5_r_def,                        &
-                                    outer_iterations=4_i_def, inner_iterations=1_i_def,      &
-                                    runge_kutta_method=timestepping_runge_kutta_method_ssp3, &
-                                    spinup_period=0.0_r_def, spinup_alpha=.false.,           &
-                                    spinup_winds=.false. )
+    call feign_timestepping_config(                                   &
+             method=timestepping_method_semi_implicit,                &
+             dt=1.0_r_def, alpha=0.5_r_def, tau_u=0.5_r_def,          &
+             tau_t=0.5_r_def, tau_r=0.5_r_def,                        &
+             outer_iterations=4_i_def, inner_iterations=1_i_def,      &
+             runge_kutta_method=timestepping_runge_kutta_method_ssp3, &
+             spinup_period=0.0_r_def, spinup_alpha=.false.,           &
+             spinup_winds=.false. )
+
+    call feign_finite_element_config(                          &
+             cellshape=finite_element_cellshape_quadrilateral, &
+             coordinate_order=0_i_def,                         &
+             element_order=element_order,                      &
+             rehabilitate=.true.,                              &
+             supg=.false.,                                     &
+             vorticity_in_w1=.false. )
+
+    call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
+                              rd=rd, cp=cp, p_zero=p_zero,                 &
+                              scaling_factor=scaling )
 
     ! Create top level mesh collection
     mesh_collection = mesh_collection_type()
@@ -147,6 +172,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use gungho_configuration_mod, only: final_configuration
+
     implicit none
 
     class(compute_dl_matrix_test_type), intent(inout) :: this
@@ -155,6 +182,7 @@ contains
 
     call mesh_collection%clear()
     call function_space_collection%clear()
+    call final_configuration()
     
     ! Finalise YAXT
     call xt_finalize()
@@ -275,11 +303,8 @@ contains
     ! Normalise by 1/average edge length
     answer(:,:) = answer(:,:) * ( dx + dy + dz ) / 3.0_r_def
 
-
     mm_p%local_stencil(:, :, 1 ) = mm_p%local_stencil(:, :, 1 ) &
                                     * ( dx + dy + dz ) / 3.0_r_def
-
-
 
     @assertEqual( answer, mm_p%local_stencil(:, :, 1 ), tol )
 

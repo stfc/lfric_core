@@ -60,8 +60,13 @@ contains
     !Store the MPI communicator for later use
     call store_comm(this%getMpiCommunicator())
 
-    call feign_finite_element_config( finite_element_cellshape_quadrilateral, &
-                                      0, 1, .true., .false., .false.)
+    call feign_finite_element_config(                          &
+             cellshape=finite_element_cellshape_quadrilateral, &
+             coordinate_order=0,                               &
+             element_order=1,                                  &
+             rehabilitate=.true.,                              &
+             supg=.false.,                                     &
+             vorticity_in_w1=.false. )
 
     ! Create top level collections
     mesh_collection = mesh_collection_type()
@@ -87,12 +92,15 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use gungho_configuration_mod, only: final_configuration
+
     implicit none
 
     class(compound_operator_test_type), intent(inout) :: this
 
     call function_space_collection%clear()
     call mesh_collection%clear()
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()

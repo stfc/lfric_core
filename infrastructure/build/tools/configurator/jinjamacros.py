@@ -6,8 +6,9 @@
 # should have received as part of this distribution.
 ##############################################################################
 
+
 ###############################################################################
-def decorateMacro( subject, prefix=None, postfix=None ):
+def decorate_macro(subject, prefix=None, postfix=None):
     result = [value for value in subject]
 
     if prefix:

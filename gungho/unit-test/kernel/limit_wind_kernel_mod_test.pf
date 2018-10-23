@@ -83,13 +83,14 @@ contains
 
     call feign_checks_config( limit_cfl=.true., max_cfl=MAX_CFL )
 
-    call feign_timestepping_config(method=timestepping_method_semi_implicit,          &
-                                   dt=DT, alpha=0.5_r_def, tau_u=0.5_r_def,           &
-                                   tau_t=0.5_r_def, tau_r=0.5_r_def,                  &
-                                   outer_iterations=1_i_def, inner_iterations=1_i_def,&
-                                   runge_kutta_method=timestepping_runge_kutta_method_ssp3,    &
-                                   spinup_period=0.0_r_def, spinup_alpha=.false.,       &
-                                   spinup_winds=.false.    )
+    call feign_timestepping_config(                                   &
+             method=timestepping_method_semi_implicit,                &
+             dt=dt, alpha=0.5_r_def, tau_u=0.5_r_def,                 &
+             tau_t=0.5_r_def, tau_r=0.5_r_def,                        &
+             outer_iterations=1_i_def, inner_iterations=1_i_def,      &
+             runge_kutta_method=timestepping_runge_kutta_method_ssp3, &
+             spinup_period=0.0_r_def, spinup_alpha=.false.,           &
+             spinup_winds=.false.    )
 
 
     ! Create top level mesh collection
@@ -116,12 +117,15 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use gungho_configuration_mod, only: final_configuration
+
     implicit none
 
     class(limit_wind_test_type), intent(inout) :: this
 
     call function_space_collection%clear()
     call mesh_collection%clear()
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()

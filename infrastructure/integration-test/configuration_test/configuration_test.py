@@ -14,10 +14,10 @@ import sys
 from testframework import MpiTest, TestEngine, TestFailed
 
 ##############################################################################
-class one_of_each_test(MpiTest):
+class configuration_test(MpiTest):
   def __init__( self ):
-    self._INJECT = 'one_of_each.nml'
-    super(one_of_each_test, self).__init__( [sys.argv[1], self._INJECT] )
+    self._INJECT = 'configuration_test.nml'
+    super(configuration_test, self).__init__( [sys.argv[1], self._INJECT] )
 
     self._precision = 0.0005
 
@@ -28,13 +28,18 @@ class one_of_each_test(MpiTest):
       raise TestFailed( 'Unexpected failure of test executable: {code}' \
                         .format( code=return_code ) )
 
-    expected = { 'angle_deg'   : 7.998,
-                 'angle_rad'   : 0.1396,
-                 'an_enum'     : 'second',
-                 'closed_array': [0.2, 0.3, 0.4],
-                 'open_array'  : [1, 2, 3, 4, 5],
-                 'some_string' : 'chocolate teapot',
-                 'whole_number': 13}
+    expected = { 'a_dim'                       : 2,
+                 'angle_deg'                   : 7.998,
+                 'angle_rad'                   : 0.1396,
+                 'an_enum'                     : 'second',
+                 'bounded_array_local_dim'     : [0.3, 0.4],
+                 'bounded_array1_namelist_dim' : [0.3, 0.4, 0.5],
+                 'bounded_array2_namelist_dim' : [0.5, 0.6, 0.7],
+                 'bounded_array_source_dim'    : [0.1, 0.6, 0.7, 0.9],
+                 'closed_array'                : [0.2, 0.3, 0.4],
+                 'open_array'                  : [1, 2, 3, 4, 5],
+                 'some_string'                 : 'chocolate teapot',
+                 'whole_number'                : 13}
     seen = []
     variablePattern = re.compile( r'(.+?)\s*:\s*(.+)\s*' )
     listPattern = re.compile( r'(\'.*?\'|".*?"|[^ ]+)' )
@@ -68,6 +73,7 @@ class one_of_each_test(MpiTest):
     return 'One of each configuration type loaded'
 
   def _check( self, name, expected, found ):
+
     if not isinstance( expected, list ):
       expected = [expected]
 
@@ -99,4 +105,4 @@ class one_of_each_test(MpiTest):
 
 ##############################################################################
 if __name__ == '__main__':
-  TestEngine.run( one_of_each_test() )
+  TestEngine.run( configuration_test() )

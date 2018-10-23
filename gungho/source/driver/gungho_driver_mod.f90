@@ -26,7 +26,8 @@ module gungho_driver_mod
   use field_collection_mod,       only : field_collection_type
   use global_mesh_collection_mod, only : global_mesh_collection, &
                                          global_mesh_collection_type
-  use gungho_mod,                 only : load_configuration, final_configuration
+  use gungho_configuration_mod,   only : final_configuration
+  use gungho_mod,                 only : load_configuration
   use init_fem_mod,               only : init_fem
   use init_gungho_mod,            only : init_gungho
   use init_mesh_mod,              only : init_mesh
@@ -493,7 +494,6 @@ contains
     call iter_alg_final()
     call rk_alg_final()
     call final_runtime_constants()
-    call final_configuration()
 
     if ( subroutine_timers ) then
       call timer('gungho')
@@ -528,6 +528,9 @@ contains
 
     ! Finalise XIOS
     call xios_finalize()
+
+    ! Finalise namelist configurations
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()

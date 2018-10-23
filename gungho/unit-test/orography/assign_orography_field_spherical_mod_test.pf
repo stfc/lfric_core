@@ -45,11 +45,11 @@ module assign_orography_field_spherical_mod_test
   real(r_def),        parameter   :: domain_top    = 10000.0_r_def
   integer(i_def),     parameter   :: npanels       = 6_i_def
   integer(i_def),     parameter   :: nlayers       = 10_i_def
-  integer(i_def),     parameter   :: element_order = 0
-  integer(i_def),     parameter   :: total_ranks   = 1
-  integer(i_def),     parameter   :: local_rank    = 0
-  integer(i_def),     parameter   :: xproc         = 1
-  integer(i_def),     parameter   :: yproc         = 1
+  integer(i_def),     parameter   :: element_order = 0_i_def
+  integer(i_def),     parameter   :: total_ranks   = 1_i_def
+  integer(i_def),     parameter   :: local_rank    = 0_i_def
+  integer(i_def),     parameter   :: xproc         = 1_i_def
+  integer(i_def),     parameter   :: yproc         = 1_i_def
 
   real(r_def), parameter :: gravity = 10.0_r_def
   real(r_def), parameter :: radius  = 6371229.0_r_def
@@ -136,6 +136,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown(this)
 
+    use gungho_configuration_mod, only: final_configuration
+
     implicit none
 
     class(assign_orography_field_spherical_test_type), intent(inout) :: this
@@ -143,6 +145,7 @@ contains
     deallocate( orography_profile )
     call global_mesh_collection%clear()
     call mesh_collection%clear()
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()

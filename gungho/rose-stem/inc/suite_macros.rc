@@ -41,6 +41,7 @@
 {%-         if TARGET_SCIENCE_COMPILER in TARGET_PERFORM_RUN %}
 {%-           if res_label != '' %}
             compile_mesh_tools_with_{{label}} => generate_mesh{{res_label}}_{{label}}
+            generate_mesh{{res_label}}_{{label}} => run_{{appName_res_label}}_{{label}}
 {%-           endif %}
 {%-           if support_meshes != [''] %}
 {%-             for mesh_name in support_meshes %}

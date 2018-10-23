@@ -18,13 +18,12 @@ module gungho_mod
                       LOG_LEVEL_DEBUG
 
   use gungho_configuration_mod, only : read_configuration,   &
-                                       ensure_configuration, &
-                                       final_configuration
+                                       ensure_configuration
 
   implicit none
 
   private
-  public :: load_configuration, final_configuration
+  public :: load_configuration
 
 contains
 

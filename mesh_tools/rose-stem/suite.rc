@@ -70,7 +70,8 @@
     [[[environment]]]
       SOURCE_ROOT = $CYLC_SUITE_SHARE_DIR/source
       OUTPUT_ROOT = $CYLC_SUITE_SHARE_DIR/output
-      PYTHONPATH  = $CYLC_SUITE_RUN_DIR/lib/python:$PYTHONPATH
+      PYTHONPATH  = $CYLC_SUITE_RUN_DIR/lib/python
+      PATH        = $PATH:$PYTHONPATH/bin
 
   [[ LOCAL ]]
     [[[remote]]]
@@ -133,11 +134,13 @@
 
                mkdir -p `dirname $TMP_TARGET_DIR/source`
                mkdir -p `dirname $TMP_TARGET_DIR/unit-test`
+               mkdir -p `dirname $TMP_TARGET_DIR/config-meta`
                mkdir -p `dirname $TMP_TARGET_DIR/example`
-               svn export --force $TMP_SOURCE_DIR/source    $TMP_TARGET_DIR/source
-               svn export --force $TMP_SOURCE_DIR/unit-test $TMP_TARGET_DIR/unit-test
-               svn export --force $TMP_SOURCE_DIR/example   $TMP_TARGET_DIR/example
-               svn export --force $TMP_SOURCE_DIR/Makefile  $TMP_TARGET_DIR
+               svn export --force $TMP_SOURCE_DIR/source      $TMP_TARGET_DIR/source
+               svn export --force $TMP_SOURCE_DIR/unit-test   $TMP_TARGET_DIR/unit-test
+               svn export --force $TMP_SOURCE_DIR/config-meta $TMP_TARGET_DIR/config-meta
+               svn export --force $TMP_SOURCE_DIR/example     $TMP_TARGET_DIR/example
+               svn export --force $TMP_SOURCE_DIR/Makefile    $TMP_TARGET_DIR
 
                HOST={{TARGET_HOST}}
                RELATIVE_SOURCE_DIRECTORY=`echo $SOURCE_DIRECTORY | sed "s|$HOME/||"`

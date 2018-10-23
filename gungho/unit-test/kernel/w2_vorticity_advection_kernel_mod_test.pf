@@ -131,6 +131,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use gungho_configuration_mod, only: final_configuration
+
     implicit none
 
     class(w2_vorticity_advection_test_type), intent(inout) :: this
@@ -140,6 +142,7 @@ contains
 
     call function_space_collection%clear()
     call mesh_collection%clear()
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()
@@ -239,7 +242,8 @@ contains
     f_proxy%data(:)   = 2.0_r_def
     xi_proxy%data(:)  = 0.0_r_def
 
-    call w2_vorticity_advection_code( nlayers,                    &
+    call w2_vorticity_advection_code(                          &
+                                   nlayers,                    &
                                    r_u_proxy%data,             &
                                    f_proxy%data,               &
                                    xi_proxy%data,              &

@@ -11,7 +11,7 @@ updates the configuration module. Files will be created in the current
 directory unless commanded otherwise.
 '''
 
-from __future__ import print_function;
+from __future__ import print_function
 
 import argparse
 import os.path
@@ -20,36 +20,45 @@ from configurator import __version__
 import configurator.namelistdescription as namelist
 import utilities.logging as logging
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser( add_help=False, \
-                                      description=__doc__ )
-    parser.add_argument( '-help', '-h', '--help', action='help', \
-                         help='Show this help message and exit' )
-    parser.add_argument( '-version', action='version', \
-                         version='%(prog)s {}'.format( __version__ ) )
-    parser.add_argument( '-verbose', action='store_true', \
-                         help='Provide a running commentry' )
-    parser.add_argument( '-directory', metavar='path', default='.', \
-                         help='Generated source files are put here.' )
-    parser.add_argument( 'descriptionFiles', metavar='description-file', \
-                         nargs='*', \
-                         help='Dependency details are put here' )
+
+def main():
+
+    parser = argparse.ArgumentParser(add_help=False,
+                                     description=__doc__)
+    parser.add_argument('-help', '-h', '--help', action='help',
+                        help='Show this help message and exit')
+    parser.add_argument('-version', action='version',
+                        version='%(prog)s {}'.format(__version__))
+    parser.add_argument('-verbose', action='store_true',
+                        help='Provide a running commentry')
+    parser.add_argument('-directory', metavar='path', default='.',
+                        help='Generated source files are put here.')
+    parser.add_argument('meta_filename', metavar='description-file',
+                        nargs=1, help='The metadata file to load')
+
     args = parser.parse_args()
 
     if args.verbose:
         import sys
-        logger = logging.PrintLogger( sys.stdout )
+        logger = logging.PrintLogger(sys.stdout)
     else:
         logger = logging.NoLogger()
 
-    descriptionList = []
-    parser = namelist.NamelistDescriptionParser()
-    for descriptionFilename in args.descriptionFiles:
-        with open(descriptionFilename, 'r') as descriptionFile:
-            descriptionList.extend( parser.parseFile( descriptionFile ) )
+    description_list = []
 
-    for description in descriptionList:
-        moduleFilename = os.path.join( args.directory, \
-                                       description.getModuleName() + '.f90' )
-        with open( moduleFilename, 'w' ) as moduleFile:
-            description.writeModule( moduleFile )
+    meta_filename = args.meta_filename[0]
+
+    meta_parser = namelist.NamelistConfigDescription()
+
+    # Generate namelists from the namelist configuration pickle file.
+    description_list = meta_parser.process_config(meta_filename)
+
+    for description in description_list:
+        module_filename = os.path.join(args.directory,
+                                       description.get_module_name() + '.f90')
+        with open(module_filename, 'w') as module_file:
+            description.write_module(module_file)
+
+
+if __name__ == '__main__':
+    main()

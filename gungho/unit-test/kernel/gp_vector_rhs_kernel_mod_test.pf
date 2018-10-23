@@ -79,11 +79,15 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use gungho_configuration_mod, only: final_configuration
+
     implicit none
 
     class(gp_vector_rhs_test_type), intent(inout) :: this
 
     deallocate( this%basis_f, this%basis, this%diff_basis )
+
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()

@@ -86,7 +86,7 @@ contains
                                 fv_flux_order = 0,                         &
                                 fv_advective_order = 1,                    &
                                 consistent_metric = .true.,                &
-				enforce_monotonicity = .false. )
+                                enforce_monotonicity = .false. )
 
     ! Create top level mesh collection
     mesh_collection = mesh_collection_type()
@@ -133,6 +133,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use gungho_configuration_mod, only: final_configuration
+
     implicit none
 
     class(sample_poly_adv_test_type), intent(inout) :: this
@@ -141,6 +143,7 @@ contains
 
     call function_space_collection%clear()
     call mesh_collection%clear()
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()

@@ -18,6 +18,7 @@ use global_mesh_collection_mod, only: global_mesh_collection, &
 use init_io_dev_mod,            only: init_io_dev
 use init_fem_mod,               only: init_fem
 use init_mesh_mod,              only: init_mesh
+use io_dev_configuration_mod,   only: final_configuration
 use io_dev_mod,                 only: load_configuration
 use io_mod,                     only: output_xios_nodal, &
                                       xios_domain_init
@@ -189,6 +190,9 @@ contains
 
   ! Finalise XIOS
   call xios_finalize()
+
+  ! Finalise namelist configurations
+  call final_configuration()
 
   ! Finalise YAXT
   call xt_finalize()

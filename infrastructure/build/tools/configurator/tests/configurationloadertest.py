@@ -11,14 +11,16 @@ import StringIO
 
 import configurator.configurationloader as loader
 
+
 ###############################################################################
-class LoaderTest( unittest.TestCase ):
-    def setUp( self ):
+class LoaderTest(unittest.TestCase):
+    def setUp(self):
         self.maxDiff = None
 
-    ###########################################################################
-    def testEmpty( self ):
-        expectedSource = '''
+
+###############################################################################
+    def test_empty(self):
+        expected_source = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -224,16 +226,16 @@ contains
 end module empty_mod
         '''.strip()
 
-        outputFile = StringIO.StringIO()
-        uut = loader.ConfigurationLoader( 'empty_mod')
-        uut.writeModule( outputFile )
+        output_file = StringIO.StringIO()
+        uut = loader.ConfigurationLoader('empty_mod')
+        uut.write_module(output_file)
 
-        self.assertMultiLineEqual( expectedSource + '\n', \
-                                   outputFile.getvalue() )
+        self.assertMultiLineEqual(expected_source + '\n',
+                                  output_file.getvalue())
 
     ###########################################################################
-    def testWithContent( self ):
-        expectedSource = '''
+    def test_with_content(self):
+        expected_source = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -461,10 +463,10 @@ contains
 end module content_mod
         '''.strip()
 
-        outputFile = StringIO.StringIO()
-        uut = loader.ConfigurationLoader( 'content_mod' )
-        uut.addNamelist( 'foo' )
-        uut.writeModule( outputFile )
+        output_file = StringIO.StringIO()
+        uut = loader.ConfigurationLoader('content_mod')
+        uut.add_namelist('foo')
+        uut.write_module(output_file)
 
-        self.assertMultiLineEqual( expectedSource + '\n',
-                                   outputFile.getvalue() )
+        self.assertMultiLineEqual(expected_source + '\n',
+                                  output_file.getvalue())

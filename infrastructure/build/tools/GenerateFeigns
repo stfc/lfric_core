@@ -10,7 +10,7 @@ Reads in a set of namelist description files, produces a Fortran module of frig
 functions for use in unit testing.
 '''
 
-from __future__ import print_function;
+from __future__ import print_function
 
 import argparse
 import os.path
@@ -20,35 +20,43 @@ import configurator.namelistdescription as namelist
 import configurator.namelistfeigner
 import utilities.logging as logging
 
+
+def main():
+
+    parser = argparse.ArgumentParser(add_help=False,
+                                     description=__doc__)
+    parser.add_argument('-help', '-h', '--help', action='help',
+                        help='Show this help message and exit')
+    parser.add_argument('-version', action='version',
+                        version='%(prog)s {}'.format(__version__))
+    parser.add_argument('-verbose', action='store_true',
+                        help='Provide a running commentry')
+    parser.add_argument('-output', metavar='path',
+                        default='feign_config_mod.f90',
+                        help='Resulting output file')
+    parser.add_argument('meta_filename', metavar='description-file',
+                        nargs=1, help='The metadata file to load')
+
+    args = parser.parse_args()
+
+    if args.verbose:
+        import sys
+        logger = logging.PrintLogger(sys.stdout)
+    else:
+        logger = logging.NoLogger()
+
+    module_name, junk = os.path.splitext(os.path.basename(args.output))
+
+    meta_filename = args.meta_filename[0]
+
+    feigner = configurator.namelistfeigner.NamelistFeigner(module_name)
+
+    meta_parser = namelist.NamelistConfigDescription()
+    feigner.add_namelist(meta_parser.process_config(meta_filename))
+
+    with open(args.output, 'w') as module_file:
+        feigner.write_module(module_file)
+
+
 if __name__ == '__main__':
-  parser = argparse.ArgumentParser( add_help=False, \
-                                    description=__doc__ )
-  parser.add_argument( '-help', '-h', '--help', action='help', \
-                        help='Show this help message and exit' )
-  parser.add_argument( '-version', action='version', \
-                        version='%(prog)s {}'.format( __version__ ) )
-  parser.add_argument( '-verbose', action='store_true', \
-                        help='Provide a running commentry' )
-  parser.add_argument( '-output', metavar='path', \
-                        default='feign_config_mod.f90', \
-                        help='Resulting output file' )
-  parser.add_argument( 'descriptionFiles', metavar='description-file', \
-                        nargs='*', \
-                        help='Configuration description files' )
-  args = parser.parse_args()
-
-  if args.verbose:
-    logger = logging.PrintLogger( sys.stdout )
-  else:
-    logger = logging.NoLogger()
-
-  moduleName, junk = os.path.splitext( os.path.basename( args.output ) )
-
-  parser = namelist.NamelistDescriptionParser()
-  feigner = configurator.namelistfeigner.NamelistFeigner( moduleName )
-  for descriptionFilename in args.descriptionFiles:
-    with open(descriptionFilename, 'r') as descriptionFile:
-      feigner.addNamelist( parser.parseFile( descriptionFile ) )
-
-  with open( args.output, 'w' ) as moduleFile:
-    feigner.writeModule( moduleFile )
+    main()

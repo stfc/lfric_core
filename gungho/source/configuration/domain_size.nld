@@ -1,7 +1,0 @@
-namelist domain_size
-
-  planar_domain_min_x : real ! Minimum global x value of planar domain
-  planar_domain_max_x : real ! Maximum global x value of planar domain
-  planar_domain_min_y : real ! Minimum global y value of planar domain
-  planar_domain_max_y : real ! Maximum global y value of planar domain
-end namelist domain_size

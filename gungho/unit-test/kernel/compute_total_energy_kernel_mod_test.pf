@@ -139,6 +139,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use gungho_configuration_mod, only: final_configuration
+
     implicit none
 
     class(compute_total_energy_kernel_test_type), intent(inout) :: this
@@ -147,6 +149,7 @@ contains
                 this%basis_w0, this%diff_basis_w0 )
     call mesh_collection%clear()
     call function_space_collection%clear()
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()

@@ -7,29 +7,47 @@
 # Run this make file to generate configuration found in SOURCE_DIR
 # to WORKING_DIR. Uses PROJECT to know what to call master files.
 #
+
+export CONFIG_DIR=$(WORKING_DIR)/configuration
+
 .PHONY: configuration_files
 configuration_files: $(WORKING_DIR)/$(PROJECT)_configuration_mod.f90 \
                      $(WORKING_DIR)/$(PROJECT)_feign_config_mod.f90
-	$(Q)echo >/dev/null
 
-NAMELIST_DESCRIPTIONS = $(shell find $(SOURCE_DIR) -name '*.nld' -print)
-NAMELIST_LOADERS = $(patsubst $(SOURCE_DIR)/%.nld,$(WORKING_DIR)/%_config_mod.f90,$(NAMELIST_DESCRIPTIONS))
 
-.PRECIOUS: $(WORKING_DIR)/%_configuration_mod.f90
-$(WORKING_DIR)/%_configuration_mod.f90: $(NAMELIST_LOADERS)
-	$(call MESSAGE,Generating configuration loader,$(notdir $@))
-	$(Q)$(LFRIC_BUILD)/tools/GenerateLoader $(VERBOSE_ARG) $@ $(patsubst %_config_mod.f90,%,$(notdir $^))
-
-.PRECIOUS: $(WORKING_DIR)/%_config_mod.f90
-$(WORKING_DIR)/%_config_mod.f90: $(SOURCE_DIR)/%.nld
-	$(call MESSAGE,Generating namelist loader,$(notdir $@))
+$(CONFIG_DIR)/rose-meta.json $(CONFIG_DIR)/config_namelists.txt: $(META_FILE_DIR)/rose-meta.conf
+$(CONFIG_DIR)/rose-meta.json $(CONFIG_DIR)/config_namelists.txt:
+	$(call MESSAGE,Generating namelist configuration file.)
 	$(Q)mkdir -p $(dir $@)
+	$(Q)rose_picker $(VERBOSE_ARG) \
+                        $(META_FILE_DIR)/rose-meta.conf    \
+                        -directory $(CONFIG_DIR)           \
+                        -include_dirs $(ROOT_DIR)
+
+$(CONFIG_DIR)/build_config_loaders: $(CONFIG_DIR)/rose-meta.json
+$(CONFIG_DIR)/build_config_loaders:
+	$(call MESSAGE,Generating namelist loading modules.)
 	$(Q)$(LFRIC_BUILD)/tools/GenerateNamelist $(VERBOSE_ARG) \
-                                              -directory $(dir $@) $<
+                           $(CONFIG_DIR)/rose-meta.json           \
+                           -directory $(CONFIG_DIR)
+	$(Q)touch $(CONFIG_DIR)/build_config_loaders
+
+
+.PRECIOUS: $(WORKING_DIR)/%_configuration_mod.f90 $(CONFIG_DIR)/%_config_mod.f90
+$(WORKING_DIR)/%_configuration_mod.f90: $(CONFIG_DIR)/build_config_loaders $(CONFIG_DIR)/config_namelists.txt
+	$(call MESSAGE,Generating configuration loader module,$(notdir $@))
+	$(Q)mkdir -p $(dir $@)
+	$(Q)$(LFRIC_BUILD)/tools/GenerateLoader $(VERBOSE_ARG) $@ $(shell cat $(CONFIG_DIR)/config_namelists.txt)
+
 
 .PRECIOUS: $(WORKING_DIR)/%_feign_config_mod.f90
-$(WORKING_DIR)/%_feign_config_mod.f90: $(NAMELIST_DESCRIPTIONS)
-	$(call MESSAGE,Generating feign module,$(notdir $@))
-	$(Q)$(LFRIC_BUILD)/tools/GenerateFeigns -output $@ $^
+$(WORKING_DIR)/$(PROJECT)_feign_config_mod.f90: $(CONFIG_DIR)/rose-meta.json
+$(WORKING_DIR)/$(PROJECT)_feign_config_mod.f90:
+	$(call MESSAGE,Generating namelist feigning module.)
+	$(Q)mkdir -p $(dir $@)
+	$(Q)$(LFRIC_BUILD)/tools/GenerateFeigns        \
+                           $(CONFIG_DIR)/rose-meta.json \
+                           -output $(WORKING_DIR)/$(PROJECT)_feign_config_mod.f90
+
 
 include $(LFRIC_BUILD)/lfric.mk

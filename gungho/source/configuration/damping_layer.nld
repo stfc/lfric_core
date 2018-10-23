@@ -1,6 +1,0 @@
-namelist damping_layer
-
-  dl_base   : real ! Base height of damping layer
-  dl_str    : real ! Strength of damping layer
-
-end namelist damping_layer

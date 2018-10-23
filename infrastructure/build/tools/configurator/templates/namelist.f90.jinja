@@ -1,5 +1,6 @@
 {#- This is the skeleton of the namelist loading module.                   -#}
 {#- The Jinja templating library is used to insert the actual code.        -#}
+
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -37,16 +38,16 @@ module {{listname}}_config_mod
 
 {%- for name, parameter in  parameters | dictsort %}
 {%-   if loop.first %}{{'\n'}}{%- endif %}
-{%-   if parameter.getConfigureType() == 'enumeration' %}
+{%-   if parameter.get_configure_type() == 'enumeration' %}
   integer(i_native), public, protected :: {{parameter.name}}
-{%-   elif parameter.getConfigureType() == 'array' %}
-{%-     if parameter.isImmediateSize() %}
-  {{parameter.fortranType.declaration()}}, public, protected :: {{parameter.name}}({{parameter.bounds[0]}})
+{%-   elif parameter.get_configure_type() == 'array' %}
+{%-     if parameter.is_immdeiate_size() %}
+  {{parameter.fortran_type.declaration()}}, public, protected :: {{parameter.name}}({{parameter.bounds[0]}})
 {%-     else %}
-  {{parameter.fortranType.declaration()}}, public, protected, allocatable :: {{parameter.name}}(:)
+  {{parameter.fortran_type.declaration()}}, public, protected, allocatable :: {{parameter.name}}(:)
 {%-     endif %}
 {%-   else %}
-  {{parameter.fortranType.declaration()}}, public, protected :: {{parameter.name}}
+  {{parameter.fortran_type.declaration()}}, public, protected :: {{parameter.name}}
 {%-   endif %}
 {%- endfor %}
 
@@ -90,11 +91,18 @@ contains
   !>
   integer(i_native) function {{name}}_from_key( key )
 
+    use constants_mod, only: emdi
     implicit none
 
     character(*), intent(in) :: key
 
     integer(i_native) :: key_index
+
+    if (key == emdi) then
+      write( log_scratch_space, '(A)') &
+          'Missing key for {{name}} enumeration in {{listname}} namelist.'
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
 
     key_index = 1
     do
@@ -170,7 +178,10 @@ contains
     , {{ enumerations | sort | decorate( 'dummy_' ) | join( ', ' ) }}
 {%- endif %} )
 
-    use constants_mod, only : {{use_from['constants_mod'] | sort | join(', ')}}
+{%- for module, symbols in use_from | dictsort %}
+{%-   if loop.first %}{{'\n'}}{% endif %}
+    use {{module}}, only : {{symbols | sort | join(', ')}}
+{%- endfor %}
 
     implicit none
 
@@ -182,7 +193,7 @@ contains
 
 {%- for ftype, count in lonekindtally|dictsort %}
 {%-   if loop.first %}{{'\n'}}{% endif %}
-{%-   if ftype.intrinsicType == 'logical' %}
+{%-   if ftype.intrinsic_type == 'logical' %}
     integer(i_native) :: buffer_{{ftype.label()}}({{count}})
 {%-   else %}
     {{ftype.declaration()}} :: buffer_{{ftype.label()}}({{count}})
@@ -201,7 +212,7 @@ contains
 {%- if arrays %}
 {{-   '\n'}}
 {%-   for name in arrays %}
-{%-     if not parameters[name].isImmediateSize() %}
+{%-     if not parameters[name].is_immdeiate_size() %}
     allocate( {{name}}(max_array_size), stat=condition )
     if (condition /= 0) then
       write( log_scratch_space, '(A)' ) &
@@ -214,14 +225,18 @@ contains
 
 {%- for name, parameter in parameters | dictsort %}
 {%-   if loop.first %}{{'\n'}}{%- endif %}
-{%-   if parameter.fortranType.intrinsicType == "integer" and parameter.getConfigureType() != 'enumeration' %}
+{%-   if parameter.fortran_type.intrinsic_type == "integer" %}
+{%-     if parameter.get_configure_type() == 'enumeration' %}
+    {{name}} = emdi
+{%-     else %}
     {{name}} = imdi
-{%-   elif parameter.fortranType.intrinsicType == "real" %}
+{%-     endif %}
+{%-   elif parameter.fortran_type.intrinsic_type == "real" %}
     {{name}} = rmdi
-{%-   elif parameter.fortranType.intrinsicType == "logical" %}
+{%-   elif parameter.fortran_type.intrinsic_type == "logical" %}
     {{name}} = .false.
-{%-   elif parameter.fortranType.intrinsicType == "character" or parameter.getConfigureType() == 'enumeration' %}
-    {{name}} = ""
+{%-   elif parameter.fortran_type.intrinsic_type == "character" %}
+    {{name}} = cmdi
 {%-   endif %}
 {%- endfor %}
 
@@ -241,21 +256,21 @@ contains
 
 {%- for name, index in lonekindindex|dictsort %}
 {%-   if loop.first %}{{'\n'}}{% endif %}
-{%-   if parameters[name].getConfigureType() == 'enumeration' %}
-    buffer_{{parameters[name].fortranType.label()}}({{index}}) = dummy_{{name}}
-{%-   elif parameters[name].fortranType.intrinsicType == 'logical' %}
-    buffer_{{parameters[name].fortranType.label()}}({{index}}) = merge( 1, 0, {{name}} )
+{%-   if parameters[name].get_configure_type() == 'enumeration' %}
+    buffer_{{parameters[name].fortran_type.label()}}({{index}}) = dummy_{{name}}
+{%-   elif parameters[name].fortran_type.intrinsic_type == 'logical' %}
+    buffer_{{parameters[name].fortran_type.label()}}({{index}}) = merge( 1, 0, {{name}} )
 {%-   else %}
-    buffer_{{parameters[name].fortranType.label()}}({{index}}) = {{name}}
+    buffer_{{parameters[name].fortran_type.label()}}({{index}}) = {{name}}
 {%-   endif %}
 {%- endfor %}
 
 {%- for ftype, count in lonekindtally|dictsort %}
 {%-   if loop.first %}{{'\n'}}{%- endif %}
     call broadcast(
-{{-   ' buffer_' + ftype.intrinsicType + '_' + ftype.kind }}
+{{-   ' buffer_' + ftype.intrinsic_type + '_' + ftype.kind }}
 {{-   ', '}}{{count}}
-{%-   if ftype.intrinsicType == 'character' %}
+{%-   if ftype.intrinsic_type == 'character' %}
 {{-     '*' + ftype.kind }}
 {%-   endif %}
 {{-   ', 0 )'}}
@@ -263,17 +278,17 @@ contains
 
 {%- for name, index in lonekindindex|dictsort %}
 {%-   if loop.first %}{{'\n'}}{%- endif %}
-{%-   if parameters[name].getConfigureType() == 'enumeration' %}
-    dummy_{{name}} = buffer_{{parameters[name].fortranType.label()}}({{index}})
-{%-   elif parameters[name].fortranType.intrinsicType == 'logical' %}
-    {{name}} = buffer_{{parameters[name].fortranType.label()}}({{index}}) /= 0
+{%-   if parameters[name].get_configure_type() == 'enumeration' %}
+    dummy_{{name}} = buffer_{{parameters[name].fortran_type.label()}}({{index}})
+{%-   elif parameters[name].fortran_type.intrinsic_type == 'logical' %}
+    {{name}} = buffer_{{parameters[name].fortran_type.label()}}({{index}}) /= 0
 {%-   else %}
-    {{name}} = buffer_{{parameters[name].fortranType.label()}}({{index}})
+    {{name}} = buffer_{{parameters[name].fortran_type.label()}}({{index}})
 {%-   endif %}
 {%- endfor %}
 
 {% for name, parameter in parameters | dictsort %}
-{%-   if parameter.getConfigureType() == 'computed' %}
+{%-   if parameter.get_configure_type() == 'computed' %}
     {{parameter.name}} = {{parameter.computation}}
 {%-   endif %}
 {%- endfor %}
@@ -281,8 +296,8 @@ contains
 {%- for name in arrays|sort %}
 {%-   if loop.first %}{{'\n'}}{% endif %}
     call broadcast( {{name}}, size({{name}}, 1)
-{%-   if parameters[name].fortranType.intrinsicType == 'character' %}
-{{-   '*' + parameters[name].fortranType.kind }}
+{%-   if parameters[name].fortran_type.intrinsic_type == 'character' %}
+{{-   '*' + parameters[name].fortran_type.kind }}
 {%-  endif %}
 {{-   ', 0 )' }}
 {%- endfor %}
@@ -310,23 +325,23 @@ contains
 
 {%- for name in arrays %}
 {%-   set parameter = parameters[name] %}
-{%-   if not parameter.isImmediateSize() %}
-    {{parameter.fortranType.declaration()}}, allocatable :: new_{{name}}(:)
+{%-   if not parameter.is_immdeiate_size() %}
+    {{parameter.fortran_type.declaration()}}, allocatable :: new_{{name}}(:)
 {%-   endif %}
 {%- endfor %}
 {{- '\n'}}
 {%-  for name in arrays %}
 {%-   set parameter = parameters[name] %}
-{%-   if parameter.isArbitrarySize() %}
+{%-   if parameter.is_arbitrary_size() %}
     do index=ubound({{name}}, 1), 1, -1
-      if ({{name}}(index) /= {{parameter.content.getMissingDataIndicator()}}) exit
+      if ({{name}}(index) /= {{parameter.content.get_missing_data_indicator()}}) exit
     end do
     size = index
 {%-   endif %}
-{%-   if parameter.isDeferredSize() %}
+{%-   if parameter.is_deferred_size() %}
     size = {{parameter.bounds}}
 {%-   endif %}
-{%-   if not parameter.isImmediateSize() %}
+{%-   if not parameter.is_immdeiate_size() %}
     allocate( new_{{name}}(size), stat=condition )
     if (condition /= 0) then
       write(log_scratch_space, '(A)') 'Unable to allocate "{{name}}"'
@@ -372,7 +387,29 @@ contains
   !>
   subroutine {{listname}}_final()
 
+    use constants_mod, only: {{use_from['constants_mod'] | sort | join(', ')}}
+
     implicit none
+
+{%- for name, parameter in parameters | dictsort %}
+{%-   if loop.first %}{{'\n'}}{%- endif %}
+{%-   if name not in allocatables %}
+{%-     if parameter.fortran_type.intrinsic_type == "integer" %}
+{%-       if parameter.get_configure_type() == 'enumeration' %}
+    {{name}} = int(imdi,i_native)
+{%-       else %}
+    {{name}} = imdi
+{%-       endif %}
+{%-     elif parameter.fortran_type.intrinsic_type == "real" %}
+    {{name}} = real(rmdi,{{parameters[name].fortran_type.kind}})
+{%-     elif parameter.fortran_type.intrinsic_type == "logical" %}
+    {{name}} = .false.
+{%-     elif parameter.fortran_type.intrinsic_type == "character" %}
+    {{name}} = cmdi
+{%-     endif %}
+{%-   endif %}
+{%- endfor %}
+
 {%- if allocatables %}
 {%-   for name in allocatables | sort %}
 {%-   set parameter = parameters[name] %}

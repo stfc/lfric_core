@@ -63,8 +63,9 @@ contains
     !Store the MPI communicator for later use
     call store_comm(this%getMpiCommunicator())
 
-    call feign_initial_temperature_config( bvf_square, theta_surf )
-    call feign_idealised_config( idealised_test_gravity_wave )
+    call feign_initial_temperature_config( bvf_square=bvf_square, &
+                                           theta_surf=theta_surf )
+    call feign_idealised_config( test=idealised_test_gravity_wave )
     call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
                               rd=rd, cp=cp, p_zero=p_zero,                 &
                               scaling_factor=scaling )
@@ -75,13 +76,13 @@ contains
                partitioner=base_mesh_partitioner_cubedsphere, &
                fplane=.false., f_lat_deg=0.0_r_def )
 
-    call feign_initial_wind_config( initial_wind_profile_none,      &
-                                    sbr_angle_lat=0.0_r_def,        &
-                                    sbr_angle_lon=0.0_r_def,        &
-                                    u0=0.0_r_def,                   &
-                                    v0=0.0_r_def,                   &
-                                    nl_constant=0.0_r_def,          &
-                                    wind_time_period=0.0_r_def,     &
+    call feign_initial_wind_config( profile=initial_wind_profile_none, &
+                                    sbr_angle_lat=0.0_r_def,           &
+                                    sbr_angle_lon=0.0_r_def,           &
+                                    u0=0.0_r_def,                      &
+                                    v0=0.0_r_def,                      &
+                                    nl_constant=0.0_r_def,             &
+                                    wind_time_period=0.0_r_def,        &
                                     smp_init_wind=.false. )
 
   end subroutine setUp

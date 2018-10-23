@@ -94,11 +94,14 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use gungho_configuration_mod, only: final_configuration
+
     implicit none
 
     class(compute_geopotential_kernel_test_type), intent(inout) :: this
 
     deallocate( this%map, this%x, this%y, this%z, this%phi, this%basis )
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()

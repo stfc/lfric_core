@@ -1,5 +1,6 @@
 {#- This is the skeleton of the configuration feigning module used in unit -#}
 {#- tests. The Jinja templating library is used to insert the actual code. -#}
+
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -16,7 +17,9 @@ module {{modulename}}
   implicit none
 
   private
+{%- if namelists %}
   public :: {{ namelists | sort | decorate( 'feign_', '_config' ) | join( ', &\n' + ' '*12 ) }}
+{%- endif %}
 
   integer(i_native) :: local_rank = -1
   integer(i_native), parameter :: temporary_unit = 3
@@ -47,10 +50,10 @@ contains
 
 {%- for param in parameters[name] %}
 {%-   if loop.first %}{{'\n'}}{% endif %}
-{%-   if param.fortranType.intrinsicType == 'character' %}
+{%-   if param.fortran_type.intrinsic_type == 'character' %}
     character(*), intent(in) :: {{param.name}}
 {%-   else %}
-    {{param.fortranType.declaration()}}, intent(in) :: {{param.name}}
+    {{param.fortran_type.declaration()}}, intent(in) :: {{param.name}}
 {%-   endif %}
 {%- endfor %}
 
@@ -69,12 +72,12 @@ contains
 
     write( temporary_unit, '("&{{name}}")' )
 {%- for param in parameters[name] %}
-{%-   if param.getConfigureType() == 'enumeration' %}
+{%-   if param.get_configure_type() == 'enumeration' %}
     write( temporary_unit, '("{{param.name}} = ''", A, "''")' ) key_from_{{param.name}}( {{param.name}} )
-{%-   elif param.fortranType.intrinsicType == 'character' %}
-    write( temporary_unit, '("{{param.name}} = ''", {{param.fortranType.writeFormat}}, "''")' ) {{param.name}}
+{%-   elif param.fortran_type.intrinsic_type == 'character' %}
+    write( temporary_unit, '("{{param.name}} = ''", {{param.fortran_type.write_format}}, "''")' ) {{param.name}}
 {%-   else %}
-    write( temporary_unit, '("{{param.name}} = ", {{param.fortranType.writeFormat}})' ) {{param.name}}
+    write( temporary_unit, '("{{param.name}} = ", {{param.fortran_type.write_format}})' ) {{param.name}}
 {%-   endif %}
 {%- endfor %}
     write( temporary_unit, '("/")' )
@@ -83,7 +86,9 @@ contains
     call read_{{name}}_namelist( temporary_unit, local_rank )
 
     close(temporary_unit, iostat=condition )
-    if (condition /= 0) stop 'feign_{{name}}_config: Unable to close temporary file'
+    if (condition /= 0) stop &
+        'feign_{{name}}_config: '// &
+        'Unable to close temporary file'
 
   end subroutine feign_{{name}}_config
 {%- endfor %}

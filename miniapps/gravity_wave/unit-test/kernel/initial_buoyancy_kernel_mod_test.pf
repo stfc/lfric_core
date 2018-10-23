@@ -58,7 +58,6 @@ contains
 
     use base_mesh_config_mod,      only : base_mesh_geometry_planar, &
                                           base_mesh_partitioner_planar
-    use finite_element_config_mod, only : finite_element_cellshape_quadrilateral
     use gravity_wave_feign_config_mod,                                      &
                                    only : feign_base_mesh_config,           &
                                           feign_idealised_config,           &
@@ -91,7 +90,7 @@ contains
                                  partitioner=base_mesh_partitioner_planar,    &
                                  fplane=.false., f_lat_deg=0.0_r_def )
 
-    call feign_idealised_config( idealised_test_gravity_wave )
+    call feign_idealised_config( test=idealised_test_gravity_wave )
 
     call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
                               rd=rd, cp=cp, p_zero=p_zero,                 &

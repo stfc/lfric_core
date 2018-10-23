@@ -106,7 +106,8 @@ contains
                partitioner=base_mesh_partitioner_planar,    &
                fplane=.false., f_lat_deg=0.0_r_def )
 
-    call feign_initial_temperature_config( bvf_square, theta_surf )
+    call feign_initial_temperature_config( bvf_square=bvf_square, &
+                                           theta_surf=theta_surf )
 
     call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
                               rd=rd, cp=cp, p_zero=p_zero,                 &
@@ -118,7 +119,7 @@ contains
                                        r2=0.0_r_def, x2=0.0_r_def,            &
                                        y2=0.0_r_def, z2=0.0_r_def,            &
                                        sample_init_rho=.false.)
-    call feign_idealised_config( idealised_test_gravity_wave )
+    call feign_idealised_config( test=idealised_test_gravity_wave )
 
     ! Create top level mesh collection
     mesh_collection = mesh_collection_type()
@@ -173,6 +174,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use gungho_configuration_mod, only: final_configuration
+
     implicit none
 
     class(hydrostatic_exner_test_type), intent(inout) :: this
@@ -181,6 +184,7 @@ contains
 
     call function_space_collection%clear()
     call mesh_collection%clear()
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()

@@ -120,7 +120,8 @@
         [[[environment]]]
             SOURCE_ROOT = $CYLC_SUITE_SHARE_DIR/source
             OUTPUT_ROOT = $CYLC_SUITE_SHARE_DIR/output
-            PYTHONPATH  = $CYLC_SUITE_RUN_DIR/lib/python:$PYTHONPATH
+            PYTHONPATH  = $CYLC_SUITE_RUN_DIR/lib/python
+            PATH        = $PATH:$PYTHONPATH/bin
 
     [[ LOCAL ]]
         [[[remote]]]
@@ -182,17 +183,22 @@
                  svn export --force {{SOURCE_LFRIC}}/infrastructure/Makefile $SOURCE_ROOT/infrastructure
 
                  mkdir -p `dirname $SOURCE_ROOT/mesh_tools/source`
+                 mkdir -p `dirname $SOURCE_ROOT/mesh_tools/config-meta`
                  svn export --force {{SOURCE_LFRIC}}/mesh_tools/source       $SOURCE_ROOT/mesh_tools/source
+                 svn export --force {{SOURCE_LFRIC}}/mesh_tools/config-meta  $SOURCE_ROOT/mesh_tools/config-meta
                  svn export --force {{SOURCE_LFRIC}}/mesh_tools/Makefile     $SOURCE_ROOT/mesh_tools
 
                  mkdir -p `dirname $SOURCE_ROOT/gungho/source`
                  mkdir -p `dirname $SOURCE_ROOT/gungho/optimisation`
+                 mkdir -p `dirname $SOURCE_ROOT/gungho/config-meta`
                  svn export --force {{SOURCE_LFRIC}}/gungho/source           $SOURCE_ROOT/gungho/source
                  svn export --force {{SOURCE_LFRIC}}/gungho/optimisation     $SOURCE_ROOT/gungho/optimisation
+                 svn export --force {{SOURCE_LFRIC}}/gungho/config-meta      $SOURCE_ROOT/gungho/config-meta
                  svn export --force {{SOURCE_LFRIC}}/gungho/Makefile         $SOURCE_ROOT/gungho/Makefile
 
                  # Extract source files for this project
                  mkdir -p `dirname $TMP_TARGET_DIR/source/configuration`
+                 mkdir -p `dirname $TMP_TARGET_DIR/config-meta`
                  mkdir -p `dirname $TMP_TARGET_DIR/optimisation`
                  mkdir -p `dirname $TMP_TARGET_DIR/unit-test`
                  mkdir -p `dirname $TMP_TARGET_DIR/integration-test`
@@ -205,6 +211,7 @@
                  svn export --force {{SOURCE_LFRIC}}/gungho/optimisation $TMP_TARGET_DIR/optimisation
 
                  svn export --force $TMP_SOURCE_DIR/source           $TMP_TARGET_DIR/source
+                 svn export --force $TMP_SOURCE_DIR/config-meta      $TMP_TARGET_DIR/config-meta
                  svn export --force $TMP_SOURCE_DIR/optimisation     $TMP_TARGET_DIR/optimisation
                  svn export --force $TMP_SOURCE_DIR/unit-test        $TMP_TARGET_DIR/unit-test
                  svn export --force $TMP_SOURCE_DIR/integration-test $TMP_TARGET_DIR/integration-test
@@ -686,7 +693,6 @@
 
 {%-               if 'run_' + configuration_label_res in scheduledTasks %}
 {%-                 set command_key = TARGET_RUN_METHOD %}
-
 {%-                 set mpi_parts = '' %}
 {%-                 set mpiopt = '' %}
 {%-                 set run_batcher = TARGET_RUN_BATCHER_DIRECTIVES %}

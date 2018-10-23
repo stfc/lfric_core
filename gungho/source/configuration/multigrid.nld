@@ -1,7 +1,0 @@
-namelist multigrid
-
-  l_multigrid                   : logical
-  multigrid_chain_nitems        : integer
-  ugrid(multigrid_chain_nitems) : string(filename)
-
-end namelist multigrid

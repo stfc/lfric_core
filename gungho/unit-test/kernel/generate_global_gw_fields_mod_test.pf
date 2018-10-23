@@ -55,13 +55,14 @@ contains
     !Store the MPI communicator for later use
     call store_comm(this%getMpiCommunicator())
 
-    call feign_initial_temperature_config( bvf_square, theta_surf )
+    call feign_initial_temperature_config( bvf_square=bvf_square, &
+                                           theta_surf=theta_surf )
 
     call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
                               rd=rd, cp=cp, p_zero=p_zero,                 &
                               scaling_factor=scaling )
 
-    call feign_initial_wind_config( initial_wind_profile_none,  &
+    call feign_initial_wind_config( profile=initial_wind_profile_none, &
                                     u0=0.0_r_def,               &
                                     v0=0.0_r_def,               &
                                     sbr_angle_lat=0.0_r_def,    &
@@ -85,9 +86,13 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use gungho_configuration_mod, only: final_configuration
+
     implicit none
 
     class(generate_global_gw_fields_test_type), intent(inout) :: this
+
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()

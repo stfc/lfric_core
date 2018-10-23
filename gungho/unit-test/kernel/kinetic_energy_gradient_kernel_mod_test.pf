@@ -129,6 +129,8 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
+ 
+    use gungho_configuration_mod, only: final_configuration
 
     implicit none
 
@@ -139,6 +141,7 @@ contains
 
     call mesh_collection%clear()
     call function_space_collection%clear()
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()

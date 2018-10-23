@@ -15,8 +15,9 @@ module transport_driver_mod
   use field_mod,                      only: field_type
   use global_mesh_collection_mod,     only: global_mesh_collection,           &
                                             global_mesh_collection_type
-  use transport_mod,                  only: transport_load_configuration
+  use transport_configuration_mod,    only: final_configuration
   use transport_alg_mod,              only: transport_alg_step
+  use transport_mod,                  only: transport_load_configuration
   use init_fem_mod,                   only: init_fem
   use init_transport_mod,             only: init_transport
   use init_mesh_mod,                  only: init_mesh
@@ -261,6 +262,9 @@ contains
 
     ! Finalise XIOS
     call xios_finalize()
+
+    ! Finalise namelist configurations
+    call final_configuration()
 
     !----------------------------------------------------------------------------
     ! Driver layer finalise

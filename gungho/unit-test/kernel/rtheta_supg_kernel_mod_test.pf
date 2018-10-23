@@ -90,19 +90,19 @@ contains
     !Store the MPI communicator for later use
     call store_comm(this%getMpiCommunicator())
 
-    call feign_timestepping_config( timestepping_method_semi_implicit,   &
-                                    dt,                                  &
-                                    alpha,                               &
-                                    tau_u,                               &
-                                    tau_t,                               &
-                                    tau_r,                               &
-                                    outer_iterations,                    &
-                                    inner_iterations,                    &
-                                    timestepping_runge_kutta_method_ssp3,&
-                                    spinup_period,                       &
-                                    spinup_alpha,                        &
-                                    spinup_winds                         &
-                                    )
+    call feign_timestepping_config(                &
+         alpha=alpha,                              &
+         method=timestepping_method_semi_implicit, &
+         dt=dt,                                    &
+         tau_u=tau_u,                              &
+         tau_t=tau_t,                              &
+         tau_r=tau_r,                              &
+         outer_iterations=outer_iterations,        &
+         inner_iterations=inner_iterations,        &
+         runge_kutta_method=timestepping_runge_kutta_method_ssp3,&
+         spinup_period=spinup_period,              &
+         spinup_alpha=spinup_alpha,                &
+         spinup_winds=spinup_winds  )
 
     ! Create top level mesh collection
     mesh_collection = mesh_collection_type()
@@ -152,6 +152,8 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use gungho_configuration_mod, only: final_configuration
+
     implicit none
 
     class(rtheta_supg_test_type), intent(inout) :: this
@@ -164,6 +166,7 @@ contains
 
     call function_space_collection%clear()
     call mesh_collection%clear()
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()

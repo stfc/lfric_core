@@ -184,7 +184,9 @@ contains
                partitioner=base_mesh_partitioner_cubedsphere, &
                fplane=.false., f_lat_deg=0.0_r_def )
 
-    call feign_extrusion_config( extrusion_method_uniform, domain_top, nlayers )
+    call feign_extrusion_config( domain_top=domain_top,           &
+                                 method=extrusion_method_uniform, &
+                                 number_of_layers=nlayers )
 
     call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
                               rd=rd, cp=cp, p_zero=p_zero,                 &
@@ -203,11 +205,14 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use gungho_configuration_mod, only: final_configuration
+
     implicit none
 
     class( mesh_test_type ), intent( inout ) :: this
 
     call global_mesh_collection%clear()
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()

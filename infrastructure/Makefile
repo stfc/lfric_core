@@ -36,6 +36,12 @@ export IGNORE_DEPENDENCIES = netcdf MPI yaxt pfunit_mod planet_constants_mod xio
 export EXTERNAL_DYNAMIC_LIBRARIES = netcdff netcdf hdf5 yaxt yaxt_c
 
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
+export ROOT_DIR    ?= ..
+export PATH        := $(PATH):$(abspath $(ROOT_DIR)/GPL/bin)
+export PYTHONPATH  := $(PYTHONPATH):$(abspath $(ROOT_DIR)/GPL/lib/python)
+
+META_VN       ?= HEAD
+META_FILE_DIR  = $(PROJECT_DIR)/config-meta/lfric-$(PROJECT_NAME)/$(META_VN)
 
 .PHONY: default
 default: unit-tests integration-tests
@@ -55,8 +61,12 @@ include build/lfric.mk
 
 export FFLAGS  := $(FFLAGS) $(OPENMP_ARG)
 export LDFLAGS := $(LDFLAGS) $(OPENMP_ARG)
-ANY_UNIT_TESTS := $(shell find ./unit-test -name *test.pf)
-ANY_INTEGRATION_TESTS := $(shell find integration-test -name '*.[Ff]90' -exec egrep -l "^\s*program" {} \;)
+ANY_UNIT_TESTS := $(shell if [ -d unit-test ] ; then \
+                            find unit-test -name *test.pf ; \
+                          fi )
+ANY_INTEGRATION_TESTS := $(shell if [ -d integration-test ] ; then \
+                                   find integration-test -name '*.[Ff]90' -exec egrep -l "^\s*program" {} \; ; \
+                                 fi )
 
 ##############################################################################
 # Extract infrastructure source
@@ -99,7 +109,7 @@ unit-tests: export EXTERNAL_STATIC_LIBRARIES += pfunit
 unit-tests: export FFLAGS      += $(FFLAGS_DEBUG) $(FFLAGS_NO_OPTIMISATION) $(FFLAGS_INIT)
 ifeq ($(strip $(ANY_UNIT_TESTS)),)
 unit-tests:
-	$(Q)echo No unit-tests to process.
+	$(call MESSAGE,No unit-tests to process.)
 else
 unit-tests:run-unit-tests
 	$(Q)echo > /dev/null
@@ -119,13 +129,15 @@ extract-unit-tests: ALWAYS
 # Integration tests
 #
 .PHONY: integration-tests
-integration-tests: export PROJECT      = infrastructure
-integration-tests: export WORKING_DIR := $(WORKING_DIR)/integration-tests
-integration-tests: export BIN_DIR     ?= $(PROJECT_DIR)/test
-integration-tests: export SOURCE_DIR   = integration-test
+integration-tests: export PROJECT        = infrastructure
+integration-tests: export WORKING_DIR   := $(WORKING_DIR)/integration-tests
+integration-tests: export BIN_DIR       ?= $(PROJECT_DIR)/test
+integration-tests: export SOURCE_DIR     = integration-test
+integration-tests: export META_FILE_DIR  = $(SOURCE_DIR)/configuration_test
+integration-tests: export CONFIG_LOADER_DIR = $(WORKING_DIR)/configuration_test
 ifeq ($(strip $(ANY_INTEGRATION_TESTS)),)
 integration-tests:
-	$(Q)echo No integration-tests to process.
+	$(call MESSAGE,No integration-tests to process.)
 else
 integration-tests: $(addprefix integration-test-run/,$(basename $(shell find integration-test -name '*.[Ff]90' -exec egrep -l "^\s*program" {} \;)))
 	$(Q)echo > /dev/null
@@ -138,7 +150,10 @@ generate-integration-tests: extract-integration-test \
 
 .PHONY: configuration-integration-test
 configuration-integration-test: ALWAYS
-	$(Q)$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/lfric.mk configuration
+	$(Q)$(MAKE) $(QUIET_ARG)                            \
+                     META_FILE_DIR=$(META_FILE_DIR)         \
+                     CONFIG_LOADER_DIR=$(CONFIG_LOADER_DIR) \
+            -f $(LFRIC_BUILD)/lfric.mk configuration
 
 .PHONY: extract-integration-test
 extract-integration-test: ALWAYS

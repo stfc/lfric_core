@@ -175,6 +175,7 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use gungho_configuration_mod, only: final_configuration
     implicit none
 
     class(test_function_space_type), intent(inout) :: this
@@ -183,6 +184,7 @@ contains
     deallocate(this%test_diff_basis)
 
     call mesh_collection%clear()
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()

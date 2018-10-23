@@ -102,8 +102,10 @@ module constants_mod
 
   !> @}
   ! Missing data indicators
-  real    (r_def), parameter :: RMDI = -huge(0.0_r_def)        !< Missing data indicator value for real numbers
-  integer (i_def), parameter :: IMDI = -huge(0_i_def)          !< Missing data indicator value for integer numbers
+  real     (r_def),     parameter :: RMDI = -huge(0.0_r_def)        !< Missing data indicator value for real numbers
+  integer  (i_def),     parameter :: IMDI = -huge(0_i_def)          !< Missing data indicator value for integer numbers
+  character(str_short), parameter :: CMDI = 'unset'                 !< Missing data indicator value for characters
+  character(str_short), parameter :: EMDI = ''                      !< Missing data indicator value for namelist enumerations
   !> @}
 
 end module constants_mod

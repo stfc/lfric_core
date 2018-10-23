@@ -1,5 +1,0 @@
-namelist gravity_wave_constants
-  speed_of_sound : real ! Sound speed in m/s
-  cs_square : real[ 'speed_of_sound ** 2' ]
-  b_space   : enumeration[w0, w3, wtheta]
-end namelist gravity_wave_constants

@@ -10,16 +10,18 @@ import unittest
 import StringIO
 
 import configurator.namelistdescription as namelist
-import configurator.namelistfeigner     as feigner
+import configurator.namelistfeigner as feigner
+
 
 ###############################################################################
-class FeignerTest( unittest.TestCase ):
-    def setUp( self ):
+class FeignerTest(unittest.TestCase):
+    def setUp(self):
         self.maxDiff = None
 
     ###########################################################################
-    def testEmpty( self ):
-        expectedSource = '''
+    def test_empty(self):
+
+        expected_source = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -36,7 +38,6 @@ module empty_mod
   implicit none
 
   private
-  public :: 
 
   integer(i_native) :: local_rank = -1
   integer(i_native), parameter :: temporary_unit = 3
@@ -46,16 +47,16 @@ contains
 end module empty_mod
         '''.strip()
 
-        outputFile = StringIO.StringIO()
-        uut = feigner.NamelistFeigner( 'empty_mod' )
-        uut.writeModule( outputFile )
+        output_file = StringIO.StringIO()
+        uut = feigner.NamelistFeigner('empty_mod')
+        uut.write_module(output_file)
 
-        self.assertMultiLineEqual( expectedSource + '\n', \
-                                   outputFile.getvalue() )
+        self.assertMultiLineEqual(expected_source + '\n',
+                                  output_file.getvalue())
 
     ###########################################################################
-    def testSimple( self ):
-        expectedSource = '''
+    def test_simple(self):
+        expected_source = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -118,31 +119,33 @@ contains
     call read_simple_namelist( temporary_unit, local_rank )
 
     close(temporary_unit, iostat=condition )
-    if (condition /= 0) stop 'feign_simple_config: Unable to close temporary file'
+    if (condition /= 0) stop &
+        'feign_simple_config: '// &
+        'Unable to close temporary file'
 
   end subroutine feign_simple_config
 
 end module simple_mod
         '''.strip()
 
-        simple = namelist.NamelistDescription( 'simple' )
-        simple.addParameter( 'foo', 'integer', 'default' )
-        simple.addParameter( 'bar', 'real', 'double' )
-        simple.addParameter( 'baz', 'string' )
-        simple.addParameter( 'qux', 'constant' )
-        simple.addParameter( 'fred', 'logical' )
+        simple = namelist.NamelistDescription('simple')
+        simple.add_value('foo', 'integer', 'default')
+        simple.add_value('bar', 'real', 'double')
+        simple.add_string('baz')
+        simple.add_usage('qux', 'constants_mod')
+        simple.add_value('fred', 'logical')
 
-        outputFile = StringIO.StringIO()
-        uut = feigner.NamelistFeigner( 'simple_mod' )
-        uut.addNamelist( [simple] )
-        uut.writeModule( outputFile )
+        output_file = StringIO.StringIO()
+        uut = feigner.NamelistFeigner('simple_mod')
+        uut.add_namelist([simple])
+        uut.write_module(output_file)
 
-        self.assertMultiLineEqual( expectedSource + '\n', \
-                                   outputFile.getvalue() )
+        self.assertMultiLineEqual(expected_source + '\n',
+                                  output_file.getvalue())
 
     ###########################################################################
-    def testEnumeration( self ):
-        expectedSource = '''
+    def test_enumeration(self):
+        expected_source = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -198,28 +201,29 @@ contains
     call read_enum_namelist( temporary_unit, local_rank )
 
     close(temporary_unit, iostat=condition )
-    if (condition /= 0) stop 'feign_enum_config: Unable to close temporary file'
+    if (condition /= 0) stop &
+        'feign_enum_config: '// &
+        'Unable to close temporary file'
 
   end subroutine feign_enum_config
 
 end module enumeration_mod
         '''.strip()
 
-        enumable = namelist.NamelistDescription( 'enum' )
-        enumable.addParameter( 'thing', 'enumeration',
-                               enumerators=['one', 'two'] )
+        enumable = namelist.NamelistDescription('enum')
+        enumable.add_enumeration('thing', enumerators=['one', 'two'])
 
-        outputFile = StringIO.StringIO()
-        uut = feigner.NamelistFeigner( 'enumeration_mod' )
-        uut.addNamelist( [enumable] )
-        uut.writeModule( outputFile )
+        output_file = StringIO.StringIO()
+        uut = feigner.NamelistFeigner('enumeration_mod')
+        uut.add_namelist([enumable])
+        uut.write_module(output_file)
 
-        self.assertMultiLineEqual( expectedSource + '\n', \
-                                   outputFile.getvalue() )
+        self.assertMultiLineEqual(expected_source + '\n',
+                                  output_file.getvalue())
 
     ###########################################################################
-    def testComputed( self ):
-        expectedSource = '''
+    def test_computed(self):
+        expected_source = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -276,30 +280,32 @@ contains
     call read_computed_namelist( temporary_unit, local_rank )
 
     close(temporary_unit, iostat=condition )
-    if (condition /= 0) stop 'feign_computed_config: Unable to close temporary file'
+    if (condition /= 0) stop &
+        'feign_computed_config: '// &
+        'Unable to close temporary file'
 
   end subroutine feign_computed_config
 
 end module computed_mod
         '''.strip()
 
-        simple = namelist.NamelistDescription( 'computed' )
-        simple.addParameter( 'teapot', 'integer', 'default' )
-        simple.addParameter( 'cheese', 'integer', 'default' )
-        simple.addParameter( 'biscuits', 'integer', 'default',
-                             calculation=['teapot + cheese'] )
+        simple = namelist.NamelistDescription('computed')
+        simple.add_value('teapot', 'integer', 'default')
+        simple.add_value('cheese', 'integer', 'default')
+        simple.add_computed('biscuits', 'integer', 'default',
+                            calculation=['teapot + cheese'])
 
-        outputFile = StringIO.StringIO()
-        uut = feigner.NamelistFeigner( 'computed_mod' )
-        uut.addNamelist( [simple] )
-        uut.writeModule( outputFile )
+        output_file = StringIO.StringIO()
+        uut = feigner.NamelistFeigner('computed_mod')
+        uut.add_namelist([simple])
+        uut.write_module(output_file)
 
-        self.assertMultiLineEqual( expectedSource + '\n', \
-                                   outputFile.getvalue() )
+        self.assertMultiLineEqual(expected_source + '\n',
+                                  output_file.getvalue())
 
     ###########################################################################
-    def testEverything( self ):
-        expectedSource = '''
+    def test_everything(self):
+        expected_source = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -367,35 +373,36 @@ contains
     call read_everything_namelist( temporary_unit, local_rank )
 
     close(temporary_unit, iostat=condition )
-    if (condition /= 0) stop 'feign_everything_config: Unable to close temporary file'
+    if (condition /= 0) stop &
+        'feign_everything_config: '// &
+        'Unable to close temporary file'
 
   end subroutine feign_everything_config
 
 end module everything_mod
         '''.strip()
 
-        everything = namelist.NamelistDescription( 'everything' )
-        everything.addParameter( 'cake', 'string', 'filename' )
-        everything.addParameter( 'teapot', 'enumeration',
-                                 enumerators=['brown', 'steel'] )
-        everything.addParameter( 'cheese', 'logical' )
-        everything.addParameter( 'fish', 'real' )
-        everything.addParameter( 'wibble', 'constant' )
-        everything.addParameter( 'yarn', 'real', 'default', \
-                                 calculation=['fish * wibble / 180.0_r_def'] )
-        everything.addParameter( 'tail', 'integer', 'native' )
+        everything = namelist.NamelistDescription('everything')
+        everything.add_string('cake', configure_string_length='filename')
+        everything.add_enumeration('teapot', enumerators=['brown', 'steel'])
+        everything.add_value('cheese', 'logical')
+        everything.add_value('fish', 'real')
+        everything.add_usage('wibble', 'constants_mod')
+        everything.add_computed('yarn', 'real', 'default',
+                                calculation=['fish * wibble / 180.0_r_def'])
+        everything.add_value('tail', 'integer', 'native')
 
-        outputFile = StringIO.StringIO()
-        uut = feigner.NamelistFeigner( 'everything_mod' )
-        uut.addNamelist( [everything] )
-        uut.writeModule( outputFile )
+        output_file = StringIO.StringIO()
+        uut = feigner.NamelistFeigner('everything_mod')
+        uut.add_namelist([everything])
+        uut.write_module(output_file)
 
-        self.assertMultiLineEqual( expectedSource + '\n', \
-                                   outputFile.getvalue() )
+        self.assertMultiLineEqual(expected_source + '\n',
+                                  output_file.getvalue())
 
     ###########################################################################
-    def testMultiFile( self ):
-        expectedSource = '''
+    def test_multi_file(self):
+        expected_source = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -458,7 +465,9 @@ contains
     call read_first_namelist( temporary_unit, local_rank )
 
     close(temporary_unit, iostat=condition )
-    if (condition /= 0) stop 'feign_first_config: Unable to close temporary file'
+    if (condition /= 0) stop &
+        'feign_first_config: '// &
+        'Unable to close temporary file'
 
   end subroutine feign_first_config
 
@@ -500,29 +509,29 @@ contains
     call read_second_namelist( temporary_unit, local_rank )
 
     close(temporary_unit, iostat=condition )
-    if (condition /= 0) stop 'feign_second_config: Unable to close temporary file'
+    if (condition /= 0) stop &
+        'feign_second_config: '// &
+        'Unable to close temporary file'
 
   end subroutine feign_second_config
 
 end module multifile_mod
         '''.strip()
 
-        firstfile = namelist.NamelistDescription( 'first' )
-        firstfile.addParameter( 'cake', 'string', 'filename' )
-        firstfile.addParameter( 'teapot', 'enumeration',
-                                enumerators=['brown', 'steel'] )
-        firstfile.addParameter( 'cheese', 'logical' )
+        firstfile = namelist.NamelistDescription('first')
+        firstfile.add_string('cake', configure_string_length='filename')
+        firstfile.add_enumeration('teapot', enumerators=['brown', 'steel'])
+        firstfile.add_value('cheese', 'logical')
 
-        secondfile = namelist.NamelistDescription( 'second' )
-        secondfile.addParameter( 'fish', 'real' )
-        secondfile.addParameter( 'yarn', 'enumeration',
-                                 enumerators=['fuzzy', 'colourful'] )
-        secondfile.addParameter( 'tail', 'integer', 'native' )
+        secondfile = namelist.NamelistDescription('second')
+        secondfile.add_value('fish', 'real')
+        secondfile.add_enumeration('yarn', enumerators=['fuzzy', 'colourful'])
+        secondfile.add_value('tail', 'integer', 'native')
 
-        outputFile = StringIO.StringIO()
-        uut = feigner.NamelistFeigner( 'multifile_mod' )
-        uut.addNamelist( [firstfile, secondfile] )
-        uut.writeModule( outputFile )
+        output_file = StringIO.StringIO()
+        uut = feigner.NamelistFeigner('multifile_mod')
+        uut.add_namelist([firstfile, secondfile])
+        uut.write_module(output_file)
 
-        self.assertMultiLineEqual( expectedSource + '\n', \
-                                   outputFile.getvalue() )
+        self.assertMultiLineEqual(expected_source + '\n',
+                                  output_file.getvalue())

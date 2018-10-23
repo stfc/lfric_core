@@ -64,7 +64,8 @@ contains
                                  partitioner=base_mesh_partitioner_planar,    &
                                  fplane=.false., f_lat_deg=0.0_r_def )
 
-    call feign_initial_temperature_config( bvf_square, theta_surf )
+    call feign_initial_temperature_config( bvf_square=bvf_square, &
+                                           theta_surf=theta_surf )
 
     call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
                               rd=rd, cp=cp, p_zero=p_zero,                 &
@@ -82,9 +83,13 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use gungho_configuration_mod, only: final_configuration
+
     implicit none
 
     class(reference_profile_test_type), intent(inout) :: this
+
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()

@@ -9,7 +9,7 @@
 Takes a list of namelists and generates source for a namelist loader.
 '''
 
-from __future__ import print_function;
+from __future__ import print_function
 
 import argparse
 import os.path
@@ -18,32 +18,38 @@ from configurator import __version__
 import configurator.configurationloader as loader
 import utilities.logging as logging
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser( add_help=False, \
-                                      description=__doc__ )
-    parser.add_argument( '-help', '-h', '--help', action='help', \
-                         help='Show this help message and exit' )
-    parser.add_argument( '-version', action='version', \
-                         version='%(prog)s {}'.format( __version__ ) )
-    parser.add_argument( '-verbose', action='store_true', \
-                         help='Provide a running commentry' )
-    parser.add_argument( 'outputFilename', metavar='output-filename', \
-                         help='Source file to produce' )
-    parser.add_argument( 'namelistNames', metavar='namelist', \
-                         nargs='*', \
-                         help='Namelists to load.' )
+
+def main():
+
+    parser = argparse.ArgumentParser(add_help=False,
+                                     description=__doc__)
+    parser.add_argument('-help', '-h', '--help', action='help',
+                        help='Show this help message and exit')
+    parser.add_argument('-version', action='version',
+                        version='%(prog)s {}'.format(__version__))
+    parser.add_argument('-verbose', action='store_true',
+                        help='Provide a running commentry')
+    parser.add_argument('outputFilename', metavar='output-filename',
+                        help='Source file to produce')
+    parser.add_argument('namelistNames', metavar='namelist',
+                        nargs='*',
+                        help='Namelists to load.')
     args = parser.parse_args()
 
     if args.verbose:
         import sys
-        logger = logging.PrintLogger( sys.stdout )
+        logger = logging.PrintLogger(sys.stdout)
     else:
         logger = logging.NoLogger()
 
-    moduleName = os.path.splitext( os.path.basename( args.outputFilename ) )[0]
-    generator = loader.ConfigurationLoader( moduleName )
+    module_name = os.path.splitext(os.path.basename(args.outputFilename))[0]
+    generator = loader.ConfigurationLoader(module_name)
     for name in args.namelistNames:
-        generator.addNamelist( name )
+        generator.add_namelist(name)
 
-    with open( args.outputFilename, 'w' ) as moduleFile:
-        generator.writeModule( moduleFile )
+    with open(args.outputFilename, 'w') as module_file:
+        generator.write_module(module_file)
+
+
+if __name__ == '__main__':
+    main()

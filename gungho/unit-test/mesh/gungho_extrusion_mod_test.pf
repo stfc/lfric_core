@@ -52,9 +52,13 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use gungho_configuration_mod, only: final_configuration
+
     implicit none
 
     class(gungho_extrusion_test_type), intent(inout) :: this
+
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()
@@ -77,13 +81,16 @@ contains
 
     class(extrusion_type), allocatable :: unit_under_test
 
-    call feign_base_mesh_config( '/foo.nc', 'unit_test',       &
-                                 base_mesh_geometry_planar,    &
-                                 base_mesh_partitioner_planar, &
-                                 .false., 0.0_r_def )
-    call feign_extrusion_config( extrusion_method_uniform, &
-                                 13.5_r_def, &
-                                 7_i_def )
+    call feign_base_mesh_config(                       &
+             filename='/foo.nc',                       &
+             prime_mesh_name='unit_test',              &
+             geometry=base_mesh_geometry_planar,       &
+             partitioner=base_mesh_partitioner_planar, &
+             fplane=.false.,                           &
+             f_lat_deg=0.0_r_def )
+    call feign_extrusion_config( domain_top=13.5_r_def,           &
+                                 method=extrusion_method_uniform, &
+                                 number_of_layers=7_i_def )
     call feign_planet_config( gravity=9.98_r_def,    &
                               radius=637100.0_r_def, &
                               omega=7.27E-5_r_def,   &
@@ -117,12 +124,14 @@ contains
 
     class(extrusion_type), allocatable :: unit_under_test
 
-    call feign_base_mesh_config( filename='/foo.nc',                    &
-                                 prime_mesh_name='prime',               &
-                                 geometry=base_mesh_geometry_spherical, &
-                         partitioner=base_mesh_partitioner_cubedsphere, &
-                                 fplane=.false.,                        &
-                                 f_lat_deg=0.0_r_def )
+    call feign_base_mesh_config(                            &
+             filename='/foo.nc',                            &
+             prime_mesh_name='prime',                       &
+             geometry=base_mesh_geometry_spherical,         &
+             partitioner=base_mesh_partitioner_cubedsphere, &
+             fplane=.false.,                                &
+             f_lat_deg=0.0_r_def )
+
     call feign_extrusion_config( method=extrusion_method_geometric, &
                                  domain_top=600000.0_r_def,         &
                                  number_of_layers=7_i_def )

@@ -1,9 +1,0 @@
-namelist cubedsphere_mesh_generator
-
-  edge_cells(nmeshes) : integer           ! Cells on a panel edge (6 panels to a cubedsphere)
-  mesh_filename       : string(filename)  ! Ouput filename
-  mesh_names(nmeshes) : string            ! Tags to identify meshes in NetCDF output
-  nmeshes             : integer           ! Number of meshes to generate
-  smooth_passes       : integer           ! Number of smoothing iterations to perform
-
-end namelist cubedsphere_mesh_generator

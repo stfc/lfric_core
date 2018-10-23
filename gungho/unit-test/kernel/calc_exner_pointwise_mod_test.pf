@@ -59,9 +59,13 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use gungho_configuration_mod, only: final_configuration
+
     implicit none
 
     class(calc_exner_pointwise_test_type), intent(inout) :: this
+
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()

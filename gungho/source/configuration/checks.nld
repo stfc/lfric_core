@@ -1,4 +1,0 @@
-namelist checks
-  limit_cfl : logical ! Impose limit  on winds
-  max_cfl   : real    ! Max CFL 
-end namelist checks

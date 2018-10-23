@@ -50,17 +50,23 @@ contains
                                  partitioner=base_mesh_partitioner_planar,    &
                                  fplane=.false., f_lat_deg=0.0_r_def )
 
-    call feign_domain_size_config(0.0_r_def, 2.0_r_def,         &
-                                  0.0_r_def, 2.0_r_def )
+    call feign_domain_size_config( planar_domain_max_x=2.0_r_def, &
+                                   planar_domain_max_y=2.0_r_def, &
+                                   planar_domain_min_x=0.0_r_def, &
+                                   planar_domain_min_y=0.0_r_def )
 
   end subroutine setUp
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use gungho_configuration_mod, only: final_configuration
+
     implicit none
 
     class(assign_coordinate_file_test_type), intent(inout) :: this
+
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()

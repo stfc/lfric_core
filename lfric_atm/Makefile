@@ -7,6 +7,7 @@
 PROJECT_NAME = lfric_atm
 
 PROFILE ?= fast-debug
+LFRIC_TARGET_PLATFORM ?= generic-x86
 
 export IGNORE_DEPENDENCIES = netcdf MPI yaxt pfunit_mod xios mod_wait
 export EXTERNAL_DYNAMIC_LIBRARIES = yaxt yaxt_c netcdff netcdf hdf5 \
@@ -16,12 +17,15 @@ export EXTERNAL_STATIC_LIBRARIES = xios
 export UMPHYSICS_TARGETS = extract-um-physics
 export UMPHYSICS_CLEAN   = clean-um-physics
 export UM_FCM=$(UM_PHYS_DIR)/
-
-LFRIC_TARGET_PLATFORM ?= generic-x86
 export OPTIMISATION_PATH ?= $(wildcard optimisation/$(LFRIC_TARGET_PLATFORM))
 
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
-export ROOT_DIR ?= ../
+export ROOT_DIR    ?= ..
+export PATH        := $(PATH):$(abspath $(ROOT_DIR)/GPL/bin)
+export PYTHONPATH  := $(PYTHONPATH):$(abspath $(ROOT_DIR)/GPL/lib/python)
+
+META_VN       ?= HEAD
+META_FILE_DIR  = $(PROJECT_DIR)/config-meta/lfric-$(PROJECT_NAME)/$(META_VN)
 
 .PHONY: default
 default: build
@@ -77,14 +81,27 @@ generate-psykal: extract-gungho
 
 .PHONY: extract-gungho
 extract-gungho: ALWAYS
-	$(Q)$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
-	        SOURCE_DIR=$(PROJECT_DIR)/../gungho/source \
-	        WORKING_DIR=$(WORKING_DIR) \
-	        WITHOUT_PROGRAMS=1
-	$(Q)$(MAKE) $(QUIET_ARG) -C $(ROOT_DIR)/gungho -f $(LFRIC_BUILD)/psyclone.mk \
-	        SOURCE_DIR=source WORKING_DIR=$(abspath $(WORKING_DIR))
-	$(Q)$(MAKE) $(QUIET_ARG) -C $(ROOT_DIR)/gungho generate-configuration \
-	        PROJECT=$(PROJECT) WORKING_DIR=$(abspath $(WORKING_DIR))
+	$(call MESSAGE,========================================)
+	$(call MESSAGE,Extracting Gungho dynamical core)
+	$(call MESSAGE,========================================)
+	$(Q)$(MAKE) $(QUIET_ARG)                       \
+                 -C $(ROOT_DIR)/gungho                 \
+                 -f $(LFRIC_BUILD)/extract.mk          \
+	         SOURCE_DIR=source                     \
+	         WORKING_DIR=$(abspath $(WORKING_DIR)) \
+	         WITHOUT_PROGRAMS=1
+	$(call MESSAGE,====================================)
+	$(call MESSAGE,Psycloning Gungho dynamical core)
+	$(call MESSAGE,====================================)
+	$(Q)$(MAKE) $(QUIET_ARG)             \
+               -C $(ROOT_DIR)/gungho         \
+               -f $(LFRIC_BUILD)/psyclone.mk \
+	        SOURCE_DIR=source            \
+                WORKING_DIR=$(abspath $(WORKING_DIR))
+	$(Q)$(MAKE) $(QUIET_ARG)             \
+               -C $(ROOT_DIR)/gungho generate-configuration \
+	        PROJECT=$(PROJECT)           \
+                WORKING_DIR=$(abspath $(WORKING_DIR))
 
 .PHONY: extract-um-physics
 extract-um-physics: export platform_config_dir=$(strip $(shell grep -E "$(LFRIC_TARGET_PLATFORM)\s*:\s*$(FORTRAN_COMPILER)\s*:" $(PROJECT_DIR)/fcm-make/target-map.txt | cut -d : -f 3))

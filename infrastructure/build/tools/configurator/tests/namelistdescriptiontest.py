@@ -9,30 +9,40 @@
 import unittest
 import StringIO
 import random
+import os
+import tempfile
+
+from subprocess import Popen
 
 import configurator.namelistdescription as description
 
+PICKER_EXE = 'rose_picker'
+
+
 ###############################################################################
-class NamelistDescriptionTest( unittest.TestCase ):
-    ###########################################################################
-    def setUp( self ):
+class NamelistMetaTest(unittest.TestCase):
+
+    def setUp(self):
         self.maxDiff = None
 
-    ###########################################################################
-    def tearDown( self ):
+
+###############################################################################
+    def tearDown(self):
         pass
 
-    ###########################################################################
-    def testModuleWriteEmpty( self ):
-        outputFile = StringIO.StringIO()
 
-        uut = description.NamelistDescription( 'test' )
-        self.assertRaises( description.NamelistDescriptionException, \
-                           uut.writeModule, outputFile )
+###############################################################################
+    def test_module_write_empty(self):
+        output_file = StringIO.StringIO()
 
-    ###########################################################################
-    def testModuleWriteOneOfEach( self ):
-        expectedSource = '''
+        uut = description.NamelistDescription('test')
+        self.assertRaises(description.NamelistDescriptionException,
+                          uut.write_module, output_file)
+
+
+###############################################################################
+    def test_module_write_one_of_each(self):
+        expected_source = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -103,11 +113,18 @@ contains
   !>
   integer(i_native) function enum_from_key( key )
 
+    use constants_mod, only: emdi
     implicit none
 
     character(*), intent(in) :: key
 
     integer(i_native) :: key_index
+
+    if (key == emdi) then
+      write( log_scratch_space, '(A)') &
+          'Missing key for enum enumeration in test namelist.'
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
 
     key_index = 1
     do
@@ -175,7 +192,7 @@ contains
   !
   subroutine read_namelist( file_unit, local_rank, dummy_enum )
 
-    use constants_mod, only : imdi, rmdi
+    use constants_mod, only : cmdi, emdi, imdi, rmdi
 
     implicit none
 
@@ -215,16 +232,16 @@ contains
     dint = imdi
     dlog = .false.
     dreal = rmdi
-    dstr = ""
-    enum = ""
-    fstr = ""
+    dstr = cmdi
+    enum = emdi
+    fstr = cmdi
     lint = imdi
     lreal = rmdi
     sint = imdi
     sreal = rmdi
     vint = imdi
     vreal = rmdi
-    vstr = ""
+    vstr = cmdi
 
     if (local_rank == 0) then
 
@@ -286,7 +303,7 @@ contains
   !>
   subroutine postprocess_test_namelist()
 
-    use constants_mod, only : imdi, rmdi
+    use constants_mod, only : cmdi, emdi, imdi, rmdi
 
     implicit none
 
@@ -325,7 +342,23 @@ contains
   !>
   subroutine test_final()
 
+    use constants_mod, only: cmdi, emdi, imdi, rmdi
+
     implicit none
+
+    dint = imdi
+    dlog = .false.
+    dreal = real(rmdi,r_def)
+    dstr = cmdi
+    enum = int(imdi,i_native)
+    fstr = cmdi
+    lint = imdi
+    lreal = real(rmdi,r_double)
+    sint = imdi
+    sreal = real(rmdi,r_single)
+    vint = imdi
+    vreal = real(rmdi,r_def)
+    vstr = cmdi
 
     return
   end subroutine test_final
@@ -334,31 +367,30 @@ contains
 end module test_config_mod
         '''.strip()
 
-        random.seed( 1 )
-        uut = description.NamelistDescription( 'test' )
-        uut.addParameter( 'vint', 'integer'             )
-        uut.addParameter( 'dint', 'integer', 'default'  )
-        uut.addParameter( 'sint', 'integer', 'short'    )
-        uut.addParameter( 'lint', 'integer', 'long'     )
-        uut.addParameter( 'dlog', 'logical', 'default'  )
-        uut.addParameter( 'vreal', 'real'               )
-        uut.addParameter( 'dreal', 'real',   'default'  )
-        uut.addParameter( 'sreal', 'real',   'single'   )
-        uut.addParameter( 'lreal', 'real',   'double'   )
-        uut.addParameter( 'vstr', 'string'              )
-        uut.addParameter( 'dstr', 'string',  'default'  )
-        uut.addParameter( 'fstr', 'string',  'filename' )
-        uut.addParameter( 'enum', 'enumeration', None,
-                          enumerators=['one', 'two', 'three'] )
-        outputFile = StringIO.StringIO()
-        uut.writeModule( outputFile )
+        random.seed(1)
+        uut = description.NamelistDescription('test')
+        uut.add_value('vint', 'integer')
+        uut.add_value('dint', 'integer', 'default')
+        uut.add_value('sint', 'integer', 'short')
+        uut.add_value('lint', 'integer', 'long')
+        uut.add_value('dlog', 'logical', 'default')
+        uut.add_value('vreal', 'real')
+        uut.add_value('dreal', 'real', 'default')
+        uut.add_value('sreal', 'real', 'single')
+        uut.add_value('lreal', 'real', 'double')
+        uut.add_string('vstr')
+        uut.add_string('dstr', configure_string_length='default')
+        uut.add_string('fstr', configure_string_length='filename')
+        uut.add_enumeration('enum', enumerators=['one', 'two', 'three'])
+        output_file = StringIO.StringIO()
+        uut.write_module(output_file)
 
-        self.assertMultiLineEqual( expectedSource + '\n',
-                                   outputFile.getvalue() )
+        self.assertMultiLineEqual(expected_source + '\n',
+                                  output_file.getvalue())
 
     ###########################################################################
-    def testModuleWriteGrowing( self ):
-        firstExpectedSource = '''
+    def test_module_write_growing(self):
+        first_expected_source = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -404,7 +436,7 @@ contains
   !
   subroutine read_namelist( file_unit, local_rank )
 
-    use constants_mod, only : imdi, rmdi
+    use constants_mod, only : cmdi, emdi, imdi, rmdi
 
     implicit none
 
@@ -444,7 +476,7 @@ contains
   !>
   subroutine postprocess_test_namelist()
 
-    use constants_mod, only : imdi, rmdi
+    use constants_mod, only : cmdi, emdi, imdi, rmdi
 
     implicit none
 
@@ -483,7 +515,11 @@ contains
   !>
   subroutine test_final()
 
+    use constants_mod, only: cmdi, emdi, imdi, rmdi
+
     implicit none
+
+    foo = imdi
 
     return
   end subroutine test_final
@@ -492,7 +528,7 @@ contains
 end module test_config_mod
         '''.strip()
 
-        secondExpectedSource = '''
+        second_expected_source = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -540,7 +576,7 @@ contains
   !
   subroutine read_namelist( file_unit, local_rank )
 
-    use constants_mod, only : imdi, rmdi
+    use constants_mod, only : cmdi, emdi, imdi, rmdi
 
     implicit none
 
@@ -586,7 +622,7 @@ contains
   !>
   subroutine postprocess_test_namelist()
 
-    use constants_mod, only : imdi, rmdi
+    use constants_mod, only : cmdi, emdi, imdi, rmdi
 
     implicit none
 
@@ -625,7 +661,12 @@ contains
   !>
   subroutine test_final()
 
+    use constants_mod, only: cmdi, emdi, imdi, rmdi
+
     implicit none
+
+    bar = real(rmdi,r_def)
+    foo = imdi
 
     return
   end subroutine test_final
@@ -634,25 +675,25 @@ contains
 end module test_config_mod
         '''.strip()
 
-        outputFile = StringIO.StringIO()
+        output_file = StringIO.StringIO()
 
-        uut = description.NamelistDescription( 'test' )
-        uut.addParameter( 'foo', 'integer' )
-        uut.writeModule( outputFile )
+        uut = description.NamelistDescription('test')
+        uut.add_value('foo', 'integer')
+        uut.write_module(output_file)
 
-        self.assertMultiLineEqual( firstExpectedSource + '\n', \
-                                   outputFile.getvalue() )
+        self.assertMultiLineEqual(first_expected_source + '\n',
+                                  output_file.getvalue())
 
-        outputFile = StringIO.StringIO()
-        uut.addParameter( 'bar', 'real', 'default' )
-        uut.writeModule( outputFile )
+        output_file = StringIO.StringIO()
+        uut.add_value('bar', 'real', 'default')
+        uut.write_module(output_file)
 
-        self.assertMultiLineEqual( secondExpectedSource + '\n', \
-                                   outputFile.getvalue() )
+        self.assertMultiLineEqual(second_expected_source + '\n',
+                                  output_file.getvalue())
 
     ##########################################################################
-    def testEnumerationOnly( self ):
-        expectedSource = '''
+    def test_enumeration_only(self):
+        expected_source = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -703,11 +744,18 @@ contains
   !>
   integer(i_native) function value_from_key( key )
 
+    use constants_mod, only: emdi
     implicit none
 
     character(*), intent(in) :: key
 
     integer(i_native) :: key_index
+
+    if (key == emdi) then
+      write( log_scratch_space, '(A)') &
+          'Missing key for value enumeration in enum namelist.'
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
 
     key_index = 1
     do
@@ -775,7 +823,7 @@ contains
   !
   subroutine read_namelist( file_unit, local_rank, dummy_value )
 
-    use constants_mod, only : imdi, rmdi
+    use constants_mod, only : cmdi, emdi, imdi, rmdi
 
     implicit none
 
@@ -791,7 +839,7 @@ contains
 
     integer(i_native) :: condition
 
-    value = ""
+    value = emdi
 
     if (local_rank == 0) then
 
@@ -820,7 +868,7 @@ contains
   !>
   subroutine postprocess_enum_namelist()
 
-    use constants_mod, only : imdi, rmdi
+    use constants_mod, only : cmdi, emdi, imdi, rmdi
 
     implicit none
 
@@ -859,7 +907,11 @@ contains
   !>
   subroutine enum_final()
 
+    use constants_mod, only: cmdi, emdi, imdi, rmdi
+
     implicit none
+
+    value = int(imdi,i_native)
 
     return
   end subroutine enum_final
@@ -868,21 +920,18 @@ contains
 end module enum_config_mod
         '''.strip()
 
-        random.seed( 1 )
-        uut = description.NamelistDescription( 'enum' )
-        uut.addParameter( 'value',
-                          'enumeration',
-                          None,
-                          enumerators=['one', 'two', 'three'] )
-        outputFile = StringIO.StringIO()
-        uut.writeModule( outputFile )
+        random.seed(1)
+        uut = description.NamelistDescription('enum')
+        uut.add_enumeration('value', enumerators=['one', 'two', 'three'])
+        output_file = StringIO.StringIO()
+        uut.write_module(output_file)
 
-        self.assertMultiLineEqual( expectedSource + '\n',
-                                   outputFile.getvalue() )
+        self.assertMultiLineEqual(expected_source + '\n',
+                                  output_file.getvalue())
 
     ###########################################################################
-    def testMoreThanOneEnumeration( self ):
-      expectedSource = '''
+    def test_more_than_one_enumeration(self):
+        expected_source = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -946,11 +995,18 @@ contains
   !>
   integer(i_native) function first_from_key( key )
 
+    use constants_mod, only: emdi
     implicit none
 
     character(*), intent(in) :: key
 
     integer(i_native) :: key_index
+
+    if (key == emdi) then
+      write( log_scratch_space, '(A)') &
+          'Missing key for first enumeration in twoenum namelist.'
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
 
     key_index = 1
     do
@@ -1008,11 +1064,18 @@ contains
   !>
   integer(i_native) function second_from_key( key )
 
+    use constants_mod, only: emdi
     implicit none
 
     character(*), intent(in) :: key
 
     integer(i_native) :: key_index
+
+    if (key == emdi) then
+      write( log_scratch_space, '(A)') &
+          'Missing key for second enumeration in twoenum namelist.'
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
 
     key_index = 1
     do
@@ -1080,7 +1143,7 @@ contains
   !
   subroutine read_namelist( file_unit, local_rank, dummy_first, dummy_second )
 
-    use constants_mod, only : imdi, rmdi
+    use constants_mod, only : cmdi, emdi, imdi, rmdi
 
     implicit none
 
@@ -1099,8 +1162,8 @@ contains
 
     integer(i_native) :: condition
 
-    first = ""
-    second = ""
+    first = emdi
+    second = emdi
 
     if (local_rank == 0) then
 
@@ -1132,7 +1195,7 @@ contains
   !>
   subroutine postprocess_twoenum_namelist()
 
-    use constants_mod, only : imdi, rmdi
+    use constants_mod, only : cmdi, emdi, imdi, rmdi
 
     implicit none
 
@@ -1171,7 +1234,12 @@ contains
   !>
   subroutine twoenum_final()
 
+    use constants_mod, only: cmdi, emdi, imdi, rmdi
+
     implicit none
+
+    first = int(imdi,i_native)
+    second = int(imdi,i_native)
 
     return
   end subroutine twoenum_final
@@ -1180,21 +1248,19 @@ contains
 end module twoenum_config_mod
                        '''.strip()
 
-      random.seed( 1 )
-      uut = description.NamelistDescription( 'twoenum' )
-      uut.addParameter( 'first', 'enumeration', None,
-                        enumerators=['one', 'two', 'three'] )
-      uut.addParameter( 'second', 'enumeration', None,
-                        enumerators=['ay', 'bee', 'see'] )
-      outputFile = StringIO.StringIO()
-      uut.writeModule( outputFile )
+        random.seed(1)
+        uut = description.NamelistDescription('twoenum')
+        uut.add_enumeration('first', enumerators=['one', 'two', 'three'])
+        uut.add_enumeration('second', enumerators=['ay', 'bee', 'see'])
+        output_file = StringIO.StringIO()
+        uut.write_module(output_file)
 
-      self.assertMultiLineEqual( outputFile.getvalue(),
-                                 expectedSource + '\n' )
+        self.assertMultiLineEqual(output_file.getvalue(),
+                                  expected_source + '\n')
 
     ###########################################################################
-    def testModuleWriteComputed( self ):
-        expectedSource = '''
+    def test_module_write_computed(self):
+        expected_source = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -1241,7 +1307,7 @@ contains
   !
   subroutine read_namelist( file_unit, local_rank )
 
-    use constants_mod, only : imdi, rmdi
+    use constants_mod, only : cmdi, emdi, imdi, rmdi
 
     implicit none
 
@@ -1283,7 +1349,7 @@ contains
   !>
   subroutine postprocess_teapot_namelist()
 
-    use constants_mod, only : imdi, rmdi
+    use constants_mod, only : cmdi, emdi, imdi, rmdi
 
     implicit none
 
@@ -1322,7 +1388,12 @@ contains
   !>
   subroutine teapot_final()
 
+    use constants_mod, only: cmdi, emdi, imdi, rmdi
+
     implicit none
+
+    bar = real(rmdi,r_def)
+    foo = real(rmdi,r_def)
 
     return
   end subroutine teapot_final
@@ -1331,19 +1402,19 @@ contains
 end module teapot_config_mod
         '''.strip()
 
-        outputFile = StringIO.StringIO()
+        output_file = StringIO.StringIO()
 
-        uut = description.NamelistDescription( 'teapot' )
-        uut.addParameter( 'foo', 'real', 'default' )
-        uut.addParameter( 'bar', 'real', 'default', calculation=['foo ** 2'] )
-        uut.writeModule( outputFile )
+        uut = description.NamelistDescription('teapot')
+        uut.add_value('foo', 'real', 'default')
+        uut.add_computed('bar', 'real', 'default', calculation=['foo ** 2'])
+        uut.write_module(output_file)
 
-        self.assertMultiLineEqual( expectedSource + '\n', \
-                                   outputFile.getvalue() )
+        self.assertMultiLineEqual(expected_source + '\n',
+                                  output_file.getvalue())
 
     ###########################################################################
-    def testModuleWriteConstant( self ):
-        expectedSource = '''
+    def test_module_write_constant(self):
+        expected_source = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -1390,7 +1461,7 @@ contains
   !
   subroutine read_namelist( file_unit, local_rank )
 
-    use constants_mod, only : fudge, imdi, rmdi
+    use constants_mod, only : cmdi, emdi, FUDGE, imdi, rmdi
 
     implicit none
 
@@ -1432,7 +1503,7 @@ contains
   !>
   subroutine postprocess_cheese_namelist()
 
-    use constants_mod, only : fudge, imdi, rmdi
+    use constants_mod, only : cmdi, emdi, FUDGE, imdi, rmdi
 
     implicit none
 
@@ -1471,7 +1542,12 @@ contains
   !>
   subroutine cheese_final()
 
+    use constants_mod, only: cmdi, emdi, FUDGE, imdi, rmdi
+
     implicit none
+
+    fred = real(rmdi,r_def)
+    wilma = real(rmdi,r_def)
 
     return
   end subroutine cheese_final
@@ -1480,20 +1556,21 @@ contains
 end module cheese_config_mod
         '''.strip()
 
-        outputFile = StringIO.StringIO()
+        output_file = StringIO.StringIO()
 
-        uut = description.NamelistDescription( 'cheese' )
-        uut.addParameter( 'FUDGE', 'constant' )
-        uut.addParameter( 'fred', 'real', 'default' )
-        uut.addParameter( 'wilma', 'real', 'default', calculation=['fred * FUDGE'] )
-        uut.writeModule( outputFile )
+        uut = description.NamelistDescription('cheese')
+        uut.add_usage('FUDGE', module='constants_mod')
+        uut.add_value('fred', 'real', 'default')
+        uut.add_computed('wilma', 'real', 'default',
+                         calculation=['fred * FUDGE'])
+        uut.write_module(output_file)
 
-        self.assertMultiLineEqual( expectedSource + '\n', \
-                                   outputFile.getvalue() )
+        self.assertMultiLineEqual(expected_source + '\n',
+                                  output_file.getvalue())
 
     ###########################################################################
-    def testModuleWriteArray( self ):
-        expectedSource = '''
+    def test_module_write_array(self):
+        expected_source = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -1547,7 +1624,8 @@ contains
   !
   subroutine read_namelist( file_unit, local_rank )
 
-    use constants_mod, only : imdi, rmdi
+    use constants_mod, only : cmdi, emdi, imdi, rmdi
+    use wibble_mod, only : esize
 
     implicit none
 
@@ -1583,7 +1661,7 @@ contains
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
 
-    absolute = ""
+    absolute = cmdi
     inlist = imdi
     lsize = imdi
     outlist = rmdi
@@ -1619,7 +1697,7 @@ contains
   !>
   subroutine postprocess_aerial_namelist()
 
-    use constants_mod, only : imdi, rmdi
+    use constants_mod, only : cmdi, emdi, imdi, rmdi
     use wibble_mod, only : esize
 
     implicit none
@@ -1696,7 +1774,12 @@ contains
   !>
   subroutine aerial_final()
 
+    use constants_mod, only: cmdi, emdi, imdi, rmdi
+
     implicit none
+
+    absolute = cmdi
+    lsize = imdi
 
     if ( allocated(inlist) ) deallocate(inlist)
     if ( allocated(outlist) ) deallocate(outlist)
@@ -1709,160 +1792,309 @@ contains
 end module aerial_config_mod
         '''.strip()
 
-        outputFile = StringIO.StringIO()
+        output_file = StringIO.StringIO()
 
-        uut = description.NamelistDescription( 'aerial' )
-        uut.addParameter( 'esize',     'use', module='wibble_mod' )
-        uut.addParameter( 'lsize',     'integer', 'native' )
-        uut.addParameter( 'absolute',  'string',  bounds=['5'] )
-        uut.addParameter( 'inlist',    'integer', bounds=['lsize'] )
-        uut.addParameter( 'outlist',   'real',    bounds=['esize'] )
-        uut.addParameter( 'unknown',   'integer', bounds=[':'] )
-        uut.writeModule( outputFile )
+        uut = description.NamelistDescription('aerial')
+        uut.add_usage('esize', module='wibble_mod')
+        uut.add_value('lsize', 'integer', 'native')
+        uut.add_string('absolute', bounds=['5'])
+        uut.add_value('inlist', 'integer', bounds=['lsize'])
+        uut.add_value('outlist', 'real', bounds=['esize'])
+        uut.add_value('unknown', 'integer', bounds=[':'])
+        uut.write_module(output_file)
 
-        self.assertMultiLineEqual( expectedSource + '\n', \
-                                   outputFile.getvalue() )
+        self.assertMultiLineEqual(expected_source + '\n',
+                                  output_file.getvalue())
+
 
 ##############################################################################
-class NamelistDescriptionParserTest( unittest.TestCase ):
+class NamelistConfigDescriptionTest(unittest.TestCase):
     ##########################################################################
-    def setUp( self ):
-        pass
-
-    ##########################################################################
-    def tearDown( self ):
-        pass
+    def setUp(self):
+        self.nml_config_file = None
 
     ##########################################################################
-    def _compileDictionary( self, namelists ):
-      dictionary = {}
+    def tearDown(self):
+        if self.nml_config_file:
+            os.remove(self.nml_config_file)
 
-      for namelist in namelists:
-        parameters = {}
-        for parameter in namelist.getParameters():
-          parameters[parameter.name] = [parameter.fortranType.intrinsicType,
-                                        parameter.fortranType.kind]
-          if parameter.getConfigureType() == 'enumeration':
-            parameters[parameter.name].extend( parameter.mapping.keys() )
-          elif parameter.getConfigureType() == 'computed':
-            parameters[parameter.name].append( parameter.computation )
-          elif parameter.getConfigureType() == 'array':
-            if isinstance( parameter.bounds, list ):
-              bounds = parameter.bounds[0]
-            else:
-              bounds = parameter.bounds
-            parameters[parameter.name].append( '(' + bounds + ')' )
-        dictionary[namelist.getNamelistName()] = parameters
-
-      return dictionary
+        if os.path.isfile('config_namelists.txt'):
+            os.remove('config_namelists.txt')
 
     ##########################################################################
-    def testParserGoodFile( self ):
-        inputFile = StringIO.StringIO('''
-        ! Initial comment followed by blank line
+    @staticmethod
+    def _compile_dictionary(namelists):
 
-        namelist fred
-            first_thing : string ! Trailing comment
-            second      : integer
-            filename    : string(filename)
-            choices     : enumeration[ foo, bar, baz, qux ]
-        end namelist fred
-        ''')
+        dictionary = {}
 
-        uut = description.NamelistDescriptionParser()
-        result = self._compileDictionary( uut.parseFile( inputFile ) )
+        for namelist in namelists:
 
-        self.assertEqual( {'fred'  :
-                     {'choices' : ['integer', 'i_native',
-                                                  'foo', 'bar', 'baz', 'qux'],
-                      'filename' : ['character', 'str_max_filename'],
-                      'first_thing' : ['character', 'str_def'],
-                      'second' : ['integer', 'i_def']}},
-                          result )
+            parameters = {}
+            for parameter in namelist.get_parameters():
 
-    ##########################################################################
-    def testOnlyEnumeration( self ):
-        inputFile = StringIO.StringIO('''
-        namelist barney
-            stuff : enumeration[ one, two, three ]
-        end namelist barney
-        ''')
+                parameters[parameter.name] = \
+                    [parameter.fortran_type.intrinsic_type,
+                     parameter.fortran_type.kind]
+                if parameter.get_configure_type() == 'enumeration':
+                    parameters[parameter.name].extend(
+                        parameter.mapping.keys())
+                elif parameter.get_configure_type() == 'computed':
+                    parameters[parameter.name].append(
+                        parameter.computation)
+                elif parameter.get_configure_type() == 'array':
+                    if isinstance(parameter.bounds, list):
+                        bounds = parameter.bounds[0]
+                    else:
+                        bounds = parameter.bounds
+                    parameters[parameter.name].append('(' + bounds + ')')
 
-        uut = description.NamelistDescriptionParser()
-        result =self._compileDictionary( uut.parseFile( inputFile ) )
+            dictionary[namelist.get_namelist_name()] = parameters
 
-        self.assertEqual( {'barney' : {'stuff' : ['integer', 'i_native', \
-                                                  'one', 'two', 'three']}}, \
-                          result )
+        return dictionary
 
     ##########################################################################
-    def testMismatchedNames( self ):
-        inputFile = StringIO.StringIO('''
-        namelist wilma
-            junk : integer
-        end namelist betty
-        ''')
+    def test_parser_good_file(self):
 
-        uut = description.NamelistDescriptionParser()
-        self.assertRaises( description.NamelistDescriptionException, \
-                           uut.parseFile, inputFile )
+        input_file = tempfile.NamedTemporaryFile()
+        input_file.write('''
+[namelist:fred]
 
-    ##########################################################################
-    def testComputedFields( self ):
-        inputFile = StringIO.StringIO('''
-        namelist teapot
-           foo : real
-           bar : real(default)['foo ** 2']
-           baz : real['PI * foo']
-        end namelist teapot
-        ''')
+[namelist:fred=first_thing]
+type=character
 
-        uut = description.NamelistDescriptionParser()
-        result =self._compileDictionary( uut.parseFile( inputFile ) )
+[namelist:fred=second]
+type=integer
 
-        self.assertEqual({'teapot' : {'foo' : ['real', 'r_def'], \
-                                      'bar' : ['real', 'r_def', 'foo ** 2'], \
-                                      'baz' : ['real', 'r_def', 'PI * foo']}}, \
+[namelist:fred=filename]
+type=character
+!string_length=filename
+
+[namelist:fred=choices]
+!enumeration=true
+values=foo, bar, baz, qux
+''')
+        input_file.seek(0)
+
+        picker_command = "{} {}".format(PICKER_EXE, input_file.name)
+        out = Popen(picker_command, shell=True)
+        out.wait()
+
+        self.nml_config_file = \
+            '{}.json'.format(os.path.basename(input_file.name))
+        input_file.close()
+
+        uut = description.NamelistConfigDescription()
+        result = self._compile_dictionary(
+            uut.process_config(self.nml_config_file))
+
+        self.assertEqual({'fred':
+                          {'choices':     ['integer', 'i_native',
+                                           'foo', 'bar', 'baz', 'qux'],
+                           'filename':    ['character', 'str_max_filename'],
+                           'first_thing': ['character', 'str_def'],
+                           'second':      ['integer', 'i_def']}},
                          result)
 
     ##########################################################################
-    def testComputedFieldsWithConstant( self ):
-        inputFile = StringIO.StringIO('''
-        namelist cheese
-           FUDGE : constant
-           fred  : real
-           wilma : real['fred * FUDGE']
-        end namelist cheese
-        ''')
+    def test_only_enumeration(self):
 
-        uut = description.NamelistDescriptionParser()
-        result =self._compileDictionary( uut.parseFile( inputFile ) )
+        input_file = tempfile.NamedTemporaryFile()
+        input_file.write('''
+[namelist:barney]
 
-        self.assertEqual({'cheese' : {'fred' : ['real', 'r_def'], \
-                                      'wilma' : ['real', 'r_def', 'fred * FUDGE']}}, \
+[namelist:barney=stuff]
+!enumeration=true
+values=one, two, three
+''')
+        input_file.seek(0)
+
+        picker_command = "{} {}".format(PICKER_EXE, input_file.name)
+        out = Popen(picker_command, shell=True)
+        out.wait()
+
+        self.nml_config_file = \
+            '{}.json'.format(os.path.basename(input_file.name))
+        input_file.close()
+
+        uut = description.NamelistConfigDescription()
+        result = self._compile_dictionary(
+            uut.process_config(self.nml_config_file))
+
+        self.assertEqual({'barney': {'stuff': ['integer', 'i_native',
+                                               'one', 'two', 'three']}},
                          result)
 
     ##########################################################################
-    def testArrayFields( self ):
-        inputFile = StringIO.StringIO('''
-        namelist aerial
-           TABLET : use[sugar_mod]
-           FUDGE : constant
-           fred  : real
-           wilma(FUDGE) : real
-           betty(fred)  : logical
-           bambam(:)    : integer
-        end namelist aerial
-        ''')
+    def test_non_enumeration_no_type(self):
 
-        uut = description.NamelistDescriptionParser()
-        result =self._compileDictionary( uut.parseFile( inputFile ) )
+        input_file = tempfile.NamedTemporaryFile()
+        input_file.write('''
+[namelist:barney]
 
-        self.assertEqual({'aerial' : {'bambam' : ['integer', 'i_def', '(:)'],
-                                      'betty' : ['logical', 'l_def', '(fred)'],
-                                      'fred' : ['real', 'r_def'],
-                                      'wilma' : ['real', 'r_def', '(FUDGE)']}},
+[namelist:barney=stuff]
+values=one, two, three
+''')
+        input_file.seek(0)
+
+        picker_command = "{} {}".format(PICKER_EXE, input_file.name)
+        out = Popen(picker_command, shell=True)
+        out.wait()
+
+        self.nml_config_file = \
+            '{}.json'.format(os.path.basename(input_file.name))
+        input_file.close()
+
+        uut = description.NamelistConfigDescription()
+        self.assertRaises(description.NamelistDescriptionException,
+                          uut.process_config, self.nml_config_file)
+
+    ##########################################################################
+    def test_no_member_type(self):
+
+        input_file = tempfile.NamedTemporaryFile()
+        input_file.write('''
+[namelist:santa]
+
+[namelist:santa=elf]
+length=:
+''')
+        input_file.seek(0)
+
+        picker_command = "{} {}".format(PICKER_EXE, input_file.name)
+        out = Popen(picker_command, shell=True)
+        out.wait()
+
+        self.nml_config_file = \
+            '{}.json'.format(os.path.basename(input_file.name))
+        input_file.close()
+
+        uut = description.NamelistConfigDescription()
+        self.assertRaises(description.NamelistDescriptionException,
+                          uut.process_config, self.nml_config_file)
+
+    ##########################################################################
+    def test_computed_fields(self):
+
+        input_file = tempfile.NamedTemporaryFile()
+        input_file.write('''
+[namelist:teapot]
+
+[namelist:teapot=foo]
+type=real
+
+[!namelist:teapot=bar]
+type=real
+expression=namelist:teapot=foo ** 2
+
+[!namelist:teapot=baz]
+type=real
+expression=source:constants_mod=PI * foo
+''')
+        input_file.seek(0)
+
+        picker_command = "{} {}".format(PICKER_EXE, input_file.name)
+        out = Popen(picker_command, shell=True)
+        out.wait()
+
+        self.nml_config_file = \
+            '{}.json'.format(os.path.basename(input_file.name))
+        input_file.close()
+
+        uut = description.NamelistConfigDescription()
+        result = self._compile_dictionary(
+            uut.process_config(self.nml_config_file))
+
+        self.assertEqual({'teapot': {'foo': ['real', 'r_def'],
+                                     'bar': ['real', 'r_def', 'foo ** 2'],
+                                     'baz': ['real', 'r_def', 'PI * foo']}},
                          result)
+
+
+##########################################################################
+    def test_constant_in_computed(self):
+
+        input_file = tempfile.NamedTemporaryFile()
+        input_file.write('''
+[namelist:cheese]
+
+[namelist:cheese=fred]
+type=real
+
+[!namelist:cheese=wilma]
+type=real
+expression=fred * source:constants_mod=FUDGE
+''')
+        input_file.seek(0)
+
+        picker_command = "{} {}".format(PICKER_EXE, input_file.name)
+        out = Popen(picker_command, shell=True)
+        out.wait()
+
+        self.nml_config_file = \
+            '{}.json'.format(os.path.basename(input_file.name))
+        input_file.close()
+
+        uut = description.NamelistConfigDescription()
+        result = self._compile_dictionary(
+            uut.process_config(self.nml_config_file))
+
+        self.assertEqual(
+            {'cheese': {'fred':  ['real', 'r_def'],
+                        'wilma': ['real', 'r_def', 'fred * FUDGE']}},
+            result)
+
+
+##########################################################################
+    def test_array_fields(self):
+
+        input_file = tempfile.NamedTemporaryFile()
+        input_file.write('''
+[namelist:aerial]
+
+[namelist:aerial=fred]
+type=real
+
+[namelist:aerial=wilma]
+type=real
+length=:
+!bounds=source:constants_mod=FUDGE
+
+[namelist:aerial=betty]
+type=logical
+length=:
+!bounds=fred
+
+[namelist:aerial=dino]
+type=integer
+length=:
+!bounds=namelist:sugar=TABLET
+
+[namelist:aerial=bambam]
+type=integer
+length=:
+''')
+        input_file.seek(0)
+
+        picker_command = "{} {}".format(PICKER_EXE, input_file.name)
+        out = Popen(picker_command, shell=True)
+        out.wait()
+
+        self.nml_config_file = \
+            '{}.json'.format(os.path.basename(input_file.name))
+        input_file.close()
+
+        uut = description.NamelistConfigDescription()
+        result = self._compile_dictionary(
+            uut.process_config(self.nml_config_file))
+
+        self.assertEqual(
+            {'aerial': {'bambam': ['integer', 'i_def', '(:)'],
+                        'betty':  ['logical', 'l_def', '(fred)'],
+                        'fred':   ['real', 'r_def'],
+                        'wilma':  ['real', 'r_def', '(FUDGE)'],
+                        'dino':   ['integer', 'i_def', '(TABLET)']}},
+            result)
+
 
 ##############################################################################
 if __name__ == '__main__':

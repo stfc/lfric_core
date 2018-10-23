@@ -5,7 +5,6 @@
 ##############################################################################
 
 PROJECT_NAME = gungho
-
 PROFILE ?= fast-debug
 
 export IGNORE_DEPENDENCIES = netcdf MPI yaxt pfunit_mod xios mod_wait
@@ -13,12 +12,16 @@ export EXTERNAL_DYNAMIC_LIBRARIES = yaxt yaxt_c netcdff netcdf hdf5 \
                                     $(CXX_RUNTIME_LIBRARY)
 export EXTERNAL_STATIC_LIBRARIES = xios 
 
-
 LFRIC_TARGET_PLATFORM ?= generic-x86
 export OPTIMISATION_PATH ?= $(wildcard optimisation/$(LFRIC_TARGET_PLATFORM))
 
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
-ROOT_DIR ?= ../
+export ROOT_DIR    ?= ..
+export PATH        := $(PATH):$(abspath $(ROOT_DIR)/GPL/bin)
+export PYTHONPATH  := $(PYTHONPATH):$(abspath $(ROOT_DIR)/GPL/lib/python)
+
+META_VN       ?= HEAD
+META_FILE_DIR  = $(PROJECT_DIR)/config-meta/lfric-$(PROJECT_NAME)/$(META_VN)
 
 .PHONY: default
 default: build unit-tests integration-tests
@@ -32,8 +35,12 @@ include $(ROOT_DIR)/infrastructure/build/lfric.mk
 
 export FFLAGS  := $(FFLAGS) $(OPENMP_ARG)
 export LDFLAGS := $(LDFLAGS) $(OPENMP_ARG)
-ANY_UNIT_TESTS := $(shell find ./unit-test -name *test.pf)
-ANY_INTEGRATION_TESTS := $(shell find integration-test -name '*.[Ff]90' -exec egrep -l "^\s*program" {} \;)
+ANY_UNIT_TESTS := $(shell if [ -d unit-test ] ; then \
+                            find unit-test -name *test.pf ; \
+                          fi )
+ANY_INTEGRATION_TESTS := $(shell if [ -d integration-test ] ; then \
+                                   find integration-test -name '*.[Ff]90' -exec egrep -l "^\s*program" {} \; ; \
+                                 fi )
 
 ##############################################################################
 
@@ -118,8 +125,8 @@ generate-configuration: SOURCE_DIR = source
 generate-configuration: ALWAYS
 	$(Q)$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/configuration.mk PROJECT=$(PROJECT) \
 	                                           SOURCE_DIR=$(SOURCE_DIR) \
-	                                           WORKING_DIR=$(WORKING_DIR)
-
+	                                           WORKING_DIR=$(WORKING_DIR) \
+                                                   META_FILE_DIR=$(META_FILE_DIR)
 .PHONY: generate-psykal
 generate-psykal: export SOURCE_DIR = source
 generate-psykal: ALWAYS
@@ -139,7 +146,7 @@ unit-tests: export EXTERNAL_STATIC_LIBRARIES += pfunit
 unit-tests: export FFLAGS      += $(FFLAGS_DEBUG) $(FFLAGS_NO_OPTIMISATION) $(FFLAGS_INIT)
 ifeq ($(strip $(ANY_UNIT_TESTS)),)
 unit-tests:
-	$(Q)echo No unit-tests to process.
+	$(call MESSAGE,No unit-tests to process.)
 else
 unit-tests:run-unit-tests
 	$(Q)echo > /dev/null
@@ -168,7 +175,7 @@ integration-tests: export WORKING_DIR := $(WORKING_DIR)/integration-tests
 integration-tests: export BIN_DIR     ?= $(PROJECT_DIR)/test
 ifeq ($(strip $(ANY_INTEGRATION_TESTS)),)
 integration-tests:
-	$(Q)echo No integration-tests to process.
+	$(call MESSAGE,No integration-tests to process.)
 else
 integration-tests: $(addprefix integration-test-run/,$(basename $(shell find integration-test -name '*.[Ff]90' -exec egrep -l "^\s*program" {} \;)))
 	$(Q)echo > /dev/null
@@ -190,9 +197,10 @@ extract-integration-tests: ALWAYS
 #
 .PHONY: clean
 clean: ALWAYS
-	$(call MESSAGE,Removing,"gungho work space")
-	$(Q)-rm -r $(WORKING_DIR)
-	$(call MESSAGE,Removing,"gungho documents")
+	$(call MESSAGE,Removing,"$(PROJECT_NAME) work space")
+	$(Q)-if [ $(WORKING_DIR) != *[\*]* ] && [ -d $(WORKING_DIR) ] ; then rm -r $(WORKING_DIR) ; fi
+	$(call MESSAGE,Removing,"$(PROJECT_NAME) documents")
 	$(Q)if [ -d documents ] ; then rm -r documents; fi
-	$(call MESSAGE,Removing,"gungho binaries")
-	$(Q)-rm -r bin test
+	$(call MESSAGE,Removing,"$(PROJECT_NAME) binaries")
+	$(Q)-if [ -d bin ] ; then rm -r bin ; fi
+	$(Q)-if [ -d test ] ; then rm -r test ; fi

@@ -1,5 +1,0 @@
-namelist restart
-
-  filename : string( filename )
-
-end namelist restart

@@ -11,44 +11,47 @@ from __future__ import print_function
 import collections
 import jinja2 as jinja
 
-import jinjamacros
+import configurator.jinjamacros as jinjamacros
+
 
 ##############################################################################
-class NamelistFeigner():
-  def __init__( self, moduleName ):
-    self._moduleName = moduleName
+class NamelistFeigner(object):
+    def __init__(self, moduleName):
+        self._module_name = moduleName
 
-    self._engine = jinja.Environment( \
-                loader=jinja.PackageLoader( 'configurator', 'templates'), \
-                extensions=['jinja2.ext.do'] )
-    self._engine.filters['decorate'] = jinjamacros.decorateMacro
+        self._engine = jinja.Environment(
+            loader=jinja.PackageLoader('configurator', 'templates'),
+            extensions=['jinja2.ext.do'])
+        self._engine.filters['decorate'] = jinjamacros.decorate_macro
 
-    self._namelists = collections.OrderedDict()
+        self._namelists = collections.OrderedDict()
 
-  def addNamelist( self, namelists ):
-    for item in namelists:
-      self._namelists[item.getNamelistName()] = item
+    def add_namelist(self, namelists):
+        for item in namelists:
+            self._namelists[item.get_namelist_name()] = item
 
-  def writeModule( self, moduleFile ):
-    enumerations = collections.defaultdict( list )
-    kinds = set( ['i_native'] )
-    namelists = []
-    parameters = {}
-    for namelist in self._namelists.values():
-      namelists.append( namelist.getNamelistName() )
-      parameters[namelist.getNamelistName()] = []
-      for param in namelist.getParameters():
-        if param.getConfigureType() == 'enumeration':
-          enumerations[namelist.getNamelistName()].append( param.name )
-        if param.getConfigureType() != 'computed':
-          parameters[namelist.getNamelistName()].append(param)
-          kinds.add( param.fortranType.kind )
+    def write_module(self, module_file):
+        enumerations = collections.defaultdict(list)
+        kinds = set(['i_native'])
+        namelists = []
+        parameters = {}
 
-    inserts = { 'enumerations'  : enumerations,
-                'kinds'         : kinds,
-                'modulename'    : self._moduleName,
-                'namelists'     : namelists,
-                'parameters'    : parameters }
+        for namelist in self._namelists.values():
+            namelists.append(namelist.get_namelist_name())
+            parameters[namelist.get_namelist_name()] = []
+            for param in namelist.get_parameters():
+                if param.get_configure_type() == 'enumeration':
+                    enumerations[namelist.get_namelist_name()].append(
+                        param.name)
+                if param.get_configure_type() != 'computed':
+                    parameters[namelist.get_namelist_name()].append(param)
+                    kinds.add(param.fortran_type.kind)
 
-    template = self._engine.get_template( 'feign_config.f90.jinja' )
-    print( template.render( inserts ), file=moduleFile )
+        inserts = {'enumerations': enumerations,
+                   'kinds':        kinds,
+                   'modulename':   self._module_name,
+                   'namelists':    namelists,
+                   'parameters':   parameters}
+
+        template = self._engine.get_template('feign_config.f90.jinja')
+        print(template.render(inserts), file=module_file)

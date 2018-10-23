@@ -1,7 +1,0 @@
-namelist partitioning
-
-  auto        : logical ! Partitioner will ignore xproc, yproc info and will attempt to generate square partitions
-  panel_xproc : integer ! Number of partitions to generate across the x-direction of a panel of the mesh
-  panel_yproc : integer ! Number of partitions to generate across the y-direction of a panel of the mesh
-
-end namelist partitioning

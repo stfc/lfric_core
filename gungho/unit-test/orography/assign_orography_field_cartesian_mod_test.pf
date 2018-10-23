@@ -46,11 +46,11 @@ module assign_orography_field_cartesian_mod_test
   real(r_def),        parameter   :: domain_top    = 10000.0_r_def
   integer(i_def),     parameter   :: npanels       = 1_i_def
   integer(i_def),     parameter   :: nlayers       = 10_i_def
-  integer(i_def),     parameter   :: element_order = 0
-  integer(i_def),     parameter   :: total_ranks   = 1
-  integer(i_def),     parameter   :: local_rank    = 0
-  integer(i_def),     parameter   :: xproc         = 1
-  integer(i_def),     parameter   :: yproc         = 1
+  integer(i_def),     parameter   :: element_order = 0_i_def
+  integer(i_def),     parameter   :: total_ranks   = 1_i_def
+  integer(i_def),     parameter   :: local_rank    = 0_i_def
+  integer(i_def),     parameter   :: xproc         = 1_i_def
+  integer(i_def),     parameter   :: yproc         = 1_i_def
 
 contains
 
@@ -91,8 +91,10 @@ contains
                          f_lat_deg       = 0.0_r_def )
 
     ! Set domain size
-    call feign_domain_size_config( -100.0_r_def, 100.0_r_def, &
-                                   -100.0_r_def, 100.0_r_def )
+    call feign_domain_size_config( planar_domain_max_x =  100.0_r_def, &
+                                   planar_domain_max_y =  100.0_r_def, &
+                                   planar_domain_min_x = -100.0_r_def, &
+                                   planar_domain_min_y = -100.0_r_def )
 
     ! Set Schar Cartesian configuration
     this%mountain_height = 250.0_r_def
@@ -126,6 +128,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown(this)
 
+    use gungho_configuration_mod, only: final_configuration
+
     implicit none
 
     class(assign_orography_field_cartesian_test_type), intent(inout) :: this
@@ -133,6 +137,7 @@ contains
     deallocate( orography_profile )
     call global_mesh_collection%clear()
     call mesh_collection%clear()
+    call final_configuration()
 
     ! Finalise YAXT
     call xt_finalize()

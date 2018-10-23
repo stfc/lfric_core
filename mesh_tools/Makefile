@@ -29,14 +29,19 @@
 ##############################################################################
 
 PROJECT_NAME = mesh_tools
-
 PROFILE ?= fast-debug
 
 export IGNORE_DEPENDENCIES = netcdf MPI yaxt pfunit_mod planet_constants_mod xios mod_wait
 export EXTERNAL_DYNAMIC_LIBRARIES = netcdff netcdf hdf5 yaxt yaxt_c
 
-PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
-export ROOT_DIR    ?= ../
+PROJECT_DIR       := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
+export ROOT_DIR   ?= ..
+export PATH       := $(PATH):$(abspath $(ROOT_DIR)/GPL/bin)
+export PYTHONPATH := $(PYTHONPATH):$(abspath $(ROOT_DIR)/GPL/lib/python)
+
+
+META_VN       ?= HEAD
+META_FILE_DIR  = $(PROJECT_DIR)/config-meta/lfric-$(PROJECT_NAME)/$(META_VN)
 
 .PHONY: default
 default: build unit-tests
@@ -44,10 +49,14 @@ default: build unit-tests
 
 include $(ROOT_DIR)/infrastructure/build/lfric.mk
 
-export FFLAGS += $(OPENMP_ARG)
+export FFLAGS  += $(OPENMP_ARG)
 export LDFLAGS += $(OPENMP_ARG)
-ANY_UNIT_TESTS := $(shell find ./unit-test -name *test.pf)
-ANY_INTEGRATION_TESTS := $(shell find integration-test -name '*.[Ff]90' -exec egrep -l "^\s*program" {} \;)
+ANY_UNIT_TESTS := $(shell if [ -d unit-test ] ; then \
+                            find ./unit-test -name *test.pf ;\
+                          fi)
+ANY_INTEGRATION_TESTS := $(shell if [ -d integration-test ] ; then \
+                                   find integration-test -name '*.[Ff]90' -exec egrep -l "^\s*program" {} \; ; \
+                                 fi )
 
 ##############################################################################
 
@@ -63,10 +72,10 @@ test-suite: launch-test-suite
 .PHONY: build
 ifeq "$(PROFILE)" "full-debug"
 build: export FFLAGS += $(FFLAGS_DEBUG) $(FFLAGS_WARNINGS) $(FFLAGS_INIT) \
-        $(FFLAGS_RUNTIME) $(FFLAGS_NO_OPTIMISATION) $(STANDARDS_CHECK_ARG)
+            $(FFLAGS_RUNTIME) $(FFLAGS_NO_OPTIMISATION) $(STANDARDS_CHECK_ARG)
 else ifeq "$(PROFILE)" "fast-debug"
 build: export FFLAGS += $(FFLAGS_DEBUG) $(FFLAGS_WARNINGS) \
-        $(FFLAGS_SAFE_OPTIMISATION) $(STANDARDS_CHECK_ARG)
+            $(FFLAGS_SAFE_OPTIMISATION) $(STANDARDS_CHECK_ARG)
 else ifeq "$(PROFILE)" "production"
 build: export FFLAGS += $(FFLAGS_DEBUG) $(FFLAGS_WARNINGS) $(FFLAGS_RISKY_OPTIMISATION)
 else
@@ -86,10 +95,11 @@ build: generate-configuration extract
 .PHONY: generate-configuration
 generate-configuration: SOURCE_DIR = source
 generate-configuration: ALWAYS
-	$(Q)$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/configuration.mk PROJECT=$(PROJECT) \
-	                                           SOURCE_DIR=$(SOURCE_DIR) \
-	                                           WORKING_DIR=$(WORKING_DIR)
-
+	$(Q)$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/configuration.mk \
+                    PROJECT=$(PROJECT)         \
+	            SOURCE_DIR=$(SOURCE_DIR)   \
+	            WORKING_DIR=$(WORKING_DIR) \
+                    META_FILE_DIR=$(META_FILE_DIR)
 .PHONY: extract
 extract: export SOURCE_DIR = source
 extract: ALWAYS
@@ -108,7 +118,7 @@ unit-tests: export EXTERNAL_STATIC_LIBRARIES += pfunit
 unit-tests: export FFLAGS      += $(FFLAGS_DEBUG) $(FFLAGS_NO_OPTIMISATION) $(FFLAGS_INIT)
 ifeq ($(strip $(ANY_UNIT_TESTS)),)
 unit-tests:
-	$(Q)echo No unit-tests to process.
+	$(call MESSAGE,No unit-tests to process.)
 else
 unit-tests:run-unit-tests
 	$(Q)echo > /dev/null
