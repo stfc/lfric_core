@@ -22,7 +22,7 @@ def do_plot(datapath, plotpath='.'):
     for n, time in enumerate([0, 5, 10, 15, 20]):
         plt.subplot(2, 3, n+1)
         plt.plot(lfric.data[time, 1:],
-                 lfric.coord('full_levels_faces').points[1:],
+                 lfric.coord('full_levels').points[1:],
                  label='LFRic',
                  linewidth=2)
 

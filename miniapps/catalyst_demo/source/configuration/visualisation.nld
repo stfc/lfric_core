@@ -1,9 +1,0 @@
-namelist visualisation
-  write_catalyst_output     : logical ! run catalyst visualisation pipeline
-  visualisation_frequency   : integer ! frequency of catalyst visualisation
-  visualisation_stem_name   : string( filename ) ! filename stem for visualisation files
-  use_python_vis_pipeline   : logical ! Define vis pipeline with Python script
-  python_vis_pipeline_name  : string( filename ) ! filename for Python script
-  vis_llr_projection        : logical ! Project spherical models to lon lat rad coordinates
-  radius_scale_factor       : real ! Rescales radius of spherical models to simplify visualisation
-end namelist visualisation

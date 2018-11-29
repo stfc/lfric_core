@@ -13,7 +13,7 @@ module init_transport_mod
 
   use constants_mod,                  only: i_def
   use field_mod,                      only: field_type,               &
-                                            write_interface,          &
+                                            write_diag_interface,     &
                                             checkpoint_interface,     &
                                             restart_interface
   use finite_element_config_mod,      only: element_order
@@ -57,26 +57,22 @@ module init_transport_mod
     type(field_type), intent(inout)   :: increment
 
     type(function_space_type), pointer       :: function_space => null()
-    procedure(write_interface), pointer      :: tmp_write_ptr => null()
+    procedure(write_diag_interface), pointer :: tmp_write_diag_ptr => null()
     procedure(restart_interface), pointer    :: tmp_restart_ptr => null()
 
     wind    = field_type( vector_space = &
-                          function_space_collection%get_fs( mesh_id, element_order, W2 ), &
-                          output_space = W3 )
+                          function_space_collection%get_fs( mesh_id, element_order, W2 ) )
     density = field_type( vector_space = &
                           function_space_collection%get_fs( mesh_id, element_order, W3 ) )
     increment = field_type( vector_space = &
                           function_space_collection%get_fs( mesh_id, element_order, W3 ) )
 
     dep_pts_x  = field_type( vector_space = &
-                          function_space_collection%get_fs( mesh_id, element_order, W2 ), &
-                          output_space = W3 )
+                          function_space_collection%get_fs( mesh_id, element_order, W2 ) )
     dep_pts_y  = field_type( vector_space = &
-                          function_space_collection%get_fs( mesh_id, element_order, W2 ), &
-                          output_space = W3 )
+                          function_space_collection%get_fs( mesh_id, element_order, W2 ) )
     dep_pts_z  = field_type( vector_space = &
-                          function_space_collection%get_fs( mesh_id, element_order, W2 ), &
-                          output_space = W3 )
+                          function_space_collection%get_fs( mesh_id, element_order, W2 ) )
 
 
     ! Create runtime_constants object.
@@ -89,17 +85,17 @@ module init_transport_mod
 
     if ( write_xios_output ) then
        ! Fields that are output on the XIOS face domain
-       tmp_write_ptr => xios_write_field_face
-       call wind%set_write_field_behaviour( tmp_write_ptr )
-       call density%set_write_field_behaviour( tmp_write_ptr )
-       call increment%set_write_field_behaviour( tmp_write_ptr )
+       tmp_write_diag_ptr => xios_write_field_face
+       call wind%set_write_diag_behaviour( tmp_write_diag_ptr )
+       call density%set_write_diag_behaviour( tmp_write_diag_ptr )
+       call increment%set_write_diag_behaviour( tmp_write_diag_ptr )
     end if
 
     call density%set_restart_behaviour( tmp_restart_ptr )
     call wind%set_restart_behaviour( tmp_restart_ptr )
     call increment%set_restart_behaviour( tmp_restart_ptr )
 
-    nullify( function_space, tmp_write_ptr, tmp_restart_ptr )
+    nullify( function_space, tmp_write_diag_ptr, tmp_restart_ptr )
 
   end subroutine init_transport
 

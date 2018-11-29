@@ -3,16 +3,29 @@
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
-!> @brief Algorithms to produce diagnsotics
+!> @brief Algorithms to do field processing to produce generic and specific 
+!>        diagnostics for different I/O methods
 module diagnostic_alg_mod
-   use constants_mod,                 only: i_def, r_def
+   use constants_mod,                 only: i_def, r_def, str_max_filename
    use finite_element_config_mod,     only: element_order
+   use base_mesh_config_mod,          only: geometry, &
+                                            base_mesh_geometry_spherical    
+   use mesh_mod,                      only: mesh_type
+   use mesh_collection_mod,           only: mesh_collection 
    use function_space_collection_mod, only: function_space_collection
-   use output_config_mod,             only : write_nodal_output, &
-                                             write_xios_output
-   use io_mod,                        only : output_nodal, &
-                                             output_xios_nodal, &
-                                             xios_write_field_face
+   use fs_continuity_mod,             only: W1, W2, W3, Wtheta, W2H
+   use field_mod,                     only: field_type
+   use operator_mod,                  only: operator_type
+   use nodal_coordinates_kernel_mod,  only: nodal_coordinates_kernel_type
+   use psykal_lite_mod,               only: invoke_convert_cart2sphere_vector, &
+                                            invoke_pointwise_convert_xyz2llr,  &
+                                            invoke_compute_dof_level_kernel
+   use runtime_constants_mod,         only: get_rmultiplicity, &
+                                            get_coordinates
+   use project_output_mod,            only: project_output
+   use log_mod,                       only: log_event,         &
+                                            log_scratch_space, &
+                                            LOG_LEVEL_INFO
    implicit none
 
    private
@@ -20,99 +33,74 @@ module diagnostic_alg_mod
    public :: pressure_diagnostic_alg
    public :: density_diagnostic_alg
    public :: hydbal_diagnostic_alg
+   public :: split_wind_diagnostic_alg
+   public :: scalar_nodal_diagnostic_alg
+   public :: vector_nodal_diagnostic_alg
+   public :: scalar_ugrid_diagnostic_alg
 
 contains
 
-  !> @details Calculates the l2 error norm for wind divergence and outputs to
-  !> file the wind divergence field.
-  !> @param[in] u       3D wind fieldDensity
-  !> @param[in] t       Timestep
-  !> @param[in] mesh_id Mesh_id
-  subroutine divergence_diagnostic_alg(u, t, mesh_id)
+  !> @details Calculates the l2 error norm for wind divergence
+  !> @param[inout] divergence  Divergence field
+  !> @param[inout] l2          l2 norm
+  !> @param[in] u              3D wind field
+  !> @param[in] mesh_id        Mesh_id
+  subroutine divergence_diagnostic_alg(divergence, l2, u, mesh_id)
     use dg_matrix_vector_kernel_mod, only: dg_matrix_vector_kernel_type
     use runtime_constants_mod,       only: get_mass_matrix, &
                                            get_div, &
                                            w3inv_id
-    use operator_mod,                only: operator_type
-    use field_mod,                   only: field_type, write_interface
-    use fs_continuity_mod,           only: W3
-    use log_mod,                     only: log_event,         &
-                                           log_scratch_space, &
-                                           LOG_LEVEL_INFO
 
     implicit none 
-    type(field_type), intent(in) :: u
-    integer(i_def),   intent(in) :: t, mesh_id
+    type(field_type), intent(inout) :: divergence
+    real(r_def), intent(inout)      :: l2
+    type(field_type), intent(in)    :: u
+    integer(i_def),   intent(in)    :: mesh_id
 
-    type(field_type)             :: divergence, div_u
+    type(field_type)             :: div_u
     type(operator_type), pointer :: div => null(), m3_inv => null()
-    real(r_def)                  :: l2
 
-    procedure(write_interface), pointer  :: tmp_ptr
+
+
 
     divergence =  field_type( vector_space = function_space_collection%get_fs(mesh_id,element_order, W3) )
     div_u      =  field_type( vector_space = function_space_collection%get_fs(mesh_id,element_order, W3) )
     div    => get_div()
     m3_inv => get_mass_matrix(w3inv_id)
-    call invoke( dg_matrix_vector_kernel_type( div_u, u, div ), &
 
     ! Compute l2 norm of area integrated quantity
-                 X_innerproduct_X( l2, div_u ) )
-    write( log_scratch_space, '(A,E16.8)' )  &
-       'L2 of divergence =',sqrt(l2)
-    call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
+    call invoke( dg_matrix_vector_kernel_type( div_u, u, div ), &
+                 X_innerproduct_X( l2, div_u ) )
+
+    l2 = sqrt(l2)
 
     ! Convert to pointwise W3 field for output
     call invoke( dg_matrix_vector_kernel_type( divergence, div_u , m3_inv ) )
 
-    ! Check what output options have been requested and call them
- 
-    if (write_nodal_output) then
-      call output_nodal('divergence',   t, divergence,   mesh_id)
-    end if 
-
-    if (write_xios_output) then
-      !If using XIOS, we need to set the field IO method appropriately
-      tmp_ptr => xios_write_field_face
-      call divergence%set_write_field_behaviour(tmp_ptr)
-      if (t == 0) then
-        call divergence%write_field('init_divergence')
-      else
-        call divergence%write_field('divergence')
-      end if
-    end if 
-
-    nullify( div, m3_inv, tmp_ptr )
 
   end subroutine divergence_diagnostic_alg
 
 !=============================================================================!
-  !> @details Algorithm which outputs of file the exner pressure field.
-  !> @param[in] rho     Density
-  !> @param[in] theta   Potential temperature
-  !> @param[in] t       Timestep
-  !> @param[in] mesh_id Mesh_id
-  subroutine pressure_diagnostic_alg(rho, theta, t, mesh_id)
+  !> @details Calculates the exner pressure field.
+  !> @param[inout] exner   Exner pressure
+  !> @param[in] rho        Density
+  !> @param[in] theta      Potential temperature
+  subroutine pressure_diagnostic_alg(exner, rho, theta)
     use runtime_constants_mod,        only: get_mass_matrix, &
                                             get_qr, &
-                                            get_coordinates, &
                                             w3inv_id
-    use operator_mod,                 only: operator_type
-    use field_mod,                    only: field_type, write_interface
     use project_pressure_kernel_mod,  only: project_pressure_kernel_type
     use quadrature_xyoz_mod,          only: quadrature_xyoz_type
     implicit none 
 
-    type(field_type), intent(in) :: rho, theta
-    integer(i_def),   intent(in) :: t, mesh_id
+    type(field_type), intent(in)     :: rho, theta
+    type(field_type), intent(inout)  :: exner
 
-    type(field_type)             :: exner
     type(operator_type), pointer :: m3_inv => null()
     type(quadrature_xyoz_type)   :: qr
     type(field_type), pointer    :: chi(:) => null()
 
-    procedure(write_interface), pointer :: tmp_ptr
 
     m3_inv => get_mass_matrix(w3inv_id)
     qr = get_qr()
@@ -121,49 +109,29 @@ contains
     call invoke( project_pressure_kernel_type( exner, rho, theta, &
                                                chi, m3_inv, qr ) )
 
-    ! Check what output options have been requested and call them
- 
-    if (write_nodal_output) then
-      call output_nodal('exner',   t, exner,   mesh_id)
-    end if 
-
-    if (write_xios_output) then
-      ! If using XIOS, we need to set the field IO method appropriately
-      tmp_ptr => xios_write_field_face
-      call exner%set_write_field_behaviour(tmp_ptr)
-      if (t == 0) then
-        call exner%write_field('init_exner')
-      else
-        call exner%write_field('exner')
-      end if
-    end if 
-
-    nullify( m3_inv, chi, tmp_ptr )
 
   end subroutine pressure_diagnostic_alg
-
 !=============================================================================!
   !> @details An algorithm for calculating the l2 error for the density field.
   !>          It is capable of calculating the error at each timestep by using
   !>          set_rho_alg algorithm which will return the analytic density value
   !>          at each timestep.
+  !> @param[inout] l2  l2 norm
   !> @param[in] rho_num  Density
   !> @param[in] timestep Timestep
-  subroutine density_diagnostic_alg(rho_num, timestep)
+  subroutine density_diagnostic_alg(l2, rho_num, timestep)
     use runtime_constants_mod,        only: get_qr, &
                                             get_coordinates
     use operator_mod,                 only: operator_type
     use field_mod,                    only: field_type
     use quadrature_xyoz_mod,          only: quadrature_xyoz_type
     use set_rho_alg_mod,              only: set_rho_alg
-    use log_mod,                      only: log_event,         &
-                                            log_scratch_space, &
-                                            LOG_LEVEL_INFO
     use runtime_constants_mod,        only: get_mass_matrix, w3_id
 
 
     implicit none
 
+    real(r_def), intent(inout)   :: l2
     type(field_type), intent(in) :: rho_num
     integer(i_def),   intent(in) :: timestep
 
@@ -206,9 +174,8 @@ contains
                  dg_matrix_vector_kernel_type( w3_rho_analytic, rho_analytic , mm_w3 ),   &
                  X_innerproduct_Y( sum_analytic, w3_rho_analytic, rho_analytic ) )
 
-    write( log_scratch_space, '(A,E16.8)' )  &
-       'L2 of rho difference =',sqrt(sum_diff)/sqrt(sum_analytic)
-    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    
+    l2 = sqrt(sum_diff)/sqrt(sum_analytic)
 
     nullify( chi )
     nullify( mm_w3 )
@@ -219,17 +186,15 @@ contains
   !> @details An algorithm for calculating the l2 norm for the hydrostatic
   !>          imbalance. It calculates the sum of pressure gradient and
   !>          gravity term at each timestep using the hydrostatic kernel.
+  !> @param[inout] l2   l2 norm
   !> @param[in] theta   Potential temperature
   !> @param[in] exner   Exner pressure
   !> @param[in] mesh_id Mesh_id
-  subroutine hydbal_diagnostic_alg(theta, exner, mesh_id)
+  subroutine hydbal_diagnostic_alg(l2, theta, exner, mesh_id)
     use field_mod,                   only: field_type
     use quadrature_xyoz_mod,         only: quadrature_xyoz_type
     use fs_continuity_mod,           only: W2V
     use psykal_lite_mod,             only: invoke_inner_prod
-    use log_mod,                     only: log_event,         &
-                                           log_scratch_space, &
-                                           LOG_LEVEL_INFO
 
     ! PsyKAl PSYClone kernels
     use enforce_bc_kernel_mod,               only: enforce_bc_kernel_type
@@ -240,14 +205,13 @@ contains
 
     implicit none
     type(field_type), intent(in) :: theta, exner
+    real(r_def), intent(inout)   :: l2
     type(field_type), pointer    :: geopotential => null()
     type(field_type)             :: hyd_imbal
     integer(i_def),   intent(in) :: mesh_id
 
     ! the quadrature object
     type( quadrature_xyoz_type ) :: qr
-
-    real(r_def)                  :: l2
 
     hyd_imbal =  field_type( vector_space = function_space_collection%get_fs(mesh_id,element_order, W2V) )
 
@@ -260,10 +224,333 @@ contains
                  hydrostatic_kernel_type( hyd_imbal, exner, theta, geopotential, qr ), & 
                  enforce_bc_kernel_type( hyd_imbal ), &
                  X_innerproduct_X(l2, hyd_imbal) )
-    write( log_scratch_space, '(A,E16.8)' )  &
-       'L2 of hydrostatic imbalance =',sqrt(l2)
-    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+    l2 = sqrt(l2)
 
   end subroutine hydbal_diagnostic_alg
+
+  !> @details Splits a 3D wind field into Horizontal (on W2H) and Vertical (on W2V)
+  !>          fields after projecting to physical space using the Piola transform
+  !> @param[inout] u1_wind  Meridional wind component
+  !> @param[inout] u2_wind  Zonal wind component
+  !> @param[inout] u3_wind  Vertical wind component
+  !> @param[in] wind        3D wind field
+  !> @param[in] mesh_id     Mesh_id
+  subroutine split_wind_diagnostic_alg(u1_wind, u2_wind, u3_wind, &
+                                       wind, mesh_id)
+
+    use convert_hdiv_field_kernel_mod,       only: convert_hdiv_field_kernel_type
+    use extract_w_kernel_mod,                only: extract_w_kernel_type
+    use extract_uv_kernel_mod,               only: extract_uv_kernel_type
+
+
+
+    implicit none
+
+    type(field_type), intent(inout)  :: u1_wind, u2_wind, u3_wind
+    type(field_type), intent(in)     :: wind
+    integer(i_def),   intent(in)     :: mesh_id
+
+    type(field_type), pointer    :: chi(:) => null()
+    type(field_type)             :: physical_wind(3)
+    type(field_type)             :: physical_chi(3)
+    type(field_type), pointer    :: w2_rmultiplicity
+
+    integer(i_def)               :: i
+
+
+    ! get chi field
+    chi => get_coordinates()
+
+    ! Create intermediate fields
+    do i = 1,3
+      call wind%copy_field_properties(physical_wind(i))
+      call wind%copy_field_properties(physical_chi(i))
+      call invoke( setval_c(physical_wind(i), 0.0_r_def) )
+    end do
+
+    u1_wind =  field_type( vector_space = &
+              function_space_collection%get_fs(mesh_id,element_order, W2H) )
+
+    u2_wind =  field_type( vector_space = &
+              function_space_collection%get_fs(mesh_id,element_order, W2H) )
+
+    u3_wind =  field_type( vector_space = &
+              function_space_collection%get_fs(mesh_id,element_order, Wtheta) )
+
+    w2_rmultiplicity => get_rmultiplicity( W2 )
+
+    call invoke( setval_c(u1_wind, 0.0_r_def), &
+                 setval_c(u2_wind, 0.0_r_def), &
+                 setval_c(u3_wind, 0.0_r_def) )
+
+    ! Convert coordinate field to physical space
+
+    call invoke( nodal_coordinates_kernel_type(physical_chi, chi) )
+
+    ! Convert 3D wind field to 3 components using the Piola transform
+
+    call invoke( convert_hdiv_field_kernel_type(physical_wind, wind, chi) )
+
+    ! Scale fields by the reciprocal of multiplicity
+    do i = 1,3
+      call invoke( inc_X_times_Y(physical_wind(i), w2_rmultiplicity) )
+    end do
+
+    ! Convert to standard SI units (m/s) in orthogonal directions
+
+    if ( geometry == base_mesh_geometry_spherical ) then
+        call invoke_convert_cart2sphere_vector(physical_wind, physical_chi)       
+    end if
+
+    ! Extract vertical wind into W2V and u,v winds into W2H
+
+    call invoke( extract_w_kernel_type(u3_wind, physical_wind(3)),  &
+                 extract_uv_kernel_type(u1_wind, physical_wind(1)), &
+                 extract_uv_kernel_type(u2_wind, physical_wind(2)) )
+
+
+  end subroutine split_wind_diagnostic_alg
+
+  !> @details Generic diagnostic processing for a scalar field to nodal format
+  !>          Allows optional projection to W3
+  !> @param[inout] output_field      The output field 
+  !> @param[inout] nodal_coordinates Coordinates of the output field
+  !> @param[inout] level             Levels of the output field 
+  !> @param[in] field_name           Name of the field to be output
+  !> @param[in] field                The input field
+  !> @param[in] mesh_id              Mesh_id
+  !> @param[in] W3_project           Logical to allow projection to W3
+  subroutine scalar_nodal_diagnostic_alg(output_field, nodal_coordinates, level, &
+                                         field_name, field,                      &
+                                         mesh_id, W3_project)
+
+    implicit none
+
+    type(field_type), intent(inout) :: nodal_coordinates(3)
+    type(field_type), intent(inout) :: output_field(3)
+    type(field_type), intent(inout) :: level
+    character(len=*), intent(in)    :: field_name
+    type(field_type), intent(in)    :: field
+    integer(i_def),   intent(in)    :: mesh_id
+    logical,          intent(in)    :: W3_project
+
+    ! Local variables
+    type(field_type), pointer       :: chi(:) => null()
+    integer(i_def)                  :: i
+
+
+    ! get chi field
+    chi => get_coordinates()
+
+    ! Check if projection required, setup output field and filename
+
+    if (W3_project) then
+
+      ! Projection to W3, but check if field is already W3
+
+      if (field%which_function_space() == W3) then
+
+        ! Already on W3, so log a warning but continue
+        write( log_scratch_space, '(A,A,A)' )  'Diagnostics: ', &
+                                  trim(field_name), &
+                                  ' already on W3, no projection applied'
+        call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+        ! Setup output field the same as input
+        call field%copy_field_properties(output_field(1))
+        call invoke( setval_X(output_field(1), field) )
+
+      else
+
+        ! Project the field to the output field
+        call project_output(field, output_field, 1, W3 , mesh_id)
+
+      end if
+
+    else
+
+      ! No projection required
+
+      ! Setup output field the same as input
+      call field%copy_field_properties(output_field(1))
+      call invoke( setval_X(output_field(1), field) )
+
+    end if
+
+    ! Create nodal coordinates and levels fields from the properties
+    ! of the output field
+    do i = 1,3
+      call output_field(1)%copy_field_properties(nodal_coordinates(i))
+    end do
+
+    call output_field(1)%copy_field_properties(level)
+
+    ! Convert field to physical nodal output & sample chi on nodal points
+    call invoke( nodal_coordinates_kernel_type(nodal_coordinates, chi) )
+
+    ! If in spherical geometry,
+    ! convert the coordinate field to (longitude, latitude, radius)
+    if ( geometry == base_mesh_geometry_spherical ) then
+      call invoke_pointwise_convert_xyz2llr(nodal_coordinates) 
+    end if
+
+    ! Compute fractional level of every dof
+    call invoke_compute_dof_level_kernel(level)
+
+
+  end subroutine scalar_nodal_diagnostic_alg
+
+  !> @details Generic diagnostic processing for a vector field to nodal format
+  !> @param[inout] output_field      The output field
+  !> @param[inout] output_dim        Dimension of the output field 
+  !> @param[inout] nodal_coordinates Coordinates of the output field
+  !> @param[inout] level             Levels of the output field 
+  !> @param[in] field_name           Name of the field to be output
+  !> @param[in] field                The input field
+  subroutine vector_nodal_diagnostic_alg(output_field, output_dim, &
+                                         nodal_coordinates, level, &
+                                         field_name, field)
+
+    use convert_hdiv_field_kernel_mod,  only: convert_hdiv_field_kernel_type
+    use convert_hcurl_field_kernel_mod, only: convert_hcurl_field_kernel_type
+
+    implicit none 
+
+    integer(i_def), intent(inout)   :: output_dim
+    type(field_type), intent(inout) :: nodal_coordinates(3)
+    type(field_type), intent(inout) :: output_field(3)
+    type(field_type), intent(inout) :: level
+    character(len=*), intent(in)    :: field_name
+    type(field_type), intent(in)    :: field
+
+    ! Local variables
+    type(field_type), pointer       :: chi(:) => null()
+    integer(i_def)                  :: i
+    integer(i_def)                  :: output_fs
+    type(field_type), pointer       :: rmultiplicity
+
+    ! get chi field
+    chi => get_coordinates()
+
+
+    ! Create nodal coordinates, nodal output and levels fields
+    ! from the properties of the input field
+
+    do i = 1,3
+      call field%copy_field_properties(nodal_coordinates(i))
+      call field%copy_field_properties(output_field(i))
+      call invoke( setval_c(output_field(i), 0.0_r_def) )
+    end do
+
+    call field%copy_field_properties(level)
+
+    ! Convert field to physical nodal output & sample chi on nodal points
+    call invoke( nodal_coordinates_kernel_type(nodal_coordinates, chi) )
+
+    output_fs = field%which_function_space()
+
+    ! Apply Piola transform to get collocated components
+
+    if ( output_fs == W1 ) then
+      call invoke( convert_hcurl_field_kernel_type(output_field, field, chi) )
+      output_dim = 3
+    else if ( output_fs == W2 ) then
+      call invoke( convert_hdiv_field_kernel_type(output_field, field, chi) )
+      output_dim = 3
+    else
+      ! If we didn't get a W1 or W2 field, just pass it through
+      write( log_scratch_space, '(A,A,A)' )  'Diagnostics: ', &
+                                 trim(field_name), &
+                                 ' not W1 or W2, no conversion applied'
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+      call invoke( setval_X(output_field(1), field) )
+      output_dim = 1
+    end if
+
+    ! Scale by the reciprocal of multiplicity (number of shared dofs
+    ! in a cell 
+    if ( output_fs == W1 .or. output_fs == W2) then
+      rmultiplicity => get_rmultiplicity( output_fs ) 
+      do i = 1,output_dim
+        call invoke( inc_X_times_Y(output_field(i), rmultiplicity) )
+      end do
+    end if
+
+    ! Convert the vector spaces to standard SI units
+    ! (m/s) in orthogonal directions and, if in spherical geometry,
+    !  convert the coordinate field to (longitude, latitude, radius)
+    if ( geometry == base_mesh_geometry_spherical ) then
+      if ( output_fs == W1 .or. output_fs == W2) then
+        call invoke_convert_cart2sphere_vector(output_field, nodal_coordinates)         
+      end if
+      call invoke_pointwise_convert_xyz2llr(nodal_coordinates) 
+    end if
+
+    ! Compute fractional level of every dof
+    call invoke_compute_dof_level_kernel(level)
+
+    
+  end subroutine vector_nodal_diagnostic_alg
+
+
+  !> @details Generic diagnostic processing for a scalar field output in ugrid format
+  !>          Allows optional projection to W3
+  !> @param[inout] output_field       The output field
+  !> @param[in] field_name            The field name to use for output
+  !> @param[in] field                 The input field
+  !> @param[in] mesh_id               Mesh_id
+  !> @param[in] W3_project            Logical to allow projection to W3
+  subroutine scalar_ugrid_diagnostic_alg(output_field, field_name, field, &
+                                         mesh_id, W3_project)
+
+    implicit none 
+    type(field_type), intent(inout) :: output_field(1)
+    character(len=*), intent(in)    :: field_name
+    type(field_type), intent(in)    :: field
+    integer(i_def),   intent(in)    :: mesh_id
+    logical,          intent(in)    :: W3_project
+
+    ! Local variables
+    type(mesh_type), pointer        :: mesh => null()
+
+
+    ! get pointer to local mesh
+    mesh => mesh_collection%get_mesh( mesh_id )
+
+ 
+    ! Check if projection required, setup output field and filename
+
+    if (W3_project) then
+
+      ! Projection to W3, but check if field is already W3
+
+      if (field%which_function_space() == W3) then
+
+        ! Already on W3, so log a warning but continue
+        write( log_scratch_space, '(A,A,A)' )  'Diagnostics: ', &
+                                  trim(field_name), &
+                                  ' already on W3, no projection applied'
+        call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+      else
+
+        ! Project the field to the output field
+        call project_output(field, output_field, 1, W3 , mesh_id)
+
+      end if
+
+    else
+
+      ! No projection required
+
+      ! Setup output field the same as input
+      call field%copy_field_properties(output_field(1))
+      call invoke( setval_X(output_field(1), field) )
+
+    end if
+    
+  end subroutine scalar_ugrid_diagnostic_alg
 
 end module diagnostic_alg_mod

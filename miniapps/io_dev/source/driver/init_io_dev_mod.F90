@@ -6,15 +6,15 @@
 
 !> @brief init functionality for the io_dev miniapp
 
-!> @details Handles init of a test field for IO
+!> @details Handles init of some test fields for IO
 
 module init_io_dev_mod
 
   use constants_mod,                  only : i_def
-  use field_mod,                      only : field_type, write_interface
+  use field_mod,                      only : field_type, write_diag_interface
   use finite_element_config_mod,      only : element_order
   use function_space_collection_mod,  only : function_space_collection
-  use fs_continuity_mod,              only : W3
+  use fs_continuity_mod,              only : W3, Wtheta, W2
   use log_mod,                        only : log_event,         &
                                              LOG_LEVEL_INFO
   use runtime_constants_mod,          only : create_runtime_constants
@@ -27,26 +27,35 @@ module init_io_dev_mod
 
   contains
 
-  subroutine init_io_dev(mesh_id, chi, test_field)
+  subroutine init_io_dev(mesh_id, chi, density, theta, wind)
 
     integer(i_def), intent(in)               :: mesh_id
     type( field_type ), intent(inout)        :: chi(:)
-    type( field_type ), intent(inout)        :: test_field
+    type( field_type ), intent(inout)        :: density
+    type( field_type ), intent(inout)        :: theta
+    type( field_type ), intent(inout)        :: wind
 
 
-    procedure(write_interface), pointer      :: tmp_ptr
+    procedure(write_diag_interface), pointer      :: tmp_diag_write_ptr
 
     call log_event( 'io_dev: initialisation...', LOG_LEVEL_INFO )
 
-    ! Create field
-    test_field   = field_type( vector_space = &
+    ! Create scalar fields
+    density   = field_type( vector_space = &
                    function_space_collection%get_fs(mesh_id, element_order, W3) )
-
+    theta   = field_type( vector_space = &
+                   function_space_collection%get_fs(mesh_id, element_order, Wtheta) )
 
     ! Set up procedure pointer to IO behaviour
-    tmp_ptr => xios_write_field_face
+    tmp_diag_write_ptr => xios_write_field_face
 
-    call test_field%set_write_field_behaviour(tmp_ptr)
+    call density%set_write_diag_behaviour(tmp_diag_write_ptr)
+    call theta%set_write_diag_behaviour(tmp_diag_write_ptr)
+
+    ! Create vector field
+
+    wind   = field_type( vector_space = &
+                   function_space_collection%get_fs(mesh_id, element_order, W2) )
 
 
     ! Create runtime_constants object. This in turn creates various things
@@ -55,9 +64,9 @@ module init_io_dev_mod
     call create_runtime_constants(mesh_id, chi)
 
     ! Initialise the test field to a fixed value
-    call io_dev_init_fields_alg(test_field)
+    call io_dev_init_fields_alg(density, theta, wind)
 
-    nullify( tmp_ptr )
+    nullify( tmp_diag_write_ptr )
 
     call log_event( 'io_dev: initialised', LOG_LEVEL_INFO )
 

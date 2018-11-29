@@ -9,7 +9,7 @@ module init_physics_mod
 
   use constants_mod,                  only : i_def
   use field_mod,                      only : field_type, &
-                                             write_interface, &
+                                             write_diag_interface, &
                                              checkpoint_interface, &
                                              restart_interface
   use finite_element_config_mod,      only : element_order
@@ -182,12 +182,12 @@ contains
     type(field_type)                           :: new_field
 
     ! pointers for xios write interface
-    procedure(write_interface), pointer        :: write_behaviour => null()
+    procedure(write_diag_interface), pointer   :: write_diag_behaviour => null()
     procedure(checkpoint_interface), pointer   :: checkpoint_behaviour => null() 
     procedure(restart_interface), pointer      :: restart_behaviour => null()
 
     ! All physics fields currently require output on faces...
-    write_behaviour => xios_write_field_face
+    write_diag_behaviour => xios_write_field_face
 
     if (restart%use_xios()) then
       checkpoint_behaviour => checkpoint_xios
@@ -200,7 +200,7 @@ contains
     new_field = field_type( vector_space, name=trim(name) )
 
     if (write_xios_output) then
-      call new_field%set_write_field_behaviour(write_behaviour)
+      call new_field%set_write_diag_behaviour(write_diag_behaviour)
     end if
     if (checkpoint_restart_flag) then
       call new_field%set_checkpoint_behaviour(checkpoint_behaviour)

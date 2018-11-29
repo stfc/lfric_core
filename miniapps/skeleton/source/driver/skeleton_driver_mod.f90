@@ -22,23 +22,21 @@ module skeleton_driver_mod
   use skeleton_configuration_mod,     only : final_configuration
   use skeleton_mod,                   only : load_configuration
   use derived_config_mod,             only : set_derived_config
-  use log_mod,                        only : log_event,         &
-                                             log_set_level,     &
-                                             log_scratch_space, &
+  use log_mod,                        only : log_event,          &
+                                             log_set_level,      &
+                                             log_scratch_space,  &
                                              initialise_logging, &
-                                             finalise_logging, &
-                                             LOG_LEVEL_ERROR,   &
+                                             finalise_logging,   &
+                                             LOG_LEVEL_ERROR,    &
                                              LOG_LEVEL_INFO
-  use output_config_mod,              only : write_nodal_output, &
-                                             write_xios_output
+  use output_config_mod,              only : write_xios_output
   use restart_config_mod,             only : restart_filename => filename
   use restart_control_mod,            only : restart_type
-  use io_mod,                         only : output_nodal, &
-                                             output_xios_nodal, &
-                                             xios_domain_init
+  use diagnostics_io_mod,             only : write_scalar_diagnostic
+  use io_mod,                         only : xios_domain_init
   use checksum_alg_mod,               only : checksum_alg
   use mpi_mod,                        only : initialise_comm, store_comm, &
-                                             finalise_comm, &
+                                             finalise_comm,               &
                                              get_comm_size, get_comm_rank
 
   use xios
@@ -171,15 +169,9 @@ contains
     ! Write out output file
     call log_event("skeleton: Writing diagnostic output", LOG_LEVEL_INFO)
 
-    ! Original nodal output
-    if ( write_nodal_output)  then
-      call output_nodal('skeleton_field', 0, field_1, mesh_id)
-    end if
+    ! Calculation and output of diagnostics
+    call write_scalar_diagnostic('skeleton_field', field_1, 1, mesh_id, .false.)
 
-    ! XIOS output
-    if (write_xios_output) then
-      call output_xios_nodal("skeleton_field", field_1, mesh_id)
-    end if
 
   end subroutine run
 
@@ -191,7 +183,6 @@ contains
     implicit none
 
     integer(i_def) :: rc
-    integer(i_def) :: ierr
 
     !-----------------------------------------------------------------------------
     ! Model finalise

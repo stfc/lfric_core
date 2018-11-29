@@ -95,6 +95,7 @@ module mesh_mod
                                            !< @b including ghost cells
 
     integer(i_def) :: nverts_per_2d_cell   ! Number of vertices per face
+    integer(i_def) :: nverts_per_edge      ! Number of vertices per edge
 
     ! Local partition 3d-mesh
     integer(i_def) :: nverts               !< Total number of verts in mesh
@@ -199,6 +200,7 @@ module mesh_mod
     procedure, public :: get_column_coords
     procedure, public :: get_nverts_per_cell
     procedure, public :: get_nverts_per_cell_2d
+    procedure, public :: get_nverts_per_edge
     procedure, public :: get_nedges_per_cell
     procedure, public :: get_nfaces_per_cell
     procedure, public :: get_cell_gid
@@ -371,6 +373,7 @@ contains
                                           self%reference_element )
 
     self%nverts_per_2d_cell = global_mesh%get_nverts_per_cell()
+    self%nverts_per_edge = global_mesh%get_nverts_per_edge()
     nedges_per_2d_cell = global_mesh%get_nedges_per_cell()
 
     global_mesh_id  = global_mesh%get_id()
@@ -951,7 +954,7 @@ contains
   !============================================================================
   function get_nverts_per_cell_2d(self) result (nverts_per_cell_2d)
 
-    ! Returns number of vertices per 3d-cell on this mesh
+    ! Returns number of vertices per 2d-cell on this mesh
 
     implicit none
     class (mesh_type), intent(in) :: self
@@ -960,6 +963,22 @@ contains
     nverts_per_cell_2d = self%nverts_per_2d_cell
 
   end function get_nverts_per_cell_2d
+
+  !> @details This function returns the number of
+  !>          vertices per edge on this mesh
+  !> @return  Number of vertices per edge on mesh
+  !============================================================================
+  function get_nverts_per_edge(self) result (nverts_per_edge)
+
+    ! Returns number of vertices per edge on this mesh
+
+    implicit none
+    class (mesh_type), intent(in) :: self
+    integer(i_def)                :: nverts_per_edge
+
+    nverts_per_edge = self%nverts_per_edge
+
+  end function get_nverts_per_edge
 
 
   !> @details This function returns the number of

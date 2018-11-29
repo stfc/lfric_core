@@ -23,34 +23,34 @@ module gravity_wave_driver_mod
   use gravity_wave_alg_mod,           only: gravity_wave_alg_init, &
                                             gravity_wave_alg_step, &
                                             gravity_wave_alg_final
+  use diagnostics_io_mod,             only: write_scalar_diagnostic, &
+                                            write_vector_diagnostic
   use init_fem_mod,                   only: init_fem
   use init_gravity_wave_mod,          only: init_gravity_wave
   use init_mesh_mod,                  only: init_mesh
-  use io_mod,                         only: output_nodal,      &
-                                            output_xios_nodal, &
-                                            xios_domain_init
-  use log_mod,                        only: log_event,         &
-                                            log_set_level,     &
-                                            log_scratch_space, &
+  use io_mod,                         only: xios_domain_init
+  use log_mod,                        only: log_event,          &
+                                            log_set_level,      &
+                                            log_scratch_space,  &
                                             initialise_logging, &
-                                            finalise_logging, &
-                                            LOG_LEVEL_ERROR,   &
-                                            LOG_LEVEL_INFO,    &
-                                            LOG_LEVEL_DEBUG,   &
-                                            LOG_LEVEL_TRACE,   &
+                                            finalise_logging,   &
+                                            LOG_LEVEL_ERROR,    &
+                                            LOG_LEVEL_INFO,     &
+                                            LOG_LEVEL_DEBUG,    &
+                                            LOG_LEVEL_TRACE,    &
                                             log_scratch_space
   use mod_wait
   use operator_mod,                   only: operator_type
   use output_config_mod,              only: diagnostic_frequency, &
+                                            nodal_output_on_w3,   &
                                             subroutine_timers,    &
-                                            write_nodal_output,   &
                                             write_xios_output
   use restart_config_mod,             only: restart_filename => filename
   use restart_control_mod,            only: restart_type
   use timer_mod,                      only: timer, output_timer
   use timestepping_config_mod,        only: dt
   use mpi_mod,                        only: initialise_comm, store_comm, &
-                                            finalise_comm, &
+                                            finalise_comm,               &
                                             get_comm_size, get_comm_rank
   use xios
 
@@ -186,24 +186,10 @@ contains
 
   if (ts_init == 0) then
 
-    if (write_nodal_output) then
-      call output_nodal('wind',     ts_init, wind,     mesh_id)
-      call output_nodal('pressure', ts_init, pressure, mesh_id)
-      call output_nodal('buoyancy', ts_init, buoyancy, mesh_id)
-    end if
-
-    ! XIOS output
-    if (write_xios_output) then
-
-      ! Make sure XIOS calendar is set to first timestep to be computed
-      call xios_update_calendar(ts_init+1)
-
-      ! Output scalar fields
-      call output_xios_nodal("init_wind",     wind,     mesh_id)
-      call output_xios_nodal("init_pressure", pressure, mesh_id)
-      call output_xios_nodal("init_buoyancy", buoyancy, mesh_id)
-
-    end if
+    ! Calculation and output of diagnostics
+    call write_vector_diagnostic('wind', wind, ts_init, mesh_id, nodal_output_on_w3)
+    call write_scalar_diagnostic('pressure', pressure, ts_init, mesh_id, nodal_output_on_w3)
+    call write_scalar_diagnostic('buoyancy', buoyancy, ts_init, mesh_id, nodal_output_on_w3)
 
   end if
 
@@ -246,21 +232,11 @@ contains
     LOG_LEVEL_INFO )
     if ( mod(timestep, diagnostic_frequency) == 0 ) then
 
-      if (write_nodal_output) then
-        call log_event(program_name//': Writing nodal diag output', LOG_LEVEL_INFO)
-        call output_nodal('wind',     timestep, wind,     mesh_id)
-        call output_nodal('pressure', timestep, pressure, mesh_id)
-        call output_nodal('buoyancy', timestep, buoyancy, mesh_id)
-      end if
+      call log_event("Gravity Wave: writing diagnostic output", LOG_LEVEL_INFO)
 
-      ! XIOS output
-      if (write_xios_output) then
-
-        call log_event(program_name//': Writing xios output', LOG_LEVEL_INFO)
-        call output_xios_nodal('wind',     wind,     mesh_id)
-        call output_xios_nodal('pressure', pressure, mesh_id)
-        call output_xios_nodal('buoyancy', buoyancy, mesh_id)
-      end if
+      call write_vector_diagnostic('wind', wind, timestep, mesh_id, nodal_output_on_w3)
+      call write_scalar_diagnostic('pressure', pressure, timestep, mesh_id, nodal_output_on_w3)
+      call write_scalar_diagnostic('buoyancy', buoyancy, timestep, mesh_id, nodal_output_on_w3)
 
     end if
 

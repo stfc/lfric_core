@@ -21,7 +21,7 @@ def make_figures(filein, plotpath, fields):
    
    if fields is None:
       # Set the standard default fields
-      fields = ['air_potential_temperature', 'U1']
+      fields = ['air_potential_temperature', 'eastward_wind']
 
    for field in fields:
       cube = iris.load_cube(filein, field)
@@ -30,7 +30,7 @@ def make_figures(filein, plotpath, fields):
       levels=None
       if field=='air_potential_temperature':
          levels=np.arange(270,360,5.)
-      if field=='U1':
+      if field=='eastward_wind':
          levels=np.arange(-20,36,4.)
 
       n_levs = len(cube.coord(levels_name).points)

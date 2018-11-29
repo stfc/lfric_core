@@ -20,9 +20,10 @@ module transport_driver_mod
   use init_fem_mod,                   only: init_fem
   use init_transport_mod,             only: init_transport
   use init_mesh_mod,                  only: init_mesh
-  use io_mod,                         only: output_nodal,                     &
-                                            output_xios_nodal,                &
-                                            xios_domain_init
+  use io_mod,                         only: xios_domain_init
+  use diagnostics_io_mod,             only: write_scalar_diagnostic,          &
+                                            write_vector_diagnostic      
+  use diagnostics_mod,                only: write_density_diagnostic
   use log_mod,                        only: log_event,                        &
                                             log_scratch_space,                &
                                             initialise_logging,               &
@@ -31,9 +32,9 @@ module transport_driver_mod
                                             LOG_LEVEL_INFO,                   &
                                             LOG_LEVEL_TRACE
   use output_config_mod,              only: diagnostic_frequency,             &
-                                            subroutine_timers,                &
-                                            write_nodal_output,               &
-                                            write_xios_output
+                                            nodal_output_on_w3,               &
+                                            write_xios_output,                &
+                                            subroutine_timers
   use restart_config_mod,             only: restart_filename => filename
   use restart_control_mod,            only: restart_type
   use timer_mod,                      only: timer, output_timer
@@ -46,7 +47,6 @@ module transport_driver_mod
                                             transport_scheme_yz_bip_cosmic,   &
                                             transport_scheme_cosmic_3D,       &
                                             transport_scheme_horz_cosmic
-  use diagnostic_alg_mod,             only: density_diagnostic_alg
   use mass_conservation_alg_mod,      only: mass_conservation
   use yz_bip_cosmic_alg_mod,          only: yz_bip_cosmic_step
   use cusph_cosmic_transport_alg_mod, only: set_winds,      &
@@ -157,19 +157,16 @@ contains
     ! Output initial conditions
     ts_init = max( (restart%ts_start() - 1), 0 )
     if ( ts_init == 0 ) then
-      if ( write_nodal_output ) then
-        call output_nodal( 'wind', ts_init, wind, mesh_id )
-        call output_nodal( 'density', ts_init, density, mesh_id )
+
+      if (write_xios_output) then
+
+        ! Need to ensure calendar is initialised here as XIOS has no concept of timestep 0
+        call xios_update_calendar(1)
+
       end if
 
-      ! XIOS output
-      if (write_xios_output) then
-        ! Make sure XIOS calendar is set to first timestep to be computed
-        call xios_update_calendar(ts_init+1)
-        ! Output scalar fields
-        call output_xios_nodal("init_density", density, mesh_id)
-        call output_xios_nodal("init_wind", wind, mesh_id)
-      end if
+      call write_vector_diagnostic('wind', wind, ts_init, mesh_id, nodal_output_on_w3)
+      call write_scalar_diagnostic('density', density, ts_init, mesh_id, nodal_output_on_w3)
 
     end if
 
@@ -221,8 +218,8 @@ contains
 
       ! Add the increment to density
       call density_inc_update_alg(density, increment)
+      call write_density_diagnostic( density, timestep )
 
-      call density_diagnostic_alg( density, timestep )
       call mass_conservation( timestep, density )
 
       write( log_scratch_space, '(A,I0)' ) 'End of timestep ', timestep
@@ -233,16 +230,10 @@ contains
 
       ! Output wind and density values.
       if ( mod( timestep, diagnostic_frequency ) == 0 ) then
-        if (write_nodal_output) then
-          call log_event(program_name//': Writing nodal diag output', LOG_LEVEL_INFO)
-          call output_nodal( 'wind', timestep, wind, mesh_id )
-          call output_nodal( 'density', timestep, density, mesh_id )
-        end if
-        if (write_xios_output) then
-          call xios_update_calendar(timestep)
-          call output_xios_nodal("density", density, mesh_id)
-          call output_xios_nodal("wind", wind, mesh_id)
-        end if
+
+        call write_vector_diagnostic('wind', wind, timestep, mesh_id, nodal_output_on_w3)
+        call write_scalar_diagnostic('density', density, timestep, mesh_id, nodal_output_on_w3)
+
       end if
 
     end do

@@ -52,8 +52,6 @@ module field_mod
     !> Each field has a pointer to the function space on which it lives
     type( function_space_type ), pointer         :: vspace => null( )
     !> Each field also holds an integer enaumerated value for the
-    !> function space it will be output on
-    integer(kind=i_def)                          :: ospace
     !> Allocatable array of type real which holds the values of the field
     real(kind=r_def), allocatable :: data( : )
     !> Flag that holds whether each depth of halo is clean or dirty (dirty=1)
@@ -66,7 +64,7 @@ module field_mod
 
     ! IO interface procedure pointers
 
-    procedure(write_interface), nopass, pointer  :: write_field_method => null()
+    procedure(write_diag_interface), nopass, pointer  :: write_diag_method => null()
     procedure(checkpoint_interface), nopass, pointer  :: checkpoint_method => null()
     procedure(restart_interface), nopass, pointer  :: restart_method => null()
 
@@ -88,18 +86,15 @@ module field_mod
     !! the field lives
     procedure, public :: which_function_space
 
-    !> Function returns the enumerated integer for the output function space
-    procedure, public :: which_output_function_space
-
     !> Function returns a pointer to the function space on which
     !! the field lives
     procedure, public :: get_function_space
 
-    !> Setter for the field write method 
-    procedure, public :: set_write_field_behaviour
+    !> Setter for the diagnostic write method 
+    procedure, public :: set_write_diag_behaviour
 
-    !> Getter for the field write method
-    procedure         :: get_write_field_behaviour
+    !> Getter for the diagnostic write method
+    procedure, public :: get_write_diag_behaviour
 
     !> Setter for the checkpoint method 
     procedure, public :: set_checkpoint_behaviour
@@ -107,8 +102,8 @@ module field_mod
     !> Setter for the restart method 
     procedure, public :: set_restart_behaviour
 
-    !> Routine to write field
-    procedure         :: write_field
+    !> Routine to write field as a diagnostic
+    procedure         :: write_diag
 
     !> Routine to read a restart netCDF file
     procedure         :: read_restart
@@ -162,9 +157,6 @@ module field_mod
     integer(kind=i_def), allocatable :: dummy_for_gnu
     !> Each field has a pointer to the function space on which it lives
     type( function_space_type ), pointer, public :: vspace => null()
-    !> Each field also has a pointer to the function space it will be
-    !> output on
-    type( function_space_type ), pointer         :: ospace => null( )
     !> Allocatable array of type real which holds the values of the field
     real(kind=r_def), public, pointer         :: data( : ) => null()
     !> pointer to array that holds halo dirtiness
@@ -239,11 +231,11 @@ module field_mod
 
   abstract interface
 
-    subroutine write_interface(field_name, field_proxy)
+    subroutine write_diag_interface(field_name, field_proxy)
       import r_def, field_proxy_type
       character(len=*),        intent(in)  :: field_name
       type(field_proxy_type ), intent(in)  :: field_proxy
-    end subroutine write_interface
+    end subroutine write_diag_interface
 
     subroutine checkpoint_interface(field_name, file_name, field_proxy)
       import r_def, field_proxy_type
@@ -261,7 +253,7 @@ module field_mod
 
   end interface
 
- public :: write_interface
+ public :: write_diag_interface
  public :: checkpoint_interface
  public :: restart_interface
 
@@ -285,32 +277,22 @@ contains
   !> Construct a <code>field_type</code> object.
   !>
   !> @param [in] vector_space the function space that the field lives on
-  !> @param [in] output_space the function space used for field output
   !> @param [in] name The name of the field
   !> @return self the field
   !>
-  function field_constructor(vector_space, output_space, name) result(self)
+  function field_constructor(vector_space, name) result(self)
 
     use log_mod,         only : log_event, &
                                 LOG_LEVEL_ERROR
     implicit none
 
     type(function_space_type), target, intent(in) :: vector_space
-    integer(i_def), optional, intent(in)               :: output_space
     character(*), optional, intent(in)            :: name
 
     type(field_type), target :: self
     ! only associate the vspace pointer, copy constructor does the rest.
     self%vspace => vector_space
     self%data_extant = .false.
-
-    ! Set the output function space if given, otherwise default
-    ! to native function space
-    if (present(output_space)) then
-      self%ospace = output_space
-    else
-      self%ospace = self%vspace%which()
-    end if 
 
     ! Set the name of the field if given, otherwise default to 'none'
     if (present(name)) then
@@ -330,7 +312,6 @@ contains
     implicit none
 
     class(field_type), intent(inout)    :: self
-    integer(i_def) :: rc
 
     if(allocated(self%data)) then
       deallocate(self%data)
@@ -339,7 +320,7 @@ contains
     if ( allocated(self%halo_dirty) ) deallocate(self%halo_dirty)
 
     nullify( self%vspace,             &
-             self%write_field_method, &
+             self%write_diag_method,  &
              self%checkpoint_method,  &
              self%restart_method )
 
@@ -399,15 +380,11 @@ contains
     class(field_type), target, intent(in)  :: self
     class(field_type), target, intent(out) :: dest
 
-    integer(i_def) :: rc
-    integer(i_def) :: halo_start, halo_finish
-
     type (mesh_type), pointer   :: mesh => null()
     real(kind=r_def), pointer   :: data_ptr( : ) => null()
 
     dest%vspace => self%vspace
-    dest%ospace = self%ospace
-    dest%write_field_method => self%write_field_method
+    dest%write_diag_method => self%write_diag_method
     dest%checkpoint_method => self%checkpoint_method
     dest%restart_method => self%restart_method
     dest%name = self%name
@@ -445,30 +422,32 @@ contains
     end if
   end subroutine field_type_assign
 
-  !> Setter for field write behaviour
+  !> Setter for diagnostic write behaviour
   !>
-  !> @param [in] pointer to procedure implementing write method 
-  subroutine set_write_field_behaviour(self, write_field_behaviour)
+  !> @param [in] pointer to procedure implementing write method
+  !>             for diagnostic
+  subroutine set_write_diag_behaviour(self, write_diag_behaviour)
     implicit none
     class(field_type), intent(inout)                  :: self
-    procedure(write_interface), pointer, intent(in)   :: write_field_behaviour
-    self%write_field_method => write_field_behaviour
-  end subroutine set_write_field_behaviour
+    procedure(write_diag_interface), pointer, intent(in) :: write_diag_behaviour
+    self%write_diag_method => write_diag_behaviour
+  end subroutine set_write_diag_behaviour
 
-  !> Getter to get pointer to field write behaviour
+
+  !> Getter to get pointer to diagnostic write behaviour
   !>
-  !> @return pointer to procedure for field write
-  subroutine get_write_field_behaviour(self, write_field_behaviour)
+  !> @return pointer to procedure for diagnostic write behaviour
+  subroutine get_write_diag_behaviour(self, write_diag_behaviour)
 
     implicit none
 
     class (field_type) :: self
-    procedure(write_interface), pointer, intent(inout)   :: write_field_behaviour
+    procedure(write_diag_interface), pointer, intent(inout) :: write_diag_behaviour
 
-    write_field_behaviour => self%write_field_method
+    write_diag_behaviour => self%write_diag_method
 
     return
-  end subroutine get_write_field_behaviour
+  end subroutine get_write_diag_behaviour
 
   !> Setter for checkpoint behaviour
   !>
@@ -656,14 +635,6 @@ contains
     return
   end function which_function_space
 
-  function which_output_function_space(self) result(fs)
-    implicit none
-    class(field_type), intent(in) :: self
-    integer(i_def) :: fs
-
-    fs = self%ospace
-    return
-  end function which_output_function_space
 
   !> Function to get pointer to function space from the field.
   !>
@@ -679,9 +650,9 @@ contains
     return
   end function get_function_space
 
-  !> Calls the underlying IO implementation for writing a field
+  !> Calls the underlying IO implementation for writing a diagnostic
   !> throws an error if this has not been set
-  subroutine write_field(this, field_name)
+  subroutine write_diag(this, field_name)
 
     use log_mod,           only : log_event, &
                                   LOG_LEVEL_ERROR
@@ -691,9 +662,9 @@ contains
     class(field_type),   intent(in)     :: this
     character(len=*),    intent(in)     :: field_name
 
-    if (associated(this%write_field_method)) then
+    if (associated(this%write_diag_method)) then
 
-      call this%write_field_method(trim(field_name), this%get_proxy())
+      call this%write_diag_method(trim(field_name), this%get_proxy())
 
     else
 
@@ -701,7 +672,7 @@ contains
                       ', write_field_method not set up', LOG_LEVEL_ERROR )
     end if
 
-  end subroutine write_field
+  end subroutine write_diag
 
   !> Reads a restart file into the field
   !>
@@ -839,7 +810,6 @@ contains
 
     class( field_proxy_type ), target, intent(inout) :: self
     integer(i_def), intent(in) :: depth
-    type(xt_redist) :: redist
     type(mesh_type), pointer   :: mesh => null()
 
     if( self%vspace%is_comms_fs() ) then
@@ -954,7 +924,6 @@ contains
 
     class(field_proxy_type), intent(in) :: self
 
-    integer(i_def) :: rc
     logical(l_def) :: is_dirty_tmp
 
     if( self%vspace%is_comms_fs() ) then

@@ -1,7 +1,7 @@
 &RESTART_NML
 checkpoint_read = .F
 timestep_start = 1
-timestep_end = 10
+timestep_end = 1
 checkpoint_write = .F
 restart_stem_name="restartSkeleton"
 xios_checkpoint = .F

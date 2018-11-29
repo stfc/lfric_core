@@ -12,7 +12,7 @@ module init_gungho_mod
 
   use constants_mod,                  only : i_def
   use field_mod,                      only : field_type, &
-                                             write_interface, &
+                                             write_diag_interface, &
                                              checkpoint_interface, &
                                              restart_interface
   use finite_element_config_mod,      only : element_order, &
@@ -65,7 +65,7 @@ contains
 
     integer(i_def)                           :: imr
 
-    procedure(write_interface), pointer      :: tmp_write_ptr
+    procedure(write_diag_interface), pointer :: tmp_write_diag_ptr
     procedure(checkpoint_interface), pointer :: tmp_checkpoint_ptr
     procedure(restart_interface), pointer    :: tmp_restart_ptr
 
@@ -76,21 +76,17 @@ contains
                         function_space_collection%get_fs(mesh_id, element_order, Wtheta) )
     if ( vorticity_in_w1 ) then
       xi    = field_type( vector_space = &
-                          function_space_collection%get_fs(mesh_id, element_order, W1), &
-                          output_space = W3)
+                          function_space_collection%get_fs(mesh_id, element_order, W1) )
     else
       xi    = field_type( vector_space = &
-                          function_space_collection%get_fs(mesh_id, element_order, W2), &
-                          output_space = W3)
+                          function_space_collection%get_fs(mesh_id, element_order, W2) )
     end if
     u     = field_type( vector_space = &
-                        function_space_collection%get_fs(mesh_id, element_order, W2), &
-                        output_space = W3)
+                        function_space_collection%get_fs(mesh_id, element_order, W2) )
     rho   = field_type( vector_space = &
                         function_space_collection%get_fs(mesh_id, element_order, W3) )
     exner = field_type( vector_space = &
-                        function_space_collection%get_fs(mesh_id, element_order, W3), &
-                        output_space = W3)
+                        function_space_collection%get_fs(mesh_id, element_order, W3) )
 
     do imr = 1,nummr
       mr(imr) = field_type( vector_space = &
@@ -100,38 +96,45 @@ contains
     ! Set I/O behaviours for diagnostic output
 
     if (write_xios_output) then
-       ! Fields that are output on the XIOS face domain
 
-       tmp_write_ptr => xios_write_field_face
+       ! Set diagnostic output handlers
+ 
+       ! Face domain
 
-       call xi%set_write_field_behaviour(tmp_write_ptr)
-       call u%set_write_field_behaviour(tmp_write_ptr)
-       call rho%set_write_field_behaviour(tmp_write_ptr)
-       call exner%set_write_field_behaviour(tmp_write_ptr)
+       tmp_write_diag_ptr => xios_write_field_face
 
-       ! Fields that are output on the XIOS node domain
+       ! Vector fields that are projected to scalar components
+       call xi%set_write_diag_behaviour(tmp_write_diag_ptr)
+       call u%set_write_diag_behaviour(tmp_write_diag_ptr)
+
+       ! Scalar fields
+       call rho%set_write_diag_behaviour(tmp_write_diag_ptr)
+       call exner%set_write_diag_behaviour(tmp_write_diag_ptr)
+
+       ! Node domain
 
        ! Theta is a special case as it can be on face (if function space is WTheta) 
        ! or node (if function space is W0)
        if (theta%which_function_space() == Wtheta) then
 
-          call theta%set_write_field_behaviour(tmp_write_ptr)
+          call theta%set_write_diag_behaviour(tmp_write_diag_ptr)
 
        else
 
-          tmp_write_ptr => xios_write_field_node
+          tmp_write_diag_ptr => xios_write_field_node
 
-          call theta%set_write_field_behaviour(tmp_write_ptr)
+          call theta%set_write_diag_behaviour(tmp_write_diag_ptr)
 
        end if
 
        ! Moisture diagnostics use the same type of field write as Theta
 
-       call theta%get_write_field_behaviour(tmp_write_ptr)
+       call theta%get_write_diag_behaviour(tmp_write_diag_ptr)
 
        do imr = 1,nummr
-         call mr(imr)%set_write_field_behaviour(tmp_write_ptr)
+         call mr(imr)%set_write_diag_behaviour(tmp_write_diag_ptr)
        end do
+
 
     end if
 
@@ -183,7 +186,7 @@ contains
     ! Initialise prognostic fields
     call init_prognostic_fields_alg( u, rho, theta, exner, mr, xi, restart )
 
-    nullify( tmp_write_ptr, tmp_checkpoint_ptr, tmp_restart_ptr )
+    nullify( tmp_write_diag_ptr, tmp_checkpoint_ptr, tmp_restart_ptr )
 
     call log_event( 'Gungho initialised', LOG_LEVEL_INFO )
 

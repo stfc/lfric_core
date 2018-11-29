@@ -1,0 +1,9 @@
+&RESTART_NML
+checkpoint_frequency=9999,
+checkpoint_read=.F,
+timestep_start=1,
+timestep_end=1,
+checkpoint_write=.F,
+restart_stem_name="restartIoDev",
+xios_checkpoint=.F,
+/

@@ -21,21 +21,29 @@ module io_dev_init_fields_alg_mod
   public :: io_dev_init_fields_alg
 
 contains
-  !> @details An algorithm for initialising a test field
-  !> @param[inout] test_field a test field
-  subroutine io_dev_init_fields_alg(test_field)
+  !> @details An algorithm for initialising some test fields
+  !> @param[inout] density - example of a W3 field
+  !> @param[inout] theta - example of a Wtheta field
+  !> @param[inout] wind - example of a W2 field
+  subroutine io_dev_init_fields_alg(density, theta, wind)
 
     implicit none
 
-    ! Prognostic fields
-    type( field_type ),   intent(inout) :: test_field
+    ! Test fields
+    type( field_type ),   intent(inout) :: density
+    type( field_type ),   intent(inout) :: theta
+    type( field_type ),   intent(inout) :: wind
 
 
-    call log_event( "io_dev: Initialising test field", LOG_LEVEL_INFO )
-    ! Set the field values to 1.0
-    call invoke( setval_c( test_field, 1.0_r_def ) )
+    call log_event( "io_dev: Initialising test fields", LOG_LEVEL_INFO )
+    ! Set the density field values to 1.0
+    call invoke( setval_c( density, 1.0_r_def ) )
+    ! Set the theta field values to 2.0
+    call invoke( setval_c( theta, 2.0_r_def ) )
+    ! Set the wind field values to 3.0
+    call invoke( setval_c( wind, 3.0_r_def ) )
 
-    call log_event( "io_dev: Initialised test field", LOG_LEVEL_INFO )
+    call log_event( "io_dev: Initialised test fields", LOG_LEVEL_INFO )
 
   end subroutine io_dev_init_fields_alg
 

@@ -21,7 +21,8 @@ module iter_timestep_alg_mod
                                        use_wavedynamics,          &
                                        dry_static_adjust,         &
                                        set_hydrostatic_init
-  use output_config_mod,         only: diagnostic_frequency, subroutine_timers
+  use output_config_mod,         only: diagnostic_frequency, subroutine_timers, &
+                                       write_xios_output
   use mixed_solver_config_mod,   only: guess_np1,                                &
                                        reference_reset_freq
   use timestepping_config_mod,   only: dt, alpha, &
@@ -60,9 +61,8 @@ module iter_timestep_alg_mod
   use quadrature_xyoz_mod,       only: quadrature_xyoz_type
   use operator_mod,              only: operator_type
 
-  ! xios output
-  use output_config_mod,         only : write_xios_output
-  use io_mod,                    only : output_xios_nodal
+  ! Diagnostic output
+  use diagnostics_io_mod,          only: write_scalar_diagnostic
 
   ! Algorithms
   use mass_matrix_solver_alg_mod,  only: mass_matrix_solver_alg
@@ -383,7 +383,8 @@ contains
       call u_physics%log_minmax(LOG_LEVEL_INFO, 'u_physics')
       call w_physics%log_minmax(LOG_LEVEL_INFO, 'w_physics')
       if (write_xios_output) then
-        call output_xios_nodal("w_physics", w_physics, w_physics%get_mesh_id() )
+        call write_scalar_diagnostic("w_physics", w_physics, timestep,  &
+                                      w_physics%get_mesh_id(), .false.)
       end if
 
       if ( smagorinsky ) then

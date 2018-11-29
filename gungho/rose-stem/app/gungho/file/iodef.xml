@@ -2,22 +2,22 @@
 <simulation>
 
   <!-- In this version we have ONE context  -->
-
-
+  
+  
   <context id = "gungho_atm">
-
+  
    <calendar type = "Gregorian" start_date = "2016-01-01 15:00:00" time_origin = "2016-01-01 15:00:00" />
 
    <axis_definition>
-    <axis id="vert_axis_node" name="levels_nodes"/>
-    <axis id="vert_axis_half_levels" name="half_levels_faces"/>
-    <axis id="vert_axis_full_levels" name="full_levels_faces"/>
+    <axis id="vert_axis_half_levels" name="half_levels"/>
+    <axis id="vert_axis_full_levels" name="full_levels"/>
    </axis_definition>
-
+   
    <domain_definition>
       <domain id="node" name="Mesh2d_node" nvertex="1"/>
       <domain id="face_half_levels" name="Mesh2d_half_levels" nvertex="4"/>
       <domain id="face_full_levels" name="Mesh2d_full_levels" nvertex="4"/>
+      <domain id="edge_half_levels" name="Mesh2d_edge_half_levels" nvertex="2"/>
       <domain id="restart_W0" name="restart_W0" nvertex="1"/>
       <domain id="restart_W1" name="restart_W1" nvertex="1"/>
       <domain id="restart_W2" name="restart_W2" nvertex="1"/>
@@ -27,11 +27,11 @@
       <domain id="fd_restart_Wtheta" name="fd_restart_Wtheta" nvertex="1"/>
       <domain id="restart_W3_2D" name="restart_W3_2D" nvertex="1"/>
    </domain_definition>
-
+   
    <grid_definition>
     <grid id="node_grid">
       <domain domain_ref="node"/>
-      <axis axis_ref="vert_axis_node"/>
+      <axis axis_ref="vert_axis_full_levels"/>
     </grid>
     <grid id="half_level_face_grid">
       <domain domain_ref="face_half_levels"/>
@@ -41,10 +41,14 @@
       <domain domain_ref="face_full_levels"/>
       <axis axis_ref="vert_axis_full_levels"/>
     </grid>
+    <grid id="half_level_edge_grid">
+      <domain domain_ref="edge_half_levels"/>
+      <axis axis_ref="vert_axis_half_levels"/>
+    </grid>
    </grid_definition>
 
    <field_definition prec="8" >
-
+   
      <!-- Checkpoint group -->
      <field_group id="checkpoint_fields" freq_op="1ts" operation="once"  enabled=".FALSE." >
        <field id="checkpoint_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" domain_ref="restart_Wtheta" />
@@ -69,11 +73,12 @@
        <field id="checkpoint_ntml" name="ntml" long_name="ntml"  unit="1" domain_ref="restart_W3_2D" />
        <field id="checkpoint_cumulus" name="cumulus" long_name="cumulus"  unit="1" domain_ref="restart_W3_2D" />
      </field_group>
-
+     
+     
      <!-- Main diagnostic group -->
      <field_group id="diagnostic_fields" freq_op="1ts" operation="instant" enabled=".TRUE." >
        <field id="theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
-       <field id="w_physics" name="w_physics" long_name="vertical_wind_on_physics_points" standard_name="upward_air_velocity" unit="ms-1" grid_ref="full_level_face_grid" />
+       <field id="w_physics" name="w_physics" long_name="vertical_wind_on_physics_points" standard_name="vertical_velocity" unit="ms-1" grid_ref="full_level_face_grid" />
        <field id="m_v" name="m_v" long_name="m_v" unit="1" grid_ref="full_level_face_grid" />
        <field id="m_cl" name="m_cl" long_name="m_cl" unit="1" grid_ref="full_level_face_grid" />
        <field id="m_r" name="m_r" long_name="m_r" unit="1" grid_ref="full_level_face_grid" />
@@ -89,9 +94,9 @@
        <field id="xi1" name="xi1" long_name="Xi1" unit="s-1" grid_ref="half_level_face_grid" />
        <field id="xi2" name="xi2" long_name="Xi2" unit="s-1" grid_ref="half_level_face_grid" />
        <field id="xi3" name="xi3" long_name="Xi3" unit="s-1" grid_ref="half_level_face_grid" />
-       <field id="u1" name="u1" long_name="U1" unit="m s-1" grid_ref="half_level_face_grid" />
-       <field id="u2" name="u2" long_name="U2" unit="m s-1" grid_ref="half_level_face_grid" />
-       <field id="u3" name="u3" long_name="U3" unit="m s-1" grid_ref="half_level_face_grid" />
+       <field id="u1" name="u1" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="u2" name="u2" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="u3" name="u3" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
        <field id="divergence" name="divergence" long_name="divergence_of_wind" standard_name="divergence_of_wind" unit="s-1" grid_ref="half_level_face_grid" />
        <field id="exner" name="exner" long_name="exner_pressure" unit="1" grid_ref="half_level_face_grid" />
      </field_group>
@@ -99,7 +104,6 @@
       <!-- Initial conditions group -->
      <field_group id="initial_fields" freq_op="1ts" operation="once" enabled=".TRUE." >
        <field id="init_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
-       <field id="init_w_physics" name="w_physics" long_name="vertical_wind_on_physics_points" standard_name="upward_air_velocity" unit="ms-1" grid_ref="full_level_face_grid" />
        <field id="init_m_v" name="m_v" long_name="m_v" unit="1" grid_ref="full_level_face_grid" />
        <field id="init_m_cl" name="m_cl" long_name="m_cl" unit="1" grid_ref="full_level_face_grid" />
        <field id="init_m_r" name="m_r" long_name="m_r" unit="1" grid_ref="full_level_face_grid" />
@@ -115,23 +119,22 @@
        <field id="init_xi1" name="xi1" long_name="Xi1" unit="s-1" grid_ref="half_level_face_grid" />
        <field id="init_xi2" name="xi2" long_name="Xi2" unit="s-1" grid_ref="half_level_face_grid" />
        <field id="init_xi3" name="xi3" long_name="Xi3" unit="s-1" grid_ref="half_level_face_grid" />
-       <field id="init_u1" name="u1" long_name="U1" unit="m s-1" grid_ref="half_level_face_grid" />
-       <field id="init_u2" name="u2" long_name="U2" unit="m s-1" grid_ref="half_level_face_grid" />
-       <field id="init_u3" name="u3" long_name="U3" unit="m s-1" grid_ref="half_level_face_grid" />
+       <field id="init_u1" name="u1" long_name="eastward_wind" standard_name="eastward_wind"  unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="init_u2" name="u2" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="init_u3" name="u3" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
        <field id="init_divergence" name="divergence" long_name="divergence_of_wind" standard_name="divergence_of_wind" unit="s-1" grid_ref="half_level_face_grid" />
        <field id="init_exner" name="exner" long_name="exner_pressure" unit="1" grid_ref="half_level_face_grid" />
-
      </field_group>
-
+    
    </field_definition>
 
    <file_definition
       type="one_file"
       par_access="collective"
       time_counter="none">
-
+      
       <!-- Checkpoint/ Restart group -->
-
+      
       <!-- File definition for checkpoint write -->
       <file id="lfric_checkpoint" name="lfric_checkpoint" output_freq="1ts" convention="CF" enabled=".FALSE.">
         <field field_ref="checkpoint_theta"/>
@@ -156,7 +159,7 @@
         <field field_ref="checkpoint_ntml"/>
         <field field_ref="checkpoint_cumulus"/>
       </file>
-
+      
        <!-- file definition for restart read -->
       <file id="lfric_restart" name="lfric_checkpoint" mode="read" output_freq="1ts" cyclic="true" enabled=".FALSE.">
        <field id="restart_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" operation="instant" domain_ref="restart_Wtheta" />
@@ -181,8 +184,8 @@
        <field id="restart_ntml" name="ntml" long_name="ntml" unit="1" operation="instant" domain_ref="restart_W3_2D" />
        <field id="restart_cumulus" name="cumulus" long_name="cumulus" unit="1" operation="instant" domain_ref="restart_W3_2D" />
       </file>
-
-
+      
+      
       <file id="lfric_diag" name="lfric_diag" output_freq="10ts" convention="UGRID" enabled=".TRUE.">
         <field field_ref="theta"/>
         <field field_ref="w_physics"/>
@@ -208,9 +211,18 @@
         <field field_ref="exner"/>
       </file>
 
+      <file id="lfric_averages" name="lfric_averages" output_freq="10ts" convention="UGRID" enabled=".TRUE.">
+        <field field_ref="theta" operation="average" />
+        <field field_ref="w_physics" operation="average" />
+        <field field_ref="u1" operation="average" />
+        <field field_ref="u2" operation="average" />
+        <field field_ref="u3" operation="average" />
+        <field field_ref="divergence" operation="average" />
+        <field field_ref="exner" operation="average" />
+      </file>
+
       <file id="lfric_initial" name="lfric_initial" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
         <field field_ref="init_theta"/>
-        <field field_ref="init_w_physics"/>
         <field field_ref="init_m_v"/>
         <field field_ref="init_m_cl"/>
         <field field_ref="init_m_r"/>
@@ -233,19 +245,10 @@
         <field field_ref="init_exner"/>
       </file>
 
-      <file id="lfric_averages" name="lfric_averages" output_freq="10ts" convention="UGRID" enabled=".TRUE.">
-        <field field_ref="theta" operation="average" />
-        <field field_ref="w_physics" operation="average" />
-        <field field_ref="u1" operation="average" />
-        <field field_ref="u2" operation="average" />
-        <field field_ref="u3" operation="average" />
-        <field field_ref="divergence" operation="average" />
-        <field field_ref="exner" operation="average" />
-      </file>
     </file_definition>
-
+    
   </context>
-
+  
   <context id = "xios">
     <variable_definition>
       <variable_group id = "buffer">

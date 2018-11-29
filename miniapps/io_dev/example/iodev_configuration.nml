@@ -1,5 +1,5 @@
 &base_mesh
-  filename        = 'mesh_C24.nc'
+  filename        = 'mesh_C12.nc'
   prime_mesh_name = 'dynamics'
   geometry        = 'spherical'
   partitioner     = 'cubedsphere'
@@ -19,7 +19,7 @@
   coordinate_order = 2
   rehabilitate     = .true.
   supg             = .false.
-  vorticity_in_w1  = .true.
+  vorticity_in_w1  = .true. 
 /
 
 &formulation
@@ -68,21 +68,19 @@
 
 &output
   diag_stem_name            = 'diagDynamo'
-  write_xios_output         = .false.
-  write_nodal_output        = .true.
-  diagnostic_frequency      = 10
-  nodal_output_on_w3        = .false.
+  write_xios_output         = .true.
+  write_nodal_output        = .false.
+  diagnostic_frequency      = 1
+  nodal_output_on_w3         = .false.
   subroutine_timers         = .true.
   subroutine_counters       = .true.
   write_minmax_tseries      = .false.
 /
 
-
 &physics
   heldsuarez_thermo_placement = 0
   heldsuarez_wind_placement   = 0
   hs_random = .false.
-  cloud_scheme = 'none'
 /
 
 &planet
@@ -96,7 +94,7 @@
 /
 
 &restart
-  filename = 'restart.nml'
+  filename = 'iodev_restart.nml'
 /
 
 &solver
@@ -109,13 +107,15 @@
 
 &mixed_solver
   si_method                      = 'gcr'
-  si_preconditioner              = 'pressure'
+  si_postconditioner             = 'pressure'
+  si_preconditioner              = 'none'
   si_maximum_iterations          = 10
   gcrk                           = 18
   si_tolerance                   = 1.0e-6
   guess_np1                      = .F
   reference_reset_freq           = 4
   normalise                      = .T
+  use_operators                  = .T
 /
 
 &helmholtz_solver
@@ -181,7 +181,6 @@
   viscosity = .false.
   viscosity_mu = 0.0
   smagorinsky = .false.
-  mix_factor = 0.0
 /
 
 &orography
@@ -222,15 +221,6 @@
   wavelength        = 4000.0
   lambda_centre_dec = 0.25
   phi_centre_dec    = 0.0
-/
-
-&orography_bell_cartesian
-mountain_height = 400.0
-half_width_x    = 1000.0
-half_width_y    = 1000.0
-x_centre        = 0.0
-y_centre        = 0.0
-direction       = 'xy'
 /
 
 &orography_dcmip200_spherical

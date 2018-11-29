@@ -12,7 +12,7 @@
 module init_solver_miniapp_mod
 
   use constants_mod,                  only : i_def, r_def
-  use field_mod,                      only : field_type, write_interface
+  use field_mod,                      only : field_type
   use field_vector_mod,               only : field_vector_type
   use finite_element_config_mod,      only : element_order
   use function_space_collection_mod,  only : function_space_collection_type, &
@@ -22,8 +22,6 @@ module init_solver_miniapp_mod
                                              LOG_LEVEL_INFO, &
                                              LOG_LEVEL_ERROR, &
                                              log_scratch_space
-  use output_config_mod,              only : write_xios_output
-  use io_mod,                         only : xios_write_field_face
   use psykal_lite_mod,                only : invoke_set_field_scalar
   use runtime_constants_mod,          only : create_runtime_constants
   implicit none
@@ -41,16 +39,16 @@ contains
     ! prognostic fields
     type( field_vector_type ), intent(inout) :: fv
     type( field_type )                       :: f1, f2
-    procedure(write_interface), pointer      :: tmp_ptr
+
     
     call log_event( 'solver miniapp: initialisation...', LOG_LEVEL_INFO )
     
     
     ! Create prognostic fields 
-    ! Creates a field in the W3 function space (fully discontinuous field)
+    ! Create a field in the W0 function space (fully continuous field)
     f1 = field_type( vector_space = &
          function_space_collection%get_fs(mesh_id, element_order, W0) )
-    
+    ! Create a field in the W3 function space (fully discontinuous field)
     f2 = field_type( vector_space = &
          function_space_collection%get_fs(mesh_id, element_order, W3) )
     
@@ -65,15 +63,6 @@ contains
     write(log_scratch_space,'(A,E16.8)') "W0, W3 Fvector initiialised to 0.5/1.0 norm=",fv%norm()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
     
-    ! Set up field with an IO behaviour (XIOS only at present)
-    
-    if (write_xios_output) then
-       
-       tmp_ptr => xios_write_field_face
-       
-       call f1%set_write_field_behaviour(tmp_ptr)
-       
-    end if
     
     call create_runtime_constants(mesh_id, chi)
     

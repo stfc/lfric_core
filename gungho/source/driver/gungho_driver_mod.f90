@@ -13,9 +13,11 @@ module gungho_driver_mod
   use conservation_algorithm_mod, only : conservation_algorithm
   use constants_mod,              only : i_def, imdi, str_def, str_short
   use derived_config_mod,         only : set_derived_config
-  use diagnostic_alg_mod,         only : divergence_diagnostic_alg, &
-                                         density_diagnostic_alg,    &
-                                         hydbal_diagnostic_alg
+  use diagnostics_io_mod,         only : write_scalar_diagnostic,     &
+                                         write_vector_diagnostic
+  use diagnostics_mod,            only : write_divergence_diagnostic, &
+                                         write_density_diagnostic,    &
+                                         write_hydbal_diagnostic
   use yaxt,                       only : xt_initialize, xt_finalize
   use field_mod,                  only : field_type
   use formulation_config_mod,     only : transport_only, &
@@ -32,35 +34,32 @@ module gungho_driver_mod
   use init_gungho_mod,            only : init_gungho
   use init_mesh_mod,              only : init_mesh
   use init_physics_mod,           only : init_physics
-  use io_mod,                     only : output_nodal, &
-                                         output_xios_nodal, &
-                                         xios_domain_init
+  use io_mod,                     only : xios_domain_init
   use iter_timestep_alg_mod,      only : iter_alg_init, &
                                          iter_alg_step, &
                                          iter_alg_final
-  use log_mod,                    only : log_event,         &
-                                         log_set_level,     &
-                                         log_scratch_space, &
+  use log_mod,                    only : log_event,          &
+                                         log_set_level,      &
+                                         log_scratch_space,  &
                                          initialise_logging, &
-                                         finalise_logging, &
-                                         LOG_LEVEL_ERROR,   &
-                                         LOG_LEVEL_INFO,    &
-                                         LOG_LEVEL_DEBUG,   &
+                                         finalise_logging,   &
+                                         LOG_LEVEL_ERROR,    &
+                                         LOG_LEVEL_INFO,     &
+                                         LOG_LEVEL_DEBUG,    &
                                          LOG_LEVEL_TRACE
   use mesh_collection_mod,        only : mesh_collection
   use mod_wait
   use minmax_tseries_mod,         only : minmax_tseries, &
                                          minmax_tseries_init, &
                                          minmax_tseries_final
-  use mr_indices_mod,             only : imr_v, imr_cl, imr_r, &
-                                         imr_ci, imr_s, imr_g, nummr, mr_names
+  use mr_indices_mod,             only : nummr, mr_names
   use physics_config_mod,         only : cloud_scheme, &
                                          physics_cloud_scheme_none
   use output_config_mod,          only : diagnostic_frequency, &
                                          subroutine_timers, &
+                                         nodal_output_on_w3, &
                                          write_minmax_tseries, &
                                          subroutine_counters, &
-                                         write_nodal_output, &
                                          write_xios_output
 
 
@@ -122,6 +121,8 @@ module gungho_driver_mod
   integer(i_def) :: twod_mesh_id = imdi
 
   character(str_def) :: name
+
+  integer(i_def) :: i 
 
   ! Cloud fields names
   character(str_short) :: cloudnames(5) = &
@@ -242,95 +243,50 @@ contains
 
     if (ts_init == 0) then
 
-      ! Original nodal output
-      if ( write_nodal_output)  then
+      if ( write_xios_output ) then
 
-        call output_nodal('theta', ts_init, theta, mesh_id)
-        call output_nodal('xi',    ts_init, xi,    mesh_id)
-        call output_nodal('u',     ts_init, u,     mesh_id)
-        call output_nodal('rho',   ts_init, rho,   mesh_id)
-        call output_nodal('exner', ts_init, exner, mesh_id)
-
-        if (use_moisture) then
-
-          ! Output moist fields
-          call output_nodal('m_v',     ts_init, mr(imr_v),   mesh_id)
-          call output_nodal('m_cl',    ts_init, mr(imr_cl),  mesh_id)
-          call output_nodal('m_r',     ts_init, mr(imr_r),   mesh_id)
-          call output_nodal('m_ci',    ts_init, mr(imr_ci),  mesh_id)
-          call output_nodal('m_s',     ts_init, mr(imr_s),   mesh_id)
-          call output_nodal('m_g',     ts_init, mr(imr_g),   mesh_id)
-
-          if (use_physics .and. cloud_scheme /= physics_cloud_scheme_none) then
-            ! Extract cloud fields
-            cf_area        => cloud_fields%get_field('area_fraction')
-            cf_ice         => cloud_fields%get_field('ice_fraction')
-            cf_liq         => cloud_fields%get_field('liquid_fraction')
-            cf_bulk        => cloud_fields%get_field('bulk_fraction')
-            rhcrit_in_wth  => cloud_fields%get_field('rhcrit')
-            call output_nodal('area_fraction', ts_init, cf_area,   mesh_id)
-            call output_nodal('ice_fraction', ts_init, cf_ice,     mesh_id)
-            call output_nodal('liquid_fraction', ts_init, cf_liq,  mesh_id)
-            call output_nodal('bulk_fraction', ts_init, cf_bulk,   mesh_id)
-            call output_nodal('rhcrit', ts_init, rhcrit_in_wth,    mesh_id)
-          end if
-
-        end if
+        ! Need to ensure calendar is initialised here as XIOS has no concept of timestep 0
+        call xios_update_calendar(ts_init + 1)
 
       end if
 
-      ! XIOS output
-      if (write_xios_output) then
+      ! Calculation and output of diagnostics
 
-        ! Make sure XIOS calendar is set to first timestep to be computed
-        call xios_update_calendar(ts_init+1)
+      ! Scalar fields
+      call write_scalar_diagnostic('rho', rho, ts_init, mesh_id, nodal_output_on_w3)
+      call write_scalar_diagnostic('theta', theta, ts_init, mesh_id, nodal_output_on_w3)
+      call write_scalar_diagnostic('exner', exner, ts_init, mesh_id, nodal_output_on_w3)
 
-        ! Output scalar fields
-        call output_xios_nodal("init_theta", theta, mesh_id)
-        call output_xios_nodal("init_rho", rho, mesh_id)
-        call output_xios_nodal("init_exner", exner, mesh_id)
-
-        ! Output vector fields
-        call output_xios_nodal("init_u", u, mesh_id)
-        call output_xios_nodal("init_xi", xi, mesh_id)
-
-        if (use_moisture)then
-
-          ! Output moist fields
-          call output_xios_nodal('init_m_v',     mr(imr_v),   mesh_id)
-          call output_xios_nodal('init_m_cl',    mr(imr_cl),  mesh_id)
-          call output_xios_nodal('init_m_r',     mr(imr_r),   mesh_id)
-          call output_xios_nodal('init_m_ci',    mr(imr_ci),  mesh_id)
-          call output_xios_nodal('init_m_s',     mr(imr_s),   mesh_id)
-          call output_xios_nodal('init_m_g',     mr(imr_g),   mesh_id)
-       
-         if (use_physics .and. cloud_scheme /= physics_cloud_scheme_none) then
-            ! Extract cloud fields
-            cf_area        => cloud_fields%get_field('area_fraction')
-            cf_ice         => cloud_fields%get_field('ice_fraction')
-            cf_liq         => cloud_fields%get_field('liquid_fraction')
-            cf_bulk        => cloud_fields%get_field('bulk_fraction')
-            rhcrit_in_wth  => cloud_fields%get_field('rhcrit')
-            call output_xios_nodal('init_area_fraction', cf_area,    mesh_id)
-            call output_xios_nodal('init_ice_fraction',  cf_ice,     mesh_id)
-            call output_xios_nodal('init_liquid_fraction',  cf_liq,  mesh_id)
-            call output_xios_nodal('init_bulk_fraction', cf_bulk,    mesh_id)
-            call output_xios_nodal('init_rhcrit', rhcrit_in_wth,     mesh_id)
-          end if
-
-        end if
-
+      if (use_moisture) then
+        do i=1,nummr
+           call write_scalar_diagnostic(trim(mr_names(i)), mr(i), ts_init, mesh_id, nodal_output_on_w3)
+        end do
       end if
 
-      if(write_minmax_tseries .and. ts_init == 0) then
+      ! Vector fields
+      call write_vector_diagnostic('u', u, ts_init, mesh_id, nodal_output_on_w3)
+      call write_vector_diagnostic('xi', xi, ts_init, mesh_id, nodal_output_on_w3)
+
+      if (use_physics .and. cloud_scheme /= physics_cloud_scheme_none) then
+        do i=1,5
+          diag_ptr => cloud_fields%get_field(trim(cloudnames(i)))
+          call write_scalar_diagnostic(trim(cloudnames(i)), diag_ptr, ts_init, mesh_id, nodal_output_on_w3)
+        end do
+        diag_ptr => null()
+      end if
+
+
+      if (write_minmax_tseries) then
 
          call minmax_tseries_init('u', mesh_id)
          call minmax_tseries(u, 'u', mesh_id)
 
       end if
 
-      call divergence_diagnostic_alg(u, ts_init, mesh_id)
-      call hydbal_diagnostic_alg(theta, exner, mesh_id)
+      ! Other derived diagnostics with special pre-processing
+
+      call write_divergence_diagnostic(u, ts_init, mesh_id)
+      call write_hydbal_diagnostic(theta, exner, mesh_id)
 
     end if
 
@@ -373,7 +329,7 @@ contains
                           "stopping program! ",LOG_LEVEL_ERROR)
           stop
         end select
-        call density_diagnostic_alg(rho, timestep)
+        call write_density_diagnostic(rho, timestep)
         call conservation_algorithm(timestep, rho, u, theta, exner, xi)
       else
         select case( method )
@@ -421,87 +377,33 @@ contains
 
       if ( mod(timestep, diagnostic_frequency) == 0 ) then
 
-        ! Original nodal output
-        if ( write_nodal_output)  then
+        call log_event("Gungho: writing diagnostic output", LOG_LEVEL_INFO)
 
-          call log_event("Gungho: writing nodal output", LOG_LEVEL_INFO)
-          call output_nodal("theta", timestep, theta, mesh_id)
-          call output_nodal("rho",   timestep, rho,   mesh_id)
-          call output_nodal("exner", timestep, exner, mesh_id)
-          call output_nodal("u",     timestep, u,     mesh_id)
-          call output_nodal("xi",    timestep, xi,    mesh_id)
+        ! Calculation and output of diagnostics
 
-          if (use_moisture)then
+        ! Scalar fields
+        call write_scalar_diagnostic('rho', rho, timestep, mesh_id, nodal_output_on_w3)
+        call write_scalar_diagnostic('theta', theta, timestep, mesh_id, nodal_output_on_w3)
+        call write_scalar_diagnostic('exner', exner, timestep, mesh_id, nodal_output_on_w3)
 
-            ! Output moist fields
-            call output_nodal('m_v',     timestep, mr(imr_v),   mesh_id)
-            call output_nodal('m_cl',    timestep, mr(imr_cl),  mesh_id)
-            call output_nodal('m_r',     timestep, mr(imr_r),   mesh_id)
-            call output_nodal('m_ci',    timestep, mr(imr_ci),  mesh_id)
-            call output_nodal('m_s',     timestep, mr(imr_s),   mesh_id)
-            call output_nodal('m_g',     timestep, mr(imr_g),   mesh_id)
-
-            if (use_physics .and. cloud_scheme /= physics_cloud_scheme_none) then
-              ! Extract cloud fields
-              cf_area       => cloud_fields%get_field('area_fraction')
-              cf_ice        => cloud_fields%get_field('ice_fraction')
-              cf_liq        => cloud_fields%get_field('liquid_fraction')
-              cf_bulk       => cloud_fields%get_field('bulk_fraction')
-              rhcrit_in_wth => cloud_fields%get_field('rhcrit')
-              call output_nodal('area_fraction', timestep, cf_area,    mesh_id)
-              call output_nodal('ice_fraction',  timestep, cf_ice,     mesh_id)
-              call output_nodal('liquid_fraction', timestep,  cf_liq,  mesh_id)
-              call output_nodal('bulk_fraction', timestep, cf_bulk,    mesh_id)
-              call output_nodal('rhcrit', timestep, rhcrit_in_wth,     mesh_id)
-            end if
-            
-          end if
-
+        if (use_moisture)then
+          do i=1,nummr
+            call write_scalar_diagnostic(trim(mr_names(i)), mr(i), timestep, mesh_id, nodal_output_on_w3)
+          end do
         end if
 
-        ! XIOS output
-        if (write_xios_output) then
+        ! Vector fields
+        call write_vector_diagnostic('u', u, timestep, mesh_id, nodal_output_on_w3)
+        call write_vector_diagnostic('xi', u, timestep, mesh_id, nodal_output_on_w3)
 
-          ! Output scalar fields
-          call log_event("Gungho: writing xios output", LOG_LEVEL_INFO)
-          call output_xios_nodal("theta", theta, mesh_id)
-          call output_xios_nodal("rho", rho, mesh_id)
-          call output_xios_nodal("exner", exner, mesh_id)
+        if (use_physics .and. cloud_scheme /= physics_cloud_scheme_none) then
+           do i=1,5
+            diag_ptr => cloud_fields%get_field(trim(cloudnames(i)))
+            call write_scalar_diagnostic(trim(cloudnames(i)), diag_ptr, timestep, mesh_id, nodal_output_on_w3)
+           end do 
+           diag_ptr => null()
+         end if
 
-          if (use_moisture)then
-
-            ! Output moist fields
-            call output_xios_nodal('m_v',     mr(imr_v),   mesh_id)
-            call output_xios_nodal('m_cl',    mr(imr_cl),  mesh_id)
-            call output_xios_nodal('m_r',     mr(imr_r),   mesh_id)
-            call output_xios_nodal('m_ci',    mr(imr_ci),  mesh_id)
-            call output_xios_nodal('m_s',     mr(imr_s),   mesh_id)
-            call output_xios_nodal('m_g',     mr(imr_g),   mesh_id)
-
-            if (use_physics .and. cloud_scheme /= physics_cloud_scheme_none) then
-              ! Extract cloud fields
-              cf_area       => cloud_fields%get_field('area_fraction')
-              cf_ice        => cloud_fields%get_field('ice_fraction')
-              cf_liq        => cloud_fields%get_field('liquid_fraction')
-              cf_bulk       => cloud_fields%get_field('bulk_fraction')
-              rhcrit_in_wth => cloud_fields%get_field('rhcrit')
-              call output_xios_nodal('area_fraction', cf_area,    mesh_id)
-              call output_xios_nodal('ice_fraction',  cf_ice,     mesh_id)
-              call output_xios_nodal('liquid_fraction',  cf_liq,  mesh_id)
-              call output_xios_nodal('bulk_fraction', cf_bulk,    mesh_id)
-              call output_xios_nodal('rhcrit', rhcrit_in_wth,     mesh_id)
-            end if
-
-          end if
-
-          ! Output vector fields
-          call output_xios_nodal("u", u, mesh_id)
-          call output_xios_nodal("xi", xi, mesh_id)
-
-        end if
-
-        call divergence_diagnostic_alg(u, timestep, mesh_id)
-        call hydbal_diagnostic_alg(theta, exner, mesh_id)
       end if
 
     end do ! end ts loop
@@ -516,9 +418,6 @@ contains
 
     implicit none
 
-    integer(i_def) :: rc
-    integer(i_def) :: ierr
-    integer(i_def) :: i 
 
     ! Log fields
     call rho%log_field(   LOG_LEVEL_DEBUG, 'rho' )

@@ -16,6 +16,8 @@ class mesh_mod::mesh_type {
   -nfaces:integer
   -ncells:integer
   -nverts_per_cell:integer
+  -nverts_per_cell_2d:integer
+  -nverts_per_edge:integer
   -nedges_per_cell:integer
   -nfaces_per_cell:integer
   -mesh_maps:mesh_map_collection_type <<allocatable>>
@@ -81,6 +83,8 @@ class mesh_mod::mesh_type {
   +get_nverts() : integer
   +get_nverts_2d() : integer
   +get_nverts_per_cell() : integer
+  +get_nverts_per_cell_2d() : integer
+  +get_nverts_per_edge() : integer
   +add_mesh_map(<<in>>target_mesh: mesh_type<<pointer>>)
   +get_mesh_map(<<in>>target_mesh: mesh_type<<pointer>>) : mesh_map_type <<pointer>>
   +get_partition() : partition_type<<pointer>>

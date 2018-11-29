@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<simulation> 
+<simulation>
 
-  <context id = "skeleton"> 
+  <context id = "skeleton">
   
    <calendar type = "Gregorian" start_date = "2016-01-01 15:00:00" />
 
    <axis_definition>
-    <axis id="vert_axis_node" name="levels_nodes"/>
-    <axis id="vert_axis_half_levels" name="half_levels_faces"/>   
-    <axis id="vert_axis_full_levels" name="full_levels_faces"/>  
+    <axis id="vert_axis_half_levels" name="half_levels"/>
+    <axis id="vert_axis_full_levels" name="full_levels"/>
    </axis_definition>
    
    <domain_definition>
       <domain id="node" name="Mesh2d" nvertex="1"/>
-      <domain id="face_half_levels" name="Mesh2d_half_levels" nvertex="4"/>
-      <domain id="face_full_levels" name="Mesh2d_full_levels" nvertex="4"/>
+      <domain id="face_half_levels" name="Mesh2d_face_half_levels" nvertex="4"/>
+      <domain id="face_full_levels" name="Mesh2d_face_full_levels" nvertex="4"/>
+      <domain id="edge_half_levels" name="Mesh2d_edge_half_levels" nvertex="2"/>
       <domain id="restart_W0" name="restart_W0" nvertex="1"/>
       <domain id="restart_W1" name="restart_W1" nvertex="1"/>
       <domain id="restart_W2" name="restart_W2" nvertex="1"/>
@@ -28,7 +28,7 @@
    <grid_definition>
     <grid id="node_grid">
       <domain domain_ref="node"/>
-      <axis axis_ref="vert_axis_node"/>
+      <axis axis_ref="vert_axis_full_levels"/>
     </grid>
     <grid id="half_level_face_grid">
       <domain domain_ref="face_half_levels"/>
@@ -38,36 +38,46 @@
       <domain domain_ref="face_full_levels"/>
       <axis axis_ref="vert_axis_full_levels"/>
     </grid>
+        <grid id="half_level_edge_grid">
+      <domain domain_ref="edge_half_levels"/>
+      <axis axis_ref="vert_axis_half_levels"/>
+    </grid>
    </grid_definition>
 
    <field_definition prec="8" >
+   
      <!-- Main diagnostic group -->
-     <field_group id="diagnostic_fields" freq_op="1ts" enabled=".TRUE." operation="once" >   
+     <field_group id="diagnostic_fields" freq_op="1ts" enabled=".TRUE." operation="once" >
        <field id="skeleton_field" name="skeleton_field" long_name="skeleton_field" unit="1" grid_ref="half_level_face_grid" />
      </field_group>
-
+     <!-- Initial conditions group -->
+     <field_group id="initial_fields" freq_op="1ts" enabled=".TRUE." operation="once" >
+       <field id="init_skeleton_field" name="skeleton_field" long_name="skeleton_field" unit="1" grid_ref="half_level_face_grid" />
+     </field_group>
+     
    </field_definition>
 
-   <file_definition 
+   <file_definition
       type="one_file" 
       par_access="collective"
       time_counter="none">
       
       <!-- File definition for checkpoint write -->
-      <file id="lfric_checkpoint" name="lfric_checkpoint" output_freq="1ts" convention="CF" enabled=".FALSE.">
-      </file> 
-      
-     <!-- file definition for restart read -->
-      <file id="lfric_restart" name="lfric_checkpoint" mode="read" output_freq="1ts" cyclic="true" enabled=".FALSE.">
+      <file id="lfric_checkpoint" name="skeleton_checkpoint" output_freq="1ts" convention="CF" enabled=".FALSE.">
       </file>
       
+     <!-- file definition for restart read -->
+      <file id="lfric_restart" name="skeleton_checkpoint" mode="read" output_freq="1ts" cyclic="true" enabled=".FALSE.">
+      </file>   
       
      <file id="lfric_diag" name="skeleton_diag" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
        <field field_ref="skeleton_field"/>
-     </file> 
+     </file>
+     
+     <file id="lfric_initial" name="skeleton_initial" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
+        <field field_ref="init_skeleton_field"/>
+     </file>
       
-   
- 
     </file_definition>
     
   </context>

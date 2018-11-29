@@ -53,6 +53,8 @@ module global_mesh_mod
     integer(i_def)       :: ncells
   ! number of vertices on each cell
     integer(i_def)       :: nverts_per_cell
+  ! number of vertices on each edge
+    integer(i_def)       :: nverts_per_edge
   ! number of edges on each cell
     integer(i_def)       :: nedges_per_cell
   ! maximum number of cells around a vertex
@@ -74,6 +76,7 @@ module global_mesh_mod
     procedure, public :: get_edge_on_all_cells
     procedure, public :: get_vert_on_all_cells
     procedure, public :: get_nverts_per_cell
+    procedure, public :: get_nverts_per_edge
     procedure, public :: get_nedges_per_cell
     procedure, public :: get_cell_next
     procedure, public :: get_all_cells_next
@@ -166,6 +169,7 @@ contains
     self%nedges  = nedge_in
     self%ncells  = nface_in
     self%nverts_per_cell      = num_nodes_per_face
+    self%nverts_per_edge      = num_nodes_per_edge
     self%nedges_per_cell      = num_edges_per_face
     self%max_cells_per_vertex = max_num_faces_per_node
 
@@ -770,6 +774,22 @@ contains
     nverts_per_cell = self%nverts_per_cell
 
   end function get_nverts_per_cell
+
+  !---------------------------------------------------------------------------
+  !> @brief Gets the number of vertices per 2D-edge.
+  !>
+  !> @return Number of vertices per 2D-edge.
+  !>
+  function get_nverts_per_edge( self ) result (nverts_per_edge)
+
+    implicit none
+    class(global_mesh_type), intent(in) :: self
+    integer(i_def)                      :: nverts_per_edge
+
+    nverts_per_edge = self%nverts_per_edge
+
+  end function get_nverts_per_edge
+
 
   !---------------------------------------------------------------------------
   !> @brief Gets the number of edges on each cell.

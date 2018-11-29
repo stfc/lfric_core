@@ -28,7 +28,7 @@ contains
     use log_mod,                   only: log_event, log_scratch_space, &
                                          LOG_LEVEL_INFO, LOG_LEVEL_ERROR
     use constants_mod,             only: r_def, str_max_filename, i_def
-    use field_mod,                 only: field_type, write_interface
+    use field_mod,                 only: field_type, write_diag_interface
     use operator_mod,              only: operator_type
     use finite_element_config_mod, only: element_order 
     use function_space_collection_mod,  only: function_space_collection
@@ -41,7 +41,7 @@ contains
     implicit none
 
     ! Input field to project from
-    type( field_type ), intent(inout)              :: field
+    type( field_type ), intent(in)                 :: field
     ! Output field to project to
     type( field_type ), intent(inout)              :: projected_field(:)
     ! Output field dimension
@@ -55,7 +55,7 @@ contains
     type( quadrature_xyoz_type )          :: qr
     type( quadrature_rule_gaussian_type ) :: quadrature_rule
     integer(i_def)                        :: dir, fs_handle
-    procedure(write_interface), pointer   :: tmp_ptr
+    procedure(write_diag_interface), pointer   :: tmp_write_diag_ptr
 
 
     qr = quadrature_xyoz_type(element_order+3, quadrature_rule)
@@ -70,9 +70,9 @@ contains
     do dir = 1,d
       projected_field(dir) = field_type( vector_space = &
               function_space_collection%get_fs(mesh_id,element_order, output_fs ) )
-      call field%get_write_field_behaviour(tmp_ptr)
+      call field%get_write_diag_behaviour(tmp_write_diag_ptr)
       ! set the write field behaviour based upon what is set in the original field
-      call projected_field(dir)%set_write_field_behaviour(tmp_ptr)
+      call projected_field(dir)%set_write_diag_behaviour(tmp_write_diag_ptr)
     end do 
 
 

@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<simulation> 
+<simulation>
 
-  <context id = "transport"> 
+  <context id = "transport">
 
    <calendar type = "Gregorian" start_date = "2016-01-01 15:00:00" />
 
    <axis_definition>
-    <axis id="vert_axis_node" name="levels_nodes"/>
-    <axis id="vert_axis_half_levels" name="half_levels_faces"/>   
-    <axis id="vert_axis_full_levels" name="full_levels_faces"/>   
+    <axis id="vert_axis_half_levels" name="half_levels"/>
+    <axis id="vert_axis_full_levels" name="full_levels"/>
    </axis_definition>
 
    <domain_definition>
       <domain id="node" name="Mesh2d_node" nvertex="1"/>
       <domain id="face_half_levels" name="Mesh2d_half_levels" nvertex="4"/>
       <domain id="face_full_levels" name="Mesh2d_full_levels" nvertex="4"/>
+      <domain id="edge_half_levels" name="Mesh2d_edge_half_levels" nvertex="2"/>
       <domain id="restart_W0" name="restart_W0" nvertex="1"/>
       <domain id="restart_W1" name="restart_W1" nvertex="1"/>
       <domain id="restart_W2" name="restart_W2" nvertex="1"/>
@@ -28,7 +28,7 @@
    <grid_definition>
     <grid id="node_grid">
       <domain domain_ref="node"/>
-      <axis axis_ref="vert_axis_node"/>
+      <axis axis_ref="vert_axis_full_levels"/>
     </grid>
     <grid id="half_level_face_grid">
       <domain domain_ref="face_half_levels"/>
@@ -37,6 +37,10 @@
     <grid id="full_level_face_grid">
       <domain domain_ref="face_full_levels"/>
       <axis axis_ref="vert_axis_full_levels"/>
+    </grid>
+    <grid id="half_level_edge_grid">
+      <domain domain_ref="edge_half_levels"/>
+      <axis axis_ref="vert_axis_half_levels"/>
     </grid>
    </grid_definition>
 
@@ -50,23 +54,23 @@
 
      <!-- Main diagnostic group -->
      <field_group id="diagnostic_fields" freq_op="1ts" enabled=".TRUE." operation="instant" >
-       <field id="wind1" name="wind1" long_name="Wind1" unit="m s-1" grid_ref="half_level_face_grid" />
-       <field id="wind2" name="wind2" long_name="Wind2" unit="m s-1" grid_ref="half_level_face_grid" />
-       <field id="wind3" name="wind3" long_name="Wind3" unit="m s-1" grid_ref="half_level_face_grid" />
+       <field id="wind1" name="wind1" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="wind2" name="wind2" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="wind3" name="wind3" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
        <field id="density" name="density" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
      </field_group>
 
       <!-- Initial conditions group -->
      <field_group id="initial_fields" freq_op="1ts" enabled=".TRUE." operation="once" >
-       <field id="init_wind1" name="wind1" long_name="Wind1" unit="m s-1" grid_ref="half_level_face_grid" />
-       <field id="init_wind2" name="wind2" long_name="Wind2" unit="m s-1" grid_ref="half_level_face_grid" />
-       <field id="init_wind3" name="wind3" long_name="Wind3" unit="m s-1" grid_ref="half_level_face_grid" />
+       <field id="init_wind1" name="wind1" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="init_wind2" name="wind2" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="init_wind3" name="wind3" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
        <field id="init_density" name="density" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
-     </field_group>    
+     </field_group>
 
    </field_definition>
 
-   <file_definition 
+   <file_definition
       type="one_file" 
       par_access="collective"
       time_counter="none">
@@ -77,7 +81,7 @@
       <file id="lfric_checkpoint" name="lfric_checkpoint" convention="CF" enabled=".FALSE.">
         <field field_ref="checkpoint_density"/>
         <field field_ref="checkpoint_wind"/>
-      </file> 
+      </file>
 
        <!-- file definition for read -->
       <file id="lfric_restart" name="lfric_restart" mode="read" output_freq="1ts" cyclic="true" enabled=".FALSE.">
@@ -85,21 +89,19 @@
        <field id="restart_wind" name="wind" long_name="wind" unit="m s-1" operation="instant" domain_ref="restart_W2" />
       </file>
 
-
       <file id="lfric_diag" name="lfric_diag" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
         <field field_ref="wind1"/>
         <field field_ref="wind2"/>
         <field field_ref="wind3"/>
         <field field_ref="density"/>
-      </file> 
+      </file>
 
       <file id="lfric_initial" name="lfric_initial" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
         <field field_ref="init_wind1"/>
         <field field_ref="init_wind2"/>
         <field field_ref="init_wind3"/>
         <field field_ref="init_density"/>
-      </file> 
-
+      </file>
 
     </file_definition>
 

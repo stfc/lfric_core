@@ -9,11 +9,13 @@ module minmax_tseries_mod
 
   use constants_mod,                     only: r_def, str_max_filename, i_def
   use field_mod,                         only: field_type, field_proxy_type
-  use nodal_output_alg_mod,              only: nodal_output_alg
+  use diagnostic_alg_mod,                only: scalar_nodal_diagnostic_alg, &
+                                               vector_nodal_diagnostic_alg
   use output_config_mod,                 only: diag_stem_name
   use mesh_mod,                          only: mesh_type
   use mesh_collection_mod,               only: mesh_collection
   use runtime_constants_mod,             only: get_coordinates
+  use fs_continuity_mod,                 only: W1, W2
 
   implicit none
 
@@ -74,9 +76,10 @@ contains
    type(field_type)                   :: nodal_output(3)
    type(field_type)                   :: nodal_coordinates(3)
    type(field_type)                   :: level
+   integer(i_def)                     :: output_dim 
+   integer(i_def)                     :: fs     
 
    type(field_proxy_type)             :: n_p(3)
-   type(scalar_type)                  :: max_n_p(3), min_n_p(3)
 
    integer(i_def)                     :: i
 
@@ -88,7 +91,19 @@ contains
    fname = trim(diag_stem_name) // "_" // &
            trim("nodal_minmax_") // trim(field_name) // trim(".m")
 
-   call nodal_output_alg(field, chi, nodal_output, nodal_coordinates, level)
+   fs = field%which_function_space()
+
+   if ( fs == W1 .or. fs == W2) then
+     ! Vector field
+     call vector_nodal_diagnostic_alg(nodal_output, output_dim, &
+                                      nodal_coordinates, level, &
+                                      field_name, field)
+
+   else
+     ! Scalar field
+     call scalar_nodal_diagnostic_alg(nodal_output, nodal_coordinates, level, &
+                                      field_name, field, mesh_id, .false.)
+   end if
 
    do i = 1,3
      n_p(i) = nodal_output(i)%get_proxy()

@@ -11,32 +11,31 @@
 
 program solver_miniapp
 
-  use constants_mod,                  only : i_def
-  use cli_mod,                        only : get_initial_filename
-  use init_mesh_mod,                  only : init_mesh
-  use init_fem_mod,                   only : init_fem  
-  use init_solver_miniapp_mod,        only : init_solver_miniapp
-  use yaxt,                           only : xt_initialize, xt_finalize
-  use mpi_mod,                        only : initialise_comm, store_comm, &
-                                             finalise_comm, &
-                                             get_comm_size, get_comm_rank
-  use global_mesh_collection_mod,     only : global_mesh_collection, &
-                                             global_mesh_collection_type
-  use field_mod,                      only : field_type
-  use field_vector_mod,               only : field_vector_type
+  use constants_mod,                    only : i_def
+  use cli_mod,                          only : get_initial_filename
+  use init_mesh_mod,                    only : init_mesh
+  use init_fem_mod,                     only : init_fem  
+  use init_solver_miniapp_mod,          only : init_solver_miniapp
+  use yaxt,                             only : xt_initialize, xt_finalize
+  use mpi_mod,                          only : initialise_comm, store_comm, &
+                                               finalise_comm,               &
+                                               get_comm_size, get_comm_rank
+  use global_mesh_collection_mod,       only : global_mesh_collection, &
+                                               global_mesh_collection_type
+  use field_mod,                        only : field_type
+  use field_vector_mod,                 only : field_vector_type
   use solver_miniapp_alg_mod,           only : solver_miniapp_alg
   use solver_miniapp_configuration_mod, only : final_configuration
   use solver_miniapp_mod,               only : load_configuration
-  use log_mod,                        only : log_event,         &
-                                             log_set_level,     &
-                                             log_scratch_space, &
-                                             initialise_logging, &
-                                             finalise_logging, &
-                                             LOG_LEVEL_ERROR,   &
-                                             LOG_LEVEL_INFO
-  use output_config_mod,              only : write_nodal_output
-  use io_mod,                         only : output_nodal
-  use checksum_alg_mod,               only : checksum_alg
+  use log_mod,                          only : log_event,          &
+                                               log_set_level,      &
+                                               log_scratch_space,  &
+                                               initialise_logging, &
+                                               finalise_logging,   &
+                                               LOG_LEVEL_ERROR,    &
+                                               LOG_LEVEL_INFO
+  use diagnostics_io_mod,               only : write_scalar_diagnostic
+  use checksum_alg_mod,                 only : checksum_alg
 
   implicit none
 
@@ -106,11 +105,10 @@ program solver_miniapp
   ! pull the fields from the vector
   call fv_1%export_field( field_1, 1 )
   call fv_1%export_field( field_2, 2 )
-  ! Original nodal output
-  if ( write_nodal_output)  then
-     call output_nodal('solver_field_1', 0, field_1, mesh_id)
-     call output_nodal('solver_field_2', 0, field_2, mesh_id)
-  end if
+
+  ! Write some diagnostic output
+  call write_scalar_diagnostic('solver_field_1', field_1, 0, mesh_id, .false.)
+  call write_scalar_diagnostic('solver_field_2', field_2, 0, mesh_id, .false.)
 
   !-----------------------------------------------------------------------------
   ! model finalise

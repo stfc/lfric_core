@@ -20,24 +20,25 @@ use init_fem_mod,               only: init_fem
 use init_mesh_mod,              only: init_mesh
 use io_dev_configuration_mod,   only: final_configuration
 use io_dev_mod,                 only: load_configuration
-use io_mod,                     only: output_xios_nodal, &
-                                      xios_domain_init
-use log_mod,                    only: log_event,         &
-                                      log_set_level,     &
-                                      log_scratch_space, &
+use io_mod,                     only: xios_domain_init
+use diagnostics_io_mod,         only: write_scalar_diagnostic, &
+                                      write_vector_diagnostic
+use log_mod,                    only: log_event,          &
+                                      log_set_level,      &
+                                      log_scratch_space,  &
                                       initialise_logging, &
-                                      finalise_logging, &
-                                      LOG_LEVEL_ERROR,   &
-                                      LOG_LEVEL_INFO,    &
-                                      LOG_LEVEL_DEBUG,   &
-                                      LOG_LEVEL_TRACE,   &
+                                      finalise_logging,   &
+                                      LOG_LEVEL_ERROR,    &
+                                      LOG_LEVEL_INFO,     &
+                                      LOG_LEVEL_DEBUG,    &
+                                      LOG_LEVEL_TRACE,    &
                                       log_scratch_space
 use mod_wait
 use restart_config_mod,         only: restart_filename => filename
 use restart_control_mod,        only: restart_type
 use timestepping_config_mod,    only: dt
 use mpi_mod,                    only: initialise_comm, store_comm, &
-                                      finalise_comm, &
+                                      finalise_comm,               &
                                       get_comm_size, get_comm_rank
 use xios
 use yaxt,                       only: xt_initialize, xt_finalize
@@ -54,8 +55,11 @@ character(*), public, parameter :: xios_id  = 'lfric_client'
 
 type(restart_type) :: restart
 
-! Prognostic fields
-type( field_type ) :: test_field
+! Examples of fields that are output on different I/O domains
+type( field_type ) :: density ! on W3
+type( field_type ) :: theta   ! on Wtheta
+type( field_type ) :: wind    ! on W2 and output on W2H and W2V 
+
 
 ! Coordinate field
 type(field_type), target, dimension(3) :: chi
@@ -67,7 +71,7 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Sets up required state in preparation for run.
-  !>
+  !>@param[in] filename Name of the file containing the desired configuration 
   subroutine initialise( filename )
 
   implicit none
@@ -143,8 +147,8 @@ contains
   ! Model init
   !-----------------------------------------------------------------------------
 
-  ! Create and initialise field
-  call init_io_dev(mesh_id, chi, test_field)
+  ! Create and initialise fields
+  call init_io_dev(mesh_id, chi, density, theta, wind)
 
 
   ! Full global meshes no longer required, so reclaim
@@ -158,8 +162,8 @@ contains
 
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !> Performs time steps.
-  !>
+  !>@brief Timesteps the model, calling the desired timestepping algorithm based
+  !>upon the configuration
   subroutine run()
 
   implicit none
@@ -172,8 +176,12 @@ contains
   call log_event( program_name//': Updating XIOS timestep', LOG_LEVEL_INFO )
   call xios_update_calendar(1)
 
+  ! Write out the fields
+
   call log_event( program_name//': Writing XIOS output', LOG_LEVEL_INFO)
-  call output_xios_nodal('test_field', test_field, mesh_id)
+  call write_scalar_diagnostic('density', density, 1, mesh_id, .false.)
+  call write_scalar_diagnostic('theta', theta, 1, mesh_id, .false.)
+  call write_vector_diagnostic('wind', wind, 1, mesh_id, .false.)
 
   end subroutine run
 
@@ -181,14 +189,11 @@ contains
   ! Driver layer finalise
   !-----------------------------------------------------------------------------
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !> Tidies up after a run.
-  !>
+  !>@brief Tidies up after a run.
+
   subroutine finalise()
 
   implicit none
-
-  integer(i_def) :: rc
-  integer(i_def) :: ierr
 
   ! Finalise XIOS context
   call xios_context_finalize()

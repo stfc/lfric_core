@@ -18,7 +18,8 @@ module visualisation_mod
   use function_space_mod,            only: function_space_type
   use function_space_collection_mod, only: function_space_collection
   use project_output_mod,            only: project_output
-  use nodal_output_alg_mod,          only: nodal_output_alg
+!   use nodal_output_alg_mod,          only: nodal_output_alg
+  use diagnostic_alg_mod,            only: scalar_nodal_diagnostic_alg
   use runtime_constants_mod,         only: get_coordinates
   use log_mod,                       only: log_event,       &
                                            LOG_LEVEL_ERROR, &
@@ -188,6 +189,8 @@ subroutine catalyst_coprocess(timestep, time, vis_fields, mesh_id)
   type(field_type)                   :: nodal_output(3), nodal_coordinates(3)
   type(field_type)                   :: level
   type(field_type), allocatable      :: projected_field(:)
+  !character(len=*)                   :: field_name(:)
+  character(len=:), allocatable      :: field_name
   type(function_space_type), pointer :: output_field_fs => null()
   type(field_type), pointer          :: chi(:) => null(), field => null()
   type(vis_field_type), pointer      :: loop => null()
@@ -242,6 +245,8 @@ subroutine catalyst_coprocess(timestep, time, vis_fields, mesh_id)
 
       field => loop%field
 
+      field_name = field%get_name()
+
       output_field_fs => field%get_function_space()
       output_fs = field%which_function_space()
       ndims = output_field_fs%get_dim_space()
@@ -254,6 +259,7 @@ subroutine catalyst_coprocess(timestep, time, vis_fields, mesh_id)
 
       nullify(output_field_fs)
 
+
       ! Project all field types to W3, unless field is W3 already
       if ( output_fs /= W3 ) then
 
@@ -261,14 +267,18 @@ subroutine catalyst_coprocess(timestep, time, vis_fields, mesh_id)
         allocate(projected_field(ndims))
 
         ! Project to W3
-        ! This will produce up to 3 components in case of vector fields
+        ! This will produce up to 3 scalar components in case of vector fields
         call project_output(field, projected_field, ndims, W3, mesh_id)
+
 
         ! Convert each component to physical space
         do idim = 1, ndims
-          call nodal_output_alg(projected_field(idim), chi, &
-                                nodal_output(idim:idim), nodal_coordinates, &
-                                level)
+
+          call scalar_nodal_diagnostic_alg(trim(field_name),        &
+                                           projected_field(idim),   &
+                                           nodal_output(idim:idim), &
+                                           nodal_coordinates,       &
+                                           level, mesh_id, .false.)
         end do
 
         ! Transform vector field components from spherical to cartesian
@@ -281,9 +291,12 @@ subroutine catalyst_coprocess(timestep, time, vis_fields, mesh_id)
         deallocate(projected_field)
 
       else
-        ! W3 field - one dimension
-        call nodal_output_alg(field, chi, nodal_output(1:1), nodal_coordinates, &
-                              level)
+
+        call scalar_nodal_diagnostic_alg(trim(field_name),  &
+                                         field,             &
+                                         nodal_output(1:1), &
+                                         nodal_coordinates, &
+                                         level, mesh_id, .false.)
       end if
 
       ! Transfer to VTK grid
@@ -294,6 +307,7 @@ subroutine catalyst_coprocess(timestep, time, vis_fields, mesh_id)
 
     end do
 
+    deallocate(field_name)
     nullify(loop)
     nullify(field)
     nullify(chi)

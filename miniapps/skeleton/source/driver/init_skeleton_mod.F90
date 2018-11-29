@@ -12,7 +12,7 @@
 module init_skeleton_mod
 
   use constants_mod,                  only : i_def
-  use field_mod,                      only : field_type, write_interface
+  use field_mod,                      only : field_type, write_diag_interface
   use finite_element_config_mod,      only : element_order
   use function_space_collection_mod,  only : function_space_collection
   use fs_continuity_mod,              only : W3
@@ -35,7 +35,7 @@ module init_skeleton_mod
     ! Coordinate field
     type( field_type ), intent(inout)        :: chi(:)
 
-    procedure(write_interface), pointer      :: tmp_ptr
+    procedure(write_diag_interface), pointer :: tmp_ptr
 
     call log_event( 'skeleton: Initialising miniapp ...', LOG_LEVEL_INFO )
 
@@ -51,7 +51,7 @@ module init_skeleton_mod
 
        tmp_ptr => xios_write_field_face
 
-       call field_1%set_write_field_behaviour(tmp_ptr)
+       call field_1%set_write_diag_behaviour(tmp_ptr)
        
     end if
 
