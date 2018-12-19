@@ -7,7 +7,8 @@
                                                       'wet_conv_bl_cld_scm',
 						      'wet_conv_bl_conv_scm',
                                                       'wet_conv_bl_cld_mphys_scm',
-                                                      'wet_conv_bl_cld_scm_checkrestart']
+                                                      'wet_conv_bl_rad_scm',
+                                                      'wet_conv_bl_cld_scm_checkrestart'],
                                      } %}
 
 {%- set canned_configurations  = ['lfric_atm'] %}
@@ -28,7 +29,10 @@
                      plotstr="plot_scm.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR")',
     'run_application("lfric_atm", "wet_conv_bl_cld_mphys_scm",
                      resolutions=[("BiP4x4-10000x10000",600.0)] ,
-                     plotstr="plot_scm.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR" )',
+                     plotstr="plot_scm.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR")',
+    'run_application("lfric_atm", "wet_conv_bl_rad_scm",
+                     resolutions=[("BiP4x4-10000x10000",600.0)] ,
+                     plotstr="plot_scm.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR")',
     'run_application("lfric_atm", "wet_conv_bl_cld_scm_checkrestart",
                      resolutions=[("BiP4x4-10000x10000",600.0)] ,
                      env={"crun":2, "nrun":24},                     

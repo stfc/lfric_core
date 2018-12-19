@@ -29,7 +29,7 @@ module lfric_atm_rel_mol_mass_mod
   !< Ozone
   real(r_def), parameter :: relative_molecular_mass_h2o = 1.8e-2_r_def
   !< Water
-  real(r_def), parameter :: relative_molecular_mass_dry_air = 2.896e-2_r_def
+  real(r_def), parameter :: relative_molecular_mass_dry_air = 2.8966e-2_r_def
   !< Dry Air: This should be planet dependent!
   !> @}
 

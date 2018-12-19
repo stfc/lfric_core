@@ -40,7 +40,8 @@ contains
 
     use gungho_feign_config_mod,       only : feign_physics_config
     use physics_config_mod,            only : cloud_scheme,              &
-                                              physics_cloud_scheme_smith
+                                              physics_cloud_scheme_smith, &
+                                              physics_radiation_placement_none
     implicit none
 
     class(cloud_test_type), intent(inout) :: this
@@ -55,6 +56,8 @@ contains
 
     call feign_physics_config( boundary_layer_placement=0,     &
                                convection_placement=0,         &
+                               radiation_placement             &
+                                 = physics_radiation_placement_none, &
                                heldsuarez_thermo_placement=-1, &
                                heldsuarez_wind_placement=-1,   &
                                hs_random=.false.,              &

@@ -134,6 +134,11 @@ contains
     call add_physics_field(twod_fields, 'ntml',    vector_space, checkpoint_restart_flag, restart)
     call add_physics_field(twod_fields, 'cumulus', vector_space, checkpoint_restart_flag, restart)
 
+    checkpoint_restart_flag = .false.
+    call add_physics_field(twod_fields, 'cos_zenith_angle',   vector_space, checkpoint_restart_flag, restart)
+    call add_physics_field(twod_fields, 'lit_fraction',       vector_space, checkpoint_restart_flag, restart)
+    call add_physics_field(twod_fields, 'stellar_irradiance', vector_space, checkpoint_restart_flag, restart)
+
     !========================================================================
     ! Here we create some cloud fields
     !========================================================================

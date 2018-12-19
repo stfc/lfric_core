@@ -1,0 +1,115 @@
+!------------------------------------------------------------------------------
+! (c) Crown copyright 2018 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!------------------------------------------------------------------------------
+! @brief Control code for the radiative transfer scheme
+
+module radiation_alg_mod
+  
+use field_mod,                    only: field_type
+use field_collection_mod,         only: field_collection_type
+use quadrature_xyoz_mod,          only: quadrature_xyoz_type
+use quadrature_rule_gaussian_mod, only: quadrature_rule_gaussian_type
+use mr_indices_mod,               only: nummr, imr_v, imr_cl, imr_ci
+
+use illuminate_kernel_mod, only: illuminate_kernel_type
+use sw_kernel_mod, only: sw_kernel_type
+use lw_kernel_mod, only: lw_kernel_type
+
+implicit none
+private
+
+!------------------------------------------------------------------------------
+! local parameters
+!------------------------------------------------------------------------------
+
+!------------------------------------------------------------------------------
+! Contained functions/subroutines
+!------------------------------------------------------------------------------
+public :: radiation_alg_step
+
+contains
+
+! @param[inout] dtheta_rad     Potential temperature increment
+! @param[in]    theta          Potential temperature field
+! @param[in]    exner          Exner pressure field in density space
+! @param[in]    mr             Mixing ratios
+! @param[in]    derived_fields Derived fields
+! @param[in]    cloud_fields   Cloud fields
+! @param[in]    twod_fields    2D fields
+! @param[in]    height_w3      Height of density space levels above surface
+! @param[in]    height_wth     Height of temperature space levels above surface
+! @param[in]    chi            Coordinate array
+
+subroutine radiation_alg_step(dtheta_rad, theta, exner, mr,              &
+                              derived_fields, cloud_fields, twod_fields, &
+                              height_w3, height_wth, chi)
+
+  implicit none
+
+  type( field_type ), intent( inout ) :: dtheta_rad
+  type( field_type ), intent( in )    :: theta, exner, mr(nummr)
+  type( field_type ), intent( in )    :: height_w3, height_wth, chi(3)
+  type( field_collection_type ), intent(inout) :: derived_fields
+  type( field_collection_type ), intent(inout) :: cloud_fields
+  type( field_collection_type ), intent(inout) :: twod_fields
+
+  type( field_type )                    :: dtheta_sw, dtheta_lw
+  type( quadrature_xyoz_type )          :: qr
+  type( quadrature_rule_gaussian_type ) :: quadrature_rule
+
+  ! Unpacked fields from collections
+  type( field_type ), pointer :: exner_in_wth       => null()
+  type( field_type ), pointer :: rho_in_wth         => null()
+  type( field_type ), pointer :: theta_in_w3        => null()
+  type( field_type ), pointer :: tstar              => null()
+  type( field_type ), pointer :: cos_zenith_angle   => null()
+  type( field_type ), pointer :: lit_fraction       => null()
+  type( field_type ), pointer :: stellar_irradiance => null()
+  type( field_type ), pointer :: area_fraction      => null()
+  type( field_type ), pointer :: liquid_fraction    => null()
+  type( field_type ), pointer :: ice_fraction       => null()
+
+
+  exner_in_wth       => derived_fields%get_field('exner_in_wth')
+  rho_in_wth         => derived_fields%get_field('rho_in_wth')
+  theta_in_w3        => derived_fields%get_field('theta_in_w3')
+  tstar              =>    twod_fields%get_field('tstar')
+  cos_zenith_angle   =>    twod_fields%get_field('cos_zenith_angle')
+  lit_fraction       =>    twod_fields%get_field('lit_fraction')
+  stellar_irradiance =>    twod_fields%get_field('stellar_irradiance')
+  area_fraction      =>   cloud_fields%get_field('area_fraction')
+  liquid_fraction    =>   cloud_fields%get_field('liquid_fraction')
+  ice_fraction       =>   cloud_fields%get_field('ice_fraction')
+
+  dtheta_sw = field_type( vector_space = theta%get_function_space() )
+  dtheta_lw = field_type( vector_space = theta%get_function_space() )
+  qr = quadrature_xyoz_type(1, quadrature_rule)
+
+
+  call invoke( illuminate_kernel_type(                               &
+                 cos_zenith_angle, lit_fraction, stellar_irradiance, &
+                 chi, qr) )
+
+  call invoke( sw_kernel_type(                                       &
+                 dtheta_sw,                                          &
+                 theta, exner, exner_in_wth, rho_in_wth,             &
+                 height_w3, height_wth,                              &
+                 cos_zenith_angle, lit_fraction, stellar_irradiance, &
+                 mr(imr_v), mr(imr_cl), mr(imr_ci),                  &
+                 area_fraction, liquid_fraction, ice_fraction ) )
+
+  call invoke( lw_kernel_type(                                        &
+                 dtheta_lw,                                           &
+                 theta, theta_in_w3, exner, exner_in_wth, rho_in_wth, &
+                 height_w3, height_wth, tstar,                        &
+                 mr(imr_v), mr(imr_cl), mr(imr_ci),                   &
+                 area_fraction, liquid_fraction, ice_fraction ) )
+
+  call invoke(setval_X(dtheta_rad, dtheta_sw))
+  call invoke(inc_X_plus_Y(dtheta_rad, dtheta_lw))
+
+end subroutine radiation_alg_step
+
+end module radiation_alg_mod

@@ -22,7 +22,8 @@ module held_suarez_kernel_mod_test
                                             feign_timestepping_config, &
                                             feign_physics_config
   use physics_config_mod,            only : cloud_scheme, &
-                                            physics_cloud_scheme_none
+                                            physics_cloud_scheme_none, &
+                                            physics_radiation_placement_none
   use pFUnit_Mod
   use quadrature_xyoz_mod,           only: quadrature_xyoz_type, &
                                            quadrature_xyoz_proxy_type
@@ -239,6 +240,8 @@ contains
 
 
     call feign_physics_config( boundary_layer_placement=0,     &
+                               radiation_placement             &
+                                 = physics_radiation_placement_none, &
                                convection_placement=0,         &
                                heldsuarez_thermo_placement=-1, &
                                heldsuarez_wind_placement=-1,   &

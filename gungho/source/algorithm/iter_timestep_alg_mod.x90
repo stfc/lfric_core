@@ -101,9 +101,12 @@ module iter_timestep_alg_mod
 
 #ifdef UM_PHYSICS
   use um_init_mod,                only: um_init
+  use socrates_init_mod,          only: socrates_init
   use cld_alg_mod,                only: cld_alg_step
   use physics_config_mod,         only: cloud_scheme, &
-                                        physics_cloud_scheme_none
+                                        physics_cloud_scheme_none, &
+                                        radiation_placement, &
+                                        physics_radiation_placement_none
 #endif
 
   use timer_mod,                  only: timer
@@ -244,6 +247,10 @@ contains
 
 #ifdef UM_PHYSICS
     if ( use_physics ) then
+      if (radiation_placement /= physics_radiation_placement_none) then
+        ! Initialisation for the Socrates radiation scheme
+        call socrates_init()
+      end if
       ! Initialization for the UM physics schemes (BL, cloud, mphys, conv)
       call um_init(theta)
     end if

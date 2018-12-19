@@ -86,6 +86,7 @@
   cloud_scheme = 'none'
   boundary_layer_placement = 0
   convection_placement = 0
+  radiation_placement = 'none'
 /
 
 &planet

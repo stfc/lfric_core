@@ -114,6 +114,11 @@ extract-um-physics:
 	        WORKING_DIR=$(abspath $(WORKING_DIR))
 	$(Q)$(MAKE) $(QUIET_ARG) -C $(ROOT_DIR)/um_physics -f $(LFRIC_BUILD)/psyclone.mk \
 	        SOURCE_DIR=source WORKING_DIR=$(abspath $(WORKING_DIR))
+	$(Q)$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
+	        SOURCE_DIR=$(ROOT_DIR)/socrates/source \
+	        WORKING_DIR=$(abspath $(WORKING_DIR))
+	$(Q)$(MAKE) $(QUIET_ARG) -C $(ROOT_DIR)/socrates -f $(LFRIC_BUILD)/psyclone.mk \
+	        SOURCE_DIR=source WORKING_DIR=$(abspath $(WORKING_DIR))
 	$(info Using UM target $(platform_config_dir))
 	# Retrieve and preprocess the UM, Jules and Socrates code
 	# The UM_ENV file contains the appropriate locations and UM side
