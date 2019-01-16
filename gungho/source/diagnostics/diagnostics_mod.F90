@@ -146,7 +146,7 @@ subroutine write_hydbal_diagnostic(theta_field, moist_dyn_field, exner_field,  &
                              exner_field, mesh_id)
 
   write( log_scratch_space, '(A,E16.8)' )  &
-       'L2 of hydrostatic imbalance =',sqrt(l2_norm)
+       'L2 of hydrostatic imbalance =', l2_norm
   call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
 
