@@ -33,7 +33,6 @@ module compute_trace_operator_kernel_mod
 
   use reference_element_mod,     only: FACE_OFFSET
   use coordinate_jacobian_mod,   only: coordinate_jacobian
-  use finite_element_config_mod, only: rehabilitate
   use constants_mod,             only: r_def, i_def
   use fs_continuity_mod,         only: W2broken, W2trace
   use kernel_mod,                only: kernel_type

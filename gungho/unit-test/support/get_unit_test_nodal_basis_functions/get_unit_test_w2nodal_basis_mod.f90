@@ -22,9 +22,10 @@ module get_unit_test_w2nodal_basis_mod
 
   private
 
-  public :: get_w2_w2nodal_basis, &
-            get_w0_w2nodal_diff_basis
-            
+  public :: get_w2_w2nodal_basis,      &
+            get_w0_w2nodal_diff_basis, &
+            get_w3_w2nodal_basis
+
   contains
   
 !---------------------------------------------------------------------
@@ -104,4 +105,21 @@ module get_unit_test_w2nodal_basis_mod
 
 !---------------------------------------------------------------------
 
+  subroutine get_w3_w2nodal_basis(basis_w3)
+    ! Return the basis function for a field on a w3 function space
+    ! evaluated on w2 nodal points 
+
+    implicit none
+
+    real(r_def), allocatable :: basis_w3(:,:,:)
+
+    ! Lowest order scalar. One W3 basis function. 6 W2 points.
+    allocate(basis_w3(1,1,6))
+    basis_w3 = reshape( [ 1.0_r_def, 1.0_r_def ,1.0_r_def,   &
+                          1.0_r_def, 1.0_r_def, 1.0_r_def ], &
+                          [ 1, 1, 6] )
+
+  end subroutine get_w3_w2nodal_basis
+
+!---------------------------------------------------------------------
 end module get_unit_test_w2nodal_basis_mod

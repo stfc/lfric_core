@@ -393,7 +393,7 @@ module get_unit_test_m3x3_q3x3x3_sizes_mod
                                         dim_space, dim_space_diff, &
                                         nqp_h, nqp_v, &
                                         nlayers )
-    ! For a field on a lowest-order Wchi function space, return:
+    ! For a coordinate field on Wchi function space, return:
     !  * ndf: no. of dofs in a cell
     !  * undf: no. of unique dofs in a 3x3 domain
     !  * ncells: no. of cells in a 3x3 domain
@@ -401,6 +401,9 @@ module get_unit_test_m3x3_q3x3x3_sizes_mod
     !  * dim_space_diff: no. of dims in this funct space when differentiated
     !  * nqp_h: no. of quadrature points in the horiz for a 3x3x3 quadrature
     !  * nqp_v: no. of quadrature points in the vertical for a 3x3x3 quadrature
+    ! Note that the coordinate field in GungHo uses next-to-lowest order Wchi,
+    ! and this routine returns the numbers it requires rather than lowest-order
+    ! numbers.
     implicit none
     integer(i_def), intent(out) :: ndf
     integer(i_def), intent(out) :: undf

@@ -22,7 +22,8 @@ module get_unit_test_w3nodal_basis_mod
 
   private
 
-  public :: get_w0_w3nodal_diff_basis
+  public :: get_w0_w3nodal_diff_basis,     &
+            get_wtheta_w3nodal_basis
             
   contains
 
@@ -44,6 +45,23 @@ module get_unit_test_w3nodal_basis_mod
                                0.25_r_def,  0.25_r_def,  0.25_r_def, &
                               -0.25_r_def,  0.25_r_def,  0.25_r_def], [3,8,1] )
   end subroutine get_w0_w3nodal_diff_basis
+
+!---------------------------------------------------------------------
+
+  subroutine get_wtheta_w3nodal_basis(basis_wtheta)
+    ! Return the basis function for a field on a wtheta function space 
+    ! evaluated on w3 nodal points 
+
+    implicit none
+
+    real(r_def), allocatable :: basis_wtheta(:,:,:)
+
+    ! Lowest order scalar. 2 Wtheta basis functions. 1 W3 nodal points.
+    allocate(basis_wtheta(1,2,1))
+    basis_wtheta(:, 1, 1) =  0.50_r_def 
+    basis_wtheta(:, 2, 1) =  0.50_r_def 
+
+  end subroutine get_wtheta_w3nodal_basis
 
 !---------------------------------------------------------------------
 

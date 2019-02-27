@@ -200,6 +200,9 @@ contains
     ndf_chi     = chi_p(1)%vspace%get_ndf()
     undf_chi    = chi_p(1)%vspace%get_undf()
 
+    ! Initialise the data
+    detj_w2_p%data(:) = 0.0_r_def
+
     call chi_p(1)%vspace%compute_diff_basis_function(              &
          this%diff_basis_chi,ndf_chi, nqp_h, nqp_v, xp, zp )
 

@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! (C) Crown copyright 2018 Met Office. All rights reserved.
+! (C) Crown copyright 2019 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
@@ -8,21 +8,8 @@
 module compute_trace_operator_kernel_mod_test
 
   use constants_mod,                     only : i_def, r_def
-  use function_space_collection_mod,     only : function_space_collection_type, &
-                                                function_space_collection
-  use mesh_mod,                          only : mesh_type
-  use mesh_collection_mod,               only : mesh_collection_type, &
-                                                mesh_collection
-  use reference_element_mod,             only : reference_element_type
-  use field_mod,                         only : field_type, &
-                                                field_proxy_type
-  use fs_continuity_mod,                 only : W0, W2Broken, W2trace
-  use function_space_mod,                only : function_space_type
-  use operator_mod,                      only : operator_type, operator_proxy_type
+
   use pFUnit_Mod
-  use quadrature_face_mod,               only : quadrature_face_type, &
-                                                quadrature_face_proxy_type
-  use quadrature_rule_gaussian_mod,      only : quadrature_rule_gaussian_type
   use yaxt,                              only : xt_initialize, xt_finalize
   use mpi_mod,                           only : store_comm, clear_comm
 
@@ -34,15 +21,6 @@ module compute_trace_operator_kernel_mod_test
   @TestCase
   type, extends(MPITestCase), public       :: compute_trace_operator_test_type
      private
-     type(quadrature_face_type)            :: qr
-     type(quadrature_face_proxy_type)      :: qr_proxy
-     type(function_space_type), pointer    :: w0_fs => null()
-     type(function_space_type), pointer    :: w2b_fs => null()
-     type(function_space_type), pointer    :: w2t_fs => null()
-     type(operator_type)                   :: trace_op
-     real(kind=r_def), allocatable         :: basis_w2b(:, :, :, :),      &
-                                              basis_w2t(:, :, :, :)
-     integer(kind=i_def)                   :: mesh_id
 
    contains
      procedure setUp
@@ -57,78 +35,15 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use finite_element_config_mod,  only : finite_element_cellshape_quadrilateral
-    use gungho_feign_config_mod,    only : feign_finite_element_config
-    use mesh_mod,                   only : PLANE_BI_PERIODIC
-
     implicit none
 
     class(compute_trace_operator_test_type), intent(inout) :: this
-
-    type(operator_proxy_type)              :: trace_op_p
-    type(quadrature_rule_gaussian_type)    :: quadrature_rule
-
-    class(mesh_type),              pointer :: mesh => null()
-    class(reference_element_type), pointer :: reference_element => null()
-
-    integer(kind=i_def) :: nlayers, dim_w2b, dim_w2t
-    integer(kind=i_def) :: ndf_w2b, ndf_w2t
-    integer(kind=i_def) :: nqp, nfaces
-    integer(kind=i_def) :: i
 
     ! Initialise YAXT
     call xt_initialize(this%getMpiCommunicator())
 
     ! Store the MPI communicator for later use
     call store_comm(this%getMpiCommunicator())
-
-    call feign_finite_element_config(                          &
-             cellshape=finite_element_cellshape_quadrilateral, &
-             coordinate_order=0_i_def,                         &
-             element_order=1_i_def,                            &
-             rehabilitate=.true.,                              &
-             supg=.false.,                                     &
-             vorticity_in_w1=.false.)
-
-    ! Create top level mesh collection
-    mesh_collection = mesh_collection_type()
-
-    ! Create top level function space collection
-    function_space_collection = function_space_collection_type()
-
-    ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
-    this%mesh_id = mesh_collection%add_unit_test_mesh( PLANE_BI_PERIODIC )
-
-    this%w2b_fs => function_space_collection%get_fs( this%mesh_id,  &
-                                                     element_order, &
-                                                     W2broken )
-    this%w2t_fs => function_space_collection%get_fs( this%mesh_id,  &
-                                                     element_order, &
-                                                     W2trace )
-
-    ! Trace operator mapping from W2trace to W2broken
-    this%trace_op = operator_type(this%w2t_fs, this%w2b_fs)
-    trace_op_p    = this%trace_op%get_proxy()
-
-    ndf_w2b = trace_op_p%fs_from%get_ndf()
-    dim_w2b = trace_op_p%fs_from%get_dim_space()
-    ndf_w2t = trace_op_p%fs_to%get_ndf()
-    dim_w2t = trace_op_p%fs_to%get_dim_space()
-
-    ! Retrieve mesh information to construct the right face quadrature
-    mesh              => trace_op_p%fs_from%get_mesh()
-    reference_element => mesh%get_reference_element()
-
-    ! Want a quadrature rule on both horizontal and vertical faces
-    nfaces  = reference_element%get_number_faces()
-
-    this%qr = quadrature_face_type(3, .true., .true., reference_element, &
-                                   quadrature_rule )
-    this%qr_proxy = this%qr%get_quadrature_proxy()
-    nqp           = this%qr_proxy%np_xyz
-
-    allocate( this%basis_w2b(dim_w2b, ndf_w2b, nqp, nfaces) )
-    allocate( this%basis_w2t(dim_w2t, ndf_w2t, nqp, nfaces) )
 
   end subroutine setUp
 
@@ -141,10 +56,6 @@ contains
 
     class(compute_trace_operator_test_type), intent(inout) :: this
 
-    deallocate( this%basis_w2b, this%basis_w2t )
-
-    call mesh_collection%clear()
-    call function_space_collection%clear()
     call final_configuration()
 
     ! Finalize YAXT
@@ -160,87 +71,116 @@ contains
   subroutine test_all( this )
 
     use compute_trace_operator_kernel_mod, only : compute_trace_operator_code
-    use mesh_mod,                          only : mesh_type
-    use function_space_mod,                only : BASIS, DIFF_BASIS
+
+    use get_unit_test_planar_mesh_mod, only: get_out_face_normal
+
+    use get_unit_test_qfaces_mod, only: get_number_quadrature_points_per_face, &
+                                        get_w2trace_qfaces_cube_hv_basis,      &
+                                        get_w2broken_qfaces_cube_hv_basis,     &
+                                        get_quadrature_faces_hv_weights
+
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only: get_w2broken_m3x3_q3x3x3_size, &
+                                                   get_w2trace_m3x3_q3x3x3_size
+
+    use get_unit_test_entity_map_mod, only: get_w2broken_o0_entity_map
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only: get_w2broken_m3x3_q3x3x3_size, &
+                                                   get_w2trace_m3x3_q3x3x3_size
 
     implicit none
 
     class(compute_trace_operator_test_type), intent(inout) :: this
 
-    type(operator_proxy_type)     :: trace_op_p
-
-    type(mesh_type), pointer               :: mesh              => null()
-    class(reference_element_type), pointer :: reference_element => null()
-
     real(kind=r_def), parameter   :: tol = 1.0e-6_r_def
     real(kind=r_def)              :: answer(6, 6)
 
-    integer(kind=i_def)           :: i, j, k, cell
-
+    integer(kind=i_def)           :: cell
     integer(kind=i_def)           :: nlayers, nfaces
     integer(kind=i_def)           :: ndf_w2b, ndf_w2t
+    ! Quadrature points per face
     integer(kind=i_def)           :: nqp
+    integer(kind=i_def)           :: ncell_3d
+    ! Cells in the 2D mesh
+    integer(kind=i_def)           :: ncells
+    ! Dummy variable for passing into multi-getter routines where item is not needed
+    integer(kind=i_def)           :: unused
 
-    real(kind=r_def), allocatable :: out_face_normal(:, :)
+    ! Maps dofs to entities - for function space in this test all dofs are on faces
+    integer(kind=i_def), allocatable  :: face_entity_map(:)
 
-    integer(kind=i_def), pointer  :: face_entity_map(:) => null()
+    real(r_def), allocatable :: out_face_normal(:,:)
 
-    real(kind=r_def), pointer     :: qp(:, :, :) => null()
-    real(kind=r_def), pointer     :: wqp(:, :)   => null()
+    ! Quadrature weights
+    real(kind=r_def), allocatable     :: wqp(:, :)
 
-    mesh => mesh_collection%get_mesh( this%mesh_id )
-    reference_element => mesh%get_reference_element()
+    ! Basis functions evaluated at face quadrature points
+    real (r_def),allocatable :: basis_w2trace_face(:,:,:,:)
+    real (r_def),allocatable :: basis_w2broken_face(:,:,:,:)
+    ! Operator matrix result from kernel
+    real (r_def),allocatable :: local_stencil(:,:,:)
 
-    nfaces = reference_element%get_number_faces()
+    ! NOTE: Since these integrands are all defined on faces only, we
+    ! use the methods built into the face quadrature rule to evaluate
+    ! basis functions. This data has been precomputed and stored
+    ! (canned) for tests on the planar cube mesh
+    call get_w2trace_qfaces_cube_hv_basis(basis_w2trace_face)
+    call get_w2broken_qfaces_cube_hv_basis(basis_w2broken_face)
 
-    ! Test the trace operator kernel
-    trace_op_p = this%trace_op%get_proxy()
+    ! Get canned adjacency information for the mesh
+    call get_out_face_normal(out_face_normal)
 
-    ! Ensure the operator maps between the correct spaces
-    @assertEqual( trace_op_p%fs_from%which(), W2broken )
-    @assertEqual( trace_op_p%fs_to%which(),   W2trace )
-
-    nqp =  this%qr_proxy%np_xyz
-    wqp => this%qr_proxy%weights_xyz
-    qp  => this%qr_proxy%points_xyz
-
-    ! NOTE: Since these integrands are all defined on faces
-    ! only, we use the methods built into the face quadrature
-    ! rule to evaluate basis functions
-    nlayers = trace_op_p%fs_from%get_nlayers()
-    ndf_w2b = trace_op_p%fs_from%get_ndf()
-    ndf_w2t = trace_op_p%fs_to%get_ndf()
-    call this%qr%compute_function(                           &
-       BASIS, trace_op_p%fs_to,                              &
-       trace_op_p%fs_to%get_dim_space(), ndf_w2t,            &
-       this%basis_w2t )
-
-    call this%qr%compute_function(                           &
-       BASIS, trace_op_p%fs_from,                            &
-       trace_op_p%fs_from%get_dim_space(), ndf_w2b,          &
-       this%basis_w2b )
-
+    ! Compute cell 1 only
     cell = 1
-    face_entity_map => trace_op_p%fs_to%get_entity_dofs()
-    trace_op_p%local_stencil(:, :, :) = 0.0_r_def
-    call reference_element%get_normals_to_out_faces( out_face_normal )
+
+    ! Cube cells
+    nfaces = 6
+
+    ! Get canned data for a 3-layer mesh
+    nlayers=3
+
+    call get_w2broken_m3x3_q3x3x3_size( ndf_w2b, unused, ncells, &
+                                  unused, unused,                  &
+                                  unused, unused,                  &
+                                  nlayers )
+    call get_w2trace_m3x3_q3x3x3_size( ndf_w2t, unused, unused,  &
+                                  unused, unused,                  &
+                                  unused, unused,                  &
+                                  nlayers )
+    ! Get number of points and weights for quadrature points on
+    ! horizontal and vertical faces
+    call get_number_quadrature_points_per_face(nqp)
+    call get_quadrature_faces_hv_weights(wqp)
+
+    ! Get map of dofs to cell entities
+    call get_w2broken_o0_entity_map(face_entity_map)
+
+    ncell_3d = ncells*nlayers
+    ! Array for storing the computed operator
+    allocate(local_stencil(ndf_w2t, ndf_w2b, ncell_3d))
+    local_stencil(:, :, :) = 0.0_r_def
 
     call compute_trace_operator_code( cell,                     &
                                       nlayers,                  &
-                                      trace_op_p%ncell_3d,      &
-                                      trace_op_p%local_stencil, &
+                                      ncell_3d,                 &
+                                      local_stencil,            &
                                       ndf_w2b,                  &
                                       ndf_w2t,                  &
                                       nqp,                      &
                                       wqp,                      &
-                                      this%basis_w2b,           &
-                                      this%basis_w2t,           &
+                                      basis_w2broken_face,      &
+                                      basis_w2trace_face,       &
                                       nfaces,                   &
                                       face_entity_map,          &
                                       out_face_normal )
 
     call trace_ans( answer )
-    @assertEqual(answer, trace_op_p%local_stencil(:, :, 1), tol)
+    @assertEqual(answer, local_stencil(:, :, 1), tol)
+
+    deallocate(basis_w2trace_face)
+    deallocate(basis_w2broken_face)
+    deallocate(face_entity_map)
+    deallocate(local_stencil)
+    deallocate(wqp)
+    deallocate(out_face_normal)
 
   end subroutine test_all
 
