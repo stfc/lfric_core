@@ -121,7 +121,6 @@ subroutine mphys_code( nlayers,                     &
     ! UM modules
     !---------------------------------------
 
-    use stochastic_physics_run_mod, only: m_ci
     use nlsizes_namelist_mod,       only: row_length, rows, model_levels,      &
                                           land_field
 
@@ -297,8 +296,6 @@ subroutine mphys_code( nlayers,                     &
     hmteff(1,1) = 0.0_r_um
     zb(1,1) = 0.0_r_um
 
-    m_ci = 1.0_r_um
-
     do i = 1, npd_arcl_compnts
       i_arcl_compnts(i) = i
     end do
@@ -342,6 +339,8 @@ subroutine mphys_code( nlayers,                     &
 
     do j = 1, rows
       do i = 1, row_length
+        ! surface height
+        r_theta_levels(i,j,0) = height_wth(map_wth(1) + 0) + planet_radius
         ! Surface pressure
         p_rho_minus_one(i,j,0) = p_zero *                                    &
                              (exner_in_wth(map_wth(1) + 0))**(1.0_r_um/kappa)
@@ -475,7 +474,6 @@ subroutine mphys_code( nlayers,                     &
                 ls_rainfrac, land_points, land_index,                          &
                 l_cosp_lsp,                                                    &
                 hmteff, zb,                                                    &
-                m_ci,                                                          &
                 error_code )
 
     ! CALL to mphys_turb_gen_mixed_phase would be here if l_subgrid_qcl_mp
