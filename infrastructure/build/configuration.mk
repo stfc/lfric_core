@@ -31,9 +31,12 @@ $(CONFIG_DIR)/build_config_loaders: $(CONFIG_DIR)/rose-meta.json
                            -directory $(CONFIG_DIR)
 	$(Q)touch $(CONFIG_DIR)/build_config_loaders
 
-
+# This recipe requires config_namelists.txt, although adding it to the dependencies
+# causes a race condition when calling Make in parallel. The generation
+# of config_namelists.txt is done at the same time as rose-meta.json, so the
+# presense of config_namelists.txt is implied as true if rose-meta.json is present
 .PRECIOUS: $(WORKING_DIR)/%_configuration_mod.f90 $(CONFIG_DIR)/%_config_mod.f90
-$(WORKING_DIR)/%_configuration_mod.f90: $(CONFIG_DIR)/build_config_loaders $(CONFIG_DIR)/config_namelists.txt
+$(WORKING_DIR)/%_configuration_mod.f90: $(CONFIG_DIR)/build_config_loaders
 	$(call MESSAGE,Generating configuration loader module,$(notdir $@))
 	$(Q)mkdir -p $(dir $@)
 	$(Q)$(LFRIC_BUILD)/tools/GenerateLoader $(VERBOSE_ARG) $@ $(shell cat $(CONFIG_DIR)/config_namelists.txt)
