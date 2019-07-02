@@ -106,16 +106,18 @@ contains
   !> @details The algorithm iterates forwards in time and transports the density
   !>          field using the COSMIC advection scheme. This routine advects in
   !>          horizontal direction only. The wind profile is defined analytically.
-  !> @param[in,out] increment        Density increment
-  !> @param[in]     rho              Density field
-  !> @param[in]     dep_pts_x        Departure points in the x direction
-  !> @param[in]     dep_pts_y        Departure points in the y direction
-  !> @param[in]     detj_at_w2       Det(J) at W2 dofs
+  !> @param[in,out] increment         Density increment
+  !> @param[in]     rho               Density field
+  !> @param[in]     dep_pts_x         Departure points in the x direction
+  !> @param[in]     dep_pts_y         Departure points in the y direction
+  !> @param[in]     detj_at_w2        Det(J) at W2 dofs
+  !> @param[in]     cell_orientation  Orientation of halo cells
   subroutine cusph_cosmic_transport_step( increment,          &
                                           rho,                &
                                           dep_pts_x,          &
                                           dep_pts_y,          &
-                                          detj_at_w2 )
+                                          detj_at_w2,         &
+                                          cell_orientation )
 
     implicit none
 
@@ -124,17 +126,13 @@ contains
     type(field_type),    intent(in)    :: dep_pts_x
     type(field_type),    intent(in)    :: dep_pts_y
     type(field_type),    intent(in)    :: detj_at_w2
-
-    ! Array to hold cell orientation values in W3 field
-    type(field_type), pointer :: cell_orientation => null()
+    type(field_type),    intent(in)    :: cell_orientation
 
     type(function_space_type), pointer :: w2_fs     => null()
     type(function_space_type), pointer :: w3_fs     => null()
 
     type( field_type ) :: increment_x, increment_y
     type( field_type ) :: mass_flux_x, mass_flux_y
-
-    cell_orientation => get_cell_orientation()
 
     w2_fs => dep_pts_x%get_function_space()
     w3_fs => rho%get_function_space()
@@ -159,7 +157,7 @@ contains
 
     call invoke( X_plus_Y( increment, increment_x, increment_y ) )
 
-    nullify(cell_orientation, w2_fs, w3_fs)
+    nullify(w2_fs, w3_fs)
 
   end subroutine cusph_cosmic_transport_step
 

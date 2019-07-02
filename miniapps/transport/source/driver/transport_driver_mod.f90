@@ -56,7 +56,10 @@ module transport_driver_mod
   use calc_dep_pts_alg_mod,           only: calc_dep_pts
   use density_inc_update_alg_mod,     only: density_inc_update_alg
   use xios
-  use runtime_constants_mod,          only: get_detj_at_w2, get_detj_at_w2_shifted
+  use runtime_constants_mod,          only: get_detj_at_w2,                   &
+                                            get_detj_at_w2_shifted,           &
+                                            get_cell_orientation,             &
+                                            get_cell_orientation_shifted
 
   implicit none
 
@@ -80,6 +83,8 @@ module transport_driver_mod
   type(field_type) :: wind_divergence
   type(field_type), pointer :: detj_at_w2 => null()
   type(field_type), pointer :: detj_at_w2_shifted => null()
+  type(field_type), pointer :: cell_orientation => null()
+  type(field_type), pointer :: cell_orientation_shifted => null()
 
   ! Coordinate field
   type(field_type), target, dimension(3) :: chi
@@ -163,7 +168,8 @@ contains
     ! for Ticket #1608.
     detj_at_w2 => get_detj_at_w2()
     detj_at_w2_shifted => get_detj_at_w2_shifted()
-
+    cell_orientation => get_cell_orientation()
+    cell_orientation_shifted => get_cell_orientation_shifted()
 
     if ( use_xios_io ) then
       dtime = int(dt)
@@ -228,7 +234,7 @@ contains
       call set_winds( wind, mesh_id, timestep )
       ! Calculate departure points.
       call calc_dep_pts( dep_pts_x, dep_pts_y, dep_pts_z, wind_divergence,    &
-                                                        wind, detj_at_w2, chi )
+                                            wind, detj_at_w2, chi, cell_orientation )
 
       if ( subroutine_timers ) call timer( 'cosmic step' )
 
@@ -238,10 +244,10 @@ contains
                                                                    detj_at_w2 )
         case ( scheme_horz_cosmic )
           call cusph_cosmic_transport_step( increment, density, dep_pts_x,    &
-                                                        dep_pts_y, detj_at_w2 )
+                                      dep_pts_y, detj_at_w2, cell_orientation )
         case ( scheme_cosmic_3D )
           call cosmic_threed_transport_step( increment, density, dep_pts_x,   &
-                                             dep_pts_y, dep_pts_z, detj_at_w2 )
+                           dep_pts_y, dep_pts_z, detj_at_w2, cell_orientation )
         case default
           call log_event( "Transport mini-app: incorrect transport option chosen, "// &
                           "stopping program! ",LOG_LEVEL_ERROR )
@@ -273,6 +279,9 @@ contains
       end if
 
     end do
+
+    nullify( detj_at_w2, detj_at_w2_shifted, cell_orientation, &
+             cell_orientation_shifted )  
 
   end subroutine run_transport
 

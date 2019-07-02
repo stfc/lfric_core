@@ -102,7 +102,9 @@ module runtime_constants_mod
   type(operator_type), allocatable, dimension(:), target :: mm_dl
   type(field_type), target                               :: geopotential
   type(field_type), target                               :: temp_w2_field
+  type(field_type), target                               :: temp_w2_field_shifted
   type(field_type), target                               :: cell_orientation
+  type(field_type), target                               :: cell_orientation_shifted
   type(field_type), target                               :: detj_at_w2
   type(field_type), target                               :: detj_at_w2_shifted
   type(field_type), target                               :: dA_at_w2
@@ -150,6 +152,7 @@ module runtime_constants_mod
   public :: get_coordinates
   public :: get_geopotential
   public :: get_cell_orientation
+  public :: get_cell_orientation_shifted
   public :: get_detj_at_w2
   public :: get_detj_at_w2_shifted
   public :: get_dA_at_w2
@@ -313,12 +316,28 @@ contains
 
       temp_w2_field = field_type( vector_space = w2_fs )
       cell_orientation = field_type( vector_space = w3_fs )
-      call invoke( setval_c(temp_w2_field,    9999.0_r_def), &
-                   setval_c(cell_orientation, 9999.0_r_def) )
+      call invoke( setval_c(temp_w2_field,    0.0_r_def), &
+                   setval_c(cell_orientation, 0.0_r_def) )
       call invoke_mpi_calc_cell_orientation( temp_w2_field, cell_orientation )
 
-   end if
-!=================== Create DeRahm cochain operators =========================!
+      if ( present(shifted_mesh_id) ) then
+
+        temp_w2_field_shifted = field_type( vector_space =                      &
+          function_space_collection%get_fs( shifted_mesh_id, element_order, W2 ) )
+        cell_orientation_shifted = field_type( vector_space =                   &
+          function_space_collection%get_fs( shifted_mesh_id, element_order, W3 ) )
+        call invoke( setval_c(temp_w2_field_shifted,    0.0_r_def),             &
+                     setval_c(cell_orientation_shifted, 0.0_r_def) )
+        call invoke_mpi_calc_cell_orientation( temp_w2_field_shifted,           &
+                                               cell_orientation_shifted )
+
+      end if
+
+    end if
+
+
+
+    !=================== Create DeRahm cochain operators =========================!
 
    ! multigrid ops
     allocate(mm_w2(multigrid_levels), &
@@ -697,6 +716,22 @@ contains
     end if
 
   end function get_cell_orientation
+
+  !> @brief Function to return a pointer to the cell_orientation_shifted field
+  !> @return The cell_orientation_shifted field
+  function get_cell_orientation_shifted() result(orientation_shifted)
+    implicit none
+    type(field_type), pointer :: orientation_shifted
+
+    if (scheme == scheme_yz_bip_cosmic .or. &
+        scheme == scheme_horz_cosmic   .or. &
+        scheme == scheme_cosmic_3D   ) then
+      orientation_shifted => cell_orientation_shifted
+    else
+      call log_event( "Shifted cell orientation variable has not been created", LOG_LEVEL_ERROR )
+    end if
+
+  end function get_cell_orientation_shifted
 
 
   !> @brief Function to return the detj values at W2 dof locations
@@ -1091,7 +1126,9 @@ contains
     end if
     call geopotential%field_final()
     call temp_w2_field%field_final()
+    call temp_w2_field_shifted%field_final()
     call cell_orientation%field_final()
+    call cell_orientation_shifted%field_final() 
     call detj_at_w2%field_final()
     call detj_at_w2_shifted%field_final()
     call dA_at_w2%field_final()

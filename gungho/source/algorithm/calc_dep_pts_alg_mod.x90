@@ -49,13 +49,15 @@ contains
   !> @param[in]     wind              Wind field
   !> @param[in]     detj_at_w2        Det(J) at W2 dofs
   !> @param[in]     chi               Coordinate field
+  !> @param[in]     cell_orientation  Orientation of halo cells
   subroutine calc_dep_pts( dep_pts_x,       &
                            dep_pts_y,       &
                            dep_pts_z,       &
                            wind_divergence, &
                            wind,            &
                            detj_at_w2,      &
-                           chi )
+                           chi,             &
+                           cell_orientation )
 
     implicit none
 
@@ -66,6 +68,7 @@ contains
     type( field_type ), intent(in)    :: wind
     type( field_type ), intent(in)    :: detj_at_w2
     type( field_type ), intent(in)    :: chi(3)
+    type( field_type ), intent(in)    :: cell_orientation
 
     type( field_type ) :: u_x_fem_n, u_y_fem_n, u_x_fem_np1, u_y_fem_np1
     type( field_type ) :: dep_wind_x_n, dep_wind_y_n
@@ -75,7 +78,6 @@ contains
     type( field_type ) :: corrected_dep_wind_x_np1, corrected_dep_wind_y_np1
     type( field_type ) :: divergence_x, divergence_y, divergence_z
 
-    type( field_type ), pointer          :: cell_orientation => null()
     type( function_space_type ), pointer :: w2_fs => null()
     type( function_space_type ), pointer :: w3_fs => null()
 
@@ -103,8 +105,6 @@ contains
     divergence_x = field_type( vector_space = w3_fs )
     divergence_y = field_type( vector_space = w3_fs )
     divergence_z = field_type( vector_space = w3_fs )
-
-    cell_orientation => get_cell_orientation()
 
     if ( subroutine_timers ) call timer( 'calc_dep_pts' )
 
@@ -191,7 +191,7 @@ contains
     call dep_pts_y%log_minmax( LOG_LEVEL_INFO, 'dep_pts_y' )
     call dep_pts_z%log_minmax( LOG_LEVEL_INFO, 'dep_pts_z' )
 
-    nullify( cell_orientation, w2_fs )
+    nullify( w2_fs )
 
     if ( subroutine_timers ) call timer( 'calc_dep_pts' )
 
