@@ -16,8 +16,8 @@
 
 program lfric_atm
 
-  use cli_mod,              only : get_initial_filename
-  use lfric_atm_driver_mod, only : initialise, run, finalise
+  use cli_mod,           only : get_initial_filename
+  use gungho_driver_mod, only : initialise, run, finalise
 
   implicit none
 

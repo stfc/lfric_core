@@ -10,7 +10,7 @@
 !>          fields used by the gravity-wave miniapp. This is only a temporary
 !>          hard-coded solution in lieu of a proper dianostic system
 
-module gravity_wave_diagnostics_mod
+module gravity_wave_diagnostics_driver_mod
 
   use constants_mod,                  only : i_def
   use field_mod,                      only : field_type
@@ -20,7 +20,7 @@ module gravity_wave_diagnostics_mod
   implicit none
 
   private
-  public gravity_wave_diagnostics
+  public gravity_wave_diagnostics_driver
 
 contains
 
@@ -31,7 +31,10 @@ contains
   !> @param [in] timestep The timestep at which the fields are valid
   !> @param [in] W3_project Flag that determines if vector fields should be
   !>                        projected to W3
-  subroutine gravity_wave_diagnostics(mesh_id, state, timestep, W3_project)
+  subroutine gravity_wave_diagnostics_driver( mesh_id, &
+                                              state, &
+                                              timestep, &
+                                              W3_project )
 
     implicit none
 
@@ -56,6 +59,6 @@ contains
     call write_scalar_diagnostic('pressure', pressure, timestep, mesh_id, W3_project)
     call write_scalar_diagnostic('buoyancy', buoyancy, timestep, mesh_id, W3_project)
 
-  end subroutine gravity_wave_diagnostics
+  end subroutine gravity_wave_diagnostics_driver
 
-end module gravity_wave_diagnostics_mod
+end module gravity_wave_diagnostics_driver_mod

@@ -6,7 +6,7 @@
 
 !> @brief Controls infrastructure related information used by the model
 
-module infrastructure_mod
+module gungho_infrastructure_mod
 
   use constants_mod,                  only : i_def
   use mpi_mod,                        only : store_comm, &
@@ -15,12 +15,12 @@ module infrastructure_mod
                                              initialise_logging, &
                                              finalise_logging, &
                                              LOG_LEVEL_INFO
-  use gravity_wave_mod,               only : load_configuration
+  use gungho_mod,                     only : load_configuration
   use configuration_mod,              only : final_configuration
   use derived_config_mod,             only : set_derived_config
   use yaxt,                           only : xt_initialize, xt_finalize
-  use xios
-  use mod_wait
+  use xios,                           only : xios_initialize, xios_finalize
+  use mod_wait,                       only : init_wait
   
   
   implicit none
@@ -65,10 +65,10 @@ contains
 
     call initialise_logging(local_rank, total_ranks, program_name)
 
-    call log_event( program_name//': Running miniapp ...', LOG_LEVEL_INFO )
+    call log_event( program_name//': Running ...', LOG_LEVEL_INFO )
 
     call load_configuration( filename )
-    call set_derived_config( .false. )
+    call set_derived_config( .true. )
   
   end subroutine initialise_infrastructure
   
@@ -92,4 +92,4 @@ contains
 
   end subroutine finalise_infrastructure
 
-end module infrastructure_mod
+end module gungho_infrastructure_mod

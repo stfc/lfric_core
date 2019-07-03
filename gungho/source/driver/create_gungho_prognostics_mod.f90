@@ -6,7 +6,11 @@
 
 !> @brief Create empty fields for use by the gungho model
 !> @details Creates the empty prognostic fields that will be later 
-!>          initialise and used by the gungho model
+!>          initialise and used by the gungho model. Field creation
+!>          consists of three stages: constructing the field object,
+!>          placing it in the depository (so it doesn't go out of scope) and
+!>          putting a pointer to the depository version of the field into
+!>          a 'prognostic_fields' field collection
 
 module create_gungho_prognostics_mod
 
@@ -46,25 +50,29 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Create empty fields to be used as prognostics by the gungho model
   !> @param[in] mesh_id The identifier given to the current 3d mesh
+  !> @param[inout] depository A collection of all fields that need to be
+  !>                          kept in scope
   !> @param[inout] prognostic_fields A collection of the fields that make up the
   !>                                 prognostic variables in the model 
   !> @param[inout] mr An array of fields that hold the moisture mixing ratios
   !> @param[inout] moist_dyn An array of the moist dynamics fields
-  subroutine create_gungho_prognostics(mesh_id, prognostic_fields, mr, &
-                                       moist_dyn, xi)
+  subroutine create_gungho_prognostics(mesh_id, depository,&
+                                       prognostic_fields, diagnostic_fields, &
+                                       mr, moist_dyn)
     implicit none
 
     integer(i_def), intent(in)                 :: mesh_id
-    ! Prognostic fields
+
+    type(field_collection_type), intent(inout) :: depository
     type(field_collection_type), intent(inout) :: prognostic_fields
+    type(field_collection_type), intent(inout) :: diagnostic_fields
+
     type( field_type ), intent(inout), target  :: mr(nummr)
-    ! Diagnostic fields
-    type( field_type ), intent(inout)        :: xi
-    type( field_type ), intent(inout)        :: moist_dyn(num_moist_factors)
+    type( field_type ), intent(inout)          :: moist_dyn(num_moist_factors)
 
-    type( field_type ), pointer              :: tmp_ptr
+    type( field_type ), pointer                :: tmp_ptr
 
-    integer(i_def)                           :: imr
+    integer(i_def)                             :: imr
 
     procedure(write_interface), pointer :: tmp_write_ptr => null()
     procedure(checkpoint_write_interface), pointer :: tmp_checkpoint_write_ptr => null()
@@ -72,6 +80,8 @@ contains
 
     ! Temp fields to create prognostics
     type( field_type )                         :: u, rho, theta, exner
+    ! Temp fields to create diagnostics
+    type( field_type )                         :: xi
 
     call log_event( 'GungHo: Creating prognostics...', LOG_LEVEL_INFO )
 
@@ -194,14 +204,18 @@ contains
 
     end if
 
-    ! Create the prognostic field collection and populate it
+    ! Populate the depository
+    call depository%add_field( theta )
+    call depository%add_field( rho )
+    call depository%add_field( u )
+    call depository%add_field( exner )
+    call depository%add_field( xi )
 
-    prognostic_fields  =  field_collection_type(name="prognostics")
-    call prognostic_fields%add_field( theta )
-    call prognostic_fields%add_field( rho )
-    call prognostic_fields%add_field( u )
-    call prognostic_fields%add_field( exner )
-
+    ! Populate the prognostic field collection
+    call prognostic_fields%add_reference_to_field(depository%get_field('theta'))
+    call prognostic_fields%add_reference_to_field(depository%get_field('rho'))
+    call prognostic_fields%add_reference_to_field(depository%get_field('u'))
+    call prognostic_fields%add_reference_to_field(depository%get_field('exner'))
     ! The moisture mixing ratios are always created, but only add them
     ! to the prognostics collection if they are active
     if ( use_moisture )then
@@ -210,6 +224,9 @@ contains
         call prognostic_fields%add_reference_to_field( tmp_ptr )
       end do
     end if
+
+    ! Populate the diagnostic field collection
+    call diagnostic_fields%add_reference_to_field(depository%get_field('xi'))
 
     nullify( tmp_write_ptr, tmp_checkpoint_write_ptr, tmp_checkpoint_read_ptr )
 

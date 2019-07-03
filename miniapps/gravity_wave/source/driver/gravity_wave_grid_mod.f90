@@ -6,7 +6,7 @@
 
 !> @brief Controls grid related information used by the model
 
-module grid_mod
+module gravity_wave_grid_mod
 
   use constants_mod,                  only : i_def
   use field_mod,                      only : field_type
@@ -96,4 +96,4 @@ contains
 
   end subroutine initialise_grid
 
-end module grid_mod
+end module gravity_wave_grid_mod

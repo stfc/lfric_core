@@ -23,7 +23,7 @@ module transport_driver_mod
   use io_mod,                         only: xios_domain_init
   use diagnostics_io_mod,             only: write_scalar_diagnostic,          &
                                             write_vector_diagnostic
-  use diagnostics_mod,                only: write_density_diagnostic
+  use diagnostics_calc_mod,           only: write_density_diagnostic
   use log_mod,                        only: log_event,                        &
                                             log_scratch_space,                &
                                             initialise_logging,               &

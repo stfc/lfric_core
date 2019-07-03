@@ -7,7 +7,7 @@
 !> @brief Controls output (diags/checkpointing) related information used by
 !>        the model
 
-module output_mod
+module gungho_io_mod
 
   use constants_mod,                  only : i_def
   use field_mod,                      only : field_type
@@ -20,7 +20,7 @@ module output_mod
   implicit none
 
   private
-  public initialise_output, finalise_output
+  public initialise_io, finalise_io
 
 contains
 
@@ -28,9 +28,9 @@ contains
   !> @param [inout] comm The MPI communicator for use within the model
   !> @param [in] mesh_id The identifier of the primary mesh
   !> @param [in] twod_mesh_id The identifier of the primary 2d mesh
-  !> @param [in] chi Function space representatio of the 3d mesh
+  !> @param [in] chi A size 3 array of fields holding the coordinates of the mesh
   !> @param [in] xios_ctx XIOS context identifier
-  subroutine initialise_output(comm, mesh_id, twod_mesh_id, chi, xios_ctx)
+  subroutine initialise_io(comm, mesh_id, twod_mesh_id, chi, xios_ctx)
 
     implicit none
 
@@ -69,10 +69,10 @@ contains
 
   end if
 
-  end subroutine initialise_output
+  end subroutine initialise_io
 
   !> @brief Finalises output related functions used by the model
-  subroutine finalise_output()
+  subroutine finalise_io()
 
     implicit none
 
@@ -81,6 +81,6 @@ contains
       call xios_context_finalize()
     end if
 
-  end subroutine finalise_output
+  end subroutine finalise_io
 
-end module output_mod
+end module gungho_io_mod

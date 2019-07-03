@@ -73,17 +73,20 @@ contains
   !> @details An algorithm for initialising prognostic fields for 
   !>          all solvers.
   !> @param[in,out] prognostic_fields the collection of prognostics
+  !> @param[in,out] diagnostic_fields the collection of diagnostics
   !> @param[in,out] mr Field bundle containing the moisture mixring ratios
   !> @param[in,out] moist_dyn Auxilliary fields for moist dynamics
   !> @param[in,out] xi The vorticity field 
-  subroutine init_gungho_prognostics_alg( prognostic_fields, mr, moist_dyn, xi )
+  subroutine init_gungho_prognostics_alg(prognostic_fields, diagnostic_fields, &
+                                         mr, moist_dyn)
 
     implicit none
 
     ! Prognostic fields
     type( field_collection_type ), intent( inout ) :: prognostic_fields
-    type( field_type ), intent( inout )          :: xi, &
-                                                    mr(nummr), &
+    ! Diagnostic fields
+    type( field_collection_type ), intent( inout ) :: diagnostic_fields
+    type( field_type ), intent( inout )          :: mr(nummr), &
                                                     moist_dyn(num_moist_factors)
 
     type( quadrature_xyoz_type )          :: qr
@@ -99,6 +102,7 @@ contains
     type( field_type ), pointer   :: rho => null()
     type( field_type ), pointer   :: theta => null()
     type( field_type ), pointer   :: exner => null()
+    type( field_type ), pointer   :: xi => null()
 
     ! Operators
     type(operator_type), pointer        :: m3_inv => null()
@@ -114,6 +118,7 @@ contains
     u => prognostic_fields%get_field('u')
     rho => prognostic_fields%get_field('rho')
     exner => prognostic_fields%get_field('exner')
+    xi => diagnostic_fields%get_field('xi')
 
     ! Default is dry dynamics - set moist dynamics factors to one
     do i = 1, num_moist_factors

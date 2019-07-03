@@ -10,7 +10,7 @@
 !!           by the diagnostic system. Also computes norms of some fields
 !!           which are written to the output log.
 !-------------------------------------------------------------------------------
-module diagnostics_mod
+module diagnostics_calc_mod
   use constants_mod,                 only: i_def, r_def, str_max_filename
   use diagnostic_alg_mod,            only: divergence_diagnostic_alg,   &
                                            density_diagnostic_alg,      &
@@ -153,5 +153,5 @@ subroutine write_hydbal_diagnostic(theta_field, moist_dyn_field, exner_field,  &
 end subroutine write_hydbal_diagnostic
 
 
-end module diagnostics_mod
+end module diagnostics_calc_mod
 

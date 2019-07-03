@@ -34,9 +34,10 @@ contains
   !>                                 prognostic variables in the model
   !> @param[out]   derived_fields Collection of FD fields derived from FE fields
   !> @param[out]   cloud_fields Collection of FD cloud fields
-  !> @param[out]   twod_fields Collection of two fields
+  !> @param[out]   twod_fields Collection of two dimensional fields
   !> @param[out]   physics_incs Collection of physics increments
   subroutine create_physics_prognostics( mesh_id, twod_mesh_id, &
+                                         depository, &
                                          prognostic_fields, &
                                          derived_fields, cloud_fields, &
                                          twod_fields, physics_incs )
@@ -47,6 +48,7 @@ contains
     integer(i_def), intent(in)               :: twod_mesh_id
 
     ! Collections of fields
+    type(field_collection_type), intent(inout) :: depository
     type(field_collection_type), intent(inout) :: prognostic_fields
     type(field_collection_type), intent(out) :: twod_fields
     type(field_collection_type), intent(out) :: cloud_fields
@@ -84,31 +86,48 @@ contains
     ! Wtheta fields
     vector_space=>function_space_collection%get_fs(mesh_id, 0, Wtheta)
 
-    call add_physics_field(derived_fields, 'w_physics',      vector_space, checkpoint_restart_flag)
-    call add_physics_field(derived_fields, 'rho_in_wth',     vector_space, checkpoint_restart_flag)
-    call add_physics_field(derived_fields, 'wetrho_in_wth',  vector_space, checkpoint_restart_flag)
-    call add_physics_field(derived_fields, 'exner_in_wth',   vector_space, checkpoint_restart_flag)
-    call add_physics_field(derived_fields, 'w_physics_star', vector_space, checkpoint_restart_flag)
-    call add_physics_field(derived_fields, 'theta_star',     vector_space, checkpoint_restart_flag)
+    call add_physics_field(derived_fields, depository, prognostic_fields, &
+      'w_physics',      vector_space, checkpoint_restart_flag)
+    call add_physics_field(derived_fields, depository, prognostic_fields, &
+      'rho_in_wth',     vector_space, checkpoint_restart_flag)
+    call add_physics_field(derived_fields, depository, prognostic_fields, &
+      'wetrho_in_wth',  vector_space, checkpoint_restart_flag)
+    call add_physics_field(derived_fields, depository, prognostic_fields, &
+      'exner_in_wth',   vector_space, checkpoint_restart_flag)
+    call add_physics_field(derived_fields, depository, prognostic_fields, &
+      'w_physics_star', vector_space, checkpoint_restart_flag)
+    call add_physics_field(derived_fields, depository, prognostic_fields, &
+      'theta_star',     vector_space, checkpoint_restart_flag)
 
     ! W3 fields
     vector_space=> function_space_collection%get_fs(mesh_id, 0, W3)
 
-    call add_physics_field(derived_fields, 'u1_in_w3',      vector_space, checkpoint_restart_flag)
-    call add_physics_field(derived_fields, 'u2_in_w3',      vector_space, checkpoint_restart_flag)
-    call add_physics_field(derived_fields, 'u3_in_w3',      vector_space, checkpoint_restart_flag)
-    call add_physics_field(derived_fields, 'theta_in_w3',   vector_space, checkpoint_restart_flag)
-    call add_physics_field(derived_fields, 'wetrho_in_w3',  vector_space, checkpoint_restart_flag)
-    call add_physics_field(derived_fields, 'u1_in_w3_star', vector_space, checkpoint_restart_flag)
-    call add_physics_field(derived_fields, 'u2_in_w3_star', vector_space, checkpoint_restart_flag)
-    call add_physics_field(derived_fields, 'u3_in_w3_star', vector_space, checkpoint_restart_flag)
+    call add_physics_field(derived_fields, depository, prognostic_fields, &
+      'u1_in_w3',      vector_space, checkpoint_restart_flag)
+    call add_physics_field(derived_fields, depository, prognostic_fields, &
+      'u2_in_w3',      vector_space, checkpoint_restart_flag)
+    call add_physics_field(derived_fields, depository, prognostic_fields, &
+      'u3_in_w3',      vector_space, checkpoint_restart_flag)
+    call add_physics_field(derived_fields, depository, prognostic_fields, &
+      'theta_in_w3',   vector_space, checkpoint_restart_flag)
+    call add_physics_field(derived_fields, depository, prognostic_fields, &
+      'wetrho_in_w3',  vector_space, checkpoint_restart_flag)
+    call add_physics_field(derived_fields, depository, prognostic_fields, &
+      'u1_in_w3_star', vector_space, checkpoint_restart_flag)
+    call add_physics_field(derived_fields, depository, prognostic_fields, &
+      'u2_in_w3_star', vector_space, checkpoint_restart_flag)
+    call add_physics_field(derived_fields, depository, prognostic_fields, &
+      'u3_in_w3_star', vector_space, checkpoint_restart_flag)
 
     ! W2 fields
     vector_space=>function_space_collection%get_fs(mesh_id, 0, W2)
 
-    call add_physics_field(derived_fields, 'u_physics',      vector_space, checkpoint_restart_flag)
-    call add_physics_field(derived_fields, 'u_physics_star', vector_space, checkpoint_restart_flag)
-    call add_physics_field(derived_fields, 'u_star',         vector_space, checkpoint_restart_flag)
+    call add_physics_field(derived_fields, depository, prognostic_fields, &
+      'u_physics',      vector_space, checkpoint_restart_flag)
+    call add_physics_field(derived_fields, depository, prognostic_fields, &
+      'u_physics_star', vector_space, checkpoint_restart_flag)
+    call add_physics_field(derived_fields, depository, prognostic_fields, &
+      'u_star',         vector_space, checkpoint_restart_flag)
 
 
     !========================================================================
@@ -118,20 +137,32 @@ contains
     vector_space=> function_space_collection%get_fs(twod_mesh_id, 0, W3)
     checkpoint_restart_flag = .true.
 
-    call add_physics_field(twod_fields, 'tstar',   vector_space, checkpoint_restart_flag, twod=.true.)
-    call add_physics_field(twod_fields, 'zh',      vector_space, checkpoint_restart_flag, twod=.true.)
-    call add_physics_field(twod_fields, 'z0msea',  vector_space, checkpoint_restart_flag, twod=.true.)
-    call add_physics_field(twod_fields, 'conv_rain',  vector_space, checkpoint_restart_flag, twod=.true.)
-    call add_physics_field(twod_fields, 'conv_snow',  vector_space, checkpoint_restart_flag, twod=.true.)
+    call add_physics_field(twod_fields, depository, prognostic_fields, &
+      'tstar',   vector_space, checkpoint_restart_flag, twod=.true.)
+    call add_physics_field(twod_fields, depository, prognostic_fields, &
+      'zh',      vector_space, checkpoint_restart_flag, twod=.true.)
+    call add_physics_field(twod_fields, depository, prognostic_fields, &
+      'z0msea',  vector_space, checkpoint_restart_flag, twod=.true.)
+    call add_physics_field(twod_fields, depository, prognostic_fields, &
+      'conv_rain',  vector_space, checkpoint_restart_flag, twod=.true.)
+    call add_physics_field(twod_fields, depository, prognostic_fields, &
+      'conv_snow',  vector_space, checkpoint_restart_flag, twod=.true.)
 
     checkpoint_restart_flag = .false.
-    call add_physics_field(twod_fields, 'ntml',    vector_space, checkpoint_restart_flag, twod=.true.)
-    call add_physics_field(twod_fields, 'cumulus', vector_space, checkpoint_restart_flag, twod=.true.)
-    call add_physics_field(twod_fields, 'cos_zenith_angle',   vector_space, checkpoint_restart_flag, twod=.true.)
-    call add_physics_field(twod_fields, 'lit_fraction',       vector_space, checkpoint_restart_flag, twod=.true.)
-    call add_physics_field(twod_fields, 'stellar_irradiance', vector_space, checkpoint_restart_flag, twod=.true.)
-    call add_physics_field(twod_fields, 'ls_rain',  vector_space, checkpoint_restart_flag, twod=.true.)
-    call add_physics_field(twod_fields, 'ls_snow',  vector_space, checkpoint_restart_flag, twod=.true.)
+    call add_physics_field(twod_fields, depository, prognostic_fields, &
+      'ntml',    vector_space, checkpoint_restart_flag, twod=.true.)
+    call add_physics_field(twod_fields, depository, prognostic_fields, &
+      'cumulus', vector_space, checkpoint_restart_flag, twod=.true.)
+    call add_physics_field(twod_fields, depository, prognostic_fields, &
+      'cos_zenith_angle',   vector_space, checkpoint_restart_flag, twod=.true.)
+    call add_physics_field(twod_fields, depository, prognostic_fields, &
+      'lit_fraction',       vector_space, checkpoint_restart_flag, twod=.true.)
+    call add_physics_field(twod_fields, depository, prognostic_fields, &
+      'stellar_irradiance', vector_space, checkpoint_restart_flag, twod=.true.)
+    call add_physics_field(twod_fields, depository, prognostic_fields, &
+      'ls_rain',  vector_space, checkpoint_restart_flag, twod=.true.)
+    call add_physics_field(twod_fields, depository, prognostic_fields, &
+      'ls_snow',  vector_space, checkpoint_restart_flag, twod=.true.)
 
     !========================================================================
     ! Here we create some cloud fields
@@ -139,16 +170,25 @@ contains
 
     cloud_fields = field_collection_type(name='cloud_fields')
     vector_space=>function_space_collection%get_fs(mesh_id, 0, Wtheta)
-    checkpoint_restart_flag = .true.
+    if (cloud /= cloud_none)then
+      checkpoint_restart_flag = .true.
+    end if
 
-    call add_physics_field(cloud_fields, 'area_fraction',   vector_space, checkpoint_restart_flag)
-    call add_physics_field(cloud_fields, 'ice_fraction',    vector_space, checkpoint_restart_flag)
-    call add_physics_field(cloud_fields, 'liquid_fraction', vector_space, checkpoint_restart_flag)
-    call add_physics_field(cloud_fields, 'bulk_fraction',   vector_space, checkpoint_restart_flag)
-    call add_physics_field(cloud_fields, 'rh_crit_wth',     vector_space, checkpoint_restart_flag)
+    call add_physics_field(cloud_fields, depository, prognostic_fields, &
+      'area_fraction',   vector_space, checkpoint_restart_flag)
+    call add_physics_field(cloud_fields, depository, prognostic_fields, &
+      'ice_fraction',    vector_space, checkpoint_restart_flag)
+    call add_physics_field(cloud_fields, depository, prognostic_fields, &
+      'liquid_fraction', vector_space, checkpoint_restart_flag)
+    call add_physics_field(cloud_fields, depository, prognostic_fields, &
+      'bulk_fraction',   vector_space, checkpoint_restart_flag)
+    call add_physics_field(cloud_fields, depository, prognostic_fields, &
+      'rh_crit_wth',     vector_space, checkpoint_restart_flag)
     ! convective cloud field prognostics
-    call add_physics_field(cloud_fields, 'cca', vector_space, checkpoint_restart_flag)
-    call add_physics_field(cloud_fields, 'ccw', vector_space, checkpoint_restart_flag)
+    call add_physics_field(cloud_fields, depository, prognostic_fields, &
+      'cca', vector_space, checkpoint_restart_flag)
+    call add_physics_field(cloud_fields, depository, prognostic_fields, &
+      'ccw', vector_space, checkpoint_restart_flag)
 
     !========================================================================
     ! Increment values from individual physics parametrizations
@@ -158,39 +198,33 @@ contains
     vector_space => function_space_collection%get_fs(mesh_id, 0, Wtheta)
     checkpoint_restart_flag = .false. ! no need to dump any of these
 
-    call add_physics_field(physics_incs, 'dt_bl', vector_space, checkpoint_restart_flag)
-    call add_physics_field(physics_incs, 'dmv_bl', vector_space, checkpoint_restart_flag)
-    call add_physics_field(physics_incs, 'dt_conv', vector_space, checkpoint_restart_flag)
-    call add_physics_field(physics_incs, 'dmv_conv', vector_space, checkpoint_restart_flag)
-    call add_physics_field(physics_incs, 'dmcl_conv', vector_space, checkpoint_restart_flag)
-    call add_physics_field(physics_incs, 'dmcf_conv', vector_space, checkpoint_restart_flag)
-    call add_physics_field(physics_incs, 'dtl_mphys', vector_space, checkpoint_restart_flag)
-    call add_physics_field(physics_incs, 'dmt_mphys', vector_space, checkpoint_restart_flag)
-    call add_physics_field(physics_incs, 'sw_heating_rate', vector_space, checkpoint_restart_flag)
-    call add_physics_field(physics_incs, 'lw_heating_rate', vector_space, checkpoint_restart_flag)
+    call add_physics_field(physics_incs, depository, prognostic_fields, &
+      'dt_bl', vector_space, checkpoint_restart_flag)
+    call add_physics_field(physics_incs, depository, prognostic_fields, &
+      'dmv_bl', vector_space, checkpoint_restart_flag)
+    call add_physics_field(physics_incs, depository, prognostic_fields, &
+      'dt_conv', vector_space, checkpoint_restart_flag)
+    call add_physics_field(physics_incs, depository, prognostic_fields, &
+      'dmv_conv', vector_space, checkpoint_restart_flag)
+    call add_physics_field(physics_incs, depository, prognostic_fields, &
+      'dmcl_conv', vector_space, checkpoint_restart_flag)
+    call add_physics_field(physics_incs, depository, prognostic_fields, &
+      'dmcf_conv', vector_space, checkpoint_restart_flag)
+    call add_physics_field(physics_incs, depository, prognostic_fields, &
+      'dtl_mphys', vector_space, checkpoint_restart_flag)
+    call add_physics_field(physics_incs, depository, prognostic_fields, &
+      'dmt_mphys', vector_space, checkpoint_restart_flag)
+    call add_physics_field(physics_incs, depository, prognostic_fields, &
+      'sw_heating_rate', vector_space, checkpoint_restart_flag)
+    call add_physics_field(physics_incs, depository, prognostic_fields, &
+      'lw_heating_rate', vector_space, checkpoint_restart_flag)
 
     ! Increments on pgrid (not U and V grids) but rho levels
     vector_space => function_space_collection%get_fs(mesh_id, 0, W3)
-    call add_physics_field(physics_incs, 'du_conv', vector_space, checkpoint_restart_flag)
-    call add_physics_field(physics_incs, 'dv_conv', vector_space, checkpoint_restart_flag)
-
-
-    ! Put references to fields requiring checkpointing into the prognostic fields collection
-    call prognostic_fields%add_reference_to_field( twod_fields%get_field('tstar') )
-    call prognostic_fields%add_reference_to_field( twod_fields%get_field('zh') )
-    call prognostic_fields%add_reference_to_field( twod_fields%get_field('z0msea') )
-    call prognostic_fields%add_reference_to_field( twod_fields%get_field('conv_rain') )
-    call prognostic_fields%add_reference_to_field( twod_fields%get_field('conv_snow') )
-
-    call prognostic_fields%add_reference_to_field( cloud_fields%get_field('cca') )
-    call prognostic_fields%add_reference_to_field( cloud_fields%get_field('ccw') )
-    if (cloud /= cloud_none)then
-      call prognostic_fields%add_reference_to_field( cloud_fields%get_field('area_fraction') )
-      call prognostic_fields%add_reference_to_field( cloud_fields%get_field('ice_fraction') )
-      call prognostic_fields%add_reference_to_field( cloud_fields%get_field('liquid_fraction') )
-      call prognostic_fields%add_reference_to_field( cloud_fields%get_field('bulk_fraction') )
-      call prognostic_fields%add_reference_to_field( cloud_fields%get_field('rh_crit_wth') )
-    end if
+    call add_physics_field(physics_incs, depository, prognostic_fields, &
+      'du_conv', vector_space, checkpoint_restart_flag)
+    call add_physics_field(physics_incs, depository, prognostic_fields, &
+      'dv_conv', vector_space, checkpoint_restart_flag)
 
   end subroutine create_physics_prognostics
 
@@ -203,7 +237,9 @@ contains
   !>                                        restart behaviour of field to be set
   !> @param[in]     twod             Optional flag to determine if this is a
   !>                                        2D field for diagnostic output
-  subroutine add_physics_field(field_collection, name, vector_space, &
+  subroutine add_physics_field(field_collection, &
+                               depository, prognostic_fields, &
+                               name, vector_space, &
                                checkpoint_restart_flag, twod)
 
     use io_config_mod,      only : use_xios_io, &
@@ -219,6 +255,8 @@ contains
 
     character(*), intent(in)                   :: name
     type(field_collection_type), intent(inout) :: field_collection
+    type(field_collection_type), intent(inout) :: depository
+    type(field_collection_type), intent(inout) :: prognostic_fields
     type(function_space_type), intent(in)      :: vector_space
     logical(l_def), intent(in)                 :: checkpoint_restart_flag
     logical, optional, intent(in)              :: twod
@@ -253,7 +291,14 @@ contains
       call new_field%set_checkpoint_read_behaviour(checkpoint_read_behaviour)
     endif
 
-    call field_collection%add_field(new_field)
+    ! Add the field to the depository
+    call depository%add_field(new_field)
+    ! Put a pointer to the field in the required collection
+    call field_collection%add_reference_to_field( depository%get_field(name) )
+    ! If checkpointing the field, put a pointer to it in the prognostics collection
+    if (checkpoint_restart_flag) then
+      call prognostic_fields%add_reference_to_field( depository%get_field(name) )
+    endif
 
   end subroutine add_physics_field
 

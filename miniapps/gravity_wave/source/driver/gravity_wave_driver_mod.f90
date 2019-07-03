@@ -9,15 +9,16 @@
 module gravity_wave_driver_mod
 
   use constants_mod,                  only: i_def
-  use infrastructure_mod,             only: initialise_infrastructure, &
+  use gravity_wave_infrastructure_mod,only: initialise_infrastructure, &
                                             finalise_infrastructure
-  use grid_mod,                       only: initialise_grid
-  use output_mod,                     only: initialise_output, &
-                                            finalise_output
+  use gravity_wave_grid_mod,          only: initialise_grid
+  use gravity_wave_io_mod,            only: initialise_io, &
+                                            finalise_io
   use create_gravity_wave_prognostics_mod, &
                                       only: create_gravity_wave_prognostics
   use runtime_constants_mod,          only: create_runtime_constants
-  use gravity_wave_diagnostics_mod,   only: gravity_wave_diagnostics
+  use gravity_wave_diagnostics_driver_mod, &
+                                      only: gravity_wave_diagnostics_driver
   use field_mod,                      only: field_type
   use field_collection_mod,           only: field_collection_type
   use function_space_chain_mod,       only: function_space_chain_type
@@ -106,7 +107,7 @@ contains
                        multigrid_function_space_chain)
 
   !Initialise aspects of output
-  call initialise_output(comm, mesh_id, twod_mesh_id, chi, xios_ctx)
+  call initialise_io(comm, mesh_id, twod_mesh_id, chi, xios_ctx)
 
   ! Create runtime_constants object. This in turn creates various things
   ! needed by the timestepping algorithms such as mass matrix operators, mass
@@ -147,10 +148,10 @@ contains
     end if
 
     if ( write_diag ) then
-      call gravity_wave_diagnostics(mesh_id,           &
-                                    prognostic_fields, &
-                                    ts_init,           &
-                                    nodal_output_on_w3)
+      call gravity_wave_diagnostics_driver( mesh_id,           &
+                                            prognostic_fields, &
+                                            ts_init,           &
+                                            nodal_output_on_w3)
     end if
 
   end if
@@ -194,10 +195,10 @@ contains
 
       call log_event("Gravity Wave: writing diagnostic output", LOG_LEVEL_INFO)
 
-      call gravity_wave_diagnostics(mesh_id,           &
-                                    prognostic_fields, &
-                                    timestep,          &
-                                    nodal_output_on_w3)
+      call gravity_wave_diagnostics_driver( mesh_id,           &
+                                            prognostic_fields, &
+                                            timestep,          &
+                                            nodal_output_on_w3)
     end if
 
   end do
@@ -233,7 +234,7 @@ contains
   ! Driver layer finalise
   !----------------------------------------------------------------------------
 
-  call finalise_output()
+  call finalise_io()
 
   call finalise_infrastructure()
 

@@ -37,7 +37,7 @@ contains
   !> @param[in,out] cloud_fields Collection of cloud fields
   !> @param[in,out] twod_fields Collection of 2D fields
   !> @param[in]     fd_fields Collection of input Finite Difference fields
-  subroutine map_fd_to_prognostics(prognostic_fields, xi, &
+  subroutine map_fd_to_prognostics(prognostic_fields, diagnostic_fields, &
                                    mr, moist_dyn,         &
                                    cloud_fields,          &
                                    twod_fields,           &
@@ -52,7 +52,8 @@ contains
 
     ! FE Prognostic fields 
     type( field_collection_type), intent( inout ) :: prognostic_fields
-    type( field_type ),           intent( inout ) :: mr(:), xi
+    type( field_collection_type), intent( inout ) :: diagnostic_fields
+    type( field_type ),           intent( inout ) :: mr(:)
     type( field_type ),           intent( inout ) :: moist_dyn(num_moist_factors)
 
     type( field_collection_type), intent( inout ) :: cloud_fields
@@ -64,6 +65,7 @@ contains
     type( field_type ), pointer :: rho                    => null()
     type( field_type ), pointer :: u                      => null()
     type( field_type ), pointer :: exner                  => null()
+    type( field_type ), pointer :: xi                     => null()
     type( field_type ), pointer :: cf_area                => null()
     type( field_type ), pointer :: cf_ice                 => null()
     type( field_type ), pointer :: cf_liq                 => null()
@@ -103,6 +105,7 @@ contains
     theta                 => prognostic_fields%get_field('theta')
     exner                 => prognostic_fields%get_field('exner')
     rho                   => prognostic_fields%get_field('rho')
+    xi                    => diagnostic_fields%get_field('xi')
 
     !Cloud (target) fields
     cf_area               => cloud_fields%get_field('area_fraction')
