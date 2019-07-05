@@ -661,6 +661,7 @@ contains
     ! atmos_physics2_alloc.
     !
     flandg=0.0_r_um
+    fland = 0.0_r_um
 
     !-----------------------------------------------------------------------
     ! Main model prognostics - passed in from Gungho
