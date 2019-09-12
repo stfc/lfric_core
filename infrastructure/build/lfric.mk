@@ -151,10 +151,20 @@ endif
 
 export Q QUIET_ARG VERBOSE_REDIRECT
 
+# Fix enumeration arguments between builds, only for technical
+# development
 # Set flag to perform a fresh rose stem suite
 CLEAN_OPT = '--new'
 ifeq '$(PURGE_SUITES)' '0'
   CLEAN_OPT = ''
+endif
+
+# Set flag to perform a fresh rose stem suite
+FIX_ENUMS ?= 0
+ifeq '$(FIX_ENUMS)' '1'
+  FIX_ENUMS_OPT = '--norandom_enums'
+else
+  FIX_ENUMS_OPT = ''
 endif
 
 # We only want to send terminal control characters if there is a terminal to
@@ -284,7 +294,9 @@ integration-test-run/%: generate-integration-tests
 # Generate configuration source.
 #
 .PHONY: configuration
+configuration: FIX_ENUMS_OPT=$(FIX_ENUMS_OPT)
 configuration:
+	$(call MESSAGE,lfric.mk $(FIX_ENUMS_OPT))
 	$(Q)$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/configuration.mk
 
 ##############################################################################

@@ -224,6 +224,9 @@
       TARGET                = build
       MAKE_THREADS          = 4
       RDEF_PRECISION        = {{mesh_rdef_precision}}
+{%- if fix_enums %}
+      FIX_ENUMS             = 1
+{%- endif %}
 
     [[[directives]]]
 {%-       for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}
@@ -270,12 +273,15 @@
                   {{'\n'|command_list( deleteDirectory('$WORKING_DIR') )}}
                   """
     [[[environment]]]
-      SOURCE_DIRECTORY     = $SOURCE_ROOT/{{appPathFragment}}{{projectName}}
-      WORKING_DIR          = {{TARGET_BUILD_ROOT}}/{{label}}/unit-test
-      TARGET               = unit-tests
-      PROFILE              = {{build}}
-      MAKE_THREADS         = 6
-      RDEF_PRECISION       = {{mesh_rdef_precision}}
+      SOURCE_DIRECTORY = $SOURCE_ROOT/{{appPathFragment}}{{projectName}}
+      WORKING_DIR      = {{TARGET_BUILD_ROOT}}/{{label}}/unit-test
+      TARGET           = unit-tests
+      PROFILE          = {{build}}
+      MAKE_THREADS     = 6
+      RDEF_PRECISION   = {{mesh_rdef_precision}}
+{%- if fix_enums %}
+      FIX_ENUMS        = 1
+{%- endif %}
 
     [[[directives]]]
 {%-       for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}

@@ -164,8 +164,9 @@ build: ALWAYS
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/configuration.mk \
                   PROJECT=$(PROJECT) \
                   SOURCE_DIR=source \
-                  WORKING_DIR=$(WORKING_DIR)      \
-                  META_FILE_DIR=$(META_FILE_DIR)
+                  WORKING_DIR=$(WORKING_DIR) \
+                  META_FILE_DIR=$(META_FILE_DIR) \
+                  FIX_ENUMS_OPT=$(FIX_ENUMS_OPT)
 	$(call MESSAGE,=========================================================)
 	$(call MESSAGE,Analysing $(PROJECT) build dependencies)
 	$(call MESSAGE,=========================================================)
@@ -237,8 +238,9 @@ generate-unit-tests: extract-unit-tests
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/configuration.mk \
                   PROJECT=$(PROJECT) \
                   SOURCE_DIR=source \
-                  WORKING_DIR=$(WORKING_DIR)      \
-                  META_FILE_DIR=$(META_FILE_DIR)
+                  WORKING_DIR=$(WORKING_DIR) \
+                  META_FILE_DIR=$(META_FILE_DIR) \
+                  FIX_ENUMS_OPT=$(FIX_ENUMS_OPT)
 	$(call MESSAGE,=========================================================)
 	$(call MESSAGE,Extracting unit-tests for $(PROJECT))
 	$(call MESSAGE,=========================================================)
@@ -310,8 +312,9 @@ generate-integration-tests: extract-integration-tests
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/configuration.mk \
                   PROJECT=$(PROJECT) \
                   SOURCE_DIR=source \
-                  WORKING_DIR=$(WORKING_DIR)      \
-                  META_FILE_DIR=$(META_FILE_DIR)
+                  WORKING_DIR=$(WORKING_DIR) \
+                  META_FILE_DIR=$(META_FILE_DIR) \
+                  FIX_ENUMS_OPT=$(FIX_ENUMS_OPT)
 	$(call MESSAGE,=========================================================)
 	$(call MESSAGE,Extracting integration-tests for $(PROJECT))
 	$(call MESSAGE,=========================================================)

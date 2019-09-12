@@ -2,6 +2,7 @@
 {%- set projectName = 'solver_miniapp' %}
 {%- set projectDir  = 'solver_miniapp' %}
 {%- set miniappFlag = True %}
+{%- set fix_enums = False %}
 {%- set appDiagStemName = 'diagSolverApi' %}
 {%- set rdef_precision = "64" %}
 {%- set mesh_rdef_precision = "64" %}

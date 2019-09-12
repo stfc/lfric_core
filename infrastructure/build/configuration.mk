@@ -27,8 +27,9 @@ $(CONFIG_DIR)/rose-meta.json $(CONFIG_DIR)/config_namelists.txt: $(META_FILE_DIR
 $(CONFIG_DIR)/build_config_loaders: $(CONFIG_DIR)/rose-meta.json
 	$(call MESSAGE,Generating namelist loading modules.)
 	$(Q)$(LFRIC_BUILD)/tools/GenerateNamelist $(VERBOSE_ARG) \
-                           $(CONFIG_DIR)/rose-meta.json           \
-                           -directory $(CONFIG_DIR)
+                           $(CONFIG_DIR)/rose-meta.json          \
+                           -directory $(CONFIG_DIR)              \
+                           $(FIX_ENUMS_OPT)
 	$(Q)touch $(CONFIG_DIR)/build_config_loaders
 
 # This recipe requires config_namelists.txt, although adding it to the dependencies

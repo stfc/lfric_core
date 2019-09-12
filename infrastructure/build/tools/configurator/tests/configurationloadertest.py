@@ -21,6 +21,7 @@ class LoaderTest(unittest.TestCase):
 
 ###############################################################################
     def test_empty(self):
+
         expected_source = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer

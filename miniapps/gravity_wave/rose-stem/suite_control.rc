@@ -2,6 +2,7 @@
 {%- set projectName = 'gravity_wave' %}
 {%- set projectDir  = 'gravity_wave' %}
 {%- set miniappFlag = True %}
+{%- set fix_enums = False %}
 {%- set appDiagStemName = 'diagGravityWave' %}
 {%- set rdef_precision = "64" %}
 {%- set mesh_rdef_precision = "64" %}

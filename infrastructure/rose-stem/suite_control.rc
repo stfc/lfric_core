@@ -1,6 +1,7 @@
 {%- set projectName = 'infrastructure' %}
 {%- set projectDir  = 'infrastructure' %}
 {%- set miniappFlag = False %}
+{%- set fix_enums = False %}
 {%- set rdef_precision = "64" %}
 
 {%- set groups = {'developer': ['check_compilers("fast-debug", publish=True)',

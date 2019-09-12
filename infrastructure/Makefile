@@ -132,7 +132,8 @@ generate-unit-tests: ALWAYS
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/configuration.mk \
 	          SOURCE_DIR=source \
 	          WORKING_DIR=$(WORKING_DIR) \
-                  META_FILE_DIR=$(META_FILE_DIR)
+                  META_FILE_DIR=$(META_FILE_DIR) \
+                  FIX_ENUMS_OPT=$(FIX_ENUMS_OPT)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone.mk \
                   SOURCE_DIR=source \
                   WORKING_DIR=$(WORKING_DIR)
@@ -173,7 +174,8 @@ generate-integration-tests: ALWAYS
                   PROJECT=infrastructure \
                   SOURCE_DIR=source \
                   WORKING_DIR=$(WORKING_DIR) \
-                  META_FILE_DIR=integration-test/configuration_test
+                  META_FILE_DIR=integration-test/configuration_test \
+                  FIX_ENUMS_OPT=$(FIX_ENUMS_OPT)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
                   SOURCE_DIR=integration-test \
                   WORKING_DIR=$(WORKING_DIR)

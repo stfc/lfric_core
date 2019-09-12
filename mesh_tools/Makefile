@@ -112,7 +112,8 @@ build: ALWAYS
                   PROJECT=$(PROJECT) \
 	          SOURCE_DIR=source \
                   WORKING_DIR=$(WORKING_DIR) \
-                  META_FILE_DIR=$(META_FILE_DIR)
+                  META_FILE_DIR=$(META_FILE_DIR) \
+                  FIX_ENUMS_OPT=$(FIX_ENUMS_OPT)
 	$Q$(MAKE) $(QUIET_ARG) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/analyse.mk
 	$Q$(MAKE) $(QUIET_ARG) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/compile.mk \
 	          BIN_DIR=$(BIN_DIR) PROGRAMS="$(PROGRAMS)"
@@ -151,7 +152,8 @@ generate-unit-tests: ALWAYS
                   PROJECT=$(PROJECT) \
 	          SOURCE_DIR=source \
                   WORKING_DIR=$(WORKING_DIR) \
-                  META_FILE_DIR=$(META_FILE_DIR)
+                  META_FILE_DIR=$(META_FILE_DIR) \
+                  FIX_ENUMS_OPT=$(FIX_ENUMS_OPT)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/pfunit.mk \
                   PROJECT=mesh_tools \
                   SOURCE_DIR=unit-test \

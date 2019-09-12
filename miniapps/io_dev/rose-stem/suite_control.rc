@@ -2,6 +2,7 @@
 {%- set projectName = 'io_dev' %}
 {%- set projectDir  = 'io_dev' %}
 {%- set miniappFlag = True %}
+{%- set fix_enums = False %}
 {%- set appDiagStemName = 'diagIoDev' %}
 {%- set rdef_precision = "64" %}
 {%- set mesh_rdef_precision = "64" %}

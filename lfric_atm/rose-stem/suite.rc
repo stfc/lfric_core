@@ -429,6 +429,9 @@
             LFRIC_TARGET_PLATFORM = {{TARGET_OPT}}
             MAKE_THREADS          = 4
             RDEF_PRECISION        = {{rdef_precision}}
+{%- if fix_enums %}
+            FIX_ENUMS             = 1
+{%- endif %}
 
         [[[directives]]]
 {%-       for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}
@@ -459,6 +462,9 @@
             LFRIC_TARGET_PLATFORM = {{TARGET_OPT}}
             MAKE_THREADS          = 4
             RDEF_PRECISION        = {{mesh_rdef_precision}}
+{%- if fix_enums %}
+            FIX_ENUMS             = 1
+{%- endif %}
 
         [[[directives]]]
 {%-       for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}
@@ -522,6 +528,9 @@
             LFRIC_TARGET_PLATFORM = {{TARGET_OPT}}
             MAKE_THREADS          = 4
             RDEF_PRECISION        = {{rdef_precision}}
+{%- if fix_enums %}
+            FIX_ENUMS             = 1
+{%- endif %}
 
         [[[directives]]]
 {%-       for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}
@@ -559,6 +568,9 @@
             SOURCE_DIRECTORY = $SOURCE_ROOT/{{appPathFragment}}{{projectName}}
             WORKING_DIR      = {{TARGET_BUILD_ROOT}}/integration_{{label}}
             RDEF_PRECISION   = {{rdef_precision}}
+{%- if fix_enums %}
+            FIX_ENUMS        = 1
+{%- endif %}
 
         [[[directives]]]
 {%-       for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}

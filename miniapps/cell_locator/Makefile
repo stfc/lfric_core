@@ -189,7 +189,8 @@ build: ALWAYS
 	          PROJECT=$(PROJECT) \
 	          SOURCE_DIR=$(SOURCE_DIR) \
 	          WORKING_DIR=$(WORKING_DIR) \
-	          META_FILE_DIR=$(META_FILE_DIR)
+	          META_FILE_DIR=$(META_FILE_DIR) \
+                  FIX_ENUMS_OPT=$(FIX_ENUMS_OPT)
 	$(call MESSAGE,=========================================================)
 	$(call MESSAGE,Analysing $(PROJECT) build dependencies)
 	$(call MESSAGE,=========================================================)
@@ -261,7 +262,8 @@ generate-unit-tests: ALWAYS
 	          PROJECT=$(PROJECT) \
 	          SOURCE_DIR=$(SOURCE_DIR) \
 	          WORKING_DIR=$(WORKING_DIR) \
-	          META_FILE_DIR=$(META_FILE_DIR)
+	          META_FILE_DIR=$(META_FILE_DIR) \
+                  FIX_ENUMS_OPT=$(FIX_ENUMS_OPT)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
                   SOURCE_DIR=unit-test \
                   WORKING_DIR=$(WORKING_DIR)
@@ -328,7 +330,8 @@ generate-integration-tests: ALWAYS
 	          PROJECT=$(PROJECT) \
 	          SOURCE_DIR=$(SOURCE_DIR) \
 	          WORKING_DIR=$(WORKING_DIR) \
-	          META_FILE_DIR=$(META_FILE_DIR)
+	          META_FILE_DIR=$(META_FILE_DIR) \
+                  FIX_ENUMS_OPT=$(FIX_ENUMS_OPT)
 
 
 ##############################################################################

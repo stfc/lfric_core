@@ -148,7 +148,8 @@ build: ALWAYS
                   PROJECT=$(PROJECT_NAME) \
                   SOURCE_DIR=$(ROOT_DIR)/gungho/source \
                   WORKING_DIR=$(WORKING_DIR) \
-                  META_FILE_DIR=$(META_FILE_DIR)
+                  META_FILE_DIR=$(META_FILE_DIR) \
+                  FIX_ENUMS_OPT=$(FIX_ENUMS_OPT)
 	$(call MESSAGE,==============================)
 	$(call MESSAGE,Extracting $(PROJECT_NAME))
 	$(call MESSAGE,==============================)
@@ -222,7 +223,8 @@ generate-unit-tests: ALWAYS
                   PROJECT=$(PROJECT_NAME) \
                   SOURCE_DIR=$(ROOT_DIR)/gungho/source \
                   WORKING_DIR=$(WORKING_DIR) \
-                  META_FILE_DIR=$(META_FILE_DIR)
+                  META_FILE_DIR=$(META_FILE_DIR) \
+                  FIX_ENUMS_OPT=$(FIX_ENUMS_OPT)
 	$(call MESSAGE,==============================)
 	$(call MESSAGE,Extracting $(PROJECT_NAME))
 	$(call MESSAGE,==============================)
@@ -294,7 +296,8 @@ generate-integration-tests: ALWAYS
                   PROJECT=$(PROJECT_NAME) \
                   SOURCE_DIR=$(ROOT_DIR)/gungho/source \
                   WORKING_DIR=$(WORKING_DIR) \
-                  META_FILE_DIR=$(META_FILE_DIR)
+                  META_FILE_DIR=$(META_FILE_DIR) \
+                  FIX_ENUMS_OPT=$(FIX_ENUMS_OPT)
 	$(call MESSAGE,==============================)
 	$(call MESSAGE,Extracting $(PROJECT_NAME))
 	$(call MESSAGE,==============================)

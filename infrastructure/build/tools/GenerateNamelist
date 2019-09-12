@@ -35,6 +35,9 @@ def main():
                         help='Generated source files are put here.')
     parser.add_argument('meta_filename', metavar='description-file',
                         nargs=1, help='The metadata file to load')
+    parser.add_argument('--norandom_enums',
+                        help='Disables randomised enumeration values.',
+                        action="store_true")
 
     args = parser.parse_args()
 
@@ -51,7 +54,8 @@ def main():
     meta_parser = namelist.NamelistConfigDescription()
 
     # Generate namelists from the namelist configuration file.
-    description_list = meta_parser.process_config(meta_filename)
+    description_list = meta_parser.process_config(meta_filename, 
+                                                  fix_enum=args.norandom_enums)
 
     for description in description_list:
         module_filename = os.path.join(args.directory,

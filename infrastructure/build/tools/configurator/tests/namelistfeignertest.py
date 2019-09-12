@@ -435,7 +435,6 @@ end module everything_mod
         everything.add_string('knife', configure_string_length='filename',
                               bounds=['tail'])
 
-
         output_file = StringIO.StringIO()
         uut = feigner.NamelistFeigner('everything_mod')
         uut.add_namelist([everything])

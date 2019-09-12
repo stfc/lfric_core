@@ -1,6 +1,7 @@
 {%- set projectName = 'gungho' %}
 {%- set projectDir  = 'gungho' %}
 {%- set miniappFlag = False %}
+{%- set fix_enums = False %}
 {%- set appDiagStemName = 'diagGungho' %}
 {%- set rdef_precision = "64" %}
 {%- set mesh_rdef_precision = "64" %}

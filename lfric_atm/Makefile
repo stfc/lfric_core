@@ -104,7 +104,8 @@ build: ALWAYS
                   PROJECT=gungho \
                   SOURCE_DIR=$(ROOT_DIR)/gungho/source \
                   WORKING_DIR=$(WORKING_DIR) \
-                  META_FILE_DIR=$(META_FILE_DIR)
+                  META_FILE_DIR=$(META_FILE_DIR) \
+                  FIX_ENUMS_OPT=$(FIX_ENUMS_OPT)
 	$(call MESSAGE,Extracting,"UM physics" )
 	$Qif [ x$(platform_config_dir) = x ] ; then echo Unable to convert $(LFRIC_TARGET_PLATFORM):$(FORTRAN_COMPILER) to a UM target; false; fi
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \

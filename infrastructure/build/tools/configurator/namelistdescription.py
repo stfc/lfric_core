@@ -20,8 +20,8 @@ import re
 import json
 
 import jinja2 as jinja
-import configurator.jinjamacros as jinjamacros
 import six
+import configurator.jinjamacros as jinjamacros
 
 
 ##############################################################################
@@ -62,7 +62,7 @@ class FortranType(object):
         return self.declaration() < other.declaration()
 
     def __eq__(self, other):
-        self.declaration() == other.declaration()
+        return self.declaration() == other.declaration()
 
 
 ##############################################################################
@@ -168,7 +168,7 @@ class _Scalar(_Property):
 class _Computed(_Scalar):
 
     def __init__(self, name, configure_type, configure_kind, computation,
-                                             dereferenced_list_vars=None ):
+                 dereferenced_list_vars=None):
 
         super(_Computed, self).__init__(name, configure_type, configure_kind)
         self.computation = computation[0]
@@ -225,7 +225,7 @@ class _Array(_Property):
 ##############################################################################
 class NamelistDescription(object):
 
-    def __init__(self, listname):
+    def __init__(self, listname, fix_enum=False):
         self._listname = listname
 
         self._engine = jinja.Environment(
@@ -237,6 +237,8 @@ class NamelistDescription(object):
         self._module_usage = collections.defaultdict(set)
         self._module_usage['constants_mod'] = set(['cmdi', 'emdi',
                                                    'imdi', 'rmdi'])
+        self._last_enum_key = 1
+        self._fix_enum = fix_enum
         self._enum_pool = list(range(1, 1000))
 
     def get_namelist_name(self):
@@ -255,7 +257,12 @@ class NamelistDescription(object):
 
         key_dict = collections.OrderedDict()
         for key in enumerators:
-            key_dict[key] = random.choice(self._enum_pool)
+            if self._fix_enum:
+                key_dict[key] = self._last_enum_key
+                self._last_enum_key = self._last_enum_key + 1
+            else:
+                key_dict[key] = random.choice(self._enum_pool)
+
             self._enum_pool.remove(key_dict[key])
 
         self._parameters[name] = _Enumeration(name, key_dict)
@@ -272,7 +279,8 @@ class NamelistDescription(object):
         new_parameter = _String(name, configure_string_length)
 
         if bounds:
-            bounds[0], dereferenced_list_vars = self._dereference_expression(bounds[0])
+            bounds[0], dereferenced_list_vars = (
+                self._dereference_expression(bounds[0]))
             self._parameters[name] = _Array(name, new_parameter, bounds)
         else:
             self._parameters[name] = new_parameter
@@ -285,7 +293,8 @@ class NamelistDescription(object):
         new_parameter = _Scalar(name, configure_type, configure_kind)
 
         if bounds:
-            bounds[0], dereferenced_list_vars = self._dereference_expression(bounds[0])
+            bounds[0], dereferenced_list_vars = (
+                self._dereference_expression(bounds[0]))
             self._parameters[name] = _Array(name, new_parameter, bounds)
         else:
             self._parameters[name] = new_parameter
@@ -295,10 +304,12 @@ class NamelistDescription(object):
         '''Add a variable the namelist module which is derived from an
            expression provided as a string variable'''
 
-        calculation[0], dereferenced_list_vars = self._dereference_expression(calculation[0])
-        self._parameters[name] = _Computed(name, configure_type,
-                                           configure_kind, calculation,
-                                           dereferenced_list_vars )
+        calculation[0], dereferenced_list_vars = (
+            self._dereference_expression(calculation[0]))
+        self._parameters[name] = _Computed(
+            name, configure_type,
+            configure_kind, calculation,
+            dereferenced_list_vars=dereferenced_list_vars)
 
     def get_parameters(self):
         return list(self._parameters.values())
@@ -370,7 +381,7 @@ class NamelistDescription(object):
                 for i_var in range(0, n_vars):
 
                     list_name = use_variables[i_var][0]
-                    var_name  = use_variables[i_var][1]
+                    var_name = use_variables[i_var][1]
 
                     if use_variables[i_var][0] != self._listname:
                         module_name = '{}{}'.format(
@@ -495,7 +506,7 @@ class NamelistConfigDescription(object):
 
         return result
 
-    def process_config(self, nml_config_file):
+    def process_config(self, nml_config_file, fix_enum=False):
 
         # Process json
         with open(nml_config_file) as config_file:
@@ -505,7 +516,7 @@ class NamelistConfigDescription(object):
         result = []
 
         for listname in namelist_config.keys():
-            description = NamelistDescription(listname)
+            description = NamelistDescription(listname, fix_enum=fix_enum)
             list_dict = namelist_config[listname]
 
             for member in sorted(list_dict.keys()):

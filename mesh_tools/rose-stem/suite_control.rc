@@ -1,6 +1,7 @@
 {%- set projectName = 'mesh_tools' %}
 {%- set projectDir  = 'mesh_tools' %}
 {%- set miniappFlag = False %}
+{%- set fix_enums = False %}
 {%- set mesh_rdef_precision = "64" %}
 
 {%- set groups = {'developer': ['check_compilers("fast-debug", publish=True)',

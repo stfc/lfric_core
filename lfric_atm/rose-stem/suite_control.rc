@@ -1,6 +1,7 @@
 {%- set projectName = 'lfric_atm' %}
 {%- set projectDir  = 'lfric_atm' %}
 {%- set miniappFlag = False %}
+{%- set fix_enums = False %}
 {%- set appDiagStemName = 'diagLfricAtm' %}
 {%- set rdef_precision = "64" %}
 {%- set mesh_rdef_precision = "64" %}

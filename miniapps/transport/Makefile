@@ -164,7 +164,8 @@ build: ALWAYS
                   PROJECT=$(PROJECT_NAME) \
                   SOURCE_DIR=source \
                   WORKING_DIR=$(WORKING_DIR) \
-                  META_FILE_DIR=$(META_FILE_DIR)
+                  META_FILE_DIR=$(META_FILE_DIR) \
+                  FIX_ENUMS_OPT=$(FIX_ENUMS_OPT)
 	$(call MESSAGE,=========================================================)
 	$(call MESSAGE,Analysing $(PROJECT) build dependencies)
 	$(call MESSAGE,=========================================================)
@@ -235,7 +236,8 @@ generate-unit-tests: ALWAYS
                   PROJECT=$(PROJECT_NAME) \
                   SOURCE_DIR=source \
                   WORKING_DIR=$(WORKING_DIR) \
-                  META_FILE_DIR=$(META_FILE_DIR)
+                  META_FILE_DIR=$(META_FILE_DIR) \
+                  FIX_ENUMS_OPT=$(FIX_ENUMS_OPT)
 	$(call MESSAGE,=========================================================)
 	$(call MESSAGE,Extracting unit-tests for $(PROJECT))
 	$(call MESSAGE,=========================================================)
@@ -247,7 +249,9 @@ generate-unit-tests: ALWAYS
                   PROJECT=$(PROJECT_NAME) \
                   SOURCE_DIR=$(WORKING_DIR) \
                   WORKING_DIR=$(WORKING_DIR) \
-                  META_FILE_DIR=$(META_FILE_DIR)
+                  META_FILE_DIR=$(META_FILE_DIR) \
+                  FIX_ENUMS_OPT=$(FIX_ENUMS_OPT)
+
 	$Q$(MAKE) $(QUIET_ARG) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/analyse.mk
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/pfunit.mk \
                   SOURCE_DIR=unit-test \
@@ -310,7 +314,8 @@ generate-integration-tests: extract-integration-tests
                   PROJECT=$(PROJECT_NAME) \
                   SOURCE_DIR=source \
                   WORKING_DIR=$(WORKING_DIR) \
-                  META_FILE_DIR=$(META_FILE_DIR)
+                  META_FILE_DIR=$(META_FILE_DIR) \
+                  FIX_ENUMS_OPT=$(FIX_ENUMS_OPT)
 	$(call MESSAGE,=========================================================)
 	$(call MESSAGE,Extracting integration-tests for $(PROJECT))
 	$(call MESSAGE,=========================================================)

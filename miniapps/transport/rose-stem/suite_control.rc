@@ -2,6 +2,7 @@
 {%- set projectName = 'transport' %}
 {%- set projectDir  = 'transport' %}
 {%- set miniappFlag = True %}
+{%- set fix_enums = False %}
 {%- set appDiagStemName = 'diagTransport' %}
 {%- set rdef_precision = "64" %}
 {%- set mesh_rdef_precision = "64" %}
