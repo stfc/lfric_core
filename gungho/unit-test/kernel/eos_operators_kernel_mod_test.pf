@@ -40,7 +40,10 @@ module eos_operators_kernel_mod_test
     type(function_space_type), pointer :: w0_fs => null()
     type(function_space_type), pointer :: w3_fs => null()
     type(function_space_type), pointer :: wt_fs => null()
-    type(field_type)                   :: chi(3), rho, exner, theta
+    type(field_type)                   :: chi1
+    type(field_type)                   :: chi2
+    type(field_type)                   :: chi3
+    type(field_type)                   :: rho, exner, theta
     type(operator_type)                :: m3exner, m3rho, p3theta
     real(r_def ), allocatable          :: diff_basis(:,:,:,:), &
                                           basis(:,:,:,:), &
@@ -110,10 +113,13 @@ contains
     this%w3_fs => function_space_collection%get_fs( this%mesh_id, element_order, W3 )
     this%wt_fs => function_space_collection%get_fs( this%mesh_id, element_order, Wtheta )
 
-    do i = 1,3
-      this%chi(i) = field_type( vector_space = this%w0_fs )
-      chi_p(i)    = this%chi(i)%get_proxy()
-    end do
+    this%chi1 = field_type( vector_space = this%w0_fs )
+    this%chi2 = field_type( vector_space = this%w0_fs )
+    this%chi3 = field_type( vector_space = this%w0_fs )
+    chi_p(1)    = this%chi1%get_proxy()
+    chi_p(2)    = this%chi2%get_proxy()
+    chi_p(3)    = this%chi3%get_proxy()
+
     this%rho   =  field_type( vector_space = this%w3_fs )
     this%exner =  field_type( vector_space = this%w3_fs )
     this%theta =  field_type( vector_space = this%wt_fs )
@@ -205,9 +211,10 @@ contains
     call mesh%get_dz(dz_test)
     dz = dz_test(1)
 
-    do i = 1,3
-      chi_p(i) = this%chi(i)%get_proxy()
-    end do
+    chi_p(1) = this%chi1%get_proxy()
+    chi_p(2) = this%chi2%get_proxy()
+    chi_p(3) = this%chi3%get_proxy()
+
     ! Compute coordinates
     cell = 1
     do j = 1,3

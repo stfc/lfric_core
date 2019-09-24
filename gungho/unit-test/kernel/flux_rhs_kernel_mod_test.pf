@@ -39,7 +39,9 @@ module flux_rhs_kernel_mod_test
       type(function_space_type), pointer :: w0_fs => null()
       type(function_space_type), pointer :: w2_fs => null()
       type(function_space_type), pointer :: w3_fs => null()
-      type(field_type)                   :: chi(3)
+      type(field_type)                   :: chi1
+      type(field_type)                   :: chi2
+      type(field_type)                   :: chi3
       type(field_type)                   :: f, rhs
       real(r_def), allocatable           :: basis_u(:,:,:,:), &
                                             basis_f(:,:,:,:), &
@@ -102,10 +104,13 @@ contains
     this%w2_fs => function_space_collection%get_fs( mesh_id, element_order, W2 )
     this%w3_fs => function_space_collection%get_fs( mesh_id, element_order, W3 )
 
-    do i = 1,3
-      this%chi(i) = field_type( vector_space = this%w0_fs )
-      chi_p(i) = this%chi(i)%get_proxy()
-    end do
+    this%chi1 = field_type( vector_space = this%w0_fs )
+    this%chi2 = field_type( vector_space = this%w0_fs )
+    this%chi3 = field_type( vector_space = this%w0_fs )
+    chi_p(1) = this%chi1%get_proxy()
+    chi_p(2) = this%chi2%get_proxy()
+    chi_p(3) = this%chi3%get_proxy()
+
     ndf_chi      = chi_p(1)%vspace%get_ndf( )
     dim_diff_chi = chi_p(1)%vspace%get_dim_space_diff( )
 
@@ -184,9 +189,9 @@ contains
 
 
     ! Make a coordinate field with a function space
-    do i = 1,3
-      chi_p(i) = this%chi(i)%get_proxy()
-    end do
+    chi_p(1) = this%chi1%get_proxy()
+    chi_p(2) = this%chi2%get_proxy()
+    chi_p(3) = this%chi3%get_proxy()
     ! Compute coordinates
     cell = 1
     do j = 1,3
