@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##############################################################################
 # (C) British Crown Copyright 2018 Met Office.
@@ -17,6 +17,7 @@
 # along with Rose. If not, see <http://www.gnu.org/licenses/>.
 ##############################################################################
 
+from __future__ import absolute_import
 from __future__ import print_function
 
 import argparse
@@ -146,7 +147,7 @@ def main():
     output.close()
 
     # Write out namelists in configuration
-    output = open('{}/config_namelists.txt'.format(output_dir), 'w')
+    output = open('{}/config_namelists.txt'.format(output_dir), 'wt')
 
     for listname in listnames:
         output.write('{}\n'.format(listname))

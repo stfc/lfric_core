@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##############################################################################
 # Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
@@ -45,9 +45,9 @@ def _main():
     working_filename = arguments.output + '.work'
     if not os.path.exists(os.path.dirname(working_filename)):
         os.makedirs(os.path.dirname(working_filename))
-    with open(arguments.statusfile, 'r') as status_file:
-        with open(arguments.errfile, 'r') as errfile:
-            with open(working_filename, 'w') as working_file:
+    with open(arguments.statusfile, 'rt') as status_file:
+        with open(arguments.errfile, 'rt') as errfile:
+            with open(working_filename, 'wt') as working_file:
                 status_parser = parser.CylcParser(status_file,
                                                   compiler=arguments.compiler)
                 error_parser_class = ERROR_PARSER_MAP[status_parser.compiler]

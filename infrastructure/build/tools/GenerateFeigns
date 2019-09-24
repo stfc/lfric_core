@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##############################################################################
 # Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
@@ -54,7 +54,7 @@ def main():
     meta_parser = namelist.NamelistConfigDescription()
     feigner.add_namelist(meta_parser.process_config(meta_filename))
 
-    with open(args.output, 'w') as module_file:
+    with open(args.output, 'wt') as module_file:
         feigner.write_module(module_file)
 
 

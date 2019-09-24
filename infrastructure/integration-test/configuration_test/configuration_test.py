@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##############################################################################
 # (c) Crown copyright 2017 Met Office. All rights reserved.
@@ -61,7 +61,7 @@ class configuration_test(MpiTest):
         seen = collections.defaultdict(list)
 
         for process in range(0, 4):
-            with open('result.{0}.txt'.format(process), 'r') as handle:
+            with open('result.{0}.txt'.format(process), 'rt') as handle:
                 contents = handle.readlines()
 
             for line in contents:

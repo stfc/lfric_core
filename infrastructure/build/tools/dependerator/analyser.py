@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##############################################################################
 # Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
@@ -66,7 +66,7 @@ class NamelistDescriptionAnalyser(Analyser):
     def analyse( self, sourceFilename ):
         if not sourceFilename.endswith( '.nld' ):
             raise Exception( 'File doesn''t look like a namelist description' \
-                         
+
                              + ' file: ' + sourceFilename )
 
         logging.getLogger(__name__).info('  Scanning ' + sourceFilename)
@@ -74,7 +74,7 @@ class NamelistDescriptionAnalyser(Analyser):
         self._database.removeFile( sourceFilename )
 
         start_time = time()
-        with open( sourceFilename, 'r' ) as sourceFile:
+        with open( sourceFilename, 'rt' ) as sourceFile:
             for line in sourceFile:
                 match = re.match( r'^\s*namelist\s+(\S+)', line, \
                                   flags=re.IGNORECASE )
@@ -165,9 +165,9 @@ class FortranAnalyser(Analyser):
       preprocessCommand.append( sourceFilename )
 
       start_time = time()
-      preprocessor = subprocess.Popen( preprocessCommand, \
-                                       stdout=subprocess.PIPE, \
-                                       stderr=subprocess.PIPE )
+      preprocessor = subprocess.Popen(preprocessCommand, \
+                                      stdout=subprocess.PIPE, \
+                                      stderr=subprocess.PIPE)
       processed_source, errors = preprocessor.communicate()
       message = 'Time to preprocess Fortran source: {0}'
       logging.getLogger(__name__).debug(message.format(time() - start_time))
@@ -176,7 +176,7 @@ class FortranAnalyser(Analyser):
                                              " ".join( preprocessCommand ) )
     elif sourceFilename.endswith( '.f90' ):
       start_time = time()
-      with open( sourceFilename, 'r' ) as sourceFile:
+      with open( sourceFilename, 'rt' ) as sourceFile:
         processed_source = sourceFile.read()
       message = 'Time to read Fortran source: {0}'
       logging.getLogger(__name__).debug(message.format(time() - start_time))
@@ -328,7 +328,7 @@ class FortranAnalyser(Analyser):
         continue
 
       match = self._subroutinePattern.match( code )
-      if match and len(scope_stack) == 0: 
+      if match and len(scope_stack) == 0:
         # Only if this subroutine is a program unit.
         is_module    = match.group( 1 )
         program_unit = match.group( 2 ).lower()
@@ -388,7 +388,7 @@ class FortranAnalyser(Analyser):
         start_time = time()
         includeFilename = os.path.join( os.path.dirname( sourceFilename ),
                                         'testSuites.inc' )
-        with open( includeFilename, 'r' ) as includeFile:
+        with open( includeFilename, 'rt' ) as includeFile:
           for line in includeFile:
             match = self._suitePattern.match( line )
             if match is not None:

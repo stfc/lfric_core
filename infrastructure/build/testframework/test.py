@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##############################################################################
 # Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
@@ -128,7 +128,7 @@ class MpiTest(six.with_metaclass(ABCMeta, AbstractTest)):
     filedescriptor, self._scriptname = tempfile.mkstemp( prefix='run-',
                                                          suffix='.sh',
                                                          text=True )
-    handle = os.fdopen( filedescriptor, 'w' )
+    handle = os.fdopen( filedescriptor, 'wt' )
     print( '#!/bin/sh', file=handle )
     print( 'echo {tag}'.format( tag=self._startTag ),
            file=handle )
@@ -252,7 +252,7 @@ class LFRicLoggingTest(six.with_metaclass(ABCMeta, MpiTest)):
         delay_seconds = 60
         for attempt in range(1, number_retries + 1):
             try:
-                with open( filename, 'r' ) as handle:
+                with open( filename, 'rt' ) as handle:
                     self._LFRicLoggingLog[number] = handle.read()
             except IOError:
                 if attempt < number_retries:
@@ -265,4 +265,3 @@ class LFRicLoggingTest(six.with_metaclass(ABCMeta, MpiTest)):
                     time.sleep(delay_seconds)
                 else:
                     raise
-

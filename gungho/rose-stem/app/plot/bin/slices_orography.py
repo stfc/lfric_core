@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##############################################################################
 # (c) Crown copyright 2019 Met Office. All rights reserved.
@@ -23,9 +23,12 @@ there is a file for each processor.
 
 '''
 
+from __future__ import absolute_import
+from __future__ import print_function
 import numpy as np
 # Need to set a non-interactive backend for suites
 import matplotlib
+from six.moves import range
 matplotlib.use('Agg')  # noqa: E402
 
 import matplotlib.pyplot as plt
@@ -69,7 +72,6 @@ def make_figure(plotpath, field, component, timestep, plotlong, plotlat,
 
     r2d = 180.0/np.pi
     nx, ny, nz = 360, 180, len(levels)
-
 
     val_col = 'c' + str(component)
 

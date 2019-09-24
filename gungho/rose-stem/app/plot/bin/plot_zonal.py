@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 
 # Need to set a non-interactive backend for suites
 from __future__ import absolute_import

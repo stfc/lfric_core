@@ -22,4 +22,4 @@ test: export GPL_DIR ?= $(ROOT_DIR)/GPL
 test: export GPL_PYTHON_LIB ?= $(GPL_DIR)/lib/python
 test: PYTHONPATH:=$(PYTHONPATH):./:$(GPL_PYTHON_LIB)
 test:
-	python2.7 -m unittest discover -p '*test.py' --verbose
+	python -m unittest discover -p '*test.py' --verbose

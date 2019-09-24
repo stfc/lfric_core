@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 ''' Quick plot of for lfric_atm scm output '''
 
 # Need to set a non-interactive backend for suites

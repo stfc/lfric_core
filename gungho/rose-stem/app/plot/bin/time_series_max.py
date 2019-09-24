@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##############################################################################
 # (c) The copyright relating to this work is owned jointly by the Crown,
@@ -31,7 +31,7 @@ from numpy import column_stack
 
 Usage example:
 
-python2.7 time_series_max.py datapath plotpath plot_ref num_proc
+python time_series_max.py datapath plotpath plot_ref num_proc
 
 
 '''

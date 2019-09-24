@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##############################################################################
 # Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
@@ -65,9 +65,9 @@ def _main():
     working_directory = os.path.dirname(working_filename)
     if working_directory and not os.path.exists(working_directory):
         os.makedirs(os.path.dirname(working_filename))
-    with open(arguments.statusfile, 'r') as status_file:
-        with open(arguments.errorfile, 'r') as error_file:
-            with open(working_filename, 'w') as working_file:
+    with open(arguments.statusfile, 'rt') as status_file:
+        with open(arguments.errorfile, 'rt') as error_file:
+            with open(working_filename, 'wt') as working_file:
                 status_parser = parser.CylcParser(status_file, 'Doxygen')
                 error_parser = parser.DoxygenParser(error_file)
                 error_parser.process_events(_capture_events)

@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##############################################################################
 # Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
@@ -40,19 +40,19 @@ if __name__ == '__main__':
     hashFilename = os.path.join( os.path.dirname( arguments.output ), 'hashes.txt' )
 
     if os.path.exists( hashFilename ):
-        with open( hashFilename, 'r' ) as hashFile:
+        with open( hashFilename, 'rt' ) as hashFile:
             for line in hashFile:
                 filename, digest = line.split()
                 lfricIndexer.addPreviousHash( filename, digest )
 
-    with open( hashFilename, 'w' ) as hashFile:
+    with open( hashFilename, 'wt' ) as hashFile:
         for filename, digest in lfricIndexer.getCurrentHashes():
             print( '{} {}'.format( filename, digest ), file=hashFile )
 
     workingFilename = arguments.output + '.work'
     if not os.path.exists( os.path.dirname( workingFilename ) ):
       os.makedirs( os.path.dirname( workingFilename ) )
-    with open( workingFilename, 'w' ) as outfile:
+    with open( workingFilename, 'wt' ) as outfile:
         if arguments.bush and 'CYLC_SUITE_NAME' in os.environ:
             suiterun = '{}/jobs/{}/{}'.format( arguments.bush,     \
                                                os.environ['USER'], \

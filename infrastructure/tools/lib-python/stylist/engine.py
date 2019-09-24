@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 ##############################################################################
 # (c) Crown copyright 2019 Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
@@ -35,7 +35,7 @@ class CheckEngine(object):
         source_filename (string or file-like) Fortran source file to check.
         '''
         issues = []
-        with open(source_filename, 'r') as source_file:
+        with open(source_filename, 'rt') as source_file:
             logging.getLogger(__name__).info('Examining: ' + source_filename)
             source = stylist.source.SourceFactory.read_file(source_file)
             for astyle in self._styles:

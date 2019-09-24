@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##############################################################################
 # Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
@@ -226,7 +226,7 @@ class UploaderFile(Uploader):
 
   def upload( self, fileObject, filename ):
     absoluteFilename = os.path.join( self._workDirectory, filename )
-    with open( absoluteFilename, 'w' ) as destination:
+    with open( absoluteFilename, 'wt' ) as destination:
       while True:
         block = fileObject.read( 1024 )
         if block == '':
@@ -350,7 +350,7 @@ class Mirrorer:
 
       for filename in files:
         absoluteFilename = os.path.join( root, filename )
-        with open( absoluteFilename, 'r' ) as fileStream:
+        with open( absoluteFilename, 'rt' ) as fileStream:
           transformedStream = self._transformFile( absoluteFilename, \
                                                   fileStream )
           self._uploader.upload( transformedStream, \

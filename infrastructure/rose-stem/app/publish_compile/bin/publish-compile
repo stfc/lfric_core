@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##############################################################################
 # Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
@@ -47,10 +47,10 @@ if __name__ == '__main__':
     workingFilename = arguments.output + '.work'
     if not os.path.exists( os.path.dirname( workingFilename ) ):
       os.makedirs( os.path.dirname( workingFilename ) )
-    with open( arguments.statusfile, 'r' ) as statusfile, \
-         open( arguments.outfile, 'r' ) as outfile,       \
-         open( arguments.errfile, 'r' ) as errfile,       \
-         open( workingFilename, 'w' ) as workingFile:
+    with open( arguments.statusfile, 'rt' ) as statusfile, \
+         open( arguments.outfile, 'rt' ) as outfile,       \
+         open( arguments.errfile, 'rt' ) as errfile,       \
+         open( workingFilename, 'wt' ) as workingFile:
 
         statusParser = parser.CylcParser( statusfile )
         outParser = parser.BuildParser( outfile )

@@ -10,4 +10,4 @@ export PYTHONPATH := $(PYTHONPATH):$(abspath $(ROOT_DIR)/GPL/lib/python)
 
 .PHONY: test
 test:
-	python2.7 -m unittest discover -p '*test.py' --verbose
+	python -m unittest discover -p '*test.py' --verbose

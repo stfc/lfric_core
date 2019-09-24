@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##############################################################################
 # Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
@@ -39,7 +39,7 @@ class NamelistDescriptionAnalyserTest(unittest.TestCase):
     #
     def testAnalysis( self ):
         testFilename = os.path.join( self._scratchDirectory, 'test.nld' )
-        with open( testFilename, 'w' ) as nldFile:
+        with open( testFilename, 'wt' ) as nldFile:
             print( '''
 namelist foo
 
@@ -89,7 +89,7 @@ class FortranAnalyserTest(unittest.TestCase):
       self._dependencies.addModule( u'pork', u'pig.f90' )
       testFilename = six.text_type( os.path.join( self._scratchDirectory,
                                             'cont.f90' ) )
-      with open( testFilename, 'w' ) as fortranFile:
+      with open( testFilename, 'wt' ) as fortranFile:
         print( '''
 subroutine thingy(cheese, meat, &
                   teapot, fishslice, &
@@ -130,7 +130,7 @@ end subroutine old_school
     def testProcedure( self ):
       testFilename = six.text_type( os.path.join( self._scratchDirectory,
                               'test.f90' ) )
-      with open( testFilename, 'w' ) as fortranFile:
+      with open( testFilename, 'wt' ) as fortranFile:
           print( '''
 subroutine empty_sub()
 end subroutine empty_sub
@@ -158,7 +158,7 @@ end function cosd
         self._dependencies.addModule( 'trumpton_mod', 'trumpton_mod.f90' )
 
         testFilename = os.path.join( self._scratchDirectory, 'test.f90' )
-        with open( testFilename, 'w' ) as fortranFile:
+        with open( testFilename, 'wt' ) as fortranFile:
             print( '''
 program fOo
 
@@ -197,7 +197,7 @@ end program fOo
         uut = dependerator.analyser.FortranAnalyser([], self._dependencies)
 
         testFilename = os.path.join( self._scratchDirectory, 'test.f90' )
-        with open( testFilename, 'w' ) as fortranFile:
+        with open( testFilename, 'wt' ) as fortranFile:
             print( '''
 module foO
 
@@ -220,7 +220,7 @@ end module truMpton_mod
         uut.analyse( testFilename )
 
         otherFilename = os.path.join( self._scratchDirectory, 'other.f90' )
-        with open( otherFilename, 'w' ) as otherFile:
+        with open( otherFilename, 'wt' ) as otherFile:
             print( '''
 module coNstants_mod
 
@@ -255,7 +255,7 @@ end module coNstants_mod
 
         parentFilename = six.text_type(os.path.join( self._scratchDirectory,
                                                'parent.f90' ), "utf-8")
-        with open( parentFilename, 'w' ) as parentFile:
+        with open( parentFilename, 'wt' ) as parentFile:
             print( '''
 module Parent
 
@@ -304,7 +304,7 @@ end submodule chIld3
 
         child1Filename = six.text_type(os.path.join( self._scratchDirectory,
                                                'child1.f90' ), 'utf-8')
-        with open( child1Filename, 'w' ) as child1File:
+        with open( child1Filename, 'wt' ) as child1File:
             print( '''
 submodule (paRent) Child1
 
@@ -346,7 +346,7 @@ end submodule Child1
 
         child2Filename = six.text_type(os.path.join( self._scratchDirectory,
                                  'child2.f90' ), 'utf-8')
-        with open( child2Filename, 'w' ) as child2File:
+        with open( child2Filename, 'wt' ) as child2File:
             print( '''
 submodule (parent) cHild2
 
@@ -368,7 +368,7 @@ end submodule cHild2
 
         child3Filename = six.text_type(os.path.join( self._scratchDirectory,
                                  'child3.f90' ), 'utf-8')
-        with open( child3Filename, 'w' ) as child3File:
+        with open( child3Filename, 'wt' ) as child3File:
             print( '''
 submodule (parEnt:chilD1) grandChild
 
@@ -422,7 +422,7 @@ end submodule grandChild
         uut = dependerator.analyser.FortranAnalyser([], self._dependencies)
 
         testFilename = os.path.join( self._scratchDirectory, 'test.f90' )
-        with open( testFilename, 'w' ) as fortranFile:
+        with open( testFilename, 'wt' ) as fortranFile:
             print( '''
 module function_thing_mod
 
@@ -439,7 +439,7 @@ end module function_thing_mod
         uut.analyse( testFilename )
 
         otherFilename = os.path.join( self._scratchDirectory, 'other.f90' )
-        with open( otherFilename, 'w' ) as otherFile:
+        with open( otherFilename, 'wt' ) as otherFile:
             print( '''
 module constants_mod
 
@@ -448,7 +448,7 @@ end module constants_mod
         uut.analyse( otherFilename )
 
         dependFilename = os.path.join( self._scratchDirectory, 'dependson.f90' )
-        with open( dependFilename, 'w' ) as dependFile:
+        with open( dependFilename, 'wt' ) as dependFile:
             print( '''
 subroutine dependson
 
@@ -477,7 +477,7 @@ end dependson
         self._dependencies.add_procedure( u'flibble', u'flibble.f90' )
         testFilename = six.text_type( os.path.join( self._scratchDirectory,
                                               'test.f90' ) )
-        with open( testFilename, 'w' ) as fortranFile:
+        with open( testFilename, 'wt' ) as fortranFile:
             print( '''
 module function_thing_mod
 
@@ -486,7 +486,7 @@ module function_thing_mod
   implicit none
 
 ! Add in an interface block - this will test to make sure
-! we don't pick up a spurious subroutine call 
+! we don't pick up a spurious subroutine call
   interface
      subroutine wooble ()
      end subroutine
@@ -507,7 +507,7 @@ end module function_thing_mod
 
         otherFilename = six.text_type( os.path.join( self._scratchDirectory,
                                  'other.f90' ) )
-        with open( otherFilename, 'w' ) as otherFile:
+        with open( otherFilename, 'wt' ) as otherFile:
             print( '''
 module constants_mod
 contains
@@ -519,7 +519,7 @@ end module constants_mod
 
         dependFilename = six.text_type( os.path.join( self._scratchDirectory,
                                   'wooble.f90' ) )
-        with open( dependFilename, 'w' ) as dependFile:
+        with open( dependFilename, 'wt' ) as dependFile:
             print( '''
 subroutine wooble
 
@@ -559,7 +559,7 @@ end subroutine wooble
     #
     def testAbstractInterface( self ):
       firstFilename = os.path.join( self._scratchDirectory, 'test.f90' )
-      with open( firstFilename, 'w' ) as fortranFile:
+      with open( firstFilename, 'wt' ) as fortranFile:
         print( '''
 module first_mod
 
@@ -579,7 +579,7 @@ end module first_mod
                '''.strip(), file=fortranFile )
 
       secondFilename = os.path.join( self._scratchDirectory, 'test2.f90' )
-      with open( secondFilename, 'w' ) as fortranFile:
+      with open( secondFilename, 'wt' ) as fortranFile:
         print( '''
 module second_mod
 
@@ -612,7 +612,7 @@ end module second_mod
       self._dependencies.addModule( 'gribble', 'gribble.f90' )
       testFilename = six.text_type( os.path.join( self._scratchDirectory,
                                             'test.f90' ) )
-      with open( testFilename, 'w' ) as fortranFile:
+      with open( testFilename, 'wt' ) as fortranFile:
         print( '''
 program boo
 

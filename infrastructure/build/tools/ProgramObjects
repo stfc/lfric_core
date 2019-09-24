@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##############################################################################
 # Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
@@ -76,7 +76,7 @@ if __name__ == '__main__':
 
     start_time = time()
     try:
-        with open( args.output, 'w' ) as listFile:
+        with open( args.output, 'wt' ) as listFile:
             print('# Program objects', file=listFile)
             programs = []
             for program, objects in processor.determineLinkDependencies():

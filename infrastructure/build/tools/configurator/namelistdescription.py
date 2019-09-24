@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##############################################################################
 # Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
@@ -18,9 +18,9 @@ import collections
 import random
 import re
 import json
+import six
 
 import jinja2 as jinja
-import six
 import configurator.jinjamacros as jinjamacros
 
 
@@ -63,6 +63,12 @@ class FortranType(object):
 
     def __eq__(self, other):
         return self.declaration() == other.declaration()
+
+    def __key(self):
+        return (self.intrinsic_type, self.kind, self.write_format)
+
+    def __hash__(self):
+        return hash(self.__key())
 
 
 ##############################################################################

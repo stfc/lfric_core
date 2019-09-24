@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 ##############################################################################
 # (c) Crown copyright 2019 Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
@@ -46,7 +46,7 @@ class SourceFileReader(SourceText):
         Accepts either a filename or file-like object.
         '''
         if isinstance(sourceFile, str):
-            with open(sourceFile, 'r') as handle:
+            with open(sourceFile, 'rt') as handle:
                 self._cache = handle.read()
         else:
             self._cache = sourceFile.read()

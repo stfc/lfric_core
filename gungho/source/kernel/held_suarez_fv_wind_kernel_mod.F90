@@ -11,7 +11,7 @@
 !>
 !> Kernel adds a Held-Suarez forcing based on Wedi and Smolarkiewicz 2009:
 !> Wedi, N. P. and Smolarkiewicz, P. K. (2009), A framework for testing global 
-!> non-hydrostatic models. Q.J.R. Meteorol. Soc., 135: 469–484.
+!> non-hydrostatic models. Q.J.R. Meteorol. Soc., 135: 469-484.
 !> doi: 10.1002/qj.377
 !>
 module held_suarez_fv_wind_kernel_mod

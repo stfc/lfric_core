@@ -1,4 +1,4 @@
-#!/usr/bin/env python27
+#!/usr/bin/env python
 ##############################################################################
 # (c) Crown copyright 2018 Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
@@ -58,7 +58,7 @@ class TestSourceText(object):
         filename = tmpdir.join('test.txt')
         filename.write(text)
 
-        with filename.open('r') as handle:
+        with filename.open('rt') as handle:
             unit_under_test = SourceFileReader(handle)
             assert unit_under_test.get_text() == text
 

@@ -179,6 +179,7 @@ class ConfigNode(object):
     config."""
 
     def __init__(self, value=None, state=STATE_NORMAL, comments=None):
+
         if value is None:
             value = {}
         if comments is None:

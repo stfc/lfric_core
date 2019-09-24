@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 ##############################################################################
 # (c) Crown copyright 2018 Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
@@ -29,7 +29,7 @@ def test_all():
     '''
     Checks the rules for each registered style see the checked program.
     '''
-    with tempfile.NamedTemporaryFile(suffix='.f90', mode='w') as handle:
+    with tempfile.NamedTemporaryFile(suffix='.f90', mode='wt') as handle:
         print('module teapot\nend module teapot\n', file=handle)
         handle.seek(0)
 
