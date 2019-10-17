@@ -50,6 +50,10 @@ module slow_physics_alg_mod
 
   use formulation_config_mod,    only: use_moisture
 
+  use io_config_mod,             only: subroutine_timers
+  use timer_mod,                 only: timer
+
+
 #ifdef UM_PHYSICS
   use mphys_alg_mod,             only: mphys_alg_step
   use illuminate_alg_mod,        only: illuminate_alg_step
@@ -153,6 +157,8 @@ contains
     logical :: microphysics_done ! Flag to indicate that microphysics has been calculated
     logical :: radiation_done ! Flag to indicate that radiation has been calculated
     logical :: spectral_gwd_done ! Flag to indicate that spectral gravity wave drag has been calculated
+
+    if ( subroutine_timers ) call timer("slow_physics")
 
     w2_rmultiplicity => get_rmultiplicity( W2 ) ! 1/multiplicity of w2
 
@@ -292,6 +298,8 @@ contains
     call du%log_minmax(LOG_LEVEL_INFO, 'slow physics: du' )
 
     nullify( w2_rmultiplicity )
+
+    if ( subroutine_timers ) call timer("slow_physics")
 
   end subroutine slow_physics
 

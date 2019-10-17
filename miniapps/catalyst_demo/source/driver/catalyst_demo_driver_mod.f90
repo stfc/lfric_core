@@ -50,7 +50,7 @@ module catalyst_demo_driver_mod
                                             subroutine_timers
   use time_config_mod,                only: timestep_start, &
                                             timestep_end
-  use timer_mod,                      only: timer, output_timer
+  use timer_mod,                      only: init_timer, timer, output_timer
   use timestepping_config_mod,        only: dt
   use mpi_mod,                        only: initialise_comm, store_comm, &
                                             finalise_comm,               &
@@ -141,7 +141,10 @@ contains
   !----------------------------------------------------------------------------
   ! Mesh init
   !----------------------------------------------------------------------------
-  if ( subroutine_timers ) call timer(program_name)
+  if ( subroutine_timers ) then
+    call init_timer()
+    call timer(program_name)
+  end if
 
   allocate( global_mesh_collection, &
        source = global_mesh_collection_type() )

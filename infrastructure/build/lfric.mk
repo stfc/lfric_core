@@ -273,7 +273,7 @@ run-unit-tests: generate-unit-tests
 	$(Q)$(MAKE) $(QUIET_ARG) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/compile.mk \
                     PRE_PROCESS_MACROS=$(PRE_PROCESS_MACROS)
 	$(call MESSAGE,Running,$(PROGRAMS))
-	$(Q)cd $(WORKING_DIR); mpiexec -n 1 $(BIN_DIR)/$(PROGRAMS) $(DOUBLE_VERBOSE_ARG)
+	$(Q)cd $(WORKING_DIR); mpiexec -n 2 $(BIN_DIR)/$(PROGRAMS) $(DOUBLE_VERBOSE_ARG)
 
 
 ##############################################################################

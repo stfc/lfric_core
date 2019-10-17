@@ -40,7 +40,7 @@ module cell_locator_driver_mod
 
   use cell_locator_config_mod,        only : verbose, output_filename
 
-  use timer_mod,                      only : timer, output_timer
+  use timer_mod,                      only : init_timer, timer, output_timer
 
   use, intrinsic :: iso_c_binding,    only : c_long_long
 
@@ -94,6 +94,9 @@ contains
     !-------------------------------------------------------------------------
     ! Model init
     !-------------------------------------------------------------------------
+
+    call init_timer()
+    call timer('cell_locator')
 
     allocate( global_mesh_collection, &
               source = global_mesh_collection_type() )
@@ -232,7 +235,6 @@ contains
 
     call log_event( 'cell_locator: Miniapp completed', LOG_LEVEL_INFO )
 
-    call output_timer()
 
     !-------------------------------------------------------------------------
     ! Driver layer finalise
@@ -246,6 +248,10 @@ contains
         'cell_locator: Error occurred when calling clear', LOG_LEVEL_ERROR )
     endif
     call timer('reclaiming memory')
+
+    ! End of timing so write out timer output file
+    call timer('cell_locator')
+    call output_timer()
 
     ! Finalise YAXT
     call xt_finalize()

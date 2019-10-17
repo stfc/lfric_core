@@ -44,7 +44,7 @@ module gravity_wave_driver_mod
   use files_config_mod,               only: checkpoint_stem_name
   use time_config_mod,                only: timestep_start, &
                                             timestep_end
-  use timer_mod,                      only: timer, output_timer
+  use timer_mod,                      only: init_timer, timer, output_timer
   use mpi_mod,                        only: initialise_comm, finalise_comm
   use xios
 
@@ -95,7 +95,10 @@ contains
 
   call log_event( 'Initialising '//program_name//' ...', LOG_LEVEL_ALWAYS )
 
-  if ( subroutine_timers ) call timer(program_name)
+  if ( subroutine_timers ) then
+    call init_timer()
+    call timer(program_name)
+  end if
 
   multigrid_function_space_chain = function_space_chain_type()
 

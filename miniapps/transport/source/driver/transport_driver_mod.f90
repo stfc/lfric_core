@@ -44,7 +44,7 @@ module transport_driver_mod
                                             subroutine_timers
   use time_config_mod,                only: timestep_start, &
                                             timestep_end
-  use timer_mod,                      only: timer, output_timer
+  use timer_mod,                      only: init_timer, timer, output_timer
   use timestepping_config_mod,        only: dt
   use mpi_mod,                        only: initialise_comm, store_comm,      &
                                             finalise_comm,                    &
@@ -179,8 +179,10 @@ contains
     ! Model init
     !-------------------------------------------------------------------------
     call log_event( 'Initialising '//program_name//' ...', LOG_LEVEL_ALWAYS )
-
-    if ( subroutine_timers ) call timer( program_name )
+    if ( subroutine_timers ) then
+      call init_timer()
+      call timer( program_name )
+    end if
 
     ! Mesh initialisation
     allocate( global_mesh_collection, &

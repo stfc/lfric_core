@@ -16,6 +16,8 @@ use io_config_mod,           only: write_diag, use_xios_io
 use runtime_constants_mod,   only: get_latitude, get_longitude
 use sw_kernel_mod,           only: sw_kernel_type
 use lw_kernel_mod,           only: lw_kernel_type
+use io_config_mod,           only: subroutine_timers
+use timer_mod,               only: timer
 
 implicit none
 private
@@ -118,7 +120,6 @@ subroutine radiation_alg_step(dtheta_rad, theta, exner, mr,                  &
   ! Local diagnostic fields
   type( field_type ) :: cloud_cover_rts
 
-
   tile_fraction    =>      jules_ancils%get_field('tile_fraction')
 
   tile_temperature => jules_prognostics%get_field('tile_temperature')
@@ -166,6 +167,7 @@ subroutine radiation_alg_step(dtheta_rad, theta, exner, mr,                  &
   ! Local 2D diagnostic fields
   call lw_down_surf%copy_field_properties(cloud_cover_rts)
 
+  if ( subroutine_timers ) call timer("sw_radiation")
   call invoke( sw_kernel_type(                                              &
                  sw_heating_rate, sw_down_surf, sw_direct_surf,             &
                  sw_down_blue_surf, sw_direct_blue_surf,                    &
@@ -183,7 +185,8 @@ subroutine radiation_alg_step(dtheta_rad, theta, exner, mr,                  &
                  tile_fraction,                                             &
                  tile_sw_direct_albedo, tile_sw_diffuse_albedo,             &
                  latitude, longitude, timestep ) )
-
+  if ( subroutine_timers ) call timer("sw_radiation")
+  if ( subroutine_timers ) call timer("lw_radiation")
   call invoke( lw_kernel_type(                                              &
                  lw_heating_rate, lw_down_surf, lw_up_tile,                 &
                  lw_heating_rate_rts, lw_down_surf_rts, lw_up_tile_rts,     &
@@ -195,7 +198,7 @@ subroutine radiation_alg_step(dtheta_rad, theta, exner, mr,                  &
                  tile_fraction, tile_temperature,                           &
                  tile_lw_albedo,                                            &
                  latitude, longitude, timestep ) )
-
+  if ( subroutine_timers ) call timer("lw_radiation")
   ! first calculate the total temperature increment
   dt_again=dt
   call invoke(aX_plus_bY(dtheta_rad, dt,       sw_heating_rate,  &

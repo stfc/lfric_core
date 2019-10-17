@@ -85,7 +85,7 @@ module gungho_driver_mod
 #endif
   use runtime_constants_mod,      only : final_runtime_constants
   use gungho_step_mod,            only : step
-  use timer_mod,                  only : timer, output_timer
+  use timer_mod,                  only : timer, output_timer, init_timer
   use xios
   use count_mod,                  only : count_type, halo_calls
   use mpi_mod,                    only : initialise_comm, finalise_comm
@@ -136,7 +136,10 @@ contains
     !-------------------------------------------------------------------------
     ! Model init
     !-------------------------------------------------------------------------
-    if ( subroutine_timers ) call timer('gungho')
+    if ( subroutine_timers ) then
+      call init_timer()
+      call timer('gungho')
+    end if
 
     call log_event( 'Initialising '//program_name//' ...', LOG_LEVEL_ALWAYS )
 
