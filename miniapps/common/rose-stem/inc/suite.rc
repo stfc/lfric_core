@@ -185,12 +185,8 @@
             DESTINATION = {{publish_destination}}
 
 {%- if 'publish_index' in scheduledTasks %}
-    # This task can not be part of the PUBLISH family as a prerequisite of
-    # running it is that the PUBLISH family have completed. i.e. A circular
-    # dependency. This means it can not take advantage of the environment set
-    # up by the family. That is why some items are duplicated.
     [[publish_index]]
-        inherit = None, LOCAL
+        inherit = PUBLISH, LOCAL
         pre-script = """
                      {{'\n                     '|
                        command_list( LOCAL_BASE_SETUP,
@@ -199,17 +195,14 @@
                      """
         script = rose task-run --app-key=publish --command-key=index
         [[[environment]]]
-            DESTINATION = $CYLC_SUITE_SHARE_DIR/publish-{{TARGET_OPT}}
 {%-   if ROSE_BUSH_URL %}
             ROSE_BUSH_ARG = -bush {{ROSE_BUSH_URL}}
 {%-   endif %}
 {%- endif %}
 
 {%- if 'mirror_results_local' in scheduledTasks %}
-    # Again, something which happens after publishing and so cannot be in the
-    # PUBLISH family.
     [[mirror_results_local]]
-        inherit = None, LOCAL
+        inherit = PUBLISH, LOCAL
         pre-script = """
                      {{'\n'|command_list(LOCAL_BASE_SETUP,
                                          LOCAL_TECHNICAL_SETUP,
@@ -237,6 +230,8 @@
 {{api_documentation_task('LOCAL')}}
 {{uml_documentation_task('LOCAL')}}
 {{design_documentation_task('LOCAL')}}
+
+{{processnode_task()}}
 
 ##############################################################################
 

@@ -53,8 +53,10 @@
 {%-           if plotstr %}
 {%-             do plot_config.update( {appLabel : plotstr} ) %}
             run_{{appName_res_label}}_{{label}} => plot_{{appName_res_label}}_{{label}}
+            plot_{{appName_res_label}}_{{label}}:finish => publish_node
 {%-             if publish %}
             plot_{{appName_res_label}}_{{label}} => publish_{{appName_res_label}}_{{label}}_plots
+            publish_{{appName_res_label}}_{{label}}_plots:finish => publish_node
 {%-             endif %}
 {%-           endif %}
                  """
@@ -66,6 +68,7 @@
             export_source => compile_mesh_tools_with_{{label}}
 {%-         if publish %}
             compile_{{projectName}}_with_{{label}}:finish => publish_{{label}}_compile
+            publish_{{label}}_compile:finish => publish_node
 {%-         endif %}
 
 {%-         if TARGET_SCIENCE_COMPILER in TARGET_PERFORM_RUN %}
@@ -93,12 +96,14 @@
 
 {%-         if publish %}
             run_{{appName_res_label}}_{{label}}:finish => publish_{{appName_res_label}}_{{label}}
+            publish_{{appName_res_label}}_{{label}}:finish => publish_node
 {%-         endif %}
 {%-         if plotstr and crun < 2 %}
 {%-           do plot_config.update( {appLabel : plotstr} ) %}
             run_{{appName_res_label}}_{{label}} => plot_{{appName_res_label}}_{{label}}
 {%-           if publish %}
             plot_{{appName_res_label}}_{{label}} => publish_{{appName_res_label}}_{{label}}_plots
+            publish_{{appName_res_label}}_{{label}}_plots:finish  => publish_node
 {%-           endif %}
 {%-         endif %}
                  """
@@ -123,12 +128,21 @@
 
 {#- #########################################################################}
 {%- macro publish_commit() %}
-      [[[R1]]]
-            PUBLISH:finish-all => publish_index
+  [[[R1/P1/$]]]
+    # Repeat once in the final cycle
+    graph = """
+            publish_node => publish_index
             publish_index      => mirror_results_local
 {%-   if MIRROR_UPLOAD_URL %}
             publish_index      => mirror_results_remote
 {%-   endif %}
+            """
+
+  [[[^/P1]]]
+    # Repeat every cycle from the start
+    graph = """
+            publish_node[-P1] => publish_node
+            """
 {%- endmacro %}
 
 {#- #########################################################################}
@@ -251,6 +265,7 @@
 {%-     endif %}
 {%-     if publish %}
             compile_{{projectName}}_with_{{label}}:finish => publish_{{label}}_compile
+            publish_{{label}}_compile:finish => publish_node
 {%-     endif %}
 
 {%-     if compiler in perform_run %}
@@ -262,6 +277,7 @@
             compile_{{projectName}}_with_{{label}} => run_{{appLabel_res}}_{{label}}
 {%-         if publish %}
             run_{{appLabel_res}}_{{label}}:finish => publish_{{appLabel_res}}_{{label}}
+            publish_{{appLabel_res}}_{{label}}:finish => publish_node
 {%-         endif %}
 {%-         if compiler in TARGET_PERFORM_KGO_TESTS %}
 {%-           if checkkgo %}

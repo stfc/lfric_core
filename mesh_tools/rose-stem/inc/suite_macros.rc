@@ -3,21 +3,34 @@
 {#- ######################################################################## #}
 
 {%- macro publish_commit() %}
-            PUBLISH:finish-all => publish_index
+  [[[R1/P1/$]]]
+     # Repeat once in the final cycle
+     graph = """
+             publish_node => publish_index
             publish_index      => mirror_results_local
 {%-   if MIRROR_UPLOAD_URL %}
             publish_index      => mirror_results_remote
 {%-   endif %}
+             """
+
+  [[[^/P1]]]
+    # Repeat every cycle from the start
+    graph = """
+            publish_node[-P1] => publish_node
+            """
 {%- endmacro %}
 
 {#- #########################################################################}
 {%- macro check_compilers( build, publish=False ) %}
+[[[R1]]]
+  graph = """
 {%-   for compiler in compiler_setup.keys() %}
 {%-     set label = compiler | lower + '_' + build | lower%}
 {%-     set perform_run = TARGET_PERFORM_RUN %}
             export_source => compile_{{projectName}}_with_{{label}}
 {%-     if publish %}
             compile_{{projectName}}_with_{{label}}:finish => publish_{{label}}_compile
+            publish_{{label}}_compile:finish => publish_node
 {%-     endif %}
 {%-     if compiler in perform_run %}
 {%-       if compiler in TARGET_PERFORM_UNIT_TESTS %}
@@ -33,6 +46,7 @@
 {%-       endfor %}
 {%-     endif %}
 {%-   endfor %}
+          """
 {%- endmacro %}
 
 {#- #########################################################################}

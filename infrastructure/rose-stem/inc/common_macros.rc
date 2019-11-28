@@ -87,6 +87,7 @@
     export_source => design_documentation
 {%-     if publish %}
     design_documentation => publish_design_documentation
+    publish_design_documentation:finish => publish_node
 {%-     endif %}
 {%-   endif %}
 {%- endmacro %}
@@ -145,7 +146,9 @@
     export_source => api_documentation
 {%-     if publish %}
     api_documentation => publish_api_documentation
+    publish_api_documentation:finish => publish_node
     api_documentation => publish_api_log
+    publish_api_log:finish => publish_node
 {%-     endif %}
 {%-   endif %}
 {%- endmacro %}
@@ -217,6 +220,7 @@
     export_source => uml_documentation
 {%-     if publish %}
     uml_documentation => publish_uml_documentation
+    publish_uml_documentation:finish => publish_node
 {%-     endif %}
 {%-   endif %}
 {%- endmacro %}
@@ -265,4 +269,16 @@
 
 {%- macro deleteDirectory( directory ) %}
   test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( echo ** Unable to delete "{{directory}}", not writable >&2; false )
+{%- endmacro %}
+
+{# PROCESS NODE MACRO #}
+{#---------------------------------------------------------------------------#}
+{%- macro processnode_task() %}
+{%- if 'publish_node' in scheduledTasks %}
+    [[PUBLISH]]
+    
+    [[publish_node]]
+        inherit = PUBLISH
+        script = true
+{%- endif %}
 {%- endmacro %}

@@ -3,6 +3,8 @@
 {#- ######################################################################## #}
 
 {%- macro check_compilers( build, publish=False ) %}
+[[[R1]]]
+  graph = """
 {%-   for compiler in compiler_setup.keys() %}
 {%-     set label = compiler | lower + '_' + build | lower%}
 {%-     if compiler in TARGET_PERFORM_UNIT_TESTS %}
@@ -12,6 +14,7 @@
     export_source => integration_test_with_{{label}}
 {%-     endif %}
 {%-   endfor %}
+          """
 {%- endmacro %}
 
 
@@ -19,19 +22,37 @@
 {#- #########################################################################}
 {%- macro build_system() %}
 {%-   set label =  TARGET_TECHNICAL_COMPILER | lower + '_fast-debug' %}
+[[[R1]]]
+  graph = """
     export_source => unit_test_build_tools
+          """
 {%- endmacro %}
 
 
 
 {#- #########################################################################}
 {%- macro publish_commit() %}
+[[[R1]]]
+  graph = """
             export_source => publish_nothing
-            PUBLISH:finish-all => publish_index
+          publish_nothing:finish => publish_node
+          """
+
+[[[R1/P1/$]]]
+  # Repeat once in the final cycle
+  graph = """
+          publish_node => publish_index
             publish_index      => mirror_results_local
 {%-   if MIRROR_UPLOAD_URL %}
             publish_index      => mirror_results_remote
 {%-   endif %}
+          """
+
+[[[^/P1]]]
+  # Repeat every cycle from the start
+  graph = """
+          publish_node[-P1] => publish_node
+          """
 {%- endmacro %}
 
 
