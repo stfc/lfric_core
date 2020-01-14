@@ -22,49 +22,59 @@ module init_physics_prognostics_alg_mod
 contains
 
   !>@brief Initialisation of physics prognostic fields
-  !> @param[inout] derived_fields Collection of FD fields derived from FE fields
-  !> @param[inout] aerosol_fields Collection of aerosol fields
-  !> @param[inout] cloud_fields Collection of FD cloud fields
-  !> @param[inout] twod_fields Collection of two-d fields
-  !> @param[inout] physics_incs Collection of physics increments
-  !> @param[inout] orography_fields Collection of orography fields
-  !> @param[inout] jules_ancils Ancillary fields for Jules
-  !> @param[inout] jules_prognostics Prognostic fields for Jules
-  subroutine init_physics_prognostics_alg( derived_fields,                     &
-                                           aerosol_fields,                     &
-                                           cloud_fields,                       &
-                                           twod_fields,                        &
-                                           physics_incs,                       &
+  !> @param[in,out] radition_fields Collection of fields for radiation scheme
+  !> @param[in,out] microphysics_fields Collection of fields for mphys scheme
+  !> @param[in,out] orography_fields Collection of fields for orog drag scheme
+  !> @param[in,out] turbulence_fields Collection of fields for turbulence scheme
+  !> @param[in,out] convection_fields Collection of fields for convection scheme
+  !> @param[in,out] cloud_fields Collection of fields for cloud scheme
+  !> @param[in,out] surface_fields Collection of fields for surface scheme
+  !> @param[in,out] soil_fields Collection of fields for soil hydrology scheme
+  !> @param[in,out] snow_fields Collection of fields for snow scheme
+  !> @param[in,out] aerosol_fields Collection of fields for aerosol scheme
+  subroutine init_physics_prognostics_alg( radiation_fields,                   &
+                                           microphysics_fields,                &
                                            orography_fields,                   &
-                                           jules_ancils,                       &
-                                           jules_prognostics )
+                                           turbulence_fields,                  &
+                                           convection_fields,                  &
+                                           cloud_fields,                       &
+                                           surface_fields,                     &
+                                           soil_fields,                        &
+                                           snow_fields,                        &
+                                           aerosol_fields )
 
     implicit none
 
     ! Collections of fields
-    type(field_collection_type), intent(inout) :: twod_fields
-    type(field_collection_type), intent(inout) :: aerosol_fields
-    type(field_collection_type), intent(inout) :: cloud_fields
-    type(field_collection_type), intent(inout) :: derived_fields
-    type(field_collection_type), intent(inout) :: physics_incs
+    type(field_collection_type), intent(inout) :: radiation_fields
+    type(field_collection_type), intent(inout) :: microphysics_fields
     type(field_collection_type), intent(inout) :: orography_fields
-    type(field_collection_type), intent(inout) :: jules_ancils
-    type(field_collection_type), intent(inout) :: jules_prognostics
-
-    ! Initialise glomap aerosol climatology fields
-    call init_aerosol_alg(aerosol_fields)
-
-    ! Initialise cloud fields
-    call init_cloud_twod_fields_alg( cloud_fields, twod_fields )
-
-    ! Set the increments to 0 initially
-    call init_physics_incs_alg(physics_incs)
-
-    ! Initialise jules fields
-    call init_jules_alg(jules_ancils, jules_prognostics)
+    type(field_collection_type), intent(inout) :: turbulence_fields
+    type(field_collection_type), intent(inout) :: convection_fields
+    type(field_collection_type), intent(inout) :: cloud_fields
+    type(field_collection_type), intent(inout) :: surface_fields
+    type(field_collection_type), intent(inout) :: soil_fields
+    type(field_collection_type), intent(inout) :: snow_fields
+    type(field_collection_type), intent(inout) :: aerosol_fields
 
     ! Initialise orography fields
     call init_orography_fields_alg(orography_fields)
+
+    ! Initialise cloud fields
+    call init_cloud_twod_fields_alg( radiation_fields, microphysics_fields, &
+                                     turbulence_fields, convection_fields,  &
+                                     cloud_fields, surface_fields )
+
+    ! Set the increments to 0 initially
+    call init_physics_incs_alg(radiation_fields, microphysics_fields, &
+                               convection_fields)
+
+    ! Initialise jules fields
+    call init_jules_alg(radiation_fields, surface_fields, soil_fields, &
+                        snow_fields)
+
+    ! Initialise glomap aerosol climatology fields
+    call init_aerosol_alg(aerosol_fields)
 
   end subroutine init_physics_prognostics_alg
 

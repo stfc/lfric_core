@@ -35,20 +35,20 @@ contains
   !>@param[in]     mr_n             Start of timestep mixing ratios
   !>@param[in]     theta_n          Start of timestep theta in wth space
   !>@param[in]     derived_fields   Group of derived fields
-  !>@param[in]     twod_fields      Group of 2d fields
-  !>@param[inout]  cloud_fields     Group of cloud fields
+  !>@param[in]     turbulence_fields Fields for turbulence scheme
+  !>@param[in,out] cloud_fields      Fields for cloud scheme
   !>@param[inout]  dtheta_pc2_inc   Potential temperature response in wth space
 
-  subroutine pc2_initiation_alg_step( mr,             &
-                                      theta,          &
-                                      exner_w3,       &
-                                      exner_wth,      &
-                                      mr_n,           &
-                                      theta_n,        &
-                                      derived_fields, &
-                                      twod_fields,    &
-                                      cloud_fields,   &
-                                      dtheta_pc2_inc  )
+  subroutine pc2_initiation_alg_step( mr,                &
+                                      theta,             &
+                                      exner_w3,          &
+                                      exner_wth,         &
+                                      mr_n,              &
+                                      theta_n,           &
+                                      derived_fields,    &
+                                      turbulence_fields, &
+                                      cloud_fields,      &
+                                      dtheta_pc2_inc     )
 
     use pc2_initiation_kernel_mod, only: pc2_initiation_kernel_type
     use mr_indices_mod,            only: imr_v, imr_cl, imr_ci, nummr
@@ -63,7 +63,8 @@ contains
     type( field_type ), intent( in )    :: mr_n ( nummr ), theta_n
     type( field_type ), intent( in )    :: exner_wth
 
-    type( field_collection_type ), intent(in)    :: derived_fields, twod_fields
+    type( field_collection_type ), intent(in)    :: derived_fields
+    type( field_collection_type ), intent(in)    :: turbulence_fields
     type( field_collection_type ), intent(inout) :: cloud_fields
 
     type( field_type ), intent(inout) :: dtheta_pc2_inc
@@ -85,7 +86,8 @@ contains
     type( field_type ), pointer :: ice_fraction    => null()
     type( field_type ), pointer :: bulk_fraction   => null()
     type( field_type ), pointer :: area_fraction   => null()
-    type( field_type ), pointer :: rh_crit_wth     => null()
+    type( field_type ), pointer :: rh_crit         => null()
+
     type( field_type ), pointer :: zlcl_mixed      => null()
     type( field_type ), pointer :: r_cumulus       => null()
 
@@ -98,11 +100,11 @@ contains
     liquid_fraction => cloud_fields%get_field('liquid_fraction')
     ice_fraction    => cloud_fields%get_field('ice_fraction')
     area_fraction   => cloud_fields%get_field('area_fraction')
-    rh_crit_wth     => cloud_fields%get_field('rh_crit_wth')
-    zlcl_mixed      => twod_fields%get_field('zlcl_mixed')
-    r_cumulus       => twod_fields%get_field('cumulus')
+    rh_crit         => cloud_fields%get_field('rh_crit')
 
-    call theta%copy_field_properties(dtheta_pc2_inc)
+    zlcl_mixed      => turbulence_fields%get_field('zlcl_mixed')
+    r_cumulus       => turbulence_fields%get_field('cumulus')
+
     call theta%copy_field_properties(dqv_pc2_inc)
     call theta%copy_field_properties(dqcl_pc2_inc)
     call theta%copy_field_properties(dqcf_pc2_inc)
@@ -137,7 +139,7 @@ contains
                                               dcfl_pc2_inc,      &
                                               dcff_pc2_inc,      &
                                               dbcf_pc2_inc,      &
-                                              rh_crit_wth   ) ,  &
+                                              rh_crit       ) ,  &
                                                                  !
                 ! Update all field (apart from theta)
                 ! with increments from initiation

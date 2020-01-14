@@ -290,8 +290,6 @@ contains
 
     if ( subroutine_timers ) call timer('advection_generic_field_alg')
 
-    call log_event( "Computing generic field advection...", LOG_LEVEL_INFO)
-
     ! Set advecting velocity = 0.5(u_np1 + u_n)
     call advecting_wind%initialise( wind_n%get_function_space() )
     call invoke( aX_plus_bY(advecting_wind, 0.5_r_def, wind_n, 0.5_r_def, wind_np1) )
@@ -309,10 +307,13 @@ contains
 
         if ( l_advect ) then
 
+          call log_event( "Advecting "//trim(single_generic_field%get_name()), &
+                          LOG_LEVEL_INFO)
           call single_generic_field%copy_field_properties(gf_inc)
 
-          call advect_field( gf_inc, single_generic_field, advecting_wind,        &
-                             scheme_method_of_lines, wind_n, wind_np1, .false., dt)
+          call advect_field( gf_inc, single_generic_field, advecting_wind,     &
+                             scheme_method_of_lines, wind_n, wind_np1, .false.,&
+                             dt)
           ! Make inc into an increment by multiplying by dt
           call invoke( inc_a_times_X(dt, gf_inc ) ,         &
                        ! and add it on to the field

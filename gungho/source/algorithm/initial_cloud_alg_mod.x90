@@ -24,16 +24,16 @@ contains
   !>          The cloud fields need to be initialised so that they have a value
   !>          when passed on to the physics at the first time step, in case no
   !>          restart file is used. Also, rh_crit is set to the namelist value here.
-  !> @param[in,out] cloud_fields Cloud related fields
-  subroutine initial_cloud_alg(cloud_fields)
+  !> @param[in,out] convection_fields Collection of fields for convection scheme
+  !> @param[in,out] cloud_fields Collection of fields for cloud scheme
+  subroutine initial_cloud_alg(convection_fields, cloud_fields)
 
     use initial_cloud_kernel_mod,        only: initial_cloud_kernel_type
 
     implicit none
 
-    ! Moist fields
-    type( field_collection_type ), intent( inout ) :: cloud_fields
-    ! Prognostic fields
+    type(field_collection_type), intent(inout) :: convection_fields
+    type(field_collection_type), intent(inout) :: cloud_fields
 
     type( field_type ), pointer :: cf_area  => null()
     type( field_type ), pointer :: cf_ice  => null()
@@ -50,10 +50,10 @@ contains
     cf_ice => cloud_fields%get_field('ice_fraction')
     cf_liq => cloud_fields%get_field('liquid_fraction')
     cf_bulk => cloud_fields%get_field('bulk_fraction')
-    rh_crit_wth => cloud_fields%get_field('rh_crit_wth')
+    rh_crit_wth => cloud_fields%get_field('rh_crit')
 
-    cca => cloud_fields%get_field('cca')
-    ccw => cloud_fields%get_field('ccw')
+    cca => convection_fields%get_field('cca')
+    ccw => convection_fields%get_field('ccw')
 
     call invoke(initial_cloud_kernel_type( cf_area, cf_ice, cf_liq, &
                                          cf_bulk, rh_crit_wth, cca, ccw))

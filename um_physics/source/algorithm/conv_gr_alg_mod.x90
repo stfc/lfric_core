@@ -33,21 +33,21 @@ contains
   !>             vertical mixing of heat, momentum and moisture,
   !>             as documented in UMDP27
   !>@param[in,out] mr                Mixing ratios
-  !>@param[in]     outer             Outer loop counter
   !>@param[in]     rho               Dry density in its native (w3) space
   !>@param[in]     exner             Exner Pressure in the w3 space
-  !>@param[in]     delta             Edge length on wtheta points
+  !>@param[in]     derived_fields    Group of derived fields
+  !>@param[in]     turbulence_fields Fields for turbulence scheme
+  !>@param[in,out] convection_fields Fields for convection scheme
+  !>@param[in]     cloud_fields      Fields for cloud scheme
+  !>@param[in]     surface_fields    Fields for surface scheme
   !>@param[in]     height_w3         Height in w3
   !>@param[in]     height_wth        Height in wth
-  !>@param[in,out] derived_fields    Group of derived fields
-  !>@param[in,out] cloud_fields      Group of cloud fields
-  !>@param[in,out] twod_fields       Group of 2D fields
-  !>@param[in,out] physics_incs      Group of physics increments
-  !>@param[in,out] jules_ancils      Ancillary fields for Jules
-  subroutine conv_gr_alg_step(mr, outer, rho, exner, delta,                   &
-                              height_w3, height_wth,                          &
-                              derived_fields, cloud_fields, twod_fields,      &
-                              physics_incs, jules_ancils)
+  !>@param[in]     delta             Edge length on wtheta points
+  !>@param[in]     outer             Outer loop counter
+  subroutine conv_gr_alg_step(mr, rho, exner, derived_fields,                  &
+                              turbulence_fields, convection_fields,            &
+                              cloud_fields, surface_fields, height_w3,         &
+                              height_wth, delta, outer)
 
     use conv_gr_kernel_mod, only: conv_gr_kernel_type
 
@@ -55,16 +55,17 @@ contains
 
     type( field_type ), intent( inout )     :: mr(nummr)
     type( field_type ), intent( in )        :: rho, exner
+
+    type( field_collection_type ), intent(in) :: derived_fields
+    type( field_collection_type ), intent(in) :: turbulence_fields
+    type( field_collection_type ), intent(inout) :: convection_fields
+    type( field_collection_type ), intent(in) :: cloud_fields
+    type( field_collection_type ), intent(in) :: surface_fields
+
     type( field_type ), intent( in )        :: height_w3, height_wth
     type( field_type ), intent( in )        :: delta
-    type( field_collection_type ), intent(inout) :: derived_fields
-    type( field_collection_type ), intent(inout) :: cloud_fields
-    type( field_collection_type ), intent(inout) :: twod_fields
-    type( field_collection_type ), intent(inout) :: physics_incs
-    integer(kind=i_def), intent(in)         :: outer
 
-    ! Surface fields
-    type( field_collection_type ), intent(inout) :: jules_ancils
+    integer(kind=i_def), intent(in)         :: outer
 
     ! Temporary fields unpacked fields from collections
     type( field_type ), pointer :: exner_in_wth  => null()
@@ -75,9 +76,10 @@ contains
     type( field_type ), pointer :: u1_in_w3_star => null()
     type( field_type ), pointer :: u2_in_w3_star => null()
 
-    type( field_type ), pointer :: zh_2d => null()
-    type( field_type ), pointer :: ntml_2d => null()
-    type( field_type ), pointer :: cumulus_2d => null()
+    type( field_type ), pointer :: zh => null()
+    type( field_type ), pointer :: ntml => null()
+    type( field_type ), pointer :: cumulus => null()
+
     type( field_type ), pointer :: conv_rain => null()
     type( field_type ), pointer :: conv_snow => null()
     type( field_type ), pointer :: shallow_flag  => null()
@@ -86,18 +88,12 @@ contains
     type( field_type ), pointer :: lcl_height  => null()
     type( field_type ), pointer :: parcel_top  => null()
     type( field_type ), pointer :: level_parcel_top  => null()
-    type( field_type ), pointer :: wstar_2d  => null()
+    type( field_type ), pointer :: wstar  => null()
     type( field_type ), pointer :: thv_flux  => null()
     type( field_type ), pointer :: parcel_buoyancy  => null()
     type( field_type ), pointer :: qsat_at_lcl  => null()
-
-    type( field_type ), pointer :: cf_area  => null()
-    type( field_type ), pointer :: cf_ice  => null()
-    type( field_type ), pointer :: cf_liq  => null()
-    type( field_type ), pointer :: cf_bulk  => null()
     type( field_type ), pointer :: cca => null()
     type( field_type ), pointer :: ccw => null()
-
     type( field_type ), pointer :: dt_conv => null()
     type( field_type ), pointer :: dmv_conv => null()
     type( field_type ), pointer :: dmcl_conv => null()
@@ -108,7 +104,12 @@ contains
     type( field_type ), pointer :: du_conv => null()
     type( field_type ), pointer :: dv_conv => null()
 
-    type( field_type ), pointer :: tile_fraction      => null()
+    type( field_type ), pointer :: cf_area  => null()
+    type( field_type ), pointer :: cf_ice  => null()
+    type( field_type ), pointer :: cf_liq  => null()
+    type( field_type ), pointer :: cf_bulk  => null()
+
+    type( field_type ), pointer :: tile_fraction => null()
 
     ! local variables
     type( field_type ) :: deep_in_col,shallow_in_col,mid_in_col,deep_term
@@ -131,59 +132,59 @@ contains
     u1_in_w3_star => derived_fields%get_field('u1_in_w3_star')
     u2_in_w3_star => derived_fields%get_field('u2_in_w3_star')
 
-    ! Unpack twod fields
-    zh_2d => twod_fields%get_field('zh')
-    ntml_2d => twod_fields%get_field('ntml')
-    cumulus_2d => twod_fields%get_field('cumulus')
-    conv_rain => twod_fields%get_field('conv_rain')
-    conv_snow => twod_fields%get_field('conv_snow')
-    shallow_flag => twod_fields%get_field('shallow_flag')
-    uw0_flux => twod_fields%get_field('uw0_flux')
-    vw0_flux => twod_fields%get_field('vw0_flux')
-    lcl_height => twod_fields%get_field('lcl_height')
-    parcel_top => twod_fields%get_field('parcel_top')
-    level_parcel_top => twod_fields%get_field('level_parcel_top')
-    wstar_2d => twod_fields%get_field('wstar_2d')
-    thv_flux => twod_fields%get_field('thv_flux')
-    parcel_buoyancy => twod_fields%get_field('parcel_buoyancy')
-    qsat_at_lcl => twod_fields%get_field('qsat_at_lcl')
+    ! Unpack turbulence fields
+    zh => turbulence_fields%get_field('zh')
+    ntml => turbulence_fields%get_field('ntml')
+    cumulus => turbulence_fields%get_field('cumulus')
+
+    ! Unpack convection fields
+    conv_rain => convection_fields%get_field('conv_rain')
+    conv_snow => convection_fields%get_field('conv_snow')
+    shallow_flag => convection_fields%get_field('shallow_flag')
+    uw0_flux => convection_fields%get_field('uw0_flux')
+    vw0_flux => convection_fields%get_field('vw0_flux')
+    lcl_height => convection_fields%get_field('lcl_height')
+    parcel_top => convection_fields%get_field('parcel_top')
+    level_parcel_top => convection_fields%get_field('level_parcel_top')
+    wstar => convection_fields%get_field('wstar')
+    thv_flux => convection_fields%get_field('thv_flux')
+    parcel_buoyancy => convection_fields%get_field('parcel_buoyancy')
+    qsat_at_lcl => convection_fields%get_field('qsat_at_lcl')
+    cca => convection_fields%get_field('cca')
+    ccw => convection_fields%get_field('ccw')
+    dt_conv => convection_fields%get_field('dt_conv')
+    dmv_conv => convection_fields%get_field('dmv_conv')
+    dmcl_conv => convection_fields%get_field('dmcl_conv')
+    dmcf_conv => convection_fields%get_field('dmcf_conv')
+    dcfl_conv => convection_fields%get_field('dcfl_conv')
+    dcff_conv => convection_fields%get_field('dcff_conv')
+    dbcf_conv => convection_fields%get_field('dbcf_conv')
+    du_conv => convection_fields%get_field('du_conv')
+    dv_conv => convection_fields%get_field('dv_conv')
 
     ! Unpack cloud fields
     cf_area => cloud_fields%get_field('area_fraction')
     cf_ice => cloud_fields%get_field('ice_fraction')
     cf_liq => cloud_fields%get_field('liquid_fraction')
     cf_bulk => cloud_fields%get_field('bulk_fraction')
-    cca => cloud_fields%get_field('cca')
-    ccw => cloud_fields%get_field('ccw')
-
-    ! Unpack the physics increments
-    dt_conv => physics_incs%get_field('dt_conv')
-    dmv_conv => physics_incs%get_field('dmv_conv')
-    dmcl_conv => physics_incs%get_field('dmcl_conv')
-    dmcf_conv => physics_incs%get_field('dmcf_conv')
-    dcfl_conv => physics_incs%get_field('dcfl_conv')
-    dcff_conv => physics_incs%get_field('dcff_conv')
-    dbcf_conv => physics_incs%get_field('dbcf_conv')
-    du_conv => physics_incs%get_field('du_conv')
-    dv_conv => physics_incs%get_field('dv_conv')
 
     ! Surface fields
-    tile_fraction   => jules_ancils%get_field('tile_fraction')
+    tile_fraction   => surface_fields%get_field('tile_fraction')
 
     ! Convective diagnostics - 2d
-    call ntml_2d%copy_field_properties(deep_in_col)
-    call ntml_2d%copy_field_properties(shallow_in_col)
-    call ntml_2d%copy_field_properties(mid_in_col)
-    call ntml_2d%copy_field_properties(freeze_level)
-    call ntml_2d%copy_field_properties(deep_prec)
-    call ntml_2d%copy_field_properties(shallow_prec)
-    call ntml_2d%copy_field_properties(mid_prec)
-    call ntml_2d%copy_field_properties(deep_term)
-    call ntml_2d%copy_field_properties(cape_timescale)
-    call ntml_2d%copy_field_properties(lowest_cv_base)
-    call ntml_2d%copy_field_properties(lowest_cv_top)
-    call ntml_2d%copy_field_properties(cv_base)
-    call ntml_2d%copy_field_properties(cv_top)
+    call ntml%copy_field_properties(deep_in_col)
+    call ntml%copy_field_properties(shallow_in_col)
+    call ntml%copy_field_properties(mid_in_col)
+    call ntml%copy_field_properties(freeze_level)
+    call ntml%copy_field_properties(deep_prec)
+    call ntml%copy_field_properties(shallow_prec)
+    call ntml%copy_field_properties(mid_prec)
+    call ntml%copy_field_properties(deep_term)
+    call ntml%copy_field_properties(cape_timescale)
+    call ntml%copy_field_properties(lowest_cv_base)
+    call ntml%copy_field_properties(lowest_cv_top)
+    call ntml%copy_field_properties(cv_base)
+    call ntml%copy_field_properties(cv_top)
 
     ! Convective diagnostics - 3d  - theta levels
     call theta_star%copy_field_properties(massflux_up)
@@ -253,7 +254,7 @@ contains
                           wetrho_in_wth, exner, exner_in_wth, w_physics,      &
                           theta_star, u1_in_w3_star, u2_in_w3_star,           &
                           height_w3, height_wth, delta,                       &
-                          ntml_2d, cumulus_2d, tile_fraction,                 &
+                          ntml, cumulus, tile_fraction,                       &
                           dt_conv, dmv_conv, dmcl_conv,                       &
                           dmcf_conv,  du_conv, dv_conv,                       &
                           mr(imr_v), mr(imr_cl), mr(imr_ci),                  &
@@ -267,16 +268,11 @@ contains
                           entrain_down, detrain_up, detrain_down,             &
                           dd_dt, dd_dq, deep_dt, deep_dq, deep_massflux,      &
                           deep_tops, shallow_dt, shallow_dq, shallow_massflux,&
-                          mid_dt, mid_dq, mid_massflux, zh_2d, shallow_flag,  &
+                          mid_dt, mid_dq, mid_massflux, zh, shallow_flag,     &
                           uw0_flux, vw0_flux, lcl_height, parcel_top,         &
-                          level_parcel_top, wstar_2d, thv_flux,               &
+                          level_parcel_top, wstar, thv_flux,                  &
                           parcel_buoyancy, qsat_at_lcl,                       &
                           dcfl_conv, dcff_conv, dbcf_conv ) )
-
-    if (scheme /= scheme_pc2) then
-      ! Update vapour mixing ratio with convection increment here
-      call invoke( inc_X_plus_Y(mr(imr_v), dmv_conv) )
-    end if 
 
     ! output diagnostics on last iteration only
     if (write_diag .and. use_xios_io .and. outer == outer_iterations) then

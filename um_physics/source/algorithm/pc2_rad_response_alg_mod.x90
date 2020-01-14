@@ -85,6 +85,7 @@ contains
     liquid_fraction => cloud_fields%get_field('liquid_fraction')
     ice_fraction    => cloud_fields%get_field('ice_fraction')
     bulk_fraction   => cloud_fields%get_field('bulk_fraction')
+
     exner_wth       => derived_fields%get_field('exner_in_wth')
     exner_copy_wth  => derived_fields%get_field('exner_in_wth')
 

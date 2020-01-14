@@ -33,14 +33,16 @@ contains
   !> @details Setting FE prognostic fields from FD fields
   !> @param[in,out] prognostic_fields  Collection of prognostic fields
   !> @param[in,out] mr                 Array of moisture mixing ratios
-  !> @param[in,out] cloud_fields       Collection of cloud fields
-  !> @param[in,out] twod_fields        Collection of 2D fields
+  !> @param[in,out] turbulence_fields Collection of fields for turbulence scheme
+  !> @param[in,out] convection_fields Collection of fields for convection scheme
+  !> @param[in,out] cloud_fields Collection of fields for cloud scheme
+  !> @param[in,out] surface_fields Collection of fields for surface scheme
   !> @param[in]     fd_fields          Collection of input Finite Difference
   !>                                    fields
   subroutine map_fd_to_prognostics(prognostic_fields, diagnostic_fields, &
-                                   mr, moist_dyn,         &
-                                   cloud_fields,          &
-                                   twod_fields,           &
+                                   mr, moist_dyn,                        &
+                                   turbulence_fields, convection_fields, &
+                                   cloud_fields, surface_fields,         &
                                    fd_fields)
 
 
@@ -57,8 +59,10 @@ contains
     type(field_type),            intent( inout ) :: mr(:)
     type(field_type),            intent( inout ) :: moist_dyn(num_moist_factors)
 
-    type( field_collection_type), intent( inout ) :: cloud_fields
-    type( field_collection_type), intent( inout ) :: twod_fields
+    type(field_collection_type), intent(inout) :: turbulence_fields
+    type(field_collection_type), intent(inout) :: convection_fields
+    type(field_collection_type), intent(inout) :: cloud_fields
+    type(field_collection_type), intent(inout) :: surface_fields
     type( field_collection_type), intent( inout ) :: fd_fields
 
     !Local dereferenced fields
@@ -111,13 +115,13 @@ contains
     cf_ice                => cloud_fields%get_field('ice_fraction')
     cf_liq                => cloud_fields%get_field('liquid_fraction')
     cf_bulk               => cloud_fields%get_field('bulk_fraction')
-    rhcrit_in_wth         => cloud_fields%get_field('rh_crit_wth')
-    cca                   => cloud_fields%get_field('cca')
-    ccw                   => cloud_fields%get_field('ccw')
+    rhcrit_in_wth         => cloud_fields%get_field('rh_crit')
+    cca                   => convection_fields%get_field('cca')
+    ccw                   => convection_fields%get_field('ccw')
 
     !2d (target) fields
-    zh_twod               => twod_fields%get_field('zh')
-    z0msea_twod           => twod_fields%get_field('z0msea')
+    zh_twod               => turbulence_fields%get_field('zh')
+    z0msea_twod           => surface_fields%get_field('z0msea')
 
     ! Some variables should coming in from the restart file, but currently
     ! they are not output by UM2LFRIC and are set to zero or a default value

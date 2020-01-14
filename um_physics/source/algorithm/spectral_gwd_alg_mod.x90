@@ -30,13 +30,15 @@ contains
   !> @brief Run the spectral gravity wave drag scheme
   !> @param[in,out] du_tot_spectral_gwd  Increment to total (3D) wind field
   !> @param[in,out] dtheta_spectral_gwd  Increment to theta field
-  !> @param[in,out] derived fields       Group of derived fields
-  !> @param[in,out] twod fields          Group of twod fields
+  !> @param[in]     derived fields       Group of derived fields
+  !> @param[in]     microphysics_fields  Fields for mphys scheme
+  !> @param[in]     convection_fields    Fields for convection scheme
   !> @param[in]     theta                Potential temperature in wtheta
   !> @param[in]     height_w3            Height on w3
   !> @param[in]     height_wth           Height on wtheta
    subroutine spectral_gwd_alg_step(du_tot_spectral_gwd, dtheta_spectral_gwd, &
-                                    derived_fields, twod_fields, theta,       &
+                                    derived_fields, microphysics_fields,      &
+                                    convection_fields, theta,                 &
                                     height_w3, height_wth)
 
     ! spectral_gwd kernels
@@ -48,7 +50,9 @@ contains
 
     type( field_type ), intent( inout ) :: du_tot_spectral_gwd
     type( field_type ), intent( inout ) :: dtheta_spectral_gwd
-    type( field_collection_type ), intent(inout) :: derived_fields, twod_fields
+    type( field_collection_type ), intent(in) :: derived_fields
+    type( field_collection_type ), intent(in) :: microphysics_fields
+    type( field_collection_type ), intent(in) :: convection_fields
     type( field_type ), intent(in) :: theta
     type( field_type ), intent(in) :: height_w3
     type( field_type ), intent(in) :: height_wth
@@ -68,9 +72,12 @@ contains
     type( field_type ), pointer :: u3_in_w3 => null()
     type( field_type ), pointer :: exner_in_wth => null()
     type( field_type ), pointer :: wetrho_in_w3 => null()
+
     type( field_type ), pointer :: ls_rain => null()
     type( field_type ), pointer :: ls_snow => null()
     type( field_type ), pointer :: conv_rain => null()
+    type( field_type ), pointer :: conv_snow => null()
+
     type( field_type ), pointer :: latitude_w3 => null()
 
     if ( subroutine_timers ) call timer("spectral_gwd_alg_step")
@@ -82,9 +89,10 @@ contains
     exner_in_wth => derived_fields%get_field('exner_in_wth')
     wetrho_in_w3 => derived_fields%get_field('wetrho_in_w3')
 
-    ls_rain => twod_fields%get_field('ls_rain')
-    ls_snow => twod_fields%get_field('ls_snow')
-    conv_rain => twod_fields%get_field('conv_rain')
+    ls_rain => microphysics_fields%get_field('ls_rain')
+    ls_snow => microphysics_fields%get_field('ls_snow')
+    conv_rain => convection_fields%get_field('conv_rain')
+    conv_snow => convection_fields%get_field('conv_snow')
 
     latitude_w3 => get_latitude()
 
@@ -101,6 +109,7 @@ contains
                 ! Add precipitation
                 X_plus_Y(totalppn, ls_rain, ls_snow),                       &
                 inc_X_plus_Y(totalppn, conv_rain),                          &
+                inc_X_plus_Y(totalppn, conv_snow),                          &
 
                 ! Call spectral gravity wave drag kernel
                 spectral_gwd_kernel_type (du_spectral_gwd, dv_spectral_gwd, &

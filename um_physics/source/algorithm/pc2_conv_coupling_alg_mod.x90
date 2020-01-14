@@ -28,12 +28,12 @@ contains
   !>         Fields do not get updated. Increments are passed back out.
   !>         See UMDP30 for full scheme details.
   !>@param[in,out] mr               Mixing ratios
-  !>@param[in,out] cloud_fields     Group of cloud fields
   !>@param[in]     derived_fields   Group of derived fields
-  !>@param[in,out] physics_incs     Group of physics increments
+  !>@param[in,out] convection_fields Fields for convection scheme
+  !>@param[in,out] cloud_fields      Fields for cloud scheme
 
-  subroutine pc2_conv_coupling_alg_step( mr, cloud_fields, &
-                                         derived_fields, physics_incs )
+  subroutine pc2_conv_coupling_alg_step( mr, derived_fields,                  &
+                                         convection_fields, cloud_fields )
 
     use io_config_mod,                only: subroutine_timers
     use timer_mod,                    only: timer
@@ -43,9 +43,9 @@ contains
 
     type( field_type ), intent( inout ) :: mr(nummr)
 
-    type( field_collection_type ), intent(inout) :: cloud_fields
     type( field_collection_type ), intent(in)    :: derived_fields
-    type( field_collection_type ), intent(inout) :: physics_incs
+    type( field_collection_type ), intent(inout) :: convection_fields
+    type( field_collection_type ), intent(inout) :: cloud_fields
 
     ! Temporary unpacked fields from collections
     type( field_type ), pointer :: exner_wth       => null()
@@ -72,13 +72,13 @@ contains
     ice_fraction    => cloud_fields%get_field('ice_fraction')
     bulk_fraction   => cloud_fields%get_field('bulk_fraction')
 
-    dt_conv         => physics_incs%get_field('dt_conv')
-    dmv_conv        => physics_incs%get_field('dmv_conv')
-    dmcl_conv       => physics_incs%get_field('dmcl_conv')
-    dmcf_conv       => physics_incs%get_field('dmcf_conv')
-    dcfl_conv       => physics_incs%get_field('dcfl_conv')
-    dcff_conv       => physics_incs%get_field('dcff_conv')
-    dbcf_conv       => physics_incs%get_field('dbcf_conv')
+    dt_conv         => convection_fields%get_field('dt_conv')
+    dmv_conv        => convection_fields%get_field('dmv_conv')
+    dmcl_conv       => convection_fields%get_field('dmcl_conv')
+    dmcf_conv       => convection_fields%get_field('dmcf_conv')
+    dcfl_conv       => convection_fields%get_field('dcfl_conv')
+    dcff_conv       => convection_fields%get_field('dcff_conv')
+    dbcf_conv       => convection_fields%get_field('dbcf_conv')
 
     call invoke ( name="update_from_pc2_conv_coupling",            &
                                                                    !

@@ -29,82 +29,90 @@ contains
 ! @param[in,out] tile_sw_direct_albedo  Tile SW direct albedos
 ! @param[in,out] tile_sw_diffuse_albedo Tile SW diffuse albedos
 ! @param[in,out] tile_lw_albedo         Tile LW albedos (1 - emissivity)
-! @param[in]     orography_fields       Group of orography fields
-! @param[in,out] jules_ancils           Ancillary fields for Jules
-! @param[in,out] jules_prognostics      Prognostic fields for Jules
-! @param[in,out] derived_fields         Derived fields
-! @param[in,out] twod_fields            2D fields
+! @param[in]     derived_fields         Derived fields
+! @param[in,out] radition_fields        Fields for radiation scheme
+! @param[in]     orography_fields       Fields for orog drag scheme
+! @param[in]     surface_fields         Fields for surface scheme
+! @param[in]     soil_fields            Fields for soil hydrology scheme
+! @param[in]     snow_fields            Fields for snow scheme
 ! @param[in]     height_w3              Height of w3 levels above surface
 
 subroutine rad_tile_alg_step(tile_sw_direct_albedo, tile_sw_diffuse_albedo,   &
-                             tile_lw_albedo, orography_fields,                &
-                             jules_ancils, jules_prognostics,                 &
-                             derived_fields, twod_fields, height_w3)
+                             tile_lw_albedo, derived_fields,                  &
+                             radiation_fields, orography_fields,              &
+                             surface_fields, soil_fields, snow_fields,        &
+                             height_w3)
 
   implicit none
 
   type( field_type ), intent( inout ) :: tile_sw_direct_albedo
   type( field_type ), intent( inout ) :: tile_sw_diffuse_albedo
   type( field_type ), intent( inout ) :: tile_lw_albedo
+  type( field_collection_type ), intent(in)    :: derived_fields
+  type( field_collection_type ), intent(inout) :: radiation_fields
   type( field_collection_type ), intent(in)    :: orography_fields
-  type( field_collection_type ), intent(inout) :: jules_ancils
-  type( field_collection_type ), intent(inout) :: jules_prognostics
-  type( field_collection_type ), intent(inout) :: derived_fields
-  type( field_collection_type ), intent(inout) :: twod_fields
+  type( field_collection_type ), intent(in)    :: surface_fields
+  type( field_collection_type ), intent(in)    :: soil_fields
+  type( field_collection_type ), intent(in)    :: snow_fields
   type( field_type ), intent( in ) :: height_w3
 
   ! Unpacked fields from collections
   type( field_type ), pointer :: sd_orog             => null()
+
   type( field_type ), pointer :: tile_fraction       => null()
   type( field_type ), pointer :: leaf_area_index     => null()
   type( field_type ), pointer :: canopy_height       => null()
-  type( field_type ), pointer :: soil_albedo         => null()
-  type( field_type ), pointer :: soil_roughness      => null()
-  type( field_type ), pointer :: albedo_obs_sw       => null()
-  type( field_type ), pointer :: albedo_obs_vis      => null()
-  type( field_type ), pointer :: albedo_obs_nir      => null()
-
   type( field_type ), pointer :: tile_temperature   => null()
-  type( field_type ), pointer :: tile_snow_mass     => null()
-  type( field_type ), pointer :: tile_snow_rgrain   => null()
-  type( field_type ), pointer :: snow_soot          => null()
   type( field_type ), pointer :: chloro_sea         => null()
   type( field_type ), pointer :: sea_ice_thickness  => null()
   type( field_type ), pointer :: sea_ice_pond_frac  => null()
   type( field_type ), pointer :: sea_ice_pond_depth => null()
+  type( field_type ), pointer :: z0msea             => null()
+
+  type( field_type ), pointer :: soil_albedo         => null()
+  type( field_type ), pointer :: soil_roughness      => null()
+
+  type( field_type ), pointer :: albedo_obs_sw       => null()
+  type( field_type ), pointer :: albedo_obs_vis      => null()
+  type( field_type ), pointer :: albedo_obs_nir      => null()
+  type( field_type ), pointer :: cos_zenith_angle    => null()
+
+  type( field_type ), pointer :: tile_snow_mass     => null()
+  type( field_type ), pointer :: tile_snow_rgrain   => null()
+  type( field_type ), pointer :: snow_soot          => null()
 
   type( field_type ), pointer :: u1_in_w3           => null()
   type( field_type ), pointer :: u2_in_w3           => null()
 
-  type( field_type ), pointer :: z0msea             => null()
-  type( field_type ), pointer :: cos_zenith_angle   => null()
 
   if ( subroutine_timers ) call timer('rad_tile_alg_step')
-  sd_orog              => orography_fields%get_field('sd_orog')
-  tile_fraction        => jules_ancils%get_field('tile_fraction')
-  leaf_area_index      => jules_ancils%get_field('leaf_area_index')
-  canopy_height        => jules_ancils%get_field('canopy_height')
-  soil_albedo          => jules_ancils%get_field('soil_albedo')
-  soil_roughness       => jules_ancils%get_field('soil_roughness')
-  albedo_obs_sw        => jules_ancils%get_field('albedo_obs_sw')
-  albedo_obs_vis       => jules_ancils%get_field('albedo_obs_vis')
-  albedo_obs_nir       => jules_ancils%get_field('albedo_obs_nir')
 
-  tile_temperature   => jules_prognostics%get_field('tile_temperature')
-  tile_snow_mass     => jules_prognostics%get_field('tile_snow_mass')
-  tile_snow_rgrain   => jules_prognostics%get_field('tile_snow_rgrain')
-  snow_soot          => jules_prognostics%get_field('snow_soot')
-  chloro_sea         => jules_prognostics%get_field('chloro_sea')
-  sea_ice_thickness  => jules_prognostics%get_field('sea_ice_thickness')
-  sea_ice_pond_frac  => jules_prognostics%get_field('sea_ice_pond_frac')
-  sea_ice_pond_depth => jules_prognostics%get_field('sea_ice_pond_depth')
+  sd_orog              => orography_fields%get_field('sd_orog')
+
+  tile_fraction        => surface_fields%get_field('tile_fraction')
+  leaf_area_index      => surface_fields%get_field('leaf_area_index')
+  canopy_height        => surface_fields%get_field('canopy_height')
+  tile_temperature     => surface_fields%get_field('tile_temperature')
+  chloro_sea           => surface_fields%get_field('chloro_sea')
+  sea_ice_thickness    => surface_fields%get_field('sea_ice_thickness')
+  sea_ice_pond_frac    => surface_fields%get_field('sea_ice_pond_frac')
+  sea_ice_pond_depth   => surface_fields%get_field('sea_ice_pond_depth')
+  z0msea               => surface_fields%get_field('z0msea')
+
+  soil_albedo          => soil_fields%get_field('soil_albedo')
+  soil_roughness       => soil_fields%get_field('soil_roughness')
+
+  albedo_obs_sw        => radiation_fields%get_field('albedo_obs_sw')
+  albedo_obs_vis       => radiation_fields%get_field('albedo_obs_vis')
+  albedo_obs_nir       => radiation_fields%get_field('albedo_obs_nir')
+  cos_zenith_angle     => radiation_fields%get_field('cos_zenith_angle')
+
+  tile_snow_mass     => snow_fields%get_field('tile_snow_mass')
+  tile_snow_rgrain   => snow_fields%get_field('tile_snow_rgrain')
+  snow_soot          => snow_fields%get_field('snow_soot')
 
   u1_in_w3 => derived_fields%get_field('u1_in_w3')
   u2_in_w3 => derived_fields%get_field('u2_in_w3')
-
-  z0msea           => twod_fields%get_field('z0msea')
-  cos_zenith_angle => twod_fields%get_field('cos_zenith_angle')
-
 
   call invoke(rad_tile_kernel_type(tile_sw_direct_albedo, &
                                    tile_sw_diffuse_albedo, &

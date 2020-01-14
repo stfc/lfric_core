@@ -106,9 +106,9 @@ module conv_gr_kernel_mod
         arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! thv_flux
         arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! parcel_buoyancy
         arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! qsat_at_lcl
-        arg_type(GH_FIELD,   GH_WRITE,     WTHETA),     &! dcfl_conv
-        arg_type(GH_FIELD,   GH_WRITE,     WTHETA),     &! dcfl_conv
-        arg_type(GH_FIELD,   GH_WRITE,     WTHETA)      &! dcfl_conv
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! dcfl_conv
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! dcff_conv
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA)      &! dbcf_conv
         /)
     integer :: iterates_over = CELLS
   contains
@@ -200,9 +200,9 @@ contains
   !> @param[in]     thv_flux             Surface flux of theta_v
   !> @param[in]     parcel_buoyancy      Integral of parcel buoyancy
   !> @param[in]     qsat_at_lcl          Saturation specific hum at LCL
-  !> @param[out]    dcfl_conv            Increment to liquid cloud fraction from convection
-  !> @param[out]    dcff_conv            Increment to ice cloud fraction from convection
-  !> @param[out]    dbcf_conv            Increment to bulk cloud fraction from convection
+  !> @param[in,out] dcfl_conv            Increment to liquid cloud fraction from convection
+  !> @param[in,out] dcff_conv            Increment to ice cloud fraction from convection
+  !> @param[in,out] dbcf_conv            Increment to bulk cloud fraction from convection
   !> @param[in]     ndf_w3               Number of DOFs per cell for density space
   !> @param[in]     undf_w3              Number of unique DOFs  for density space
   !> @param[in]     map_w3               dofmap for the cell at the base of the column for density space
@@ -393,9 +393,9 @@ contains
                            deep_term, cape_timescale, conv_rain, conv_snow, &
                            lowest_cv_base, lowest_cv_top, cv_base, cv_top
 
-    real(kind=r_def), dimension(undf_wth), intent(out) :: dcfl_conv
-    real(kind=r_def), dimension(undf_wth), intent(out) :: dcff_conv
-    real(kind=r_def), dimension(undf_wth), intent(out) :: dbcf_conv
+    real(kind=r_def), dimension(undf_wth), intent(inout) :: dcfl_conv
+    real(kind=r_def), dimension(undf_wth), intent(inout) :: dcff_conv
+    real(kind=r_def), dimension(undf_wth), intent(inout) :: dbcf_conv
 
     real(kind=r_def), intent(in) :: tile_fraction(undf_tile)
 

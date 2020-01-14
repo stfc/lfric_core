@@ -16,9 +16,7 @@ module iter_timestep_alg_mod
                                        LOG_LEVEL_ERROR
 
   ! Configuration options
-  use section_choice_config_mod, only: boundary_layer,     &
-                                       boundary_layer_um,  &
-                                       radiation,          &
+  use section_choice_config_mod, only: radiation,          &
                                        radiation_socrates, &
                                        cloud,              &
                                        cloud_um
@@ -60,9 +58,6 @@ module iter_timestep_alg_mod
   use sort_ref_kernel_mod,                only: sort_ref_kernel_type
   use extract_w_kernel_mod,               only: extract_w_kernel_type
   use matrix_vector_kernel_mod,           only: matrix_vector_kernel_type
-  use smagorinsky_shear_kernel_mod,       only: smagorinsky_shear_kernel_type
-  use tracer_smagorinsky_diff_kernel_mod, only: tracer_smagorinsky_diff_kernel_type
-  use momentum_smagorinsky_kernel_mod,    only: momentum_smagorinsky_kernel_type
   use moist_dyn_factors_kernel_mod,       only: moist_dyn_factors_kernel_type
   use enforce_lower_bound_kernel_mod,     only: enforce_lower_bound_kernel_type
 
@@ -85,6 +80,7 @@ module iter_timestep_alg_mod
                                          final_si_operators
   use fast_physics_alg_mod,        only: fast_physics
   use slow_physics_alg_mod,        only: slow_physics
+  use smagorinsky_alg_mod,         only: smagorinsky_alg
   use checks_and_balances_alg_mod, only: check_fields
 
   use semi_implicit_solver_alg_mod, only: semi_implicit_solver_alg_init, &
@@ -94,8 +90,7 @@ module iter_timestep_alg_mod
 
   ! Field mappings
   use map_physics_fields_alg_mod, only: map_physics_fields_alg
-  use physics_mappings_alg_mod,   only: map_physics_winds, &
-                                        map_physics_scalars
+  use calc_phys_predictors_alg_mod,only: calc_phys_predictors_alg
 
   ! Moisture species
   use mr_indices_mod,             only: nummr, imr_v, imr_cl
@@ -105,7 +100,7 @@ module iter_timestep_alg_mod
   use field_indices_mod,          only: igh_u, igh_t, igh_d, igh_p
 
   ! Mixing settings
-  use mixing_config_mod,          only: viscosity, smagorinsky, mix_factor
+  use mixing_config_mod,          only: viscosity, smagorinsky
 
   ! Physics settings
 
@@ -135,12 +130,10 @@ module iter_timestep_alg_mod
   type( field_type ), allocatable :: rhs_n(:), rhs_np1(:), rhs_adv(:)
   type( field_type ), allocatable :: rhs_phys(:), inc(:)
   type( field_type ) :: dtheta ! increment to theta
-  type( field_type ) :: dtheta_cld ! increment to theta from cloud
   type( field_type ) :: du ! increment to u
 
   type( field_vector_type ) :: vector_state, vector_rhs
 
-  type( field_type ) :: shear ! shear term
   type( field_type ) :: visc_m ! Smagorinsky diffusion coefficient for momentum
   type( field_type ) :: visc_h ! Smagorinsky diffusion coefficient for scalars
   logical            :: helmholtz_solve
@@ -159,9 +152,7 @@ contains
   !> @param[in,out] theta Potential temperature
   !> @param[in,out] exner Exner pressure
   !> @param[in,out] mr Mixing ratios
-  !> @param[in,out] twodfields 2D field collection for UM physics
-  subroutine iter_alg_init( mesh_id, u, rho, theta, exner, mr, &
-                            twod_fields )
+  subroutine iter_alg_init( mesh_id, u, rho, theta, exner, mr)
 
     implicit none
 
@@ -170,7 +161,6 @@ contains
 
     ! Prognostic fields
     type( field_type ), intent( inout ) :: u, rho, theta, exner
-    type( field_collection_type ), intent(inout)  :: twod_fields
     type( field_type ), intent( inout ) :: mr(nummr)
 
     !--------------------------------------------------------------------
@@ -226,15 +216,12 @@ contains
     end if
 
     if ( use_physics )then
-      ! Set up the shear field to be in the same space as theta
-      call theta%copy_field_properties( shear )
       ! Set up the diffusion coefficient fields to be in the same space as theta
       call theta%copy_field_properties( visc_m )
       call theta%copy_field_properties( visc_h )
       if ( smagorinsky)then
         ! Initialise to zero
-        call invoke( setval_c(shear, 0.0_r_def),          &
-                     setval_c(visc_m , 0.0_r_def),  &
+        call invoke( setval_c(visc_m , 0.0_r_def),  &
                      setval_c(visc_h , 0.0_r_def) )
       end if
     end if
@@ -307,21 +294,24 @@ contains
   !> @param[in,out] mr                     Mixing ratios
   !> @param[in,out] moist_dyn              Factors for moist dynamics
   !> @param[in,out] derived_fields         Group of derived fields
-  !> @param[in,out] aerosol_fields         Group of aerosol fields
-  !> @param[in,out] cloud_fields           Group of cloud fields
-  !> @param[in,out] twod_fields            2D fields for UM physics
-  !> @param[in,out] radstep_fields         Group of radiation timestep fields
-  !> @param[in,out] physics_incs           Group of physics increments
-  !> @param[in,out] orography_fields       Group of orography fields
-  !> @param[in,out] jules_ancils           Ancillary fields for Jules
-  !> @param[in,out] jules_prognostics      Prognostic fields for Jules
+  !> @param[in,out] radition_fields        Fields for radiation scheme
+  !> @param[in,out] microphysics_fields    Fields for mphys scheme
+  !> @param[in]     orography_fields       Fields for orog drag scheme
+  !> @param[in,out] turbulence_fields      Fields for turbulence scheme
+  !> @param[in,out] convection_fields      Fields for convection scheme
+  !> @param[in,out] cloud_fields           Fields for cloud scheme
+  !> @param[in,out] surface_fields         Fields for surface scheme
+  !> @param[in,out] soil_fields            Fields for soil hydrology scheme
+  !> @param[in,out] snow_fields            Fields for snow scheme
+  !> @param[in,out] aerosol_fields         Fields for aerosol scheme
   !> @param[in]     timestep               Model timestep number
   !> @param[in]     twod_mesh_id           Identifier given to current 2d mesh
   subroutine iter_alg_step(u, rho, theta, exner, mr, moist_dyn,                &
-                           derived_fields, aerosol_fields,                     &
-                           cloud_fields, twod_fields,                          &
-                           radstep_fields, physics_incs, orography_fields,     &
-                           jules_ancils, jules_prognostics,                    &
+                           derived_fields, radiation_fields,                   &
+                           microphysics_fields, orography_fields,              &
+                           turbulence_fields, convection_fields,               &
+                           cloud_fields, surface_fields, soil_fields,          &
+                           snow_fields, aerosol_fields,                        &
                            timestep, twod_mesh_id)
 
     implicit none
@@ -330,17 +320,18 @@ contains
     type( field_type ), intent( inout ) :: u, rho, theta, exner
     type( field_type ), intent( inout ) :: mr(nummr)
     type( field_type ), intent( inout ) :: moist_dyn(num_moist_factors)
-    ! Surface fields
-    type( field_collection_type ), intent(inout) :: jules_ancils
-    type( field_collection_type ), intent(inout) :: jules_prognostics
     ! field groups
     type( field_collection_type ), intent( inout ) :: derived_fields
-    type( field_collection_type ), intent( inout ) :: aerosol_fields
-    type( field_collection_type ), intent( inout ) :: cloud_fields
-    type( field_collection_type ), intent( inout ) :: twod_fields
-    type( field_collection_type ), intent( inout ) :: radstep_fields
-    type( field_collection_type ), intent( inout ) :: physics_incs
+    type( field_collection_type ), intent( inout ) :: radiation_fields
+    type( field_collection_type ), intent( inout ) :: microphysics_fields
     type( field_collection_type ), intent( in )    :: orography_fields
+    type( field_collection_type ), intent( inout ) :: turbulence_fields
+    type( field_collection_type ), intent( inout ) :: convection_fields
+    type( field_collection_type ), intent( inout ) :: cloud_fields
+    type( field_collection_type ), intent( inout ) :: surface_fields
+    type( field_collection_type ), intent( inout ) :: soil_fields
+    type( field_collection_type ), intent( inout ) :: snow_fields
+    type( field_collection_type ), intent( inout ) :: aerosol_fields
 
     ! Timestep value
     integer, intent(in) :: timestep
@@ -362,26 +353,12 @@ contains
     type( field_type ), pointer  :: delta => null() ! Horizontal edge length
     type( field_type ), pointer  :: max_diff_smag => null() ! Max Smagorinsky diffusion allowed in this run
 
-    ! Temporary field to unpack from field collection
-    type( field_type ), pointer :: u_physics => null()
-    type( field_type ), pointer :: w_physics  => null()
-    type( field_type ), pointer :: theta_star => null()
-    type( field_type ), pointer :: u_star => null()
-    type( field_type ), pointer :: u_physics_star => null()
-    type( field_type ), pointer :: w_physics_star  => null()
-    type( field_type ), pointer :: u1_in_w3_star  => null()
-    type( field_type ), pointer :: u2_in_w3_star  => null()
-    type( field_type ), pointer :: u3_in_w3_star  => null()
-
     integer(kind=i_def):: outer, inner, iter, i_mr
     real(kind=r_def)   :: varalpha, varbeta ! alpha, beta weight to use
                                             ! these may differ from input values
                                             ! during the spinup period
 
     real(kind=r_def), dimension(bundle_size) :: si_err
-
-    ! Stencil depth for the Smagorinsky diffusion kernel
-    integer(kind=i_def):: smag_stencil_depth
 
     ! Predictor the wind field (u-beta*dt*rhs) to be advected
     type( field_type ) :: advected_u
@@ -435,30 +412,14 @@ contains
     call copy_bundle(state, state_n, bundle_size)
     call copy_bundle(state, state_after_slow, bundle_size)
 
-    !==========================================================================
-    ! Fields for physics
-    !==========================================================================
     if (use_physics)then
+      !=======================================================================
+      ! Calculate fields derived from dynamics fields for use in physics
+      !=======================================================================
       call map_physics_fields_alg(state_n(igh_u), state_n(igh_p),       &
                                   state_n(igh_d), state_n(igh_t),       &
-                                  mr_n, derived_fields)
-      u_physics => derived_fields%get_field('u_physics')
-      w_physics => derived_fields%get_field('w_physics')
-      ! map dynamics winds into physics space
-      call invoke(         X_divideby_Y(u_physics, state_n(igh_u), dA), &
-                  extract_w_kernel_type(w_physics, u_physics) )
-      call u_physics%log_minmax(LOG_LEVEL_INFO, 'u_physics')
-      call w_physics%log_minmax(LOG_LEVEL_INFO, 'w_physics')
-
-      if ( smagorinsky ) then
-        call log_event( 'Calculate 3D shear', LOG_LEVEL_INFO )
-        ! Calculate 3D shear
-        call invoke(smagorinsky_shear_kernel_type( shear,         &
-                                                   u_physics,  1, &
-                                                   height_wth, 1, &
-                                                   height_w3,  1, &
-                                                   chi ) )
-      end if
+                                  mr_n, dA, height_wth, height_w3, chi, &
+                                  derived_fields)
 
       !--------------------------------------------------------------------
       ! Call the slow physics terms
@@ -466,20 +427,14 @@ contains
       call invoke( setval_c(dtheta, 0.0_r_def), &
                    setval_c(du, 0.0_r_def) )
 
-      call slow_physics( du, dtheta, state_n(igh_t), state_n(igh_d),           &
-                         state_n(igh_p), mr_n, mr_after_slow,                  &
-                         derived_fields, aerosol_fields,                       &
-                         cloud_fields, twod_fields,                            &
-                         radstep_fields, physics_incs, orography_fields,       &
-                         jules_ancils, jules_prognostics,                      &
-                         height_w3, height_wth, chi, timestep,                 &
-                         shear, delta, max_diff_smag,                          &
-                         visc_m, visc_h, twod_mesh_id )
-      if (use_moisture) then
-        do i_mr = 1, nummr
-          call invoke( enforce_lower_bound_kernel_type (mr_after_slow(i_mr), 0.0_r_def) )
-        end do
-      end if
+      call slow_physics(du, dtheta, mr_after_slow, visc_m, visc_h,             &
+                        state_n(igh_t), state_n(igh_d), state_n(igh_p), mr_n,  &
+                        derived_fields, radiation_fields,                      &
+                        microphysics_fields, orography_fields,                 &
+                        turbulence_fields, convection_fields, cloud_fields,    &
+                        surface_fields, soil_fields, snow_fields,              &
+                        aerosol_fields, dA, height_w3, height_wth, chi, delta, &
+                        max_diff_smag, timestep, twod_mesh_id )
 
       ! update state prognostics including map back of winds
       call invoke(name="update_from_slow_physics",               &
@@ -518,71 +473,42 @@ contains
           end do
           call invoke(moist_dyn_factors_kernel_type(moist_dyn, mr))
 
-          call log_event('iter_timestep_alg_mod: Advect cloud fractions', LOG_LEVEL_INFO )
           ! Call routine to advect some of the contents of cloud_fields.
           ! If not using PC2, nothing will be advected.
           ! If using PC2, some of these will be advected.
           !   * Cloud-fractions-after-slow values (held on cloud_fields)
           !     will get advected with advecting velocity.
-          !   * The advected cloud fields variables get updated during this call.
+          !   * The advected cloud fields variables get updated during this call
           call advection_generic_field_alg( cloud_fields, state_n(igh_u), state(igh_u) )
 
         end if
         call bundle_ax(dt, rhs_adv, rhs_adv, bundle_size)
         call log_event("Finished advecting prognostic fields...", LOG_LEVEL_INFO)
       else
+        ! No advection without wavedynamics at present
         if ( use_moisture ) call copy_bundle(mr_after_slow, mr, nummr)
       end if !use_wavedynamics
 
       if (use_physics) then
+        !--------------------------------------------------------------------
         ! setting predictors for fast physics
-        theta_star  => derived_fields%get_field('theta_star')
-        u_star  => derived_fields%get_field('u_star')
-        call invoke( setval_c(dtheta, 0.0_r_def), &
-                     setval_c(du, 0.0_r_def) )
-
-        if (use_wavedynamics) then
-          ! theta_star can be directly guessed from advection terms
-          call invoke( X_plus_Y(inc(igh_t), rhs_adv(igh_t), rhs_n(igh_t)) )
-          call mass_matrix_solver_alg(theta_star, inc(igh_t))
-
-          ! Compute u_star = u_np1 + M^-1(-rhs_np1 + rhs_n + rhs_a)
-          call rhs_alg(rhs_np1, -varalpha*dt, state, state, moist_dyn, .false., dlayer_on)
-          call invoke( inc_aX_plus_Y(-1.0_r_def, rhs_np1(igh_u), rhs_n(igh_u)), &
-                       inc_X_plus_Y(rhs_np1(igh_u), rhs_adv(igh_u)) )
-          call mass_matrix_solver_alg(inc(igh_u), rhs_np1(igh_u) )
-          call invoke( X_plus_Y(u_star, inc(igh_u), state(igh_u)) )
-        else
-          ! predictors are just the current state
-          call invoke( setval_X(theta_star, state_after_slow(igh_t)), &
-                       setval_X(u_star, state_after_slow(igh_u) ))
-        end if !use_wavedynamics
-
-        ! map physics predictors into required spaces
-        u_physics_star  => derived_fields%get_field('u_physics_star')
-        w_physics_star  => derived_fields%get_field('w_physics_star')
-        call invoke(         X_divideby_Y(u_physics_star, u_star, dA),     &
-                    extract_w_kernel_type(w_physics_star, u_physics_star) )
-        u1_in_w3_star => derived_fields%get_field('u1_in_w3_star')
-        u2_in_w3_star => derived_fields%get_field('u2_in_w3_star')
-        u3_in_w3_star => derived_fields%get_field('u3_in_w3_star')
-        call map_physics_winds(u1_in_w3_star, u2_in_w3_star, u3_in_w3_star, &
-                               u_star)
+        !--------------------------------------------------------------------
+        call calc_phys_predictors_alg(derived_fields, inc, rhs_np1,            &
+                                      rhs_adv, rhs_n, state, state_after_slow, &
+                                      moist_dyn, varalpha, dA)
 
         !--------------------------------------------------------------------
         ! Call the fast physics terms
         !--------------------------------------------------------------------
-        call fast_physics(du, dtheta, mr, outer, state_n(igh_t),             &
-                          state_n(igh_d), state_n(igh_p), mr_n,              &
-                          delta, derived_fields, cloud_fields, twod_fields,  &
-                          physics_incs, height_w3, height_wth,               &
-                          jules_ancils, jules_prognostics, orography_fields)
+        call invoke( setval_c(dtheta, 0.0_r_def), &
+                     setval_c(du, 0.0_r_def) )
 
-        if (use_moisture) then
-          do i_mr = 1, nummr
-            call invoke( enforce_lower_bound_kernel_type (mr(i_mr), 0.0_r_def) )
-          end do
-        end if
+        call fast_physics(du, dtheta, mr, state_n(igh_t), state_n(igh_d),      &
+                          state_n(igh_p), mr_n, derived_fields,                &
+                          radiation_fields, orography_fields,                  &
+                          turbulence_fields, convection_fields, cloud_fields,  &
+                          surface_fields, soil_fields, snow_fields, dA,        &
+                          height_w3, height_wth, delta, outer)
 
         if (use_wavedynamics) then
           ! copy increments into rhs_phys, including premultiplication by mass matrix
@@ -591,7 +517,7 @@ contains
           call set_bundle_scalar(0.0_r_def, rhs_phys, bundle_size)
           call invoke(name="update_rhs_phys_from_fast_physics",                &
                     matrix_vector_kernel_type(rhs_phys(igh_t), dtheta, mm_wt), &
-                    matrix_vector_kernel_type( rhs_phys(igh_u), du, mm_vel )   &
+                    matrix_vector_kernel_type(rhs_phys(igh_u), du, mm_vel )    &
                     )
         end if
 
@@ -719,99 +645,18 @@ contains
     if ( smagorinsky ) then
       call log_event( 'Applying Smagorinsky mixing', LOG_LEVEL_INFO )
 
-      ! Stencil depth for the Smagorinsky diffusion kernel
-      smag_stencil_depth=1
-
-      if ( boundary_layer == boundary_layer_um ) then
-
-        ! Use stability-dependent diffusion coefficient from UM BL scheme
-        ! This will be the blended BL-Smag coefficient if mixing_option='blending'
-        ! Vertical mixing is done by the BL scheme
-        call log_event( 'Using stability-dependent Smagorinsky coefficient', LOG_LEVEL_INFO )
-        ! Potential temperature:
-        call invoke( tracer_smagorinsky_diff_kernel_type( inc(igh_t),           &
-                                                          state(igh_t),         &
-                                                          smag_stencil_depth,   &
-                                                          visc_h,               &
-                                                          chi  ) )
-        if ( use_moisture ) then
-          ! Water vapour and cloud liquid:
-          call invoke( tracer_smagorinsky_diff_kernel_type( mr_inc(imr_v),      &
-                                                            mr(imr_v),          &
-                                                            smag_stencil_depth, &
-                                                            visc_h,             &
-                                                            chi  ),             &
-                       tracer_smagorinsky_diff_kernel_type( mr_inc(imr_cl),     &
-                                                            mr(imr_cl),         &
-                                                            smag_stencil_depth, &
-                                                            visc_h,             &
-                                                            chi  ) )
-        end if
-        ! Momentum:
-        call invoke( momentum_smagorinsky_kernel_type( inc(igh_u),           &
-                                                       state(igh_u),         &
-                                                       smag_stencil_depth,   &
-                                                       height_w3,            &
-                                                       smag_stencil_depth,   &
-                                                       height_wth,           &
-                                                       smag_stencil_depth,   &
-                                                       visc_m,               &
-                                                       chi  ) )
-
-      else
-
-        call log_event( 'Using pure Smagorinsky coefficient', LOG_LEVEL_INFO )
-        ! Calculate visc_h and visc_m as (mix_factor * delta)**2 * shear
-        ! Potential temperature:
-        call invoke( a_times_X( visc_h, mix_factor, delta ),                    &
-                     inc_X_powint_n( visc_h, 2 ),                               &
-                     inc_X_times_Y( visc_h, shear ),                            &
-                     tracer_smagorinsky_diff_kernel_type( inc(igh_t),           &
-                                                          state(igh_t),         &
-                                                          smag_stencil_depth,   &
-                                                          visc_h,               &
-                                                          chi  ) )
-        if (use_moisture) then
-          ! Water vapour and cloud liquid:
-          call invoke( tracer_smagorinsky_diff_kernel_type( mr_inc(imr_v),      &
-                                                            mr(imr_v),          &
-                                                            smag_stencil_depth, &
-                                                            visc_h,             &
-                                                            chi  ),             &
-                       tracer_smagorinsky_diff_kernel_type( mr_inc(imr_cl),     &
-                                                            mr(imr_cl),         &
-                                                            smag_stencil_depth, &
-                                                            visc_h,             &
-                                                            chi  ) )
-        end if
-        ! Momentum:
-        call invoke( a_times_X( visc_m, mix_factor, delta ),                    &
-                     inc_X_powint_n( visc_m, 2 ),                               &
-                     inc_X_times_Y( visc_m, shear ),                            &
-                     momentum_smagorinsky_kernel_type( inc(igh_u),              &
-                                                       state(igh_u),            &
-                                                       smag_stencil_depth,      &
-                                                       height_w3,               &
-                                                       smag_stencil_depth,      &
-                                                       height_wth,              &
-                                                       smag_stencil_depth,      &
-                                                       visc_m,                  &
-                                                       chi  ) )
-      end if
+      call smagorinsky_alg(inc(igh_t), inc(igh_u), mr, state(igh_t),   &
+                           state(igh_u), visc_m, visc_h, chi,          &
+                           height_wth, height_w3, delta, derived_fields)
 
       ! Apply increments from Smagorinsky mixing
       call invoke( inc_X_plus_bY( state(igh_t), dt, inc(igh_t) ),      &
                    inc_X_plus_bY( state(igh_u), dt, inc(igh_u) ) )
-      if (use_moisture) then
-        call invoke( inc_X_plus_bY( mr(imr_v), dt, mr_inc(imr_v) ),    &
-                     inc_X_plus_bY( mr(imr_cl), dt, mr_inc(imr_cl) ) )
-      end if
     end if
 
     ! ----------------------------------------------------------------------
     ! Call cloud scheme to generate cloud and latent heating after pressure
     ! changes are applied from the solver.
-    ! First obtain current exner mapped on theta levels
     ! ----------------------------------------------------------------------
 
 #ifdef UM_PHYSICS
@@ -821,16 +666,15 @@ contains
 
           call log_event( 'iter timestep: End-of-timestep cloud update', LOG_LEVEL_INFO )
 
-          call dtheta_cld%initialise( vector_space = theta%get_function_space() )
-          call invoke( setval_c(dtheta_cld, 0.0_r_def) )
+          call invoke( setval_c(dtheta, 0.0_r_def) )
 
-          call cld_alg_step( state(igh_t), state(igh_p), mr,                 &
-                             cloud_fields, twod_fields, dtheta_cld,          &
-                             derived_fields,                                 &
+          call cld_alg_step( dtheta, mr, state(igh_t), state(igh_p),         &
+                             derived_fields, turbulence_fields,              &
+                             cloud_fields,                                   &
                              state_n(igh_t),         state_n(igh_p), mr_n,   &
                              state_after_slow(igh_t),state_after_slow(igh_p) )
 
-          call invoke(inc_X_plus_Y(state(igh_t), dtheta_cld))
+          call invoke(inc_X_plus_Y(state(igh_t), dtheta))
 
         end if ! ( cloud == cloud_um )
       end if ! (use moisture)
@@ -899,7 +743,6 @@ contains
     call du%field_final()
 
     if ( use_physics )then
-      call shear%field_final()
       call visc_m%field_final()
       call visc_h%field_final()
     end if

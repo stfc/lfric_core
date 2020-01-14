@@ -29,16 +29,21 @@ contains
 
   !> @brief Prepares the Jules fields, currently hard-wired but will be
   !>        read from ancils or dumps here
-  !> @param[inout] jules_ancils      Ancillary fields for Jules
-  !> @param[inout] jules_prognostics Prognostic fields for Jules
-  subroutine init_jules_alg(jules_ancils, jules_prognostics)
+  !> @param[in,out] radition_fields Collection of fields for radiation scheme
+  !> @param[in,out] surface_fields Collection of fields for surface scheme
+  !> @param[in,out] soil_fields Collection of fields for soil hydrology scheme
+  !> @param[in,out] snow_fields Collection of fields for snow scheme
+  subroutine init_jules_alg(radiation_fields, surface_fields, soil_fields, &
+                            snow_fields)
 
     use initial_jules_kernel_mod, only: initial_jules_kernel_type
 
     implicit none
 
-    type(field_collection_type), intent(inout) :: jules_ancils
-    type(field_collection_type), intent(inout) :: jules_prognostics
+    type(field_collection_type), intent(inout) :: radiation_fields
+    type(field_collection_type), intent(inout) :: surface_fields
+    type(field_collection_type), intent(inout) :: soil_fields
+    type(field_collection_type), intent(inout) :: snow_fields
 
     ! Unpacked fields from collections
     type( field_type ), pointer :: tile_fraction      => null()
@@ -77,42 +82,41 @@ contains
     type( field_type ), pointer :: sea_ice_pond_frac  => null()
     type( field_type ), pointer :: sea_ice_pond_depth => null()
 
+    tile_fraction   => surface_fields%get_field('tile_fraction')
+    leaf_area_index => surface_fields%get_field('leaf_area_index')
+    canopy_height   => surface_fields%get_field('canopy_height')
+    soil_albedo     => soil_fields%get_field('soil_albedo')
+    soil_roughness  => soil_fields%get_field('soil_roughness')
+    albedo_obs_sw   => radiation_fields%get_field('albedo_obs_sw')
+    albedo_obs_vis  => radiation_fields%get_field('albedo_obs_vis')
+    albedo_obs_nir  => radiation_fields%get_field('albedo_obs_nir')
+    soil_moist_wilt => soil_fields%get_field('soil_moist_wilt')
+    soil_moist_crit => soil_fields%get_field('soil_moist_crit')
+    soil_moist_sat  => soil_fields%get_field('soil_moist_sat')
+    soil_cond_sat   => soil_fields%get_field('soil_cond_sat')
+    soil_thermal_cap => soil_fields%get_field('soil_thermal_cap')
+    soil_thermal_cond => soil_fields%get_field('soil_thermal_cond')
+    soil_suction_sat => soil_fields%get_field('soil_suction_sat')
+    clapp_horn_b    => soil_fields%get_field('clapp_horn_b')
+    soil_carbon_content => soil_fields%get_field('soil_carbon_content')
 
-    tile_fraction   => jules_ancils%get_field('tile_fraction')
-    leaf_area_index => jules_ancils%get_field('leaf_area_index')
-    canopy_height   => jules_ancils%get_field('canopy_height')
-    soil_albedo     => jules_ancils%get_field('soil_albedo')
-    soil_roughness  => jules_ancils%get_field('soil_roughness')
-    albedo_obs_sw   => jules_ancils%get_field('albedo_obs_sw')
-    albedo_obs_vis  => jules_ancils%get_field('albedo_obs_vis')
-    albedo_obs_nir  => jules_ancils%get_field('albedo_obs_nir')
-    soil_moist_wilt => jules_ancils%get_field('soil_moist_wilt')
-    soil_moist_crit => jules_ancils%get_field('soil_moist_crit')
-    soil_moist_sat  => jules_ancils%get_field('soil_moist_sat')
-    soil_cond_sat   => jules_ancils%get_field('soil_cond_sat')
-    soil_thermal_cap => jules_ancils%get_field('soil_thermal_cap')
-    soil_thermal_cond => jules_ancils%get_field('soil_thermal_cond')
-    soil_suction_sat => jules_ancils%get_field('soil_suction_sat')
-    clapp_horn_b    => jules_ancils%get_field('clapp_horn_b')
-    soil_carbon_content => jules_ancils%get_field('soil_carbon_content')
-
-    tile_temperature   => jules_prognostics%get_field('tile_temperature')
-    tile_snow_mass     => jules_prognostics%get_field('tile_snow_mass')
-    tile_snow_rgrain   => jules_prognostics%get_field('tile_snow_rgrain')
-    n_snow_layers      => jules_prognostics%get_field('n_snow_layers')
-    snow_depth         => jules_prognostics%get_field('snow_depth')
-    snow_soot          => jules_prognostics%get_field('snow_soot')
-    surface_conductance => jules_prognostics%get_field('surface_conductance')
-    canopy_water       => jules_prognostics%get_field('canopy_water')
-    sw_up_tile         => jules_prognostics%get_field('sw_up_tile')
-    soil_temperature   => jules_prognostics%get_field('soil_temperature')
-    soil_moisture      => jules_prognostics%get_field('soil_moisture')
-    unfrozen_soil_moisture => jules_prognostics%get_field('unfrozen_soil_moisture')
-    frozen_soil_moisture => jules_prognostics%get_field('frozen_soil_moisture')
-    chloro_sea         => jules_prognostics%get_field('chloro_sea')
-    sea_ice_thickness  => jules_prognostics%get_field('sea_ice_thickness')
-    sea_ice_pond_frac  => jules_prognostics%get_field('sea_ice_pond_frac')
-    sea_ice_pond_depth => jules_prognostics%get_field('sea_ice_pond_depth')
+    tile_temperature   => surface_fields%get_field('tile_temperature')
+    tile_snow_mass     => snow_fields%get_field('tile_snow_mass')
+    tile_snow_rgrain   => snow_fields%get_field('tile_snow_rgrain')
+    n_snow_layers      => snow_fields%get_field('n_snow_layers')
+    snow_depth         => snow_fields%get_field('snow_depth')
+    snow_soot          => snow_fields%get_field('snow_soot')
+    surface_conductance => surface_fields%get_field('surface_conductance')
+    canopy_water       => surface_fields%get_field('canopy_water')
+    sw_up_tile         => radiation_fields%get_field('sw_up_tile')
+    soil_temperature   => soil_fields%get_field('soil_temperature')
+    soil_moisture      => soil_fields%get_field('soil_moisture')
+    unfrozen_soil_moisture => soil_fields%get_field('unfrozen_soil_moisture')
+    frozen_soil_moisture => soil_fields%get_field('frozen_soil_moisture')
+    chloro_sea         => surface_fields%get_field('chloro_sea')
+    sea_ice_thickness  => surface_fields%get_field('sea_ice_thickness')
+    sea_ice_pond_frac  => surface_fields%get_field('sea_ice_pond_frac')
+    sea_ice_pond_depth => surface_fields%get_field('sea_ice_pond_depth')
 
 
     ! Hardwire number of tiles

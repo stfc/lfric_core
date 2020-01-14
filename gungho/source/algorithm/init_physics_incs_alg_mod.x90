@@ -24,12 +24,17 @@ contains
   !> @brief Initialises physics increments to zero in case scheme is not used
   !> @details So that other schemes can always rely on a sensible increment
   !>          being passed in, we initialise the increments to zero.
-  !> @param[in,out] physics_incs Collection of physics increments
-  subroutine init_physics_incs_alg(physics_incs)
+  !> @param[in,out] radition_fields Collection of fields for radiation scheme
+  !> @param[in,out] microphysics_fields Collection of fields for mphys scheme
+  !> @param[in,out] convection_fields Collection of fields for convection scheme
+  subroutine init_physics_incs_alg(radiation_fields, microphysics_fields, &
+                                   convection_fields)
 
     implicit none
 
-    type( field_collection_type ), intent( inout ) :: physics_incs
+    type(field_collection_type), intent(inout) :: radiation_fields
+    type(field_collection_type), intent(inout) :: microphysics_fields
+    type(field_collection_type), intent(inout) :: convection_fields
 
     ! local fields to unpack
     type( field_type ), pointer :: dt_conv => null()
@@ -54,22 +59,22 @@ contains
     type( field_type ), pointer :: sw_down_blue_surf => null()
 
     ! unpack the local fields
-    dt_conv => physics_incs%get_field('dt_conv')
-    dmv_conv => physics_incs%get_field('dmv_conv')
-    dmcl_conv => physics_incs%get_field('dmcl_conv')
-    dmcf_conv => physics_incs%get_field('dmcf_conv')
-    dcfl_conv => physics_incs%get_field('dcfl_conv')
-    dcff_conv => physics_incs%get_field('dcff_conv')
-    dbcf_conv => physics_incs%get_field('dbcf_conv')
-    du_conv => physics_incs%get_field('du_conv')
-    dv_conv => physics_incs%get_field('dv_conv')
-    dtl_mphys => physics_incs%get_field('dtl_mphys')
-    dmt_mphys => physics_incs%get_field('dmt_mphys')
-    sw_heating_rate => physics_incs%get_field('sw_heating_rate')
-    lw_heating_rate => physics_incs%get_field('lw_heating_rate')
-    lw_down_surf => physics_incs%get_field('lw_down_surf')
-    sw_down_surf => physics_incs%get_field('sw_down_surf')
-    sw_down_blue_surf => physics_incs%get_field('sw_down_blue_surf')
+    dt_conv => convection_fields%get_field('dt_conv')
+    dmv_conv => convection_fields%get_field('dmv_conv')
+    dmcl_conv => convection_fields%get_field('dmcl_conv')
+    dmcf_conv => convection_fields%get_field('dmcf_conv')
+    dcfl_conv => convection_fields%get_field('dcfl_conv')
+    dcff_conv => convection_fields%get_field('dcff_conv')
+    dbcf_conv => convection_fields%get_field('dbcf_conv')
+    du_conv => convection_fields%get_field('du_conv')
+    dv_conv => convection_fields%get_field('dv_conv')
+    dtl_mphys => microphysics_fields%get_field('dtl_mphys')
+    dmt_mphys => microphysics_fields%get_field('dmt_mphys')
+    sw_heating_rate => radiation_fields%get_field('sw_heating_rate')
+    lw_heating_rate => radiation_fields%get_field('lw_heating_rate')
+    lw_down_surf => radiation_fields%get_field('lw_down_surf')
+    sw_down_surf => radiation_fields%get_field('sw_down_surf')
+    sw_down_blue_surf => radiation_fields%get_field('sw_down_blue_surf')
 
     ! initialise increments to 0
     call invoke( setval_c(dt_conv, 0.0_r_def),         &

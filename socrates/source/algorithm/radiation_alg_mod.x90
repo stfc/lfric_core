@@ -33,13 +33,10 @@ contains
 ! @param[in]     theta                  Potential temperature field
 ! @param[in]     exner                  Exner pressure field in density space
 ! @param[in]     mr                     Mixing ratios
-! @param[in,out] jules_ancils           Ancillary fields for Jules
-! @param[in,out] jules_prognostics      Prognostic fields for Jules
-! @param[in,out] derived_fields         Derived fields
-! @param[in,out] cloud_fields           Cloud fields
-! @param[in,out] twod_fields            2D fields
-! @param[in,out] radstep_fields         Radiation timestep fields
-! @param[in,out] physics_incs           Physics increments
+! @param[in]     derived_fields         Derived fields
+! @param[in,out] radiation_fields       Fields for radiation scheme
+! @param[in]     cloud_fields           Fields for cloud scheme
+! @param[in]     surface_fields         Fields for surface scheme
 ! @param[in]     height_w3              Height of w3 levels above surface
 ! @param[in]     height_wth             Height of wth levels above surface
 ! @param[in]     timestep               Model timestep number
@@ -47,12 +44,10 @@ contains
 ! @param[in]     tile_sw_diffuse_albedo Tile SW diffuse albedos
 ! @param[in]     tile_lw_albedo         Tile LW albedos (1 - emissivity)
 
-subroutine radiation_alg_step(dtheta_rad, theta, exner, mr,                  &
-                              jules_ancils, jules_prognostics,               &
-                              derived_fields, cloud_fields, twod_fields,     &
-                              radstep_fields, physics_incs,                  &
-                              height_w3, height_wth, timestep,               &
-                              tile_sw_direct_albedo, tile_sw_diffuse_albedo, &
+subroutine radiation_alg_step(dtheta_rad, theta, exner, mr,                    &
+                              derived_fields, radiation_fields, cloud_fields,  &
+                              surface_fields, height_w3, height_wth, timestep, &
+                              tile_sw_direct_albedo, tile_sw_diffuse_albedo,   &
                               tile_lw_albedo)
 
   implicit none
@@ -63,13 +58,10 @@ subroutine radiation_alg_step(dtheta_rad, theta, exner, mr,                  &
   type( field_type ), intent( in )    :: tile_sw_direct_albedo
   type( field_type ), intent( in )    :: tile_sw_diffuse_albedo
   type( field_type ), intent( in )    :: tile_lw_albedo
-  type( field_collection_type ), intent(inout) :: jules_ancils
-  type( field_collection_type ), intent(inout) :: jules_prognostics
-  type( field_collection_type ), intent(inout) :: derived_fields
-  type( field_collection_type ), intent(inout) :: cloud_fields
-  type( field_collection_type ), intent(inout) :: twod_fields
-  type( field_collection_type ), intent(inout) :: radstep_fields
-  type( field_collection_type ), intent(inout) :: physics_incs
+  type( field_collection_type ), intent(in) :: derived_fields
+  type( field_collection_type ), intent(inout) :: radiation_fields
+  type( field_collection_type ), intent(in) :: cloud_fields
+  type( field_collection_type ), intent(in) :: surface_fields
   integer, intent(in) :: timestep
 
   real(r_def) :: dt_again
@@ -88,7 +80,6 @@ subroutine radiation_alg_step(dtheta_rad, theta, exner, mr,                  &
 
   type( field_type ), pointer :: cos_zenith_angle    => null()
   type( field_type ), pointer :: lit_fraction        => null()
-
   type( field_type ), pointer :: lw_down_surf        => null()
   type( field_type ), pointer :: sw_down_surf        => null()
   type( field_type ), pointer :: sw_direct_surf      => null()
@@ -120,46 +111,43 @@ subroutine radiation_alg_step(dtheta_rad, theta, exner, mr,                  &
   ! Local diagnostic fields
   type( field_type ) :: cloud_cover_rts
 
-  tile_fraction    =>      jules_ancils%get_field('tile_fraction')
+  tile_fraction    => surface_fields%get_field('tile_fraction')
+  tile_temperature => surface_fields%get_field('tile_temperature')
 
-  tile_temperature => jules_prognostics%get_field('tile_temperature')
-  lw_up_tile       => jules_prognostics%get_field('lw_up_tile')
-  sw_up_tile       => jules_prognostics%get_field('sw_up_tile')
-  sw_up_blue_tile  => jules_prognostics%get_field('sw_up_blue_tile')
+  lw_up_tile       => radiation_fields%get_field('lw_up_tile')
+  sw_up_tile       => radiation_fields%get_field('sw_up_tile')
+  sw_up_blue_tile  => radiation_fields%get_field('sw_up_blue_tile')
+  cos_zenith_angle => radiation_fields%get_field('cos_zenith_angle')
+  lit_fraction     => radiation_fields%get_field('lit_fraction')
+  lw_down_surf        => radiation_fields%get_field('lw_down_surf')
+  sw_down_surf        => radiation_fields%get_field('sw_down_surf')
+  sw_direct_surf      => radiation_fields%get_field('sw_direct_surf')
+  sw_down_blue_surf   => radiation_fields%get_field('sw_down_blue_surf')
+  sw_direct_blue_surf => radiation_fields%get_field('sw_direct_blue_surf')
+  sw_heating_rate     => radiation_fields%get_field('sw_heating_rate')
+  lw_heating_rate     => radiation_fields%get_field('lw_heating_rate')
+
+  lw_down_surf_rts        => radiation_fields%get_field('lw_down_surf_rts')
+  sw_down_surf_rts        => radiation_fields%get_field('sw_down_surf_rts')
+  sw_direct_surf_rts      => radiation_fields%get_field('sw_direct_surf_rts')
+  sw_down_blue_surf_rts   => radiation_fields%get_field('sw_down_blue_surf_rts')
+  sw_direct_blue_surf_rts => radiation_fields%get_field('sw_direct_blue_surf_rts')
+  lw_up_tile_rts          => radiation_fields%get_field('lw_up_tile_rts')
+  sw_up_tile_rts          => radiation_fields%get_field('sw_up_tile_rts')
+  sw_up_blue_tile_rts     => radiation_fields%get_field('sw_up_blue_tile_rts')
+  sw_heating_rate_rts     => radiation_fields%get_field('sw_heating_rate_rts')
+  lw_heating_rate_rts     => radiation_fields%get_field('lw_heating_rate_rts')
+  cos_zenith_angle_rts    => radiation_fields%get_field('cos_zenith_angle_rts')
+  lit_fraction_rts        => radiation_fields%get_field('lit_fraction_rts')
+  stellar_irradiance_rts  => radiation_fields%get_field('stellar_irradiance_rts')
 
   exner_in_wth        => derived_fields%get_field('exner_in_wth')
   rho_in_wth          => derived_fields%get_field('rho_in_wth')
   theta_in_w3         => derived_fields%get_field('theta_in_w3')
 
-  area_fraction       =>   cloud_fields%get_field('area_fraction')
-  liquid_fraction     =>   cloud_fields%get_field('liquid_fraction')
-  ice_fraction        =>   cloud_fields%get_field('ice_fraction')
-
-  cos_zenith_angle    =>    twod_fields%get_field('cos_zenith_angle')
-  lit_fraction        =>    twod_fields%get_field('lit_fraction')
-
-  lw_down_surf        =>   physics_incs%get_field('lw_down_surf')
-  sw_down_surf        =>   physics_incs%get_field('sw_down_surf')
-  sw_direct_surf      =>   physics_incs%get_field('sw_direct_surf')
-  sw_down_blue_surf   =>   physics_incs%get_field('sw_down_blue_surf')
-  sw_direct_blue_surf =>   physics_incs%get_field('sw_direct_blue_surf')
-  sw_heating_rate     =>   physics_incs%get_field('sw_heating_rate')
-  lw_heating_rate     =>   physics_incs%get_field('lw_heating_rate')
-
-  lw_down_surf_rts        => radstep_fields%get_field('lw_down_surf_rts')
-  sw_down_surf_rts        => radstep_fields%get_field('sw_down_surf_rts')
-  sw_direct_surf_rts      => radstep_fields%get_field('sw_direct_surf_rts')
-  sw_down_blue_surf_rts   => radstep_fields%get_field('sw_down_blue_surf_rts')
-  sw_direct_blue_surf_rts => radstep_fields%get_field('sw_direct_blue_surf_rts')
-  lw_up_tile_rts          => radstep_fields%get_field('lw_up_tile_rts')
-  sw_up_tile_rts          => radstep_fields%get_field('sw_up_tile_rts')
-  sw_up_blue_tile_rts     => radstep_fields%get_field('sw_up_blue_tile_rts')
-  sw_heating_rate_rts     => radstep_fields%get_field('sw_heating_rate_rts')
-  lw_heating_rate_rts     => radstep_fields%get_field('lw_heating_rate_rts')
-  cos_zenith_angle_rts    => radstep_fields%get_field('cos_zenith_angle_rts')
-  lit_fraction_rts        => radstep_fields%get_field('lit_fraction_rts')
-  stellar_irradiance_rts  => radstep_fields%get_field('stellar_irradiance_rts')
-
+  area_fraction       => cloud_fields%get_field('area_fraction')
+  liquid_fraction     => cloud_fields%get_field('liquid_fraction')
+  ice_fraction        => cloud_fields%get_field('ice_fraction')
 
   latitude  => get_latitude()
   longitude => get_longitude()

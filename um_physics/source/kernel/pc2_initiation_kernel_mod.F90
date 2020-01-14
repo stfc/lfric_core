@@ -205,7 +205,7 @@ subroutine pc2_initiation_code( nlayers,                           &
     real(r_um), dimension(row_length,rows,model_levels+1) ::   &
                   p_rho_levels
 
-    real(r_um), dimension(row_length,rows) :: t_n, p_star
+    real(r_um), dimension(row_length,rows) :: t_n, p_star, zlcl_mix
 
     integer(i_um) :: k
 
@@ -222,6 +222,8 @@ subroutine pc2_initiation_code( nlayers,                           &
     else
       l_cumulus(1,1) = .false.
     endif
+
+    zlcl_mix(1,1) = zlcl_mixed(map_2d(1))
 
     i_dummy=1
     zeros=0.0_r_um
@@ -303,7 +305,7 @@ subroutine pc2_initiation_code( nlayers,                           &
                             rhc_row_length,                &
                             rhc_rows,                      &
                             ! Pass in zlcl_mixed=zero for NOW
-                            zlcl_mixed(map_2d(1)),         &
+                            zlcl_mix,                      &
                             ! Model switches
                             l_mr_physics,                  &
                             ! SCM diagnostics switches

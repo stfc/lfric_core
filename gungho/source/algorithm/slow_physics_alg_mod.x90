@@ -50,8 +50,9 @@ module slow_physics_alg_mod
 
   ! Moisture species
   use mr_indices_mod,            only: nummr, imr_v, imr_cl, imr_ci
+  use enforce_lower_bound_kernel_mod, only: enforce_lower_bound_kernel_type
 
-  use fs_continuity_mod,         only: W2, W3, Wtheta
+  use fs_continuity_mod,         only: W2, W3
 
   use runtime_constants_mod,     only: get_rmultiplicity, &
                                        get_da_at_w2
@@ -66,19 +67,20 @@ module slow_physics_alg_mod
 
 
 #ifdef UM_PHYSICS
+  use glomap_aerosol_alg_mod,    only: glomap_aerosol_alg_step
   use mphys_alg_mod,             only: mphys_alg_step
   use illuminate_alg_mod,        only: illuminate_alg_step
   use rad_tile_alg_mod,          only: rad_tile_alg_step
   use radiation_alg_mod,         only: radiation_alg_step
-  use radiation_config_mod,      only: l_planet_grey_surface
+  use pc2_rad_response_alg_mod,  only: pc2_rad_response_alg_step
   use spectral_gwd_alg_mod,      only: spectral_gwd_alg_step
   use orographic_drag_alg_mod,   only: orographic_drag_alg_step
-  use pc2_rad_response_alg_mod,  only: pc2_rad_response_alg_step
-  use pc2_checks_alg_mod,        only: pc2_checks_alg_step
   use bl_exp_alg_mod,            only: bl_exp_alg_step
-  use glomap_aerosol_alg_mod,    only: glomap_aerosol_alg_step
+  use pc2_checks_alg_mod,        only: pc2_checks_alg_step
+
   use aerosol_config_mod,        only: c_aerosol,                              &
                                        c_aerosol_glomap_mode_climatology
+  use radiation_config_mod,      only: l_planet_grey_surface
 #endif
 
   implicit none
@@ -89,63 +91,68 @@ contains
   !>          before the outer loop of the solver
   !> @param[in,out] du                     Increment to wind field
   !> @param[in,out] dtheta                 Increment to theta field
+  !> @param[in,out] mr                     Mixing ratios to be updated
+  !> @param[in,out] visc_m                 Smagorinsky momentum diffusion coef
+  !> @param[in,out] visc_h                 Smagorinsky heat diffusion coef
   !> @param[in]     theta                  Theta field
   !> @param[in]     rho                    Rho on w3 space
   !> @param[in]     exner                  Exner pressure on w3 space
   !> @param[in]     mr_n                   Mixing ratios at start of timestep
-  !> @param[in,out] mr                     Mixing ratios to be updated
   !> @param[in]     derived_fields         Group of derived fields
-  !> @param[in,out] aerosol_fields         Group of aerosol fields
-  !> @param[in,out] cloud_fields           Group of cloud fields
-  !> @param[in,out] twod_fields            Group of 2D fields
-  !> @param[in,out] radstep_fields         Group of radiation timestep fields
-  !> @param[in,out] physics_incs           Group of physics increments
-  !> @param[in]     orography_fields       Group of 2D orography fields
-  !> @param[in,out] jules_ancils           Ancillary fields for Jules
-  !> @param[in,out] jules_prognostics      Prognostic fields for Jules
+  !> @param[in,out] radiation_fields       Fields for radiation scheme
+  !> @param[in,out] microphysics_fields    Fields for mphys scheme
+  !> @param[in]     orography_fields       Fields for orog drag scheme
+  !> @param[in,out] turbulence_fields      Fields for turbulence scheme
+  !> @param[in,out] convection_fields      Fields for convection scheme
+  !> @param[in,out] cloud_fields           Fields for cloud scheme
+  !> @param[in,out] surface_fields         Fields for surface scheme
+  !> @param[in,out] soil_fields            Fields for soil hydrology scheme
+  !> @param[in,out] snow_fields            Fields for snow scheme
+  !> @param[in,out] aerosol_fields         Fields for aerosol scheme
+  !> @param[in]     dA                     Areas of faces
   !> @param[in]     height_w3              Height in w3
   !> @param[in]     height_wth             Height in wth
   !> @param[in]     chi                    Coordinate array
+  !> @param[in]     delta                  Edge length on wtheta points
+  !> @param[in]     max_diff_smag          Maximum diffusion coef allowed
   !> @param[in]     timestep               Model timestep number
   !> @param[in]     twod_mesh_id           Identifier given to current 2d mesh
-  subroutine slow_physics( du, dtheta, theta, rho, exner, mr_n, mr,            &
-                           derived_fields, aerosol_fields,                     &
-                           cloud_fields, twod_fields,                          &
-                           radstep_fields, physics_incs, orography_fields,     &
-                           jules_ancils, jules_prognostics,                    &
-                           height_w3, height_wth, chi, timestep,               &
-                           shear, delta, max_diff_smag,                        &
-                           visc_m_blend, visc_h_blend,                         &
-                           twod_mesh_id )
+  subroutine slow_physics(du, dtheta, mr, visc_m, visc_h,                      &
+                          theta, rho, exner, mr_n, derived_fields,             &
+                          radiation_fields, microphysics_fields,               &
+                          orography_fields, turbulence_fields,                 &
+                          convection_fields, cloud_fields, surface_fields,     &
+                          soil_fields, snow_fields, aerosol_fields, dA,        &
+                          height_w3, height_wth, chi, delta, max_diff_smag,    &
+                          timestep, twod_mesh_id )
 
     implicit none
 
     ! Fields
-    type( field_type ), intent( inout ) :: du, dtheta
+    type( field_type ), intent( inout ) :: du, dtheta, visc_m, visc_h
     type( field_type ), intent( inout ) :: mr(nummr) ! To be modified by physics
     type( field_type ), intent( in )    :: theta, rho, exner
-    type( field_type ), intent( inout ) :: visc_m_blend, visc_h_blend
-    type( field_type ), intent( in )    :: shear, delta, max_diff_smag
+    type( field_type ), intent( in )    :: delta, max_diff_smag
 
     ! Field bundles
     type( field_type ), intent( in )    :: mr_n(nummr) ! Start of timestep
                                                        ! Do not alter
 
     ! Field groups
-    type( field_collection_type ), intent(inout) :: derived_fields
-    type( field_collection_type ), intent(inout) :: aerosol_fields
-    type( field_collection_type ), intent(inout) :: cloud_fields
-    type( field_collection_type ), intent(inout) :: twod_fields
-    type( field_collection_type ), intent(inout) :: radstep_fields
-    type( field_collection_type ), intent(inout) :: physics_incs
+    type( field_collection_type ), intent(in)    :: derived_fields
+    type( field_collection_type ), intent(inout) :: radiation_fields
+    type( field_collection_type ), intent(inout) :: microphysics_fields
     type( field_collection_type ), intent(in)    :: orography_fields
-
-    ! Surface fields
-    type( field_collection_type ), intent(inout) :: jules_ancils
-    type( field_collection_type ), intent(inout) :: jules_prognostics
+    type( field_collection_type ), intent(inout) :: turbulence_fields
+    type( field_collection_type ), intent(inout) :: convection_fields
+    type( field_collection_type ), intent(inout) :: cloud_fields
+    type( field_collection_type ), intent(inout) :: surface_fields
+    type( field_collection_type ), intent(inout) :: soil_fields
+    type( field_collection_type ), intent(inout) :: snow_fields
+    type( field_collection_type ), intent(inout) :: aerosol_fields
 
     ! Coordinate fields
-    type( field_type ), intent( in )    :: height_w3, height_wth
+    type( field_type ), intent( in )    :: dA, height_w3, height_wth
     type( field_type ), intent( in )    :: chi(3)
 
     integer, intent(in) :: twod_mesh_id
@@ -155,10 +162,9 @@ contains
 
     ! Local fields (should be created at initialization,
     !               but done here for the time being)
-    type( field_type ) :: dtheta_hs, dtheta_rad
+    type( field_type ) :: dtheta_hs, dtheta_rad, dtheta_mphys
     type( field_type ) :: du_hs
     type( field_type ) :: dmr_mphys(nummr)
-    type( field_type ) :: dtheta_mphys
     type( field_type ) :: du_tot_spectral_gwd, dtheta_spectral_gwd
     type( field_type ) :: du_tot_orographic_drag, dtheta_orographic_drag
     type( field_type ) :: tile_lw_albedo
@@ -166,7 +172,6 @@ contains
     type( field_type ) :: tile_sw_direct_albedo
 
     type( field_type ), pointer :: w2_rmultiplicity => null() ! 1/multiplicity of w2
-    type( field_type ), pointer :: dA => null() ! Areas of faces
 
     ! pointers to vector spaces
     type(function_space_type), pointer :: vector_space => null()
@@ -180,6 +185,7 @@ contains
     ! required:
     integer(i_def) :: alb_order = 4 ! Enough space for 125 spectral tiles
                                     ! (spectral bands * surface tiles)
+    integer(i_def) :: i_mr
 
     !Flags to indicate completed actions
     logical :: held_suarez_thermo_done ! Flag to indicate that held_suarez has been calculated
@@ -220,7 +226,6 @@ contains
     if ( subroutine_timers ) call timer("slow_physics")
 
     w2_rmultiplicity => get_rmultiplicity( W2 ) ! 1/multiplicity of w2
-    dA => get_da_at_w2() ! area of faces at w2
 
     held_suarez_thermo_done=.false.
     held_suarez_wind_done=.false.
@@ -283,10 +288,10 @@ contains
         call dcff_pc2_mphys%initialise( vector_space = theta%get_function_space() )
         call dbcf_pc2_mphys%initialise( vector_space = theta%get_function_space() )
 
-        call mphys_alg_step( mr_n, theta,  exner, height_w3, height_wth,    &
-                             derived_fields, cloud_fields, twod_fields,     &
-                             aerosol_fields,                                &
-                             dmr_mphys, dtheta_mphys, physics_incs,         &
+        call mphys_alg_step( mr_n, theta, exner, height_w3, height_wth,     &
+                             derived_fields, microphysics_fields,           &
+                             cloud_fields, aerosol_fields,                  &
+                             dmr_mphys, dtheta_mphys,                       &
                              dcfl_pc2_mphys, dcff_pc2_mphys, dbcf_pc2_mphys )
 
         ! N.B. Call to microphysics passes in mr_n, which is intent(in) and
@@ -310,7 +315,7 @@ contains
     if (radiation == radiation_socrates .and. &
         radiation_placement == radiation_placement_slow) then
       call log_event( 'slow_physics: Running Radiation', LOG_LEVEL_INFO )
-      call illuminate_alg_step(twod_fields, radstep_fields, timestep)
+      call illuminate_alg_step(radiation_fields, timestep)
 
       ! Use a temporary treatment for multi-dimensional fields using
       ! higher-order fields
@@ -320,18 +325,17 @@ contains
       call tile_lw_albedo%initialise(vector_space)
       if (.not.l_planet_grey_surface) then
         call rad_tile_alg_step(tile_sw_direct_albedo, tile_sw_diffuse_albedo,  &
-                               tile_lw_albedo, orography_fields,               &
-                               jules_ancils, jules_prognostics,                &
-                               derived_fields, twod_fields, height_w3)
+                               tile_lw_albedo, derived_fields,                 &
+                               radiation_fields, orography_fields,             &
+                               surface_fields, soil_fields, snow_fields,       &
+                               height_w3)
       end if
 
       call dtheta_rad%initialise( vector_space = theta%get_function_space() )
-      call radiation_alg_step(dtheta_rad, theta, exner, mr_n,                &
-                              jules_ancils, jules_prognostics,               &
-                              derived_fields, cloud_fields, twod_fields,     &
-                              radstep_fields, physics_incs,                  &
-                              height_w3, height_wth, timestep,               &
-                              tile_sw_direct_albedo, tile_sw_diffuse_albedo, &
+      call radiation_alg_step(dtheta_rad, theta, exner, mr_n,                  &
+                              derived_fields, radiation_fields, cloud_fields,  &
+                              surface_fields, height_w3, height_wth, timestep, &
+                              tile_sw_direct_albedo, tile_sw_diffuse_albedo,   &
                               tile_lw_albedo)
       radiation_done=.true.
       call dtheta_rad%log_minmax(LOG_LEVEL_INFO, 'slow physics: dtheta_rad')
@@ -368,7 +372,8 @@ contains
       call spectral_gwd_alg_step(du_tot_spectral_gwd, &
                                  dtheta_spectral_gwd, &
                                  derived_fields,      &
-                                 twod_fields,         &
+                                 microphysics_fields, &
+                                 convection_fields,   &
                                  theta,               &
                                  height_w3,           &
                                  height_wth)
@@ -394,11 +399,12 @@ contains
     if (boundary_layer == boundary_layer_um ) then
       ! Algorithm that calls the UM explicit Boundary Layer scheme
       call log_event( 'slow_physics: Running explicit Boundary layer', LOG_LEVEL_INFO )
-      call bl_exp_alg_step(theta, rho, mr_n, exner, shear, delta,             &
-                           max_diff_smag, height_w3, height_wth,              &
-                           derived_fields, cloud_fields, twod_fields,         &
-                           physics_incs, visc_m_blend, visc_h_blend,          &
-                           jules_ancils, jules_prognostics, orography_fields)
+      call bl_exp_alg_step(visc_m, visc_h, theta, rho, exner, mr_n,           &
+                           derived_fields, radiation_fields,                  &
+                           microphysics_fields, orography_fields,             &
+                           turbulence_fields, convection_fields, cloud_fields,&
+                           surface_fields, soil_fields, snow_fields,          &
+                           height_w3, height_wth, delta, max_diff_smag)
     end if
 #endif
 
@@ -499,6 +505,12 @@ contains
 
     call dtheta%log_minmax(LOG_LEVEL_INFO, 'slow physics: dtheta' )
     call du%log_minmax(LOG_LEVEL_INFO, 'slow physics: du' )
+
+    if (use_moisture) then
+      do i_mr = 1, nummr
+        call invoke( enforce_lower_bound_kernel_type (mr(i_mr), 0.0_r_def) )
+      end do
+    end if
 
     nullify( w2_rmultiplicity )
 

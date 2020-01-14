@@ -59,38 +59,13 @@
        <field id="checkpoint_m_ci" name="m_ci" long_name="m_ci" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
        <field id="checkpoint_m_s" name="m_s" long_name="m_s" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
        <field id="checkpoint_m_g" name="m_g" long_name="m_g" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_nd_nuc_sol" name="nd_nuc_sol" long_name="NUCLEATION_MODE_SOL_NUMBER" unit="1" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_nuc_sol_su" name="nuc_sol_su" long_name="NUCLEATION_MODE_SOL_H2SO4_MMR" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_nuc_sol_oc" name="nuc_sol_oc" long_name="NUCLEATION_MODE_SOL_OM_MMR" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_nd_ait_sol" name="nd_ait_sol" long_name="AITKEN_MODE_SOL_NUMBER" unit="1" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_ait_sol_su" name="ait_sol_su" long_name="AITKEN_MODE_SOL_H2SO4_MMR" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_ait_sol_bc" name="ait_sol_bc" long_name="AITKEN_MODE_SOL_BC_MMR" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_ait_sol_oc" name="ait_sol_oc" long_name="AITKEN_MODE_SOL_OM_MMR" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_nd_acc_sol" name="nd_acc_sol" long_name="ACCUMULATION_MODE_SOL_NUMBER" unit="1" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_acc_sol_su" name="acc_sol_su" long_name="ACCUMULATION_MODE_SOL_H2SO4_MMR" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_acc_sol_bc" name="acc_sol_bc" long_name="ACCUMULATION_MODE_SOL_BC_MMR" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_acc_sol_oc" name="acc_sol_oc" long_name="ACCUMULATION_MODE_SOL_OM_MMR" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_acc_sol_ss" name="acc_sol_ss" long_name="ACCUMULATION_MODE_SOL_SEA_SALT_MMR" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_nd_cor_sol" name="nd_cor_sol" long_name="COARSE_MODE_SOL_NUMBER" unit="1" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_cor_sol_su" name="cor_sol_su" long_name="COARSE_MODE_SOL_H2SO4_MMR" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_cor_sol_bc" name="cor_sol_bc" long_name="COARSE_MODE_SOL_BC_MMR" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_cor_sol_oc" name="cor_sol_oc" long_name="COARSE_MODE_SOL_OM_MMR" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_cor_sol_ss" name="cor_sol_ss" long_name="COARSE_MODE_SOL_SEA_SALT_MMR" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_nd_ait_ins" name="nd_ait_ins" long_name="AITKEN_MODE_INSOLUBLE_NUMBER" unit="1" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_ait_ins_bc" name="ins_sol_bc" long_name="AITKEN_MODE_INSOLUBLE_BC_MMR" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_ait_ins_oc" name="ins_sol_oc" long_name="AITKEN_MODE_INSOLUBLE_OM_MMR" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_area_fraction" name="area_fraction" long_name="area_fraction"  unit="1" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_ice_fraction" name="ice_fraction" long_name="ice_fraction"  unit="1" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_liquid_fraction" name="liquid_fraction" long_name="liquid_fraction"  unit="1" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_bulk_fraction" name="bulk_fraction" long_name="bulk_fraction"  unit="1" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_rh_crit_wth" name="rh_crit_wth" long_name="rh_crit_wth"  unit="1" domain_ref="checkpoint_Wtheta" />
        <field id="checkpoint_cca" name="cca" long_name="convective_cloud_amount"  unit="1" domain_ref="checkpoint_Wtheta" />
        <field id="checkpoint_ccw" name="ccw" long_name="convective_cloud_water"  unit="kg/kg" domain_ref="checkpoint_Wtheta" />
        <field id="checkpoint_tstar" name="tstar" long_name="tstar"  unit="K" domain_ref="checkpoint_W3_2D" />
        <field id="checkpoint_zh" name="zh" long_name="zh"  unit="m" domain_ref="checkpoint_W3_2D" />
        <field id="checkpoint_z0msea" name="z0msea" long_name="z0msea"  unit="m" domain_ref="checkpoint_W3_2D" />
-       <field id="checkpoint_conv_rain" name="conv_rain" long_name="conv_rain"  unit="kg m-2 s-1" domain_ref="checkpoint_W3_2D" />
-       <field id="checkpoint_conv_snow" name="conv_snow" long_name="conv_snow"  unit="kg m-2 s-1" domain_ref="checkpoint_W3_2D" />
+       <field id="checkpoint_conv_rain" name="conv_rain" long_name="surface_convective_rainfall_rate"  unit="kg m-2 s-1" domain_ref="checkpoint_W3_2D" />
+       <field id="checkpoint_conv_snow" name="conv_snow" long_name="surface_convective_snowfall_rate"  unit="kg m-2 s-1" domain_ref="checkpoint_W3_2D" />
        <field id="checkpoint_sd_orog" name="sd_orog" long_name="sd_orog"  unit="m" domain_ref="checkpoint_W3_2D" />
        <field id="checkpoint_grad_xx_orog" name="grad_xx_orog" long_name="grad_xx_orog"  unit="1" domain_ref="checkpoint_W3_2D" />
        <field id="checkpoint_grad_xy_orog" name="grad_xy_orog" long_name="grad_xy_orog"  unit="1" domain_ref="checkpoint_W3_2D" />
@@ -107,7 +82,7 @@
        <field id="wetrho_in_wth" name="wetrho_in_wth" long_name="wet air density on wtheta points" standard_name="air_density" unit="kg m-3" grid_ref="full_level_face_grid" />
        <field id="exner_in_wth" name="exner_in_wth" long_name="Exner pressure on wtheta points" standard_name="air_pressure" unit="1" grid_ref="full_level_face_grid" />
        <field id="theta_star" name="theta_star" long_name="air potential temperature: physics predictor" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
-
+       <field id="shear" name="shear" long_name="3D wind shear" unit="s-1" grid_ref="full_level_face_grid" />
        <field id="u1_in_w3" name="u1_in_w3" long_name="physics U wind on W3 points" standard_name="eastward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
        <field id="u2_in_w3" name="u2_in_w3" long_name="physics V wind on W3 points" standard_name="northward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
        <field id="u3_in_w3" name="u3_in_w3" long_name="physics W wind on W3 points" standard_name="upward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
@@ -126,7 +101,7 @@
        <field id="init_wetrho_in_wth" name="wetrho_in_wth" long_name="wet air density on wtheta points" standard_name="air_density" unit="kg m-3" grid_ref="full_level_face_grid" />
        <field id="init_exner_in_wth" name="exner_in_wth" long_name="Exner pressure on wtheta points" standard_name="air_pressure" unit="1" grid_ref="full_level_face_grid" />
        <field id="init_theta_star" name="theta_star" long_name="air potential temperature: physics predictor" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
-
+       <field id="init_shear" name="shear" long_name="3D wind shear" unit="s-1" grid_ref="full_level_face_grid" />
        <field id="init_u1_in_w3" name="u1_in_w3" long_name="physics U wind on W3 points" standard_name="eastward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
        <field id="init_u2_in_w3" name="u2_in_w3" long_name="physics V wind on W3 points" standard_name="northward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
        <field id="init_u3_in_w3" name="u3_in_w3" long_name="physics W wind on W3 points" standard_name="upward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
@@ -140,42 +115,12 @@
      <!-- Main diagnostic group -->
      <field_group id="diagnostic_fields" freq_op="1ts" operation="instant" enabled=".TRUE." >
        <field id="theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
-       <field id="dt_bl" name="dt_bl" long_name="BL temperature increment" unit="K" grid_ref="full_level_face_grid" />
-       <field id="dmv_bl" name="dmv_bl" long_name="BL vapour increment" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="dt_conv" name="dt_conv" long_name="Convection temperature increment" unit="K" grid_ref="full_level_face_grid" />
-       <field id="dmv_conv" name="dmv_conv" long_name="Convection vapour increment" unit="kg/kg" grid_ref="full_level_face_grid" />
        <field id="m_v" name="m_v" long_name="m_v" unit="kg/kg" grid_ref="full_level_face_grid" />
        <field id="m_cl" name="m_cl" long_name="m_cl" unit="kg/kg" grid_ref="full_level_face_grid" />
        <field id="m_r" name="m_r" long_name="m_r" unit="kg/kg" grid_ref="full_level_face_grid" />
        <field id="m_ci" name="m_ci" long_name="m_ci" unit="kg/kg" grid_ref="full_level_face_grid" />
        <field id="m_s" name="m_s" long_name="m_s"  unit="kg/kg" grid_ref="full_level_face_grid" />
        <field id="m_g" name="m_g" long_name="m_g"  unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="nd_nuc_sol" name="nd_nuc_sol" long_name="NUCLEATION_MODE_SOL_NUMBER" unit="1" grid_ref="full_level_face_grid" />
-       <field id="nuc_sol_su" name="nuc_sol_su" long_name="NUCLEATION_MODE_SOL_H2SO4_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="nuc_sol_oc" name="nuc_sol_oc" long_name="NUCLEATION_MODE_SOL_OM_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="nd_ait_sol" name="nd_ait_sol" long_name="AITKEN_MODE_SOL_NUMBER" unit="1" grid_ref="full_level_face_grid" />
-       <field id="ait_sol_su" name="ait_sol_su" long_name="AITKEN_MODE_SOL_H2SO4_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="ait_sol_bc" name="ait_sol_bc" long_name="AITKEN_MODE_SOL_BC_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="ait_sol_oc" name="ait_sol_oc" long_name="AITKEN_MODE_SOL_OM_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="nd_acc_sol" name="nd_acc_sol" long_name="ACCUMULATION_MODE_SOL_NUMBER" unit="1" grid_ref="full_level_face_grid" />
-       <field id="acc_sol_su" name="acc_sol_su" long_name="ACCUMULATION_MODE_SOL_H2SO4_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="acc_sol_bc" name="acc_sol_bc" long_name="ACCUMULATION_MODE_SOL_BC_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="acc_sol_oc" name="acc_sol_oc" long_name="ACCUMULATION_MODE_SOL_OM_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="acc_sol_ss" name="acc_sol_ss" long_name="ACCUMULATION_MODE_SOL_SEA_SALT_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="nd_cor_sol" name="nd_cor_sol" long_name="COARSE_MODE_SOL_NUMBER" unit="1" grid_ref="full_level_face_grid" />
-       <field id="cor_sol_su" name="cor_sol_su" long_name="COARSE_MODE_SOL_H2SO4_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="cor_sol_bc" name="cor_sol_bc" long_name="COARSE_MODE_SOL_BC_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="cor_sol_oc" name="cor_sol_oc" long_name="COARSE_MODE_SOL_OM_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="cor_sol_ss" name="cor_sol_ss" long_name="COARSE_MODE_SOL_SEA_SALT_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="nd_ait_ins" name="nd_ait_ins" long_name="AITKEN_MODE_INSOLUBLE_NUMBER" unit="1" grid_ref="full_level_face_grid" />
-       <field id="ait_ins_bc" name="ins_sol_bc" long_name="AITKEN_MODE_INSOLUBLE_BC_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="ait_ins_oc" name="ins_sol_oc" long_name="AITKEN_MODE_INSOLUBLE_OM_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="cloud_drop_no_conc" name="cloud_drop_no_conc" long_name="CLOUD_DROPLET_NUMBER_CONCENTRATION" unit="m-3" grid_ref="full_level_face_grid" />
-       <field id="area_fraction" name="area_fraction" long_name="area_fraction" unit="1" grid_ref="full_level_face_grid" />
-       <field id="ice_fraction" name="ice_fraction" long_name="ice_fraction" unit="1" grid_ref="full_level_face_grid" />
-       <field id="liquid_fraction" name="liquid_fraction" long_name="liquid_fraction" unit="1" grid_ref="full_level_face_grid" />
-       <field id="bulk_fraction" name="bulk_fraction" long_name="bulk_fraction" unit="1" grid_ref="full_level_face_grid" />
-       <field id="rh_crit_wth" name="rh_crit_wth" long_name="rh_crit_wth" unit="1" grid_ref="full_level_face_grid" />
        <field id="rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
        <field id="xi1" name="xi1" long_name="Xi1" unit="s-1" grid_ref="half_level_face_grid" />
        <field id="xi2" name="xi2" long_name="Xi2" unit="s-1" grid_ref="half_level_face_grid" />
@@ -196,34 +141,6 @@
        <field id="init_m_ci" name="m_ci" long_name="m_ci" unit="kg/kg" grid_ref="full_level_face_grid" />
        <field id="init_m_s" name="m_s" long_name="m_s"  unit="kg/kg" grid_ref="full_level_face_grid" />
        <field id="init_m_g" name="m_g" long_name="m_g"  unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="init_nd_nuc_sol" name="nd_nuc_sol" long_name="NUCLEATION_MODE_SOL_NUMBER" unit="1" grid_ref="full_level_face_grid" />
-       <field id="init_nuc_sol_su" name="nuc_sol_su" long_name="NUCLEATION_MODE_SOL_H2SO4_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="init_nuc_sol_oc" name="nuc_sol_oc" long_name="NUCLEATION_MODE_SOL_OM_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="init_nd_ait_sol" name="nd_ait_sol" long_name="AITKEN_MODE_SOL_NUMBER" unit="1" grid_ref="full_level_face_grid" />
-       <field id="init_ait_sol_su" name="ait_sol_su" long_name="AITKEN_MODE_SOL_H2SO4_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="init_ait_sol_bc" name="ait_sol_bc" long_name="AITKEN_MODE_SOL_BC_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="init_ait_sol_oc" name="ait_sol_oc" long_name="AITKEN_MODE_SOL_OM_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="init_nd_acc_sol" name="nd_acc_sol" long_name="ACCUMULATION_MODE_SOL_NUMBER" unit="1" grid_ref="full_level_face_grid" />
-       <field id="init_acc_sol_su" name="acc_sol_su" long_name="ACCUMULATION_MODE_SOL_H2SO4_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="init_acc_sol_bc" name="acc_sol_bc" long_name="ACCUMULATION_MODE_SOL_BC_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="init_acc_sol_oc" name="acc_sol_oc" long_name="ACCUMULATION_MODE_SOL_OM_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="init_acc_sol_ss" name="acc_sol_ss" long_name="ACCUMULATION_MODE_SOL_SEA_SALT_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="init_nd_cor_sol" name="nd_cor_sol" long_name="COARSE_MODE_SOL_NUMBER" unit="1" grid_ref="full_level_face_grid" />
-       <field id="init_cor_sol_su" name="cor_sol_su" long_name="COARSE_MODE_SOL_H2SO4_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="init_cor_sol_bc" name="cor_sol_bc" long_name="COARSE_MODE_SOL_BC_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="init_cor_sol_oc" name="cor_sol_oc" long_name="COARSE_MODE_SOL_OM_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="init_cor_sol_ss" name="cor_sol_ss" long_name="COARSE_MODE_SOL_SEA_SALT_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="init_nd_ait_ins" name="nd_ait_ins" long_name="AITKEN_MODE_INSOLUBLE_NUMBER" unit="1" grid_ref="full_level_face_grid" />
-       <field id="init_ait_ins_bc" name="ins_sol_bc" long_name="AITKEN_MODE_INSOLUBLE_BC_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="init_ait_ins_oc" name="ins_sol_oc" long_name="AITKEN_MODE_INSOLUBLE_OM_MMR" unit="kg/kg" grid_ref="full_level_face_grid" />
-       <field id="init_cloud_drop_no_conc" name="cloud_drop_no_conc" long_name="CLOUD_DROPLET_NUMBER_CONCENTRATION" unit="m-3" grid_ref="full_level_face_grid" />
-       <field id="init_area_fraction" name="area_fraction" long_name="area_fraction"  unit="1" grid_ref="full_level_face_grid" />
-       <field id="init_ice_fraction" name="ice_fraction" long_name="ice_fraction"  unit="1" grid_ref="full_level_face_grid" />
-       <field id="init_liquid_fraction" name="liquid_fraction" long_name="liquid_fraction"  unit="1" grid_ref="full_level_face_grid" />
-       <field id="init_bulk_fraction" name="bulk_fraction" long_name="bulk_fraction"  unit="1" grid_ref="full_level_face_grid" />
-       <field id="init_rh_crit_wth" name="rh_crit_wth" long_name="rh_crit_wth"  unit="1" grid_ref="full_level_face_grid" />
-       <field id="init_cca" name="cca" long_name="convective_cloud_amount"  unit="1" grid_ref="full_level_face_grid" />
-       <field id="init_ccw" name="ccw" long_name="convective_cloud_water"  unit="1" grid_ref="full_level_face_grid" />
        <field id="init_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
        <field id="init_xi1" name="xi1" long_name="Xi1" unit="s-1" grid_ref="half_level_face_grid" />
        <field id="init_xi2" name="xi2" long_name="Xi2" unit="s-1" grid_ref="half_level_face_grid" />
@@ -235,6 +152,7 @@
        <field id="init_exner" name="exner" long_name="exner_pressure" unit="1" grid_ref="half_level_face_grid" />
      </field_group>
 
+     
    </field_definition>
 
    <file_definition
@@ -256,31 +174,6 @@
         <field field_ref="checkpoint_m_ci"/>
         <field field_ref="checkpoint_m_s"/>
         <field field_ref="checkpoint_m_g"/>
-        <field field_ref="checkpoint_nd_nuc_sol"/>
-        <field field_ref="checkpoint_nuc_sol_su"/>
-        <field field_ref="checkpoint_nuc_sol_oc"/>
-        <field field_ref="checkpoint_nd_ait_sol"/>
-        <field field_ref="checkpoint_ait_sol_su"/>
-        <field field_ref="checkpoint_ait_sol_bc"/>
-        <field field_ref="checkpoint_ait_sol_oc"/>
-        <field field_ref="checkpoint_nd_acc_sol"/>
-        <field field_ref="checkpoint_acc_sol_su"/>
-        <field field_ref="checkpoint_acc_sol_bc"/>
-        <field field_ref="checkpoint_acc_sol_oc"/>
-        <field field_ref="checkpoint_acc_sol_ss"/>
-        <field field_ref="checkpoint_nd_cor_sol"/>
-        <field field_ref="checkpoint_cor_sol_su"/>
-        <field field_ref="checkpoint_cor_sol_bc"/>
-        <field field_ref="checkpoint_cor_sol_oc"/>
-        <field field_ref="checkpoint_cor_sol_ss"/>
-        <field field_ref="checkpoint_nd_ait_ins"/>
-        <field field_ref="checkpoint_ait_ins_bc"/>
-        <field field_ref="checkpoint_ait_ins_oc"/>
-        <field field_ref="checkpoint_area_fraction"/>
-        <field field_ref="checkpoint_ice_fraction"/>
-        <field field_ref="checkpoint_liquid_fraction"/>
-        <field field_ref="checkpoint_bulk_fraction"/>
-        <field field_ref="checkpoint_rh_crit_wth"/>
         <field field_ref="checkpoint_cca"/>
         <field field_ref="checkpoint_ccw"/>
         <field field_ref="checkpoint_tstar"/>
@@ -294,7 +187,7 @@
         <field field_ref="checkpoint_grad_yy_orog"/>
         <field field_ref="checkpoint_peak_to_trough_orog"/>
         <field field_ref="checkpoint_silhouette_area_orog"/>
-      </file>
+        </file>
 
        <!-- file definition for checkpoint read -->
       <file id="lfric_checkpoint_read" name="lfric_checkpoint_read" mode="read" output_freq="1ts" cyclic="true" enabled=".FALSE.">
@@ -308,38 +201,13 @@
        <field id="restart_m_ci" name="m_ci" long_name="m_ci" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
        <field id="restart_m_s" name="m_s" long_name="m_s" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
        <field id="restart_m_g" name="m_g" long_name="m_g" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_nd_nuc_sol" name="nd_nuc_sol" long_name="NUCLEATION_MODE_SOL_NUMBER" unit="1" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_nuc_sol_su" name="nuc_sol_su" long_name="NUCLEATION_MODE_SOL_H2SO4_MMR" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_nuc_sol_oc" name="nuc_sol_oc" long_name="NUCLEATION_MODE_SOL_OM_MMR" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_nd_ait_sol" name="nd_ait_sol" long_name="AITKEN_MODE_SOL_NUMBER" unit="1" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_ait_sol_su" name="ait_sol_su" long_name="AITKEN_MODE_SOL_H2SO4_MMR" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_ait_sol_bc" name="ait_sol_bc" long_name="AITKEN_MODE_SOL_BC_MMR" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_ait_sol_oc" name="ait_sol_oc" long_name="AITKEN_MODE_SOL_OM_MMR" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_nd_acc_sol" name="nd_acc_sol" long_name="ACCUMULATION_MODE_SOL_NUMBER" unit="1" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_acc_sol_su" name="acc_sol_su" long_name="ACCUMULATION_MODE_SOL_H2SO4_MMR" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_acc_sol_bc" name="acc_sol_bc" long_name="ACCUMULATION_MODE_SOL_BC_MMR" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_acc_sol_oc" name="acc_sol_oc" long_name="ACCUMULATION_MODE_SOL_OM_MMR" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_acc_sol_ss" name="acc_sol_ss" long_name="ACCUMULATION_MODE_SOL_SEA_SALT_MMR" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_nd_cor_sol" name="nd_cor_sol" long_name="COARSE_MODE_SOL_NUMBER" unit="1" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_cor_sol_su" name="cor_sol_su" long_name="COARSE_MODE_SOL_H2SO4_MMR" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_cor_sol_bc" name="cor_sol_bc" long_name="COARSE_MODE_SOL_BC_MMR" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_cor_sol_oc" name="cor_sol_oc" long_name="COARSE_MODE_SOL_OM_MMR" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_cor_sol_ss" name="cor_sol_ss" long_name="COARSE_MODE_SOL_SEA_SALT_MMR" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_nd_ait_ins" name="nd_ait_ins" long_name="AITKEN_MODE_INSOLUBLE_NUMBER" unit="1" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_ait_ins_bc" name="ins_sol_bc" long_name="AITKEN_MODE_INSOLUBLE_BC_MMR" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_ait_ins_oc" name="ins_sol_oc" long_name="AITKEN_MODE_INSOLUBLE_OM_MMR" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_area_fraction" name="area_fraction" long_name="area_fraction" unit="1" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_ice_fraction" name="ice_fraction" long_name="ice_fraction" unit="1" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_liquid_fraction" name="liquid_fraction" long_name="liquid_fraction" unit="1" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_bulk_fraction" name="bulk_fraction" long_name="bulk_fraction" unit="1" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_rh_crit_wth" name="rh_crit_wth" long_name="rh_crit_wth" unit="1" operation="instant" domain_ref="checkpoint_Wtheta" />
        <field id="restart_cca" name="cca" long_name="convective_cloud_amount" unit="1" operation="instant" domain_ref="checkpoint_Wtheta" />
        <field id="restart_ccw" name="ccw" long_name="convective_cloud_water" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
        <field id="restart_tstar" name="tstar" long_name="tstar" unit="K" operation="instant" domain_ref="checkpoint_W3_2D" />
        <field id="restart_zh" name="zh" long_name="zh" unit="m" operation="instant" domain_ref="checkpoint_W3_2D" />
        <field id="restart_z0msea" name="z0msea" long_name="z0msea" unit="m" operation="instant" domain_ref="checkpoint_W3_2D" />
-       <field id="restart_conv_rain" name="conv_rain" long_name="conv_rain" unit="kg m-2 s-1" operation="instant" domain_ref="checkpoint_W3_2D" />
-       <field id="restart_conv_snow" name="conv_snow" long_name="conv_snow" unit="kg m-2 s-1" operation="instant" domain_ref="checkpoint_W3_2D" />
+       <field id="restart_conv_rain" name="conv_rain" long_name="surface_convective_rainfall_rate" unit="kg m-2 s-1" operation="instant" domain_ref="checkpoint_W3_2D" />
+       <field id="restart_conv_snow" name="conv_snow" long_name="surface_convective_snowfall_rate" unit="kg m-2 s-1" operation="instant" domain_ref="checkpoint_W3_2D" />
        <field id="restart_sd_orog" name="sd_orog" long_name="sd_orog"  unit="m" operation="instant" domain_ref="checkpoint_W3_2D" />
        <field id="restart_grad_xx_orog" name="grad_xx_orog" long_name="grad_xx_orog"  unit="1" operation="instant" domain_ref="checkpoint_W3_2D" />
        <field id="restart_grad_xy_orog" name="grad_xy_orog" long_name="grad_xy_orog"  unit="1" operation="instant" domain_ref="checkpoint_W3_2D" />
@@ -348,45 +216,16 @@
        <field id="restart_silhouette_area_orog" name="silhouette_area_orog" long_name="silhouette_area_orog"  unit="m" operation="instant" domain_ref="checkpoint_W3_2D" />
       </file>
 
+
       <file id="lfric_diag" name="lfric_diag" output_freq="10ts" convention="UGRID" enabled=".TRUE.">
-        <field_group group_ref="derived_fields" />
+	<field_group group_ref="derived_fields" />
         <field field_ref="theta"/>
-        <field field_ref="dt_bl"/>
-        <field field_ref="dmv_bl"/>
-        <field field_ref="dt_conv"/>
-        <field field_ref="dmv_conv"/>
         <field field_ref="m_v"/>
         <field field_ref="m_cl"/>
         <field field_ref="m_r"/>
         <field field_ref="m_ci"/>
         <field field_ref="m_s"/>
         <field field_ref="m_g"/>
-        <field field_ref="nd_nuc_sol"/>
-        <field field_ref="nuc_sol_su"/>
-        <field field_ref="nuc_sol_oc"/>
-        <field field_ref="nd_ait_sol"/>
-        <field field_ref="ait_sol_su"/>
-        <field field_ref="ait_sol_bc"/>
-        <field field_ref="ait_sol_oc"/>
-        <field field_ref="nd_acc_sol"/>
-        <field field_ref="acc_sol_su"/>
-        <field field_ref="acc_sol_bc"/>
-        <field field_ref="acc_sol_oc"/>
-        <field field_ref="acc_sol_ss"/>
-        <field field_ref="nd_cor_sol"/>
-        <field field_ref="cor_sol_su"/>
-        <field field_ref="cor_sol_bc"/>
-        <field field_ref="cor_sol_oc"/>
-        <field field_ref="cor_sol_ss"/>
-        <field field_ref="nd_ait_ins"/>
-        <field field_ref="ait_ins_bc"/>
-        <field field_ref="ait_ins_oc"/>
-        <field field_ref="cloud_drop_no_conc"/>
-        <field field_ref="area_fraction"/>
-        <field field_ref="ice_fraction"/>
-        <field field_ref="liquid_fraction"/>
-        <field field_ref="bulk_fraction"/>
-        <field field_ref="rh_crit_wth"/>
         <field field_ref="rho"/>
         <field field_ref="xi1"/>
         <field field_ref="xi2"/>
@@ -416,11 +255,6 @@
         <field field_ref="init_m_ci"/>
         <field field_ref="init_m_s"/>
         <field field_ref="init_m_g"/>
-        <field field_ref="init_area_fraction"/>
-        <field field_ref="init_ice_fraction"/>
-        <field field_ref="init_liquid_fraction"/>
-        <field field_ref="init_bulk_fraction"/>
-        <field field_ref="init_rh_crit_wth"/>
         <field field_ref="init_rho"/>
         <field field_ref="init_xi1"/>
         <field field_ref="init_xi2"/>

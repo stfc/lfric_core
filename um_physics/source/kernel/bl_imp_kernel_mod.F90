@@ -510,7 +510,7 @@ contains
          dtstar_sea, ice_fract, tstar_sice, dtstar_sice, alpha1_sea,         &
          ashtf_prime_sea, bl_type_1, bl_type_2, bl_type_3, bl_type_4,        &
          bl_type_5, bl_type_6, bl_type_7, chr1p5m_sice, flandg, rhokh_sea,   &
-         u_s, z0hssi, z0mssi, zhnl
+         u_s, z0hssi, z0mssi, zhnl, zlcl_mix
 
     ! single level real fields on u/v points
     real(r_um), dimension(row_length,rows) :: u_0, v_0, rhokm_u_land,        &
@@ -1096,7 +1096,7 @@ contains
           , radnet_sice,olr,tstar_sice_sicat,tstar_ssi                  &
           , tstar_sea,taux_land,taux_ssi,tauy_land,tauy_ssi,Error_code  &
     ! OUT fields
-          , surf_ht_flux_land, zlcl_mixed(map_2d(1))                    &
+          , surf_ht_flux_land, zlcl_mix                                 &
           , theta_star_surf, qv_star_surf                               &
     ! OUT additional variables for JULES
           , tstar, ti_sicat, ext, snowmelt,tstar_land,tstar_sice, ei_surft &
@@ -1325,7 +1325,7 @@ contains
           , radnet_sice,olr,tstar_sice_sicat,tstar_ssi                  &
           , tstar_sea,taux_land,taux_ssi,tauy_land,tauy_ssi,Error_code  &
     ! OUT fields
-          , surf_ht_flux_land, zlcl_mixed                               &
+          , surf_ht_flux_land, zlcl_mix                                 &
           , theta_star_surf, qv_star_surf                               &
     ! OUT additional variables for JULES
           , tstar, ti_sicat, ext, snowmelt,tstar_land,tstar_sice, ei_surft &
@@ -1389,6 +1389,8 @@ contains
 
     ! update BL prognostics
     if (outer == outer_iterations) then
+
+      zlcl_mixed(map_2d(1)) = zlcl_mix(1,1)
 
       i_tile = 0
       do i = first_land_tile, first_land_tile + n_land_tile - 1

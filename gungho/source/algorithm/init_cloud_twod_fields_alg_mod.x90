@@ -32,17 +32,26 @@ contains
   !>          restart file is used. Also, rh_crit is set to the namelist value here.
   !>          In case a restart/checkpoint file is used, clouds, twod fields
   !>          and rh_crit will be initialised to the values in this restart/checkpoint file
-  !> @param[in,out] cloud_fields Cloud related fields
-  !> @param[in,out] twod_fields  Two dimensional fields
-  subroutine init_cloud_twod_fields_alg(cloud_fields, twod_fields)
+  !> @param[in,out] radition_fields Collection of fields for radiation scheme
+  !> @param[in,out] microphysics_fields Collection of fields for mphys scheme
+  !> @param[in,out] turbulence_fields Collection of fields for turbulence scheme
+  !> @param[in,out] convection_fields Collection of fields for convection scheme
+  !> @param[in,out] cloud_fields Collection of fields for cloud scheme
+  !> @param[in,out] surface_fields Collection of fields for surface scheme
+  subroutine init_cloud_twod_fields_alg(radiation_fields, microphysics_fields, &
+                                        turbulence_fields, convection_fields,  &
+                                        cloud_fields, surface_fields)
 
     use initial_cloud_kernel_mod,        only: initial_cloud_kernel_type
 
     implicit none
 
-    ! Moist fields
-    type( field_collection_type ), intent( inout ) :: cloud_fields,twod_fields
-    ! Prognostic fields
+    type(field_collection_type), intent(inout) :: radiation_fields
+    type(field_collection_type), intent(inout) :: microphysics_fields
+    type(field_collection_type), intent(inout) :: turbulence_fields
+    type(field_collection_type), intent(inout) :: convection_fields
+    type(field_collection_type), intent(inout) :: cloud_fields
+    type(field_collection_type), intent(inout) :: surface_fields
 
     type( field_type ), pointer :: tstar_twod  => null()
     type( field_type ), pointer :: zh_twod  => null()
@@ -54,18 +63,18 @@ contains
     type( field_type ), pointer :: cos_zenith_angle  => null()
     !=== Initialise twod fields ==================================!
 
-    tstar_twod => twod_fields%get_field('tstar')
-    zh_twod => twod_fields%get_field('zh')
-    z0msea_twod => twod_fields%get_field('z0msea')
-    conv_rain_twod => twod_fields%get_field('conv_rain')
-    conv_snow_twod => twod_fields%get_field('conv_snow')
-    ls_rain_twod => twod_fields%get_field('ls_rain')
-    ls_snow_twod => twod_fields%get_field('ls_snow')
-    cos_zenith_angle => twod_fields%get_field('cos_zenith_angle')
+    tstar_twod => surface_fields%get_field('tstar')
+    zh_twod => turbulence_fields%get_field('zh')
+    z0msea_twod => surface_fields%get_field('z0msea')
+    conv_rain_twod => convection_fields%get_field('conv_rain')
+    conv_snow_twod => convection_fields%get_field('conv_snow')
+    ls_rain_twod => microphysics_fields%get_field('ls_rain')
+    ls_snow_twod => microphysics_fields%get_field('ls_snow')
+    cos_zenith_angle => radiation_fields%get_field('cos_zenith_angle')
 
     call log_event( "Gungho: Initialising cloud fields", LOG_LEVEL_INFO )
 
-    call initial_cloud_alg(cloud_fields)
+    call initial_cloud_alg(convection_fields, cloud_fields)
 
     call log_event( "Gungho: Initialised cloud fields", LOG_LEVEL_INFO )
 

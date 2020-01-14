@@ -11,10 +11,17 @@ module map_physics_fields_alg_mod
   use field_mod,                only: field_type
   use field_collection_mod,     only: field_collection_type
   use physics_mappings_alg_mod, only: map_physics_winds, map_physics_scalars
-  use formulation_config_mod,   only: use_wavedynamics
   use mr_indices_mod,           only: nummr
   use wetrho_kernel_mod,        only: wetrho_kernel_type
+  use extract_w_kernel_mod,     only: extract_w_kernel_type
+  use smagorinsky_shear_kernel_mod, only: smagorinsky_shear_kernel_type
+  use mixing_config_mod,            only: smagorinsky
 
+  use log_mod,                   only: log_event,         &
+                                       LOG_LEVEL_INFO
+
+  use io_config_mod,             only: subroutine_timers
+  use timer_mod,                 only: timer
 
   implicit none
 
@@ -31,14 +38,23 @@ contains
   !> @param[in]    rho Density
   !> @param[in]    theta Potential temperature
   !> @param[in]    mr mixing ratios
+  !> @param[in]    dA         Areas of faces
+  !> @param[in]    height_wth Height of wth space
+  !> @param[in]    height_w3  Height of w3 space
+  !> @param[in]    chi        Coordinate array
   !> @param[inout] derived_fields Group of derived fields
-  subroutine map_physics_fields_alg(u, exner, rho, theta, mr, &
+  subroutine map_physics_fields_alg(u, exner, rho, theta, mr, dA, &
+                                    height_wth, height_w3, chi,   &
                                     derived_fields)
     implicit none
     ! Prognostic fields
     type( field_type ), intent(in)               :: u, rho, theta, exner
     type( field_type ), intent(in)               :: mr ( nummr )
     type( field_collection_type ), intent(inout) :: derived_fields
+
+    ! Coordinate fields
+    type( field_type ), intent( in )    :: dA, height_w3, height_wth
+    type( field_type ), intent( in )    :: chi(3)
 
     type( field_type ), pointer :: theta_in_w3 => null()
     type( field_type ), pointer :: rho_in_wth => null()
@@ -48,6 +64,11 @@ contains
     type( field_type ), pointer :: u1_in_w3 => null()
     type( field_type ), pointer :: u2_in_w3 => null()
     type( field_type ), pointer :: u3_in_w3 => null()
+    type( field_type ), pointer :: u_physics => null()
+    type( field_type ), pointer :: w_physics => null()
+    type( field_type ), pointer :: shear => null()
+
+    if ( subroutine_timers ) call timer("map_physics_fields")
 
     theta_in_w3 => derived_fields%get_field('theta_in_w3')
     call map_physics_scalars(theta_in_w3, theta)
@@ -71,6 +92,27 @@ contains
     u2_in_w3 => derived_fields%get_field('u2_in_w3')
     u3_in_w3 => derived_fields%get_field('u3_in_w3')
     call map_physics_winds(u1_in_w3, u2_in_w3, u3_in_w3, u)
+
+    u_physics => derived_fields%get_field('u_physics')
+    w_physics => derived_fields%get_field('w_physics')
+    ! map dynamics winds into physics space
+    call invoke(         X_divideby_Y(u_physics, u, dA), &
+                extract_w_kernel_type(w_physics, u_physics) )
+    call u_physics%log_minmax(LOG_LEVEL_INFO, 'u_physics')
+    call w_physics%log_minmax(LOG_LEVEL_INFO, 'w_physics')
+
+    if ( smagorinsky ) then
+      call log_event( 'Calculate 3D shear', LOG_LEVEL_INFO )
+      ! Calculate 3D shear
+      shear => derived_fields%get_field('shear')
+      call invoke(smagorinsky_shear_kernel_type( shear,         &
+                                                 u_physics,  1, &
+                                                 height_wth, 1, &
+                                                 height_w3,  1, &
+                                                 chi ) )
+    end if
+
+    if ( subroutine_timers ) call timer("map_physics_fields")
 
   end subroutine map_physics_fields_alg
 

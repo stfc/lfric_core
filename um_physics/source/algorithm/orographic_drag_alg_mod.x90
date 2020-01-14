@@ -28,8 +28,8 @@ contains
   !> @details Run the orographic drag parametrization scheme
   !> @param[in,out] du_tot_orographic_drag Increment to total (3D) wind field
   !> @param[in,out] dtheta_orographic_drag Increment to theta field
-  !> @param[in,out] derived fields         Group of derived fields
-  !> @param[in]     orography_fields       Group of orography fields
+  !> @param[in]     derived fields         Group of derived fields
+  !> @param[in]     orography_fields       Fields for orographic drag scheme
   !> @param[in]     theta                  Potential temperature in wtheta
   !> @param[in]     height_w3              Height on w3
   !> @param[in]     height_wth             Height on wtheta
@@ -45,7 +45,7 @@ contains
 
     type( field_type ), intent( inout ) :: du_tot_orographic_drag
     type( field_type ), intent( inout ) :: dtheta_orographic_drag
-    type( field_collection_type ), intent(inout) :: derived_fields
+    type( field_collection_type ), intent(in) :: derived_fields
     type( field_collection_type ), intent(in) :: orography_fields
     type( field_type ), intent(in) :: theta
     type( field_type ), intent(in) :: height_w3
@@ -73,6 +73,7 @@ contains
     type( field_type ), pointer :: u2_in_w3     => null()
     type( field_type ), pointer :: exner_in_wth => null()
     type( field_type ), pointer :: wetrho_in_w3 => null()
+
     type( field_type ), pointer :: sd_orog      => null()
     type( field_type ), pointer :: grad_xx_orog => null()
     type( field_type ), pointer :: grad_xy_orog => null()

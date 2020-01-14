@@ -10,6 +10,8 @@ module mphys_alg_mod
 
    use field_mod,            only: field_type
    use field_collection_mod, only: field_collection_type
+  ! xios output
+  use io_config_mod,      only: write_diag, use_xios_io
 
    implicit none
 
@@ -32,19 +34,17 @@ contains
   !>@param[in]     height_w3      Height from surface on density levels
   !>@param[in]     height_wth     Height from surface on theta levels
   !>@param[in]     derived_fields Group of derived fields
-  !>@param[in]     cloud_fields   Group of cloud fields
-  !>@param[in,out] twod_fields    Group of twod fields
-  !>@param[in,out] aerosol_fields Group of aerosol fields
+  !>@param[in,out] microphysics_fields    Fields for mphys scheme
+  !>@param[in]     cloud_fields           Fields for cloud scheme
+  !>@param[in]     aerosol_fields         Fields for aerosol scheme
   !>@param[in,out] dmr_mphys      Mixing ratio increment due to microphysics
   !>@param[in,out] theta_inc      Potential temperature increment in wth space
-  !>@param[in,out] physics_incs   Group of physics increments
   !>@param[in,out] dcfl           Increment to liquid cloud fraction
   !>@param[in,out] dcff           Increment to ice cloud fraction
   !>@param[in,out] dbcf           Increment to bulk cloud fraction
   subroutine mphys_alg_step( mr_n, theta, exner_in_w3, height_w3, height_wth,  &
-                             derived_fields, cloud_fields, twod_fields,        &
-                             aerosol_fields,                                   &
-                             dmr_mphys, theta_inc, physics_incs,               &
+                             derived_fields, microphysics_fields, cloud_fields,&
+                             aerosol_fields, dmr_mphys, theta_inc,             &
                              dcfl, dcff, dbcf )
 
     use mphys_kernel_mod, only: mphys_kernel_type
@@ -62,10 +62,9 @@ contains
     type( field_type ), intent( in )    :: height_w3, height_wth
 
     type( field_collection_type ), intent(in)    :: derived_fields
+    type( field_collection_type ), intent(inout) :: microphysics_fields
     type( field_collection_type ), intent(in)    :: cloud_fields
-    type( field_collection_type ), intent(inout) :: twod_fields
-    type( field_collection_type ), intent(inout) :: aerosol_fields
-    type( field_collection_type ), intent(inout) :: physics_incs
+    type( field_collection_type ), intent(in)    :: aerosol_fields
 
     type( field_type ), intent( inout ) :: dmr_mphys ( nummr )
     type( field_type ), intent( inout ) :: theta_inc
@@ -75,15 +74,18 @@ contains
     type( field_type ), pointer :: exner_in_wth        => null()
     type( field_type ), pointer :: u1_in_w3            => null()
     type( field_type ), pointer :: u2_in_w3            => null()
-    type( field_type ), pointer :: w_phys              => null()
+    type( field_type ), pointer :: w_physics           => null()
     type( field_type ), pointer :: wetrho_in_w3        => null()
+
     type( field_type ), pointer :: cf_in               => null()
     type( field_type ), pointer :: cfl_in              => null()
     type( field_type ), pointer :: cff_in              => null()
+
     type( field_type ), pointer :: dtl_mphys           => null()
     type( field_type ), pointer :: dmt_mphys           => null()
     type( field_type ), pointer :: ls_rain             => null()
     type( field_type ), pointer :: ls_snow             => null()
+
     type( field_type ), pointer :: cloud_drop_no_conc  => null()
 
     if ( subroutine_timers ) call timer("mphys_alg_step")
@@ -92,16 +94,19 @@ contains
     exner_in_wth       => derived_fields%get_field('exner_in_wth')
     u1_in_w3           => derived_fields%get_field('u1_in_w3')
     u2_in_w3           => derived_fields%get_field('u2_in_w3')
-    w_phys             => derived_fields%get_field('w_physics')
+    w_physics          => derived_fields%get_field('w_physics')
     wetrho_in_w3       => derived_fields%get_field('wetrho_in_w3')
+
     cf_in              => cloud_fields%get_field('bulk_fraction')
     cfl_in             => cloud_fields%get_field('liquid_fraction')
     cff_in             => cloud_fields%get_field('ice_fraction')
-    ls_rain            => twod_fields%get_field('ls_rain')
-    ls_snow            => twod_fields%get_field('ls_snow')
+
+    ls_rain            => microphysics_fields%get_field('ls_rain')
+    ls_snow            => microphysics_fields%get_field('ls_snow')
+
     cloud_drop_no_conc => aerosol_fields%get_field('cloud_drop_no_conc')
 
-    call invoke( setval_c(theta_inc,   0.0_r_def),                             &
+    call invoke( setval_c(theta_inc, 0.0_r_def),                               &
                  setval_c(dcfl, 0.0_r_def),                                    &
                  setval_c(dcff, 0.0_r_def),                                    &
                  setval_c(dbcf, 0.0_r_def),                                    &
@@ -109,7 +114,7 @@ contains
                  mphys_kernel_type ( mr_n(imr_v), mr_n(imr_cl), mr_n(imr_ci),  &
                                      mr_n(imr_r), mr_n(imr_g),                 &
                                      cf_in, cfl_in, cff_in,                    &
-                                     u1_in_w3, u2_in_w3, w_phys,               &
+                                     u1_in_w3, u2_in_w3, w_physics,            &
                                      theta, exner_in_w3, exner_in_wth,         &
                                      wetrho_in_w3, height_w3, height_wth,      &
                                      cloud_drop_no_conc,                       &
@@ -121,8 +126,8 @@ contains
     ! Calculate increments required by the BL scheme
     if ( boundary_layer == boundary_layer_um ) then
 
-      dtl_mphys => physics_incs%get_field('dtl_mphys')
-      dmt_mphys => physics_incs%get_field('dmt_mphys')
+      dtl_mphys => microphysics_fields%get_field('dtl_mphys')
+      dmt_mphys => microphysics_fields%get_field('dmt_mphys')
       ! Calculate TL = T - (lc/cp)*mcl - ((lc+lf)/cp)*mci
       call invoke(     X_times_Y(dtl_mphys, theta_inc, exner_in_wth),          &
                   inc_X_minus_bY(dtl_mphys, lcrcp, dmr_mphys(imr_cl)),         &
@@ -130,6 +135,14 @@ contains
                   ! And mt = mv+mcl+mci
                       X_plus_Y(dmt_mphys, dmr_mphys(imr_v), dmr_mphys(imr_cl)),&
                   inc_X_plus_Y(dmt_mphys, dmr_mphys(imr_ci)) )
+    end if
+
+    ! Output microphysics diagnostics
+    if (write_diag .and. use_xios_io) then
+
+      call ls_rain%write_field('ls_rain')
+      call ls_snow%write_field('ls_snow')
+
     end if
 
     if ( subroutine_timers ) call timer("mphys_alg_step")

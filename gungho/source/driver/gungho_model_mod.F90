@@ -281,7 +281,6 @@ module gungho_model_mod
     type( field_collection_type ), pointer :: prognostic_fields => null()
     type( field_collection_type ), pointer :: diagnostic_fields => null()
     type( field_type ),            pointer :: mr(:) => null()
-    type( field_collection_type ), pointer :: twod_fields => null()
 
     type( field_type), pointer :: theta => null()
     type( field_type), pointer :: u => null()
@@ -292,7 +291,6 @@ module gungho_model_mod
     prognostic_fields => model_data%prognostic_fields
     diagnostic_fields => model_data%diagnostic_fields
     mr => model_data%mr
-    twod_fields => model_data%twod_fields
 
     ! Get pointers to fields in the prognostic/diagnostic field collections
     ! for use downstream
@@ -322,8 +320,7 @@ module gungho_model_mod
         case( method_semi_implicit )  ! Semi-Implicit
           ! Initialise and output initial conditions for first timestep
           call runge_kutta_init()
-          call iter_alg_init(mesh_id, u, rho, theta, exner, mr, &
-                             twod_fields)
+          call iter_alg_init(mesh_id, u, rho, theta, exner, mr)
           if ( write_diag ) &
            call conservation_algorithm(timestep_start, rho, u, theta, exner)
         case( method_rk )             ! RK
@@ -426,7 +423,6 @@ module gungho_model_mod
     type( field_collection_type ), pointer :: prognostic_fields => null()
     type( field_collection_type ), pointer :: diagnostic_fields => null()
     type( field_type ),            pointer :: mr(:) => null()
-    type( field_collection_type ), pointer :: twod_fields => null()
     type( field_collection_type ), pointer :: fd_fields => null()
 
     type( field_type), pointer :: theta => null()
@@ -443,7 +439,6 @@ module gungho_model_mod
     prognostic_fields => model_data%prognostic_fields
     diagnostic_fields => model_data%diagnostic_fields
     mr => model_data%mr
-    twod_fields => model_data%twod_fields
     fd_fields => model_data%fd_fields
 
     ! Get pointers to fields in the prognostic/diagnostic field collections

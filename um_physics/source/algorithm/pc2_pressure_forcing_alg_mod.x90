@@ -82,7 +82,6 @@ contains
     call theta%copy_field_properties(dqv_forcing)
     call theta%copy_field_properties(dqcl_forcing)
 
-    call theta%copy_field_properties(dtheta_pc2_inc)
     call theta%copy_field_properties(dqv_pc2_inc)
     call theta%copy_field_properties(dqcl_pc2_inc)
     call theta%copy_field_properties(dcfl_pc2_inc)

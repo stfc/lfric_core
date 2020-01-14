@@ -31,16 +31,16 @@ contains
 
 
   !> @details Initialises ancillary fields analytically
-  !> @param[in,out] twod_fields the 2D field collection
-  subroutine init_analytic_ancils(twod_fields)
+  !> @param[in,out] surface_fields the 2D field collection
+  subroutine init_analytic_ancils(surface_fields)
 
     implicit none
 
-    type( field_collection_type ), intent( inout ) :: twod_fields
+    type( field_collection_type ), intent( inout ) :: surface_fields
 
     type( field_type ), pointer ::    tstar_ptr  => null()
 
-    tstar_ptr => twod_fields%get_field('tstar')
+    tstar_ptr => surface_fields%get_field('tstar')
 
     call init_tstar_analytic_alg(tstar_ptr)
 
@@ -50,23 +50,23 @@ contains
 
   !> @details Initialises ancillary fields from
   !>          an aquaplanet dump
-  !> @param[in,out] twod_fields the 2D field collection
-  subroutine init_aquaplanet_ancils(twod_fields)
+  !> @param[in,out] surface_fields the 2D field collection
+  subroutine init_aquaplanet_ancils(surface_fields)
 
 
     implicit none
 
-    type( field_collection_type ), intent( inout ) :: twod_fields
+    type( field_collection_type ), intent( inout ) :: surface_fields
 
     ! local variables
-    ! Pointer to the 2D tstar in the twod field collection
+    ! Pointer to the 2D tstar in the surface field collection
     type( field_type ), pointer ::    tstar_ptr  => null()
 
     procedure(read_interface), pointer  :: tmp_read_ptr => null()
 
     call log_event("Reading tstar from dump", LOG_LEVEL_INFO)
 
-    tstar_ptr => twod_fields%get_field('tstar')
+    tstar_ptr => surface_fields%get_field('tstar')
 
 
     ! Need to set the I/O handler for read. Any ancils here
