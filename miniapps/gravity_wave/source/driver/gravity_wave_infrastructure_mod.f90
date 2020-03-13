@@ -24,10 +24,8 @@ module gravity_wave_infrastructure_mod
                                    LOG_LEVEL_INFO,     &
                                    LOG_LEVEL_DEBUG,    &
                                    LOG_LEVEL_TRACE
-  use mod_wait,             only : init_wait
   use mpi_mod,              only : store_comm, &
                                    get_comm_size, get_comm_rank
-  use xios,                 only : xios_finalize, xios_initialize
   use yaxt,                 only : xt_initialize, xt_finalize
 
 
@@ -46,8 +44,7 @@ contains
   !> @param [in] xios_id XIOS client identifier
   subroutine initialise_infrastructure(comm, &
                                        filename, &
-                                       program_name, &
-                                       xios_id)
+                                       program_name)
 
     use logging_config_mod, only: run_log_level,          &
                                   key_from_run_log_level, &
@@ -58,24 +55,19 @@ contains
                                   RUN_LOG_LEVEL_WARNING
     implicit none
 
-    integer(i_def),     intent(inout) :: comm
-    character(*),       intent(in)    :: filename
-    character(*),       intent(in)    :: program_name
-    character(*),       intent(in)    :: xios_id
+    integer(i_native), intent(in) :: comm
+    character(*),      intent(in) :: filename
+    character(*),      intent(in) :: program_name
 
     integer(i_def) :: total_ranks, local_rank
 
     integer(i_native) :: log_level
 
-    ! Initialise XIOS and get back the split mpi communicator
-    call init_wait()
-    call xios_initialize(xios_id, return_comm = comm)
+    ! Initialise YAXT
+    call xt_initialize(comm)
 
     !Store the MPI communicator for later use
     call store_comm(comm)
-
-    ! Initialise YAXT
-    call xt_initialize(comm)
 
     ! Get the rank information
     total_ranks = get_comm_size()
@@ -119,9 +111,6 @@ contains
   subroutine finalise_infrastructure()
 
     implicit none
-
-    ! Finalise XIOS
-    call xios_finalize()
 
     ! Finalise namelist configurations
     call final_configuration()

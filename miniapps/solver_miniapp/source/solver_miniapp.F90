@@ -70,11 +70,11 @@ program solver_miniapp
   ! Initialise MPI communicatios and get a valid communicator
   call initialise_comm(comm)
 
-  ! Save the commmunicator for later use
-  call store_comm(comm)
-
   ! Initialise YAXT
   call xt_initialize(comm)
+
+  ! Save the commmunicator for later use
+  call store_comm(comm)
 
   total_ranks = get_comm_size()
   local_rank  = get_comm_rank()

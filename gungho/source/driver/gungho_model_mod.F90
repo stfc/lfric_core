@@ -52,7 +52,6 @@ module gungho_model_mod
   use configuration_mod,          only : final_configuration
   use derived_config_mod,         only : set_derived_config
   use yaxt,                       only : xt_initialize, xt_finalize
-  use mod_wait,                   only : init_wait
   use global_mesh_collection_mod, only : global_mesh_collection, &
                                          global_mesh_collection_type
   use create_mesh_mod,            only : init_mesh, final_mesh
@@ -67,9 +66,7 @@ module gungho_model_mod
   use write_methods_mod,          only : write_state, &
                                          write_field_single_face
 
-  use xios,                       only : xios_initialize,       &
-                                         xios_finalize,         &
-                                         xios_context_finalize, &
+  use xios,                       only : xios_context_finalize, &
                                          xios_update_calendar
   use checksum_alg_mod,           only : checksum_alg
   use conservation_algorithm_mod, only : conservation_algorithm
@@ -115,7 +112,7 @@ module gungho_model_mod
   !> @param [inout] mesh_id The identifier given to the current 3d mesh
   !> @param [inout] twod_mesh_id The identifier given to the current 2d mesh
   !> @param [inout] chi A size 3 array of fields holding the coordinates of the mesh
-  subroutine initialise_infrastructure(comm,         &
+  subroutine initialise_infrastructure(communicator, &
                                        filename,     &
                                        program_name, &
                                        mesh_id,      &
@@ -130,18 +127,14 @@ module gungho_model_mod
                                   RUN_LOG_LEVEL_TRACE,    &
                                   RUN_LOG_LEVEL_WARNING
 
-
-
     implicit none
 
-    integer(i_def),     intent(inout) :: comm
+    integer(i_native),  intent(in)    :: communicator
     character(*),       intent(in)    :: filename
     character(*),       intent(in)    :: program_name
-
     integer(i_def),     intent(inout) :: mesh_id, twod_mesh_id
     type(field_type),   intent(inout) :: chi(3)
 
-    character(len=*), parameter :: xios_id   = "lfric_client"
     character(len=*), parameter :: xios_ctx  = "gungho_atm"
 
     integer(i_def)    :: total_ranks, local_rank
@@ -155,15 +148,11 @@ module gungho_model_mod
     ! Initialise aspects of the infrastructure
     !-------------------------------------------------------------------------
 
-    ! Initialise XIOS and get back the split mpi communicator
-    call init_wait()
-    call xios_initialize(xios_id, return_comm = comm)
-
     !Store the MPI communicator for later use
-    call store_comm(comm)
+    call store_comm( communicator )
 
     ! Initialise YAXT
-    call xt_initialize(comm)
+    call xt_initialize( communicator )
 
     ! Get the rank information
     total_ranks = get_comm_size()
@@ -247,7 +236,7 @@ module gungho_model_mod
       dtime = int(dt)
 
       call initialise_xios( xios_ctx,     &
-                            comm,         &
+                            communicator, &
                             dtime,        &
                             mesh_id,      &
                             twod_mesh_id, &
@@ -435,9 +424,6 @@ module gungho_model_mod
     !-------------------------------------------------------------------------
     ! Finalise infrastructure
     !-------------------------------------------------------------------------
-
-    ! Finalise XIOS
-    call xios_finalize()
 
     ! Finalise namelist configurations
     call final_configuration()

@@ -12,19 +12,28 @@
 
 program cell_locator
 
-  use cli_mod,             only : get_initial_filename
   use cell_locator_driver_mod, only : initialise, run, finalise
+  use cli_mod,                 only : get_initial_filename
+  use mpi_mod,                 only : finalise_comm, &
+                                      initialise_comm
 
   implicit none
 
   character(:), allocatable :: filename
+  integer                   :: world_communicator = -999
+
+  ! Initialise mpi and create the default communicator: mpi_comm_world
+  call initialise_comm( world_communicator )
 
   call get_initial_filename( filename )
-  call initialise( filename )
+  call initialise( filename, world_communicator )
   deallocate( filename )
 
   call run()
 
   call finalise()
+
+  ! Finalise mpi and release the communicator
+  call finalise_comm()
 
 end program cell_locator

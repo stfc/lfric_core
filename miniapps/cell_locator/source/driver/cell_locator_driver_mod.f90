@@ -9,7 +9,7 @@
 !>
 module cell_locator_driver_mod
 
-  use constants_mod,                  only : i_def, r_def
+  use constants_mod,                  only : i_def, i_native, r_def
   use cli_mod,                        only : get_initial_filename
   use cell_locator_mod,               only : load_configuration
   use create_mesh_mod,                only : init_mesh
@@ -29,8 +29,7 @@ module cell_locator_driver_mod
                                              LOG_LEVEL_INFO,    &
                                              LOG_LEVEL_DEBUG,   &
                                              LOG_LEVEL_TRACE
-  use mpi_mod,                        only : initialise_comm, store_comm, &
-                                             finalise_comm, &
+  use mpi_mod,                        only : store_comm, &
                                              get_comm_size, get_comm_rank
 
   use cell_locator_api_mod,           only : cell_locator_api_type, &
@@ -61,27 +60,21 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Sets up required state in preparation for run.
   !>
-  subroutine initialise( filename )
+  subroutine initialise( filename, model_communicator )
 
     implicit none
 
-    character(:), intent(in), allocatable :: filename
+    character(:),      intent(in), allocatable :: filename
+    integer(i_native), intent(in)              :: model_communicator
 
     integer(i_def) :: total_ranks, local_rank
-    integer(i_def) :: comm = -999
     integer(i_def) :: ier
 
-    ! Initialise mpi and create the default communicator: mpi_comm_world
-    call initialise_comm( comm )
-
-    ! Store the MPI communicator for later use
-    call store_comm( comm )
+    ! Store the MPI communicator for later use.
+    call store_comm( model_communicator )
 
     ! Initialise YAXT
-    call xt_initialize( comm )
-
-    ! Store the MPI communicator for later use. DO WE NEED TO CALL THIS TWICE?
-    call store_comm( comm )
+    call xt_initialize( model_communicator )
 
     ! and get the rank information from the virtual machine
     total_ranks = get_comm_size()
@@ -258,9 +251,6 @@ contains
 
     ! Finalise YAXT
     call xt_finalize()
-
-    ! Finalise mpi and release the communicator
-    call finalise_comm()
 
     ! Finalise the logging system
     call finalise_logging()

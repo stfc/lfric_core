@@ -10,7 +10,7 @@
 module catalyst_demo_driver_mod
 
   use checksum_alg_mod,               only: checksum_alg
-  use constants_mod,                  only: i_def
+  use constants_mod,                  only: i_def, i_native
   use derived_config_mod,             only: set_derived_config
   use yaxt,                           only: xt_initialize, xt_finalize
   use field_mod,                      only: field_type
@@ -39,7 +39,6 @@ module catalyst_demo_driver_mod
                                             LOG_LEVEL_DEBUG,    &
                                             LOG_LEVEL_TRACE,    &
                                             log_scratch_space
-  use mod_wait,                       only: init_wait
   use operator_mod,                   only: operator_type
   use io_config_mod,                  only: write_diag,           &
                                             diagnostic_frequency, &
@@ -52,25 +51,29 @@ module catalyst_demo_driver_mod
                                             timestep_end
   use timer_mod,                      only: init_timer, timer, output_timer
   use timestepping_config_mod,        only: dt
-  use mpi_mod,                        only: initialise_comm, store_comm, &
-                                            finalise_comm,               &
-                                            get_comm_size, get_comm_rank
-  use visualisation_config_mod,       only : write_catalyst_output,   &
-                                             visualisation_frequency, &
-                                             visualisation_stem_name, &
-                                             use_python_vis_pipeline, &
-                                             python_vis_pipeline_name
-  use visualisation_mod,              only : vis_field_list_type, &
-                                             catalyst_initialize, &
-                                             catalyst_coprocess,  &
-                                             catalyst_finalize
-  use xios,                           only : xios_ctx,              &
-                                             xios_id,               &
-                                             xios_context_finalize, &
-                                             initialise_xios,      &
-                                             xios_finalize,         &
-                                             xios_initialize,       &
-                                             xios_update_calendar
+  use mpi_mod,                        only: store_comm,    &
+                                            get_comm_size, &
+                                            get_comm_rank
+  use visualisation_config_mod,       only: write_catalyst_output,   &
+                                            visualisation_frequency, &
+                                            visualisation_stem_name, &
+                                            use_python_vis_pipeline, &
+                                            python_vis_pipeline_name
+  use visualisation_mod,              only: vis_field_list_type, &
+                                            catalyst_initialize, &
+                                            catalyst_coprocess,  &
+                                            catalyst_finalize
+  use xios,                           only: xios_ctx,              &
+                                            xios_id,               &
+                                            xios_context_finalize, &
+                                            xios_domain_init,      &
+                                            xios_finalize,         &
+                                            xios_initialize,       &
+                                            xios_update_calendar
+                                            initialise_xios,       &
+                                            xios_finalize,         &
+                                            xios_initialize,       &
+                                            xios_update_calendar
 
   implicit none
 
@@ -80,7 +83,6 @@ module catalyst_demo_driver_mod
 
   character(*), public, parameter   :: program_name = 'catalyst_demo'
   character(*), public, parameter   :: xios_ctx = 'catalyst_demo'
-  character(*), public, parameter   :: xios_id  = 'lfric_client'
 
   type(restart_type) :: restart
 
@@ -106,30 +108,23 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Sets up required state in preparation for run.
   !>
-  subroutine initialise( filename )
+  subroutine initialise( filename, model_communicator )
 
   implicit none
 
-  character(*), intent(in) :: filename
+  character(*),      intent(in) :: filename
+  integer(i_native), intent(in) :: model_communicator
 
   integer(i_def) :: total_ranks, local_rank
-  integer(i_def) :: comm = -999
 
   integer(i_def) :: ts_init
   integer(i_def) :: dtime
 
-  ! Initialse mpi and create the default communicator: mpi_comm_world
-  call initialise_comm(comm)
-
-  ! Initialise XIOS and get back the split mpi communicator
-  call init_wait()
-  call xios_initialize(xios_id, return_comm = comm)
-
   !Store the MPI communicator for later use
-  call store_comm(comm)
+  call store_comm(model_communicator)
 
   ! Initialise YAXT
-  call xt_initialize(comm)
+  call xt_initialize(model_communicator)
 
   ! Get the rank information
   total_ranks = get_comm_size()
@@ -175,7 +170,7 @@ contains
     dtime = int(dt)
 
     call initialise_xios( xios_ctx,     &
-                          comm,         &
+                           model_communicator, &
                           dtime,        &
                           mesh_id,      &
                           twod_mesh_id, &
@@ -192,9 +187,10 @@ contains
   !----------------------------------------------------------------------------
 
   if ( write_catalyst_output ) then
-    call catalyst_initialize(visualisation_frequency, &
+    call catalyst_initialize(visualisation_frequency,       &
                              trim(visualisation_stem_name), &
-                             comm, use_python_vis_pipeline, &
+                             model_communicator,            &
+                             use_python_vis_pipeline,       &
                              trim(python_vis_pipeline_name))
   end if
 
@@ -361,14 +357,8 @@ contains
     call xios_context_finalize()
   end if
 
-  ! Finalise XIOS
-  call xios_finalize()
-
   ! Finalise YAXT
   call xt_finalize()
-
-  ! Finalise mpi and release the communicator
-  call finalise_comm()
 
   ! Finalise the logging system
   call finalise_logging()

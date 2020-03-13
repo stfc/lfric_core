@@ -9,7 +9,7 @@
 !>
 module gungho_driver_mod
 
-  use constants_mod,              only : i_def, imdi
+  use constants_mod,              only : i_def, i_native, imdi
   use time_config_mod,            only : timestep_start, &
                                          timestep_end
   use field_mod,                  only : field_type
@@ -19,7 +19,6 @@ module gungho_driver_mod
   use log_mod,                    only : log_event,         &
                                          log_scratch_space, &
                                          LOG_LEVEL_ALWAYS
-  use mpi_mod,                    only : initialise_comm, finalise_comm
   use gungho_mod,                 only : program_name
   use gungho_model_data_mod,      only : model_data_type, &
                                          create_model_data, &
@@ -54,20 +53,17 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !>@brief Sets up required state in preparation for run.
   !>@param[in] filename Name of the file containing the desired configuration
-  subroutine initialise( filename )
+  subroutine initialise( filename, model_communicator )
 
     implicit none
 
-    character(*), intent(in) :: filename
+    character(*),      intent(in) :: filename
+    integer(i_native), intent(in) :: model_communicator
 
-    integer(i_def) :: comm = -999
     integer(i_def) :: ts_init
 
-    ! Initialse mpi and create the default communicator: mpi_comm_world
-    call initialise_comm( comm )
-
     ! Initialise infrastructure and setup constants
-    call initialise_infrastructure( comm, &
+    call initialise_infrastructure( model_communicator, &
                                     filename, &
                                     program_name, &
                                     mesh_id, &
@@ -167,9 +163,6 @@ contains
 
     ! Finalise infrastructure and constants
     call finalise_infrastructure( program_name )
-
-    ! Finalise mpi and release the communicator
-    call finalise_comm()
 
   end subroutine finalise
 

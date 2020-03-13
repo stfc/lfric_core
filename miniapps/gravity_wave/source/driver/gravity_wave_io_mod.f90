@@ -9,7 +9,7 @@
 
 module gravity_wave_io_mod
 
-  use constants_mod,                  only : i_def
+  use constants_mod,                  only : i_def, i_native
   use field_mod,                      only : field_type
   use timestepping_config_mod,        only : dt
   use time_config_mod,                only : timestep_start
@@ -35,10 +35,10 @@ contains
 
     implicit none
 
-    integer(i_def), intent(inout) :: comm
-    integer(i_def), intent(in) :: mesh_id, twod_mesh_id
-    type(field_type), intent(in) :: chi(3)
-    character(len=*), intent(in) :: xios_ctx
+    integer(i_native), intent(in) :: comm
+    integer(i_def),    intent(in) :: mesh_id, twod_mesh_id
+    type(field_type),  intent(in) :: chi(3)
+    character(len=*),  intent(in) :: xios_ctx
 
     integer(i_def) :: dtime
     integer(i_def) :: ts_init

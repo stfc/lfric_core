@@ -35,14 +35,11 @@ use log_mod,                    only: log_event,          &
                                       LOG_LEVEL_INFO,     &
                                       LOG_LEVEL_DEBUG,    &
                                       LOG_LEVEL_TRACE
-use mod_wait,                   only: init_wait
-use mpi_mod,                    only: initialise_comm, store_comm, &
-                                      finalise_comm,               &
-                                      get_comm_size, get_comm_rank
+use mpi_mod,                    only: store_comm,    &
+                                      get_comm_size, &
+                                      get_comm_rank
 use timestepping_config_mod,    only: dt
 use xios,                       only: xios_context_finalize, &
-                                      xios_finalize,         &
-                                      xios_initialize,       &
                                       xios_update_calendar
 use yaxt,                       only: xt_initialize, xt_finalize
 
@@ -53,8 +50,6 @@ private
 public initialise, run, finalise
 
 character(*), public, parameter :: xios_ctx = 'io_dev'
-character(*), public, parameter :: xios_id  = 'lfric_client'
-
 
 ! Examples of fields that are output on different I/O domains
 type( field_type ) :: density ! on W3
@@ -73,7 +68,7 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Sets up required state in preparation for run.
   !>@param[in] filename Name of the file containing the desired configuration
-  subroutine initialise( filename )
+  subroutine initialise( filename, model_communicator )
 
   use logging_config_mod, only: run_log_level,          &
                                 key_from_run_log_level, &
@@ -85,32 +80,22 @@ contains
 
   implicit none
 
-  character(*), intent(in) :: filename
+  character(*),      intent(in) :: filename
+  integer(i_native), intent(in) :: model_communicator
 
   integer(i_def) :: total_ranks, local_rank
-  integer(i_def) :: comm = -999
 
   integer(i_def) :: dtime
   integer(i_native) :: log_level
 
-  ! Initialse mpi and create the default communicator: mpi_comm_world
-  call initialise_comm(comm)
-
-  ! Initialise XIOS and get back the split mpi communicator
-  call init_wait()
-  call xios_initialize(xios_id, return_comm = comm)
-
   ! Save lfric's part of the split communicator for later use
-  call store_comm(comm)
+  call store_comm( model_communicator )
 
   ! Initialise YAXT
-  call xt_initialize(comm)
+  call xt_initialize( model_communicator )
 
   total_ranks = get_comm_size()
   local_rank  = get_comm_rank()
-
-  ! Store the MPI communicator for later use
-  call store_comm(comm)
 
   call initialise_logging(local_rank, total_ranks, program_name)
 
@@ -169,7 +154,7 @@ contains
   dtime = int(dt)
 
   call initialise_xios( xios_ctx,     &
-                        comm,         &
+                        model_communicator, &
                         dtime,        &
                         mesh_id,      &
                         twod_mesh_id, &
@@ -235,17 +220,11 @@ contains
   ! Finalise XIOS context
   call xios_context_finalize()
 
-  ! Finalise XIOS
-  call xios_finalize()
-
   ! Finalise namelist configurations
   call final_configuration()
 
   ! Finalise YAXT
   call xt_finalize()
-
-  ! Finalise mpi and release the communicator
-  call finalise_comm()
 
   call log_event( program_name//' completed.', LOG_LEVEL_ALWAYS )
 

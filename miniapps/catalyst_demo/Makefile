@@ -127,7 +127,7 @@ else
   $(error Unrecognised profile "$(PROFILE)". Must be one of full-debug, fast-debug or production)
 endif
 build: BIN_DIR     ?= $(PROJECT_DIR)/bin
-build: export META_FILE_DIR = $(PROJECT_DIR)//config-meta/lfric-catalyst_demo/HEAD
+build: export META_FILE_DIR = $(PROJECT_DIR)/rose-meta/lfric-catalyst_demo/HEAD
 build: PROGRAMS    := $(basename $(notdir $(shell find $(SOURCE_DIR) -maxdepth 1 -name '*.[Ff]90' -print)))
 build: PROJECT      = $(PROJECT_NAME)
 build: ALWAYS

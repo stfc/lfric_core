@@ -8,7 +8,7 @@
 !>
 module gravity_wave_driver_mod
 
-  use constants_mod,                  only: i_def
+  use constants_mod,                  only: i_def, i_native
   use gravity_wave_infrastructure_mod,only: initialise_infrastructure, &
                                             finalise_infrastructure
   use gravity_wave_grid_mod,          only: initialise_grid
@@ -45,7 +45,6 @@ module gravity_wave_driver_mod
   use time_config_mod,                only: timestep_start, &
                                             timestep_end
   use timer_mod,                      only: init_timer, timer, output_timer
-  use mpi_mod,                        only: initialise_comm, finalise_comm
   use xios,                           only: xios_update_calendar
 
   implicit none
@@ -55,7 +54,6 @@ module gravity_wave_driver_mod
   public initialise, run, finalise
 
   character(*), public, parameter   :: xios_ctx = 'gravity_wave'
-  character(*), public, parameter   :: xios_id  = 'lfric_client'
 
   ! Depository of shared fields
   type( field_collection_type ), target :: depository
@@ -77,21 +75,19 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Sets up required state in preparation for run.
   !>
-  subroutine initialise( filename )
+  subroutine initialise( filename, model_communicator )
 
   implicit none
 
-  character(*), intent(in) :: filename
-
-  integer(i_def) :: comm = -999
+  character(*),      intent(in) :: filename
+  integer(i_native), intent(in) :: model_communicator
 
   integer(i_def) :: ts_init
 
-  ! Initialse mpi and create the default communicator: mpi_comm_world
-  call initialise_comm(comm)
-
   ! Initialise aspects of the infrastructure
-  call initialise_infrastructure(comm, filename, program_name, xios_id)
+  call initialise_infrastructure( model_communicator, &
+                                  filename,           &
+                                  program_name )
 
   call log_event( 'Initialising '//program_name//' ...', LOG_LEVEL_ALWAYS )
 
@@ -107,7 +103,11 @@ contains
                        multigrid_function_space_chain)
 
   !Initialise aspects of output
-  call initialise_io(comm, mesh_id, twod_mesh_id, chi, xios_ctx)
+  call initialise_io( model_communicator, &
+                      mesh_id,            &
+                      twod_mesh_id,       &
+                      chi,                &
+                      xios_ctx )
 
   ! Create runtime_constants object. This in turn creates various things
   ! needed by the timestepping algorithms such as mass matrix operators, mass
@@ -216,9 +216,9 @@ contains
 
   implicit none
 
-  !----------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
   ! Model finalise
-  !---------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
   call log_event( 'Finalising '//program_name//' ...', LOG_LEVEL_ALWAYS )
 
   call final_gravity_wave(prognostic_fields, program_name)
@@ -233,9 +233,9 @@ contains
     call output_timer()
   end if
 
-  !----------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
   ! Driver layer finalise
-  !----------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
 
   call finalise_io()
 
@@ -243,10 +243,6 @@ contains
 
   call finalise_infrastructure()
 
-  ! Finalise mpi and release the communicator
-  call finalise_comm()
-
-
-end subroutine finalise
+  end subroutine finalise
 
 end module gravity_wave_driver_mod

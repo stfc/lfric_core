@@ -9,7 +9,7 @@
 module transport_driver_mod
 
   use checksum_alg_mod,               only: checksum_alg
-  use constants_mod,                  only: i_def, r_def, i_native
+  use constants_mod,                  only: i_def, i_native, r_def
   use convert_to_upper_mod,           only: convert_to_upper
   use derived_config_mod,             only: set_derived_config
   use yaxt,                           only: xt_initialize, xt_finalize
@@ -46,10 +46,9 @@ module transport_driver_mod
                                             timestep_end
   use timer_mod,                      only: init_timer, timer, output_timer
   use timestepping_config_mod,        only: dt
-  use mpi_mod,                        only: initialise_comm, store_comm,      &
-                                            finalise_comm,                    &
-                                            get_comm_size, get_comm_rank
-  use mod_wait,                       only: init_wait
+  use mpi_mod,                        only: store_comm,    &
+                                            get_comm_size, &
+                                            get_comm_rank
   use transport_config_mod,           only: scheme,               &
                                             scheme_yz_bip_cosmic, &
                                             scheme_cosmic_3D,     &
@@ -66,8 +65,6 @@ module transport_driver_mod
                                             get_cell_orientation,             &
                                             get_cell_orientation_shifted
   use xios,                           only: xios_context_finalize, &
-                                            xios_finalize,         &
-                                            xios_initialize,       &
                                             xios_update_calendar
 
   implicit none
@@ -106,7 +103,7 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Sets up required state in preparation for run.
   !! @param[in] filename Configuration namelist file
-  subroutine initialise_transport( filename )
+  subroutine initialise_transport( filename, model_communicator )
 
     use logging_config_mod, only: run_log_level,          &
                                   key_from_run_log_level, &
@@ -118,29 +115,21 @@ contains
 
     implicit none
 
-    character(*), intent(in) :: filename
+    character(*),      intent(in) :: filename
+    integer(i_native), intent(in) :: model_communicator
 
-    character(len=*), parameter :: xios_id   = "lfric_client"
     character(len=*), parameter :: xios_ctx  = "transport"
 
     integer(i_def) :: total_ranks, local_rank
-    integer(i_def) :: comm = -999
     integer(i_def) :: timestep, ts_init, dtime
 
     integer(i_native) :: log_level
 
-    ! Initialse mpi and create the default communicator: mpi_comm_world
-    call initialise_comm( comm )
-
-    ! Initialise XIOS and get back the split mpi communicator
-    call init_wait()
-    call xios_initialize(xios_id, return_comm = comm)
-
     !Store the MPI communicator for later use
-    call store_comm(comm)
+    call store_comm( model_communicator )
 
     ! Initialise YAXT
-    call xt_initialize(comm)
+    call xt_initialize( model_communicator )
 
     ! Get the rank information
     total_ranks = get_comm_size()
@@ -214,7 +203,7 @@ contains
     if ( use_xios_io ) then
       dtime = int(dt)
       call initialise_xios( xios_ctx,     &
-                            comm,         &
+                            model_communicator, &
                             dtime,        &
                             mesh_id,      &
                             twod_mesh_id, &
@@ -357,9 +346,6 @@ contains
       call xios_context_finalize()
     end if
 
-    ! Finalise XIOS
-    call xios_finalize()
-
     ! Finalise namelist configurations
     call final_configuration()
 
@@ -368,9 +354,6 @@ contains
     !----------------------------------------------------------------------------
     ! Finalise YAXT
     call xt_finalize()
-
-    ! Finalise mpi and release the communicator
-    call finalise_comm()
 
     call log_event( program_name//' completed.', LOG_LEVEL_ALWAYS )
 

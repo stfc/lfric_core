@@ -77,8 +77,8 @@ contains
   !>
   subroutine initialise_comm(out_comm)
     implicit none
-    integer(i_def), intent(out) :: out_comm
-    integer(i_def) :: ierr
+    integer(i_native), intent(out) :: out_comm
+    integer(i_native) :: ierr
 
     call mpi_init(ierr)
     if (ierr /= mpi_success) &
