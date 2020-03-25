@@ -185,8 +185,15 @@ contains
                                              nu)
 
     ! Same calculation with dense matrices
-    densematrix_mass_DT_D(:,:) = mu * densematrix_mass(:,:) &
-                               + nu  * densematrix_DT_D(:,:)
+    ! Mass matrix is smaller, DT_D is larger but final column should be zero
+    ! and tested. Adding explicit looping
+    do i = 1_i_def, ncol_33
+       densematrix_mass_DT_D(:,i) = mu * densematrix_mass(:,i) &
+            + nu  * densematrix_DT_D(:,i)
+    end do
+    do i = ncol_33+1_i_def, ncol_prod
+       densematrix_mass_DT_D(:,i) = nu  * densematrix_DT_D(:,i)
+    end do
 
     ! Check result by comparing non-zero matrix entries in columnwise and
     ! dense matrices
