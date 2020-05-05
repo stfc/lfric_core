@@ -65,8 +65,8 @@ run_log_level='info'
 /
 
 &time
-timestep_end=1,
-timestep_start=1,
+timestep_end='1',
+timestep_start='1',
 /
 
 &planet
