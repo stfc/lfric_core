@@ -51,7 +51,7 @@
     'check_style_graph()',
     'api_documentation_graph(publish=True)',
     'run_application("transport", "cosine_hill_45deg",
-                     env={"nrun":288, "directives":{"default":{"mpi_parts":6}}},
+                     env={"nrun":288, "directives":{"default":{"mpi_parts":6, "wallclock":"00:60:00"}}},
                      resolutions=[("C32",4050.0)],
                      plotstr="slices.py ' + appDiagStemName + ' $NODAL_DATA_DIR density T000000:T000032:T000064:T000096:T000128:T000160:T000192:T000224:T000256 -1 -91 0 $PLOT_DIR" )',
     'run_application("transport", "transport-biperiodic",env={"nrun":100},
@@ -66,7 +66,7 @@
                      env={"crun":1, "nrun":36,
                           "directives":{"default":{"mpi_parts":12,"threads":1,"wallclock":"00:40:00"} } },
                      plotstr="slices.py ' + appDiagStemName + ' $NODAL_DATA_DIR density T000000:T000036 45 -1000 -1000 $PLOT_DIR" )',
-    'check_compilers("transport", "cosine_hill_45deg", "fast-debug",
+    'check_compilers("transport", "cosine_hill_45deg", "full-debug",
                      resolution=("C32", 4050.0))',
     'canned_test( "transport", processes=6, precisions=["32", "64"] )' ],
 
