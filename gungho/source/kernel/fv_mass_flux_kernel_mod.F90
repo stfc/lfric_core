@@ -18,7 +18,7 @@ module fv_mass_flux_kernel_mod
   use argument_mod,      only : arg_type, func_type,       &
                                 GH_FIELD, GH_INC, GH_READ, &
                                 GH_BASIS, CELLS
-  use constants_mod,     only : r_def, r_second, i_def
+  use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W0, W2, W3
   use kernel_mod,        only : kernel_type
 
@@ -115,7 +115,7 @@ subroutine fv_mass_flux_code( nlayers,              &
   integer(kind=i_def), intent(in)                       :: stencil_length
   integer(kind=i_def), intent(in)                       :: stencil_map(1:stencil_length)
   integer(kind=i_def), intent(in)                       :: direction
-  real(r_second),      intent(in)                       :: deltaT
+  real(kind=r_def),    intent(in)                       :: deltaT
 
   ! Internal variables
   real(kind=r_def) :: mass_total

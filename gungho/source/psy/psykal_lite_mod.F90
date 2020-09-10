@@ -1493,13 +1493,12 @@ end subroutine invoke_calc_deppts
                                           a0, a1, a2,  &
                                           dt )
 
-    use constants_mod,            only : r_second
     use mesh_mod,                 only: mesh_type
     use vertical_flux_kernel_mod, only: vertical_flux_code
 
     implicit none
 
-    real(r_second),   intent(in)    :: dt
+    real(kind=r_def), intent(in)    :: dt
     type(field_type), intent(inout) :: mass_flux_z
     type(field_type), intent(in)    :: dep_pts, rho, a0, a1, a2
     integer cell

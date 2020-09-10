@@ -7,7 +7,6 @@
 module density_inc_update_alg_mod
 
   use field_mod,                only: field_type
-  use psykal_builtin_light_mod, only: invoke_inc_X_minus_double_bY
   use timestepping_config_mod,  only: dt
 
   implicit none
@@ -31,7 +30,7 @@ contains
     type(field_type),    intent(inout)    :: density
     type(field_type),    intent(in)       :: increment
 
-    call invoke_inc_X_minus_double_bY(density, dt, increment)
+    call invoke( inc_X_minus_bY( density, dt, increment ) )
 
   end subroutine density_inc_update_alg
 

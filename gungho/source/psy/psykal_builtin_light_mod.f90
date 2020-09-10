@@ -5,7 +5,7 @@
 !-----------------------------------------------------------------------------
 module psykal_builtin_light_mod
 
-  use constants_mod, only : i_def, i_long, r_def, r_double
+  use constants_mod, only : i_def, i_long, r_def
   use field_mod,     only : field_type, field_proxy_type
 
   implicit none
@@ -177,79 +177,5 @@ contains
     end do
 
   end subroutine invoke_sign
-
-  !----------------------------------------------------------------------------
-  !> Version of X_minus_bY which supports a double width constant.
-  !>
-  !> This is needed due to deltaT being passed to its equivalent and always
-  !> being a double, even when r_def isn't. It is not clear that this is the
-  !> correct solution in the long run but it is expedient for getting the
-  !> new clock on trunk.
-  !>
-  subroutine invoke_X_minus_double_bY( result_field, &
-                                       field_one,    &
-                                       scalar,       &
-                                       field_two )
-
-    implicit none
-
-    class(field_type), intent(inout) :: result_field
-    class(field_type), intent(in)    :: field_one
-    real(r_double),    intent(in)    :: scalar
-    class(field_type), intent(in)    :: field_two
-
-    type(field_proxy_type) :: result_proxy
-    type(field_proxy_type) :: field_one_proxy
-    type(field_proxy_type) :: field_two_proxy
-
-    integer(i_long) :: dof
-
-    result_proxy = result_field%get_proxy()
-    field_one_proxy  = field_one%get_proxy()
-    field_two_proxy  = field_two%get_proxy()
-
-    do dof=1,result_proxy%vspace%get_last_dof_annexed()
-      result_proxy%data(dof) = field_one_proxy%data(dof) &
-        - scalar * field_two_proxy%data(dof)
-    end do
-
-    call result_proxy%set_dirty()
-
-  end subroutine invoke_x_minus_double_bY
-
-  !----------------------------------------------------------------------------
-  !> Version of inc_X_minus_bY which supports a double width constant.
-  !>
-  !> This is needed due to deltaT being passed to its equivalent and always
-  !> being a double, even when r_def isn't. It is not clear that this is the
-  !> correct solution in the long run but it is expedient for getting the
-  !> new clock on trunk.
-  !>
-  subroutine invoke_inc_X_minus_double_bY( result_field, &
-                                           scalar,       &
-                                           field_one )
-
-    implicit none
-
-    class(field_type), intent(inout) :: result_field
-    real(r_double),    intent(in)    :: scalar
-    class(field_type), intent(in)    :: field_one
-
-    type(field_proxy_type) :: result_proxy
-    type(field_proxy_type) :: field_one_proxy
-
-    integer(i_long) :: dof
-
-    result_proxy = result_field%get_proxy()
-    field_one_proxy  = field_one%get_proxy()
-
-    do dof=1, result_proxy%vspace%get_last_dof_annexed()
-      result_proxy%data(dof) = result_proxy%data(dof) &
-        - scalar * field_one_proxy%data(dof)
-    end do
-
-    call result_proxy%set_dirty()
-
-  end subroutine invoke_inc_X_minus_double_bY
 
 end module psykal_builtin_light_mod

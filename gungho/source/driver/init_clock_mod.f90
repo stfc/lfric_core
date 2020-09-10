@@ -7,6 +7,7 @@
 !>
 module init_clock_mod
 
+  use constants_mod,           only : r_second
   use calendar_mod,            only : calendar_type
   use clock_mod,               only : clock_type
   use log_mod,                 only : log_event,       &
@@ -64,8 +65,8 @@ contains
     call clock%initialise( new_calendar,   &
                            timestep_start, &
                            timestep_end,   &
-                           dt,             &
-                           spinup_period )
+                           real(dt, kind=r_second), &
+                           real(spinup_period, kind=r_second) )
 
   end subroutine initialise_clock
 

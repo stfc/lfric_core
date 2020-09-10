@@ -12,7 +12,7 @@
 !>          upward flow (i.e. positive z direction with outward normal).
 module vert_conservative_cosmic_alg_mod
 
-  use constants_mod,             only: r_def, r_second, i_def
+  use constants_mod,             only: r_def
   use field_mod,                 only: field_type
   use function_space_mod,        only: function_space_type
   use psykal_lite_mod,           only: invoke_vertical_flux_kernel
@@ -51,7 +51,7 @@ contains
     type(field_type), intent(inout) :: mass_flux_z
     type(field_type), intent(in)    :: rho
     type(field_type), intent(in)    :: dep_pts
-    real(r_second),   intent(in)    :: dt
+    real(r_def),      intent(in)    :: dt
 
     type(field_type) :: a0, a1, a2
     type(function_space_type), pointer :: w3_fs     => null()

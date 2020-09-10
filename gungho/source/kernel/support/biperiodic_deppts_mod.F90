@@ -9,7 +9,7 @@
 !------------------------------------------------------------------------------
 module biperiodic_deppts_mod
 
-use constants_mod, only : r_def, r_second, i_def
+use constants_mod, only : r_def, i_def
 use log_mod,       only : log_event, LOG_LEVEL_ERROR, log_scratch_space
 use biperiodic_deppt_config_mod, only : method_euler,       &
                                         method_midpoint,    &
@@ -58,7 +58,7 @@ contains
     integer, intent(in)             :: nCellEdges
     real(kind=r_def), intent(in)    :: u_n(1:nCellEdges)
     real(kind=r_def), intent(in)    :: u_np1(1:nCellEdges)
-    real(r_second),   intent(in)    :: deltaT
+    real(kind=r_def), intent(in)    :: deltaT
     integer, intent(in)             :: method
     integer, intent(in)             :: n_dep_pt_iterations
     real(kind=r_def)                :: distance
@@ -154,7 +154,7 @@ contains
     integer(kind=i_def), intent(in)     :: nCellEdges
     real(kind=r_def), intent(in)        :: u_n(1:nCellEdges)
     real(kind=r_def), intent(in)        :: u_np1(1:nCellEdges)
-    real(r_second),   intent(in)        :: deltaT
+    real(kind=r_def), intent(in)        :: deltaT
     integer(kind=i_def), intent(in)     :: n_dep_pt_iterations
     real(kind=r_def)                    :: distance
 

@@ -19,7 +19,7 @@ module vertical_flux_kernel_mod
 use argument_mod,      only : arg_type, func_type,                  &
                               GH_FIELD, GH_INC, GH_READ,            &
                               GH_BASIS, CELLS, GH_REAL
-use constants_mod,     only : r_def, r_second, i_def
+use constants_mod,     only : r_def, i_def
 use fs_continuity_mod, only : W2, W3
 use kernel_mod,        only : kernel_type
 
@@ -109,7 +109,7 @@ subroutine vertical_flux_code( nlayers,             &
   integer(kind=i_def), dimension(ndf_w2), intent(in)    :: map_w2
   real(kind=r_def), dimension(undf_w2), intent(inout)   :: flux
   real(kind=r_def), dimension(undf_w2), intent(in)      :: dep_pts
-  real(r_second),                       intent(in)      :: deltaT
+  real(kind=r_def),                     intent(in)      :: deltaT
 
   ! Internal variables
   integer(kind=i_def) :: k

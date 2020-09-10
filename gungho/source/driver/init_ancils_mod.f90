@@ -341,14 +341,17 @@ contains
     type(time_axis_type), intent(out) :: time_axis
 
     ! Local/derived variables for time axis initialisation
+    real(dp_xios),  allocatable :: time_data_dpxios(:)
     real(r_def),    allocatable :: time_data(:)
     integer(i_def), allocatable :: axis_indices(:)
 
     ! Other local variables for XIOS interface
     integer(i_def) :: i
 
-    ! Read time data from ancil file
-    call read_time_data(time_id, time_data)
+    ! Read time data from ancil file, then cast to r_def
+    call read_time_data(time_id, time_data_dpxios)
+    time_data = real(time_data_dpxios, kind=r_def)
+    deallocate(time_data_dpxios)
 
     ! Set up axis index array
     allocate(axis_indices(size(time_data)))

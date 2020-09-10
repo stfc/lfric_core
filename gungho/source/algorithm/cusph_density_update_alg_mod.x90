@@ -5,14 +5,13 @@
 !-----------------------------------------------------------------------------
 module cusph_density_update_alg_mod
 
-  use constants_mod,               only: i_def, r_def
+  use constants_mod,               only: i_def
   use dg_matrix_vector_kernel_mod, only: dg_matrix_vector_kernel_type
   use field_mod,                   only: field_type
   use flux_direction_mod,          only: x_direction, y_direction
   use function_space_mod,          only: function_space_type
   use operator_mod,                only: operator_type
   use psykal_lite_mod,             only: invoke_fv_divergence
-  use psykal_builtin_light_mod,    only: invoke_X_minus_double_bY
   use runtime_constants_mod,       only: get_mass_matrix, w3inv_id
   use timestepping_config_mod,     only: dt
 
@@ -65,7 +64,7 @@ contains
     call invoke( dg_matrix_vector_kernel_type( divergence_term, &
                                                mass_divergence, &
                                                mm_w3_inv ) )
-    call invoke_X_minus_double_bY( rho, rho_n, dt, divergence_term )
+    call invoke( X_minus_bY( rho, rho_n, dt, divergence_term ) )
 
     nullify(mm_w3_inv)
     nullify(rho_n_fs)
