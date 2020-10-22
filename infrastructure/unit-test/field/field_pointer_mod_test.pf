@@ -4,7 +4,7 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-!> Test the field pointer object
+!> Test the field pointer object: for real, integer, and r_solver field types
 !>
 !-------------------------------------------------------------------------------
 module field_pointer_mod_test
@@ -96,6 +96,7 @@ contains
 
     use field_mod,         only: field_type, field_pointer_type
     use integer_field_mod, only: integer_field_type, integer_field_pointer_type
+    use r_solver_field_mod, only: r_solver_field_type, r_solver_field_pointer_type
 
     implicit none
 
@@ -108,6 +109,10 @@ contains
     type(integer_field_type), target  :: f2
     type(integer_field_type), pointer :: f2_ptr
     type(integer_field_pointer_type)  :: int_field_pointer
+
+    type(r_solver_field_type), target  :: f3
+    type(r_solver_field_type), pointer :: f3_ptr
+    type(r_solver_field_pointer_type)  :: r_solver_field_pointer
 
     ! ===== Test real field pointers =====
 
@@ -133,6 +138,20 @@ contains
 
     ! Check that the pointer held in the object is the same as the original
     @assertEqual ( .true., associated( int_field_pointer%field_ptr, f2_ptr ) )
+
+
+    ! ===== Test r_solver field pointers =====
+
+    ! Create a field and a pointer to it
+    call f3%initialise( vector_space = this%w2_fs, name='f3' )
+    f3_ptr => f3
+
+    ! Make a field pointer object based on the above field
+    call r_solver_field_pointer%r_solver_field_pointer_initialiser( f3_ptr )
+
+    ! Check that the pointer held in the object is the same as the original
+    @assertEqual ( .true., associated( r_solver_field_pointer%field_ptr, f3_ptr ) )
+
 
   end subroutine test_field_pointer
 

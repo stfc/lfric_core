@@ -71,6 +71,10 @@ endif
 RDEF_PRECISION ?= 64
 export PRE_PROCESS_MACROS += RDEF_PRECISION=$(RDEF_PRECISION)
 
+# Set the r_solver precision for reals
+R_SOLVER_PRECISION ?= 32
+# export PRE_PROCESS_MACROS += R_SOLVER_PRECISION=$(R_SOLVER_PRECISION)
+
 # The compile options file overrides compile options based on file-name pattern matching.
 # Use the miniapp-specific file if it exists. Otherwise use the infrastructure file.
 ifeq (,$(wildcard $(PROJECT_DIR)/build/compile_options.mk))

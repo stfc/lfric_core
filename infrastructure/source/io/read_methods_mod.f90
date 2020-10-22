@@ -10,7 +10,8 @@
 !>           recommendations in the NetCDF CF standard.
 module read_methods_mod
 
-  use constants_mod,                 only: i_def, dp_xios, str_def, r_def
+  use constants_mod,                 only: i_def, dp_xios, str_def, r_def, &
+                                           r_solver
   use field_mod,                     only: field_type, field_proxy_type
   use field_collection_mod,          only: field_collection_type, &
                                            field_collection_iterator_type
@@ -20,6 +21,8 @@ module read_methods_mod
   use fs_continuity_mod,             only: W3
   use integer_field_mod,             only: integer_field_type, &
                                            integer_field_proxy_type
+  use r_solver_field_mod,            only: r_solver_field_type, &
+                                           r_solver_field_proxy_type
   use io_mod,                        only: ts_fname
   use log_mod,                       only: log_event,         &
                                            log_scratch_space, &
@@ -199,6 +202,12 @@ subroutine read_field_edge(xios_field_name, field_proxy)
                   int( recv_field( i*(domain_size)+1 : (i+1)*domain_size ), i_def)
     end do
 
+    type is (r_solver_field_proxy_type)
+    do i = 0, axis_size-1
+      field_proxy%data( i+1 : undf : axis_size )  = &
+               real(recv_field( i*(domain_size)+1 : (i+1)*domain_size ), r_solver)
+    end do
+
   end select
 
   deallocate(recv_field)
@@ -242,20 +251,27 @@ subroutine read_field_face(xios_field_name, field_proxy)
 
   ! Different field kinds are selected to access data, which is arranged to get the
   ! correct data layout for the LFRic field - the reverse of what is done for writing
-  ! Note the conversion from dp_xios to r_def or i_def
+  ! Note the conversion from dp_xios to r_def, i_def or r_solver
   select type(field_proxy)
 
     type is (field_proxy_type)
     do i = 0, axis_size-1
       field_proxy%data(i+1:undf:axis_size) = &
-                       real(recv_field(i*(domain_size)+1:(i*(domain_size)) + domain_size), r_def)
+             real(recv_field(i*(domain_size)+1:(i*(domain_size)) + domain_size), r_def)
     end do
 
     type is (integer_field_proxy_type)
     do i = 0, axis_size-1
       field_proxy%data(i+1:undf:axis_size) = &
-                       int( recv_field(i*(domain_size)+1:(i*(domain_size)) + domain_size), i_def)
+             int( recv_field(i*(domain_size)+1:(i*(domain_size)) + domain_size), i_def)
     end do
+
+    type is (r_solver_field_proxy_type)
+    do i = 0, axis_size-1
+      field_proxy%data(i+1:undf:axis_size) = &
+             real( recv_field(i*(domain_size)+1:(i*(domain_size)) + domain_size), r_solver)
+    end do
+
 
   end select
 
@@ -304,7 +320,7 @@ subroutine read_field_single_face(xios_field_name, field_proxy)
   select type(field_proxy)
 
     ! Pass the correct data from the recieved field to the field proxy data
-    ! Note the conversion from dp_xios to r_def or i_def
+    ! Note the conversion from dp_xios to r_def, i_def or r_solver
     type is (field_proxy_type)
     do i = 0, ndata-1
       field_proxy%data(i+1:(ndata*domain_size)+i:ndata) = &
@@ -315,6 +331,12 @@ subroutine read_field_single_face(xios_field_name, field_proxy)
     do i = 0, ndata-1
       field_proxy%data(i+1:(ndata*domain_size)+i:ndata) = &
               int( recv_field(i*(domain_size)+1:(i*(domain_size)) + domain_size), i_def)
+    end do
+
+    type is (r_solver_field_proxy_type)
+    do i = 0, ndata-1
+      field_proxy%data(i+1:(ndata*domain_size)+i:ndata) = &
+              real(recv_field(i*(domain_size)+1:(i*(domain_size)) + domain_size), r_solver)
     end do
 
   end select
@@ -363,6 +385,7 @@ subroutine read_state(state, prefix, suffix)
           call log_event('Read method for  '//trim(adjustl(fld%get_name()))// &
                          ' not set up', LOG_LEVEL_INFO )
         end if
+
       type is (integer_field_type)
         if ( fld%can_read() ) then
           call log_event( &
@@ -379,6 +402,24 @@ subroutine read_state(state, prefix, suffix)
           call log_event( 'Read method for  '// trim(adjustl(fld%get_name())) // &
                           ' not set up', LOG_LEVEL_INFO )
         end if
+
+      type is (r_solver_field_type)
+        if ( fld%can_read() ) then
+          call log_event( 'Reading '//trim(adjustl(fld%get_name())), &
+            LOG_LEVEL_INFO)
+
+          ! Construct the XIOS field ID from the LFRic field name and optional
+          ! arguments
+          xios_field_id = trim(adjustl(fld%get_name()))
+          if ( present(prefix) ) xios_field_id = trim(adjustl(prefix)) // trim(adjustl(xios_field_id))
+          if ( present(suffix) ) xios_field_id = trim(adjustl(xios_field_id)) // trim(adjustl(suffix))
+
+          call fld%read_field(xios_field_id)
+        else
+          call log_event( 'Read method for  '// trim(adjustl(fld%get_name())) // &
+                          ' not set up', LOG_LEVEL_INFO )
+        end if
+
     end select
   end do
 
@@ -429,6 +470,19 @@ subroutine read_checkpoint(state, timestep)
           call log_event( 'Checkpointing for  '// trim(adjustl(fld%get_name())) // &
                           ' not set up', LOG_LEVEL_INFO )
         end if
+
+      type is (r_solver_field_type)
+        if ( fld%can_checkpoint() ) then
+          call log_event( 'Reading checkpoint file to restart '// &
+                           trim(adjustl(fld%get_name())), LOG_LEVEL_INFO)
+          call fld%read_checkpoint( "restart_"//trim(adjustl(fld%get_name())), &
+                                    trim(ts_fname(checkpoint_stem_name, "",    &
+                                    trim(adjustl(fld%get_name())),timestep,"")))
+        else
+          call log_event( 'Checkpointing for  '// trim(adjustl(fld%get_name())) // &
+                          ' not set up', LOG_LEVEL_INFO )
+        end if
+
     end select
   end do
 

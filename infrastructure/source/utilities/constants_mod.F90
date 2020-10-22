@@ -23,13 +23,14 @@ module constants_mod
             i_timestep, i_um,                                            &
             l_def, l_native,                                             &
             r_def, r_double, r_ncdf, r_native, r_second, r_single, r_um, &
+            r_solver,                                                    &
             CMDI, EIMDI, EMDI, IMDI, RMDI,                               &
-            real_type, integer_type, logical_type,                       &
+            real_type, r_solver_real_type, integer_type, logical_type,   &
             EPS, tiny_eps,                                               &
             str_def, str_long, str_max_filename, str_short,              &
-            LARGE_REAL_NEGATIVE, LARGE_REAL_POSITIVE, xios_max_int,      &
-            PI, degrees_to_radians, radians_to_degrees,                  &
-            cache_block, PRECISION_REAL
+            LARGE_REAL_NEGATIVE, LARGE_REAL_POSITIVE,                    &
+            xios_max_int, PI, degrees_to_radians, radians_to_degrees,    &
+            cache_block, PRECISION_REAL, PRECISION_R_SOLVER
 
   ! Define default application-defined kinds for all intrinsic data types
 
@@ -50,21 +51,35 @@ module constants_mod
   character(3), parameter :: PRECISION_REAL = '64'
 #endif
 
-  integer, parameter :: real_type    = 1 !< A parameter used to indicate a real data typa
-  integer, parameter :: integer_type = 2 !< A parameter used to indicate an integer data type
-  integer, parameter :: logical_type = 3 !< A parameter used to indicate a logical data type
+  ! Default real kind for r_solver.
+#if (R_SOLVER_PRECISION == 32)
+  integer,      parameter :: r_solver = real32
+  character(3), parameter :: PRECISION_R_SOLVER = '32'
+#elif (R_SOLVER_PRECISION == 128)
+  integer,      parameter :: r_solver = real128
+  character(3), parameter :: PRECISION_R_SOLVER = '128'
+#else
+  integer,      parameter :: r_solver = real64
+  character(3), parameter :: PRECISION_R_SOLVER = '64'
+#endif
+
+
+  integer, parameter :: real_type          = 1 !< A parameter used to indicate a real data typa
+  integer, parameter :: r_solver_real_type = 1 !< A parameter used to indicate a r_solver data type
+  integer, parameter :: integer_type       = 2 !< A parameter used to indicate an integer data type
+  integer, parameter :: logical_type       = 3 !< A parameter used to indicate a logical data type
 
   integer, parameter :: r_double = real64 !< Default double precision real kind for application.
   integer, parameter :: r_native = kind(r_val)  !< Native kind for real.
   integer, parameter :: r_ncdf   = real64 !< Default real kind used in netcdf get and put.
-  integer, parameter :: r_quad   =  real128 !< Default quad precision real kind for application.
+  integer, parameter :: r_quad   = real128 !< Default quad precision real kind for application.
   integer, parameter :: r_second = real64 !< Kind for second counts.
   integer, parameter :: r_single = real32 !< Default single precision real kind for application.
   integer, parameter :: r_um     = real64 !< Default real kind used by the UM.
 
   integer, parameter :: dp_native = kind(dp_val) !< Native kind for double precision.
   ! Define kinds specifically for IO
-  integer, parameter :: dp_xios = kind(dp_val) !< XIOS kind for double precision fields
+  integer, parameter :: dp_xios   = kind(dp_val) !< XIOS kind for double precision fields
 
   !> @}
 
@@ -113,14 +128,15 @@ module constants_mod
 
   !> @name Platform constants
   !> @{
-  real(kind=r_def), parameter :: LARGE_REAL_POSITIVE = huge(0.0_r_def) !< The largest
-  !<                            positive number of kind r_def that is not an infinity.
-  real(kind=r_def), parameter :: LARGE_REAL_NEGATIVE = -LARGE_REAL_POSITIVE !< The largest
-  !<                            negative number of kind r_def that is not an infinity.
+  real(kind=r_def), parameter    :: LARGE_REAL_POSITIVE = huge(0.0_r_def) !< The largest
+  !<                                positive number of kind r_def that is not an infinity.
+  real(kind=r_def), parameter    :: LARGE_REAL_NEGATIVE = -LARGE_REAL_POSITIVE !< The largest
+  !<                                negative number of kind r_def that is not an infinity.
+
   integer(kind=i_def), parameter :: xios_max_int = huge(0_i_short) !< The largest
-  !<                            integer that can be output by XIOS
+  !<                                integer that can be output by XIOS
   integer, parameter :: cache_block = 256 !< Size of a cache block, for padding
-  !<                           arrays to ensure access to different cache lines
+  !<                                arrays to ensure access to different cache lines
 
   !> @}
 

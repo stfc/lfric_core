@@ -8,7 +8,7 @@
 !>
 module field_collection_mod_test
 
-    use constants_mod,                 only : i_def, r_def, l_def
+    use constants_mod,                 only : i_def, r_def, l_def, r_solver
     use function_space_mod,            only : function_space_type
     use function_space_collection_mod, only : function_space_collection_type, &
                                               function_space_collection
@@ -20,10 +20,14 @@ module field_collection_mod_test
     use field_parent_mod,              only : field_parent_type
     use integer_field_mod,             only : integer_field_type, &
                                               integer_field_proxy_type
+    use r_solver_field_mod,            only : r_solver_field_type, &
+                                              r_solver_field_proxy_type
     use field_collection_mod,          only : field_collection_type, &
                                               field_collection_iterator_type, &
-                                              field_collection_real_iterator_type
-    use fs_continuity_mod,             only : W0, W2
+                                              field_collection_real_iterator_type, &
+                                              field_collection_integer_iterator_type, &
+                                              field_collection_r_solver_iterator_type
+    use fs_continuity_mod,             only : W0, W2, W3
     use pure_abstract_field_mod,       only : pure_abstract_field_type
     use yaxt,                          only : xt_initialize, xt_finalize
     use mpi_mod,                       only : store_comm, clear_comm
@@ -33,18 +37,23 @@ module field_collection_mod_test
 
   private
   public :: test_all
-  public :: test_assignment
+  public :: test_assignment_r_def
+  public :: test_assignment_integer
+  public :: test_assignment_r_solver
 
   @TestCase
   type, extends(MPITestCase), public :: field_collection_test_type
     private
     type(function_space_type), pointer :: w0_fs => null()
     type(function_space_type), pointer :: w2_fs => null()
+    type(function_space_type), pointer :: w3_fs => null()
   contains
     procedure setUp
     procedure tearDown
     procedure test_all
-    procedure test_assignment
+    procedure test_assignment_r_def
+    procedure test_assignment_integer
+    procedure test_assignment_r_solver
   end type field_collection_test_type
 
   integer(i_def), parameter :: element_order = 0
@@ -85,6 +94,10 @@ contains
                                                     element_order, &
                                                     W2 )
 
+    this%w3_fs => function_space_collection%get_fs( mesh_id, &
+                                                    element_order, &
+                                                    W3 )
+
   end subroutine setUp
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -111,135 +124,212 @@ contains
     implicit none
 
     class(field_collection_test_type), intent(inout) :: this
-    class(pure_abstract_field_type), pointer :: field_ptr
-    type(field_type) :: test_field1
-    type(field_proxy_type) :: test_field1_p
-    type(integer_field_type) :: test_field2
-    type(integer_field_proxy_type) :: test_field2_p
-    type(field_type), pointer :: returned_field1
-    type(field_type), pointer :: returned_field2
-    type(integer_field_type), pointer :: returned_field3
-    type(field_proxy_type) :: returned_field1_p
-    type(field_proxy_type) :: returned_field2_p
-    type(integer_field_proxy_type) :: returned_field3_p
-    type(field_collection_type) :: test_field_collection1
-    type(field_collection_type) :: test_field_collection2
-    real(r_def), parameter :: tol = 1.0e-6_r_def
-    type(field_collection_iterator_type) :: iter
-    type(field_collection_real_iterator_type) :: iter_real
-    class(field_parent_type), pointer :: fld => null()
-    integer(i_def) :: length, i
-    logical(l_def) :: exists
+    class(pure_abstract_field_type), pointer         :: field_ptr
 
+    type(field_type)                    :: test_field1
+    type(integer_field_type)            :: test_field2
+    type(r_solver_field_type)           :: test_field3
+
+    type(field_proxy_type)              :: test_field1_p
+    type(integer_field_proxy_type)      :: test_field2_p
+    type(r_solver_field_proxy_type)     :: test_field3_p
+
+    type(field_type), pointer           :: returned_field1
+    type(field_type), pointer           :: returned_field1a
+    type(integer_field_type), pointer   :: returned_field2
+    type(r_solver_field_type), pointer  :: returned_field3
+
+    type(field_proxy_type)              :: returned_field1_p
+    type(field_proxy_type)              :: returned_field1a_p
+    type(integer_field_proxy_type)      :: returned_field2_p
+    type(r_solver_field_proxy_type)     :: returned_field3_p
+
+    type(field_collection_type)         :: test_field_collectionA
+    type(field_collection_type)         :: test_field_collectionB
+
+    type(field_collection_iterator_type)           :: iter
+    type(field_collection_real_iterator_type)      :: iter_real
+    type(field_collection_integer_iterator_type)   :: iter_integer
+    type(field_collection_r_solver_iterator_type)  :: iter_r_solver
+    class(field_parent_type), pointer              :: fld => null()
+
+    real(r_def), parameter              :: tol = 1.0e-6_r_def
+    real(r_solver), parameter           :: tol_r_solver = 1.0e-6_r_solver
+    integer(i_def)                      :: length, i
+    logical(l_def)                      :: exists
+
+    !----------------- Create real, integer & r_solver fields ----------------------!
     ! Create a field object with the name 'test_field1'
     ! and put 99.0 in the first dof
     call test_field1%initialise( this%w0_fs, name='test_field1' )
     test_field1_p = test_field1%get_proxy()
-    test_field1_p%data(1)=99.0
+    test_field1_p%data(1) = 99.0_r_def
 
     ! Create an integer field object with the name 'test_field2'
     ! and put 33 in the first dof
-    call test_field2%initialise( this%w0_fs, name='test_field2' )
+    call test_field2%initialise( this%w2_fs, name='test_field2' )
     test_field2_p = test_field2%get_proxy()
-    test_field2_p%data(1)=33
+    test_field2_p%data(1) = 33_i_def
 
-    ! Create a field_collection and put test_field1 and test_field2 in it
-    test_field_collection1 = field_collection_type()
-    call test_field_collection1%add_field(test_field1)
-    call test_field_collection1%add_field(test_field2)
+    ! Create an r_solver field object with the name 'test_field2'
+    ! and put 600.0 in the first dof
+    call test_field3%initialise( this%w3_fs, name='test_field3' )
+    test_field3_p = test_field3%get_proxy()
+    test_field3_p%data(1) = 600.0_r_def
 
-    ! Check that test_field1 exists in field_collection
-    exists = test_field_collection1%field_exists('test_field1')
+    !----------------- Create field collection 'A' & test extracts -------------------!
+    ! Create a field_collection_A and put test_field1 and test_field2 in it
+    test_field_collectionA = field_collection_type()
+    call test_field_collectionA%add_field(test_field1)  ! a real field
+    call test_field_collectionA%add_field(test_field2)  ! an integer field
+    call test_field_collectionA%add_field(test_field3)  ! an r_solver field
+
+    !---Check fields exist in collections
+    exists = test_field_collectionA%field_exists('test_field1')
+    @assertTrue(exists)
+    exists = test_field_collectionA%field_exists('test_field2')
+    @assertTrue(exists)
+    exists = test_field_collectionA%field_exists('test_field3')
     @assertTrue(exists)
 
-    ! Extract the field called 'test_field1' into returned_field1
-    returned_field1 => test_field_collection1%get_field('test_field1')
+    !---Real field extract
+    ! Extract the real field called 'test_field1' into returned_field1
+    returned_field1 => test_field_collectionA%get_field('test_field1')
     returned_field1_p = returned_field1%get_proxy()
+    ! Check that test_field1 has 99.0 in the first dof
+    @assertEqual(99.0_r_def, returned_field1_p%data(1), tol)
 
-    ! Check that test_field2 has 99.0 in the first dof
-    @assertEqual(99.0, returned_field1_p%data(1), tol)
-
-    ! Extract the field called 'test_field2' into returned_field3
-    returned_field3 => test_field_collection1%get_integer_field('test_field2')
-    returned_field3_p = returned_field3%get_proxy()
-
+    !---Integer field extract
+    ! Extract the integer field called 'test_field2' into returned_field2
+    returned_field2 => test_field_collectionA%get_integer_field('test_field2')
+    returned_field2_p = returned_field2%get_proxy()
     ! Check that test_field2 has 33 in the first dof
-    @assertEqual(33, returned_field3_p%data(1))
+    @assertEqual(33_i_def, returned_field2_p%data(1))
 
-    ! Create a second field_collection and put a reference to the field
-    ! that is stored in the first field_collection into it
-    test_field_collection2 = field_collection_type()
+    !---Solver_field extract
+    ! Extract the r_solver field called 'test_field3' into returned_field3
+    returned_field3 => test_field_collectionA%get_r_solver_field('test_field3')
+    returned_field3_p = returned_field3%get_proxy()
+    ! Check that test_field3 has 600 in the first dof
+    @assertEqual(600.0_r_solver, returned_field3_p%data(1), tol_r_solver)
+
+
+    !------------------ Check updating of fields in Collection------------------------!
+
+    ! Create a second field_collection and put a reference to the field that is
+    ! stored in the first field_collection into it
+    test_field_collectionB = field_collection_type()
     field_ptr => returned_field1
-    call test_field_collection2%add_reference_to_field(field_ptr)
+    call test_field_collectionB%add_reference_to_field(field_ptr)
 
     ! Change the data in the original field
-    returned_field1_p%data(1)=999.0
+    returned_field1_p%data(1)=999.0_r_def
 
     ! Check that the reference to that field has been updated
-    returned_field2 => test_field_collection2%get_field('test_field1')
-    returned_field2_p = returned_field2%get_proxy()
-    @assertEqual(999.0, returned_field2_p%data(1), tol)
+    returned_field1a => test_field_collectionB%get_field('test_field1')
+    returned_field1a_p = returned_field1a%get_proxy()
+    @assertEqual(999.0_r_def, returned_field1a_p%data(1), tol)
 
+
+    !-------------- Remove and Add Back the Real Field -------------------------!
     ! Check we can remove a field from the field collection
-    call test_field_collection1%remove_field("test_field1")
-    length=test_field_collection1%get_length()
-    @assertEqual(1, length)
+    call test_field_collectionA%remove_field("test_field1")
+    length=test_field_collectionA%get_length()
+    @assertEqual(2, length)
 
     ! Check that test_field1 no longer exists in field_collection
-    exists = test_field_collection1%field_exists('test_field1')
+    exists = test_field_collectionA%field_exists('test_field1')
     @assertFalse(exists)
 
     ! Check we can add the field back into the collection
-    call test_field_collection1%add_field(test_field1)
-    returned_field1 => test_field_collection1%get_field('test_field1')
+    call test_field_collectionA%add_field(test_field1)
+    returned_field1 => test_field_collectionA%get_field('test_field1')
     returned_field1_p = returned_field1%get_proxy()
-    @assertEqual(99.0, returned_field1_p%data(1), tol)
+    @assertEqual(99.0_r_def, returned_field1_p%data(1), tol)
+
+
+    !----------------------Iterating over the 'A' Collection --------------------------!
 
     ! Check we can iterate over a collection
-    ! At this point, test_field_collection1 should contain:
+    ! At this point, test_field_collectionA should contain:
     ! 1. An integer field with 33 as the first data item
-    ! 2. A real field with a first data item of 99.0
+    ! 2. An r_solver field with 600.0 as the first data item
+    ! 3. A real field with a first data item of 99.0
     !    - so check for that:
-    iter=test_field_collection1%get_iterator()
+    iter=test_field_collectionA%get_iterator()
     do i=1,10
       if(.not.iter%has_next())exit
       fld=>iter%next()
       select type(fld)
-        type is (field_type)
-          @assertEqual(2, i)
+        type is (field_type)  ! r_def
+          @assertEqual(3, i)
           test_field1_p = fld%get_proxy()
-          @assertEqual(99.0, returned_field1_p%data(1), tol)
+          @assertEqual(99.0_r_def, returned_field1_p%data(1), tol)
         type is (integer_field_type)
           @assertEqual(1, i)
+          returned_field2_p = fld%get_proxy()
+          @assertEqual(33_i_def, returned_field2_p%data(1))
+        type is (r_solver_field_type)
+          @assertEqual(2, i)
           returned_field3_p = fld%get_proxy()
-          @assertEqual(33, returned_field3_p%data(1))
+          @assertEqual(600_r_solver, returned_field3_p%data(1), tol_r_solver)
       end select
     end do
-    ! Test that there were only two items in the collection (so the iteration
-    ! loop exited on i==3)
-    @assertEqual(3, i)
+    ! Test that there were only three items in the collection (so the iteration
+    ! loop exited on i==4)
+    @assertEqual(4, i)
 
+    !----------------------Iterating selectively by kind --------------------------!
     ! Check we can iterate over just the real fields in a collection
-    ! At this point, test_field_collection1 should contain:
+    ! At this point, test_field_collectionA should contain:
     ! 1. An integer field with 33 as the first data item
-    ! 2. A real field with a first data item of 99.0
-    !    - so check the real field iterator sees just the real field:
-    iter_real=test_field_collection1%get_real_iterator()
+    ! 2. An r_solver field with 600.0 as the first data item
+    ! 3. A real (r_def) field with a first data item of 99.0
+
+    ! ------- real ---------
+    ! Check the real field iterator sees just the real field:
+    iter_real=test_field_collectionA%get_real_iterator()
     do i=1,10
       if(.not.iter_real%has_next())exit
       returned_field1=>iter_real%next()
       returned_field1_p = returned_field1%get_proxy()
-      @assertEqual(99.0, returned_field1_p%data(1), tol)
+      @assertEqual(99.0_r_def, returned_field1_p%data(1), tol)
     end do
     ! Test that there was only one real field in the collection (so the
-    ! iteration loop exited on i==2)
+    ! iteration loop should exit on i==2)
+    @assertEqual(2, i)
+
+    ! ------- integer ---------
+    ! Check the integer field iterator sees just the integer field:
+    iter_integer=test_field_collectionA%get_integer_iterator()
+    do i=1,10
+      if(.not.iter_integer%has_next())exit
+      returned_field2=>iter_integer%next()
+      returned_field2_p = returned_field2%get_proxy()
+      @assertEqual(33_i_def, returned_field2_p%data(1))
+    end do
+    ! Test that there was only one real field in the collection (so the
+    ! iteration loop should exit on i==2)
+    @assertEqual(2, i)
+
+    ! ------- r_solver ---------
+    ! Check the r_solver field iterator sees just the r_solver field:
+    iter_r_solver=test_field_collectionA%get_r_solver_iterator()
+    do i=1,10
+      if(.not.iter_r_solver%has_next())exit
+      returned_field3=>iter_r_solver%next()
+      returned_field3_p = returned_field3%get_proxy()
+      @assertEqual(600.0_r_solver, returned_field3_p%data(1), tol_r_solver)
+    end do
+    ! Test that there was only one r_solver field in the collection (so the
+    ! iteration loop should exit on i==2)
     @assertEqual(2, i)
 
   end subroutine test_all
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @Test( npes=[1] )
-  subroutine test_assignment( self )
+  subroutine test_assignment_r_def( self )
 
     implicit none
 
@@ -255,11 +345,11 @@ contains
 
     real(r_def), parameter :: tol = 1.0e-6_r_def
 
-    f_collection = field_collection_type("test_field_collection1")
+    f_collection = field_collection_type("test_field_collectionA")
 
     ! Assert the copy has preserved the name.
     f_collection_copy = f_collection
-    @assertEqual(f_collection_copy % get_name(), "test_field_collection1")
+    @assertEqual(f_collection_copy % get_name(), "test_field_collectionA")
 
     ! Create field with the name 'test_field1' and put 42.0 in the first dof.
     call test_field1%initialise( self % w0_fs, name='test_field1' )
@@ -308,6 +398,152 @@ contains
     proxy = returned_field % get_proxy()
     @assertEqual(112.0, proxy%data(1), tol)
 
-  end subroutine test_assignment
+  end subroutine test_assignment_r_def
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test( npes=[1] )
+  subroutine test_assignment_integer( self )
+
+    implicit none
+
+    class(field_collection_test_type), intent(inout) :: self
+    class(pure_abstract_field_type), pointer         :: field_ptr
+    type(integer_field_type)                         :: test_field1
+    type(integer_field_type), target                 :: test_field2
+    type(integer_field_type), pointer                :: test_field2_ptr
+    type(integer_field_type), pointer                :: returned_field
+    type(integer_field_proxy_type)                   :: proxy
+    type(field_collection_type)                      :: f_collection
+    type(field_collection_type)                      :: f_collection_copy
+
+
+    f_collection = field_collection_type("test_field_collectionA")
+
+    ! Assert the copy has preserved the name.
+    f_collection_copy = f_collection
+    @assertEqual(f_collection_copy % get_name(), "test_field_collectionA")
+
+    ! Create field with the name 'test_field1' and put 42 in the first dof.
+    call test_field1%initialise( self % w0_fs, name='test_field1' )
+    proxy = test_field1%get_proxy()
+    proxy%data(1) = 42
+
+    ! Check that adding a field added to one collection doesn't get result
+    ! in it being added to the copy.
+    call f_collection % add_field( test_field1 )
+    @assertEqual(f_collection_copy % get_length(), 0)
+
+    ! Copy the collection, and get hold of the copied field.
+    f_collection_copy = f_collection
+    returned_field => f_collection_copy % get_integer_field( 'test_field1' )
+
+    ! Check the name is the same, but that changing the data on one field
+    ! doesn't change the data in the copy.
+    @assertEqual(test_field1 % get_name(), returned_field % get_name())
+    proxy = test_field1 % get_proxy()
+    proxy%data(1) = 112
+    proxy = returned_field % get_proxy()
+    @assertEqual(42, proxy%data(1))
+
+    ! Make a pointer to another field, and add that as a reference to the collection.
+    call test_field2%initialise( self % w2_fs, name='test_field2' )
+    test_field2_ptr => test_field2
+    field_ptr => test_field2_ptr
+    call f_collection % add_reference_to_field( field_ptr )
+
+    ! Test that the copied collection didn't grow when the original grew.
+    @assertEqual(f_collection % get_length(), 2)
+    @assertEqual(f_collection_copy % get_length(), 1)
+
+    returned_field => f_collection % get_integer_field('test_field2')
+    ! Check that the field pointer has the same target after copy, but that
+    ! the pointer object itself is different.
+    f_collection_copy = f_collection
+    returned_field => f_collection_copy % get_integer_field('test_field2')
+    @assertTrue(associated(test_field2_ptr, returned_field))
+
+    ! Now if we nullify the original field pointer, we should still be able to use the
+    ! pointer from the copied collection, and we should be pointing at the same data.
+    nullify(test_field2_ptr)
+    proxy = test_field2 % get_proxy()
+    proxy%data(1) = 112
+    proxy = returned_field % get_proxy()
+    @assertEqual(112, proxy%data(1))
+
+  end subroutine test_assignment_integer
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test( npes=[1] )
+  subroutine test_assignment_r_solver( self )
+
+    implicit none
+
+    class(field_collection_test_type), intent(inout) :: self
+    class(pure_abstract_field_type), pointer         :: field_ptr
+    type(r_solver_field_type)                        :: test_field1
+    type(r_solver_field_type), target                :: test_field2
+    type(r_solver_field_type), pointer               :: test_field2_ptr
+    type(r_solver_field_type), pointer               :: returned_field
+    type(r_solver_field_proxy_type)                  :: proxy
+    type(field_collection_type)                      :: f_collection
+    type(field_collection_type)                      :: f_collection_copy
+
+    real(r_solver), parameter :: tol = 1.0e-6_r_solver
+
+    f_collection = field_collection_type("test_field_collectionA")
+
+    ! Assert the copy has preserved the name.
+    f_collection_copy = f_collection
+    @assertEqual(f_collection_copy % get_name(), "test_field_collectionA")
+
+    ! Create field with the name 'test_field1' and put 42.0 in the first dof.
+    call test_field1%initialise( self % w0_fs, name='test_field1' )
+    proxy = test_field1%get_proxy()
+    proxy%data(1) = 42.0_r_solver
+
+    ! Check that adding a field added to one collection doesn't get result
+    ! in it being added to the copy.
+    call f_collection % add_field( test_field1 )
+    @assertEqual(f_collection_copy % get_length(), 0)
+
+    ! Copy the collection, and get hold of the copied field.
+    f_collection_copy = f_collection
+    returned_field => f_collection_copy % get_r_solver_field( 'test_field1' )
+
+    ! Check the name is the same, but that changing the data on one field
+    ! doesn't change the data in the copy.
+    @assertEqual(test_field1 % get_name(), returned_field % get_name())
+    proxy = test_field1 % get_proxy()
+    proxy%data(1) = 112.0_r_solver
+    proxy = returned_field % get_proxy()
+    @assertEqual(42.0_r_solver, proxy%data(1), tol)
+
+    ! Make a pointer to another field, and add that as a reference to the collection.
+    call test_field2%initialise( self % w2_fs, name='test_field2' )
+    test_field2_ptr => test_field2
+    field_ptr => test_field2_ptr
+    call f_collection % add_reference_to_field( field_ptr )
+
+    ! Test that the copied collection didn't grow when the original grew.
+    @assertEqual(f_collection % get_length(), 2)
+    @assertEqual(f_collection_copy % get_length(), 1)
+
+    returned_field => f_collection % get_r_solver_field('test_field2')
+    ! Check that the field pointer has the same target after copy, but that
+    ! the pointer object itself is different.
+    f_collection_copy = f_collection
+    returned_field => f_collection_copy % get_r_solver_field('test_field2')
+    @assertTrue(associated(test_field2_ptr, returned_field))
+
+    ! Now if we nullify the original field pointer, we should still be able to use the
+    ! pointer from the copied collection, and we should be pointing at the same data.
+    nullify(test_field2_ptr)
+    proxy = test_field2 % get_proxy()
+    proxy%data(1) = 112.0_r_solver
+    proxy = returned_field % get_proxy()
+    @assertEqual(112.0_r_solver, proxy%data(1), tol)
+
+  end subroutine test_assignment_r_solver
 
 end module field_collection_mod_test
