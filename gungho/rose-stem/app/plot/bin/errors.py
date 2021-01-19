@@ -196,6 +196,8 @@ if __name__ == "__main__":
     # Split out the list of timesteps
     ts_list = timesteps.split(':')
 
+    any_plots = False
+
     for field in field_list:
 
         # Scalar fields only
@@ -217,3 +219,8 @@ if __name__ == "__main__":
                 levels = data.level.unique()
                 make_figure(plotpath, field, comp, ts, plotlong, plotlat,
                             plotlevel, err_range)
+                any_plots = True
+
+    if not any_plots:
+        print("Error: No plots made.")
+        exit(2)

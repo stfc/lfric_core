@@ -96,8 +96,8 @@ if __name__ == "__main__":
     try:
         config, datapath, nx, ny, fields, timesteps, plotpath = sys.argv[1:8]
     except ValueError:
-        print("Usage: {0} <file_stem_name> <datapath>, <nx>, <ny>, <fields>, <timesteps>,"
-              " <plotpath> ".format(sys.argv[0]))
+        print("Usage: {0} <file_stem_name> <datapath>, <nx>, <ny>, "
+              "<fields>, <timesteps>, <plotpath> ".format(sys.argv[0]))
         exit(1)
 
     # Split out the list of fields
@@ -105,6 +105,8 @@ if __name__ == "__main__":
 
     # Split out the list of timesteps
     ts_list = timesteps.split(':')
+
+    any_plots = False
 
     for field in field_list:
         if field in ['rho', 'theta', 'exner', 'buoyancy']:
@@ -132,6 +134,7 @@ if __name__ == "__main__":
                     levels = data.level.unique()
                     make_figure(datapath, plotpath, field, comp, ts,
                                 int(nx), int(ny))
+                    any_plots = True
             else:
                 for comp_u in comp:
                     data = read_nodal_data(filestem, ncomp, comp_u)
@@ -139,3 +142,8 @@ if __name__ == "__main__":
                         levels = data.level.unique()
                         make_figure(datapath, plotpath, field, comp_u, ts,
                                     int(nx), int(ny))
+                        any_plots = True
+
+    if not any_plots:
+        print("Error: No plots made.")
+        exit(2)

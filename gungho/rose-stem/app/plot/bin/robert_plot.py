@@ -126,6 +126,8 @@ if __name__ == "__main__":
     # Split out the list of timesteps
     ts_list = timesteps.split(':')
 
+    any_plots = False
+
     for field in field_list:
 
         if field in ['rho', 'theta', 'exner', 'buoyancy', 'm_v', 'm_cl',
@@ -158,6 +160,7 @@ if __name__ == "__main__":
                     data = data.sort_values(['y', 'x', 'z'])
                     levels = np.sort(data.level.unique())
                     make_figure(plotpath, nx, ny, field, comp, ts)
+                    any_plots = True
             else:
                 for comp_u in comp:
                     data = read_nodal_data(filestem, ncomp, comp_u)
@@ -167,3 +170,8 @@ if __name__ == "__main__":
                         data = data.sort(['y', 'x', 'z'])
                         levels = np.sort(data.level.unique())
                         make_figure(plotpath, nx, ny, field, comp_u, ts)
+                        any_plots = True
+
+    if not any_plots:
+        print("Error: No plots made.")
+        exit(2)

@@ -141,6 +141,8 @@ if __name__ == "__main__":
     # Split out the list of timesteps
     ts_list = timesteps.split(':')
 
+    any_plots = False
+
     for field in field_list:
 
         if field in ['rho', 'theta', 'exner']:
@@ -169,6 +171,7 @@ if __name__ == "__main__":
                     levels = data.level.unique()
                     make_figure(plotpath, field, comp, ts, levels,
                                 int(plotlevel))
+                    any_plots = True
 
             else:
                 for comp_u in comp:
@@ -177,3 +180,8 @@ if __name__ == "__main__":
                         levels = data.level.unique()
                         make_figure(plotpath, field, comp_u, ts, levels,
                                     int(plotlevel))
+                        any_plots = True
+
+    if not any_plots:
+        print("Error: No plots made.")
+        exit(2)

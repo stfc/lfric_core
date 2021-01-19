@@ -182,6 +182,8 @@ if __name__ == "__main__":
     # Split out the list of timesteps
     ts_list = timesteps.split(':')
 
+    any_plots = False
+
     for ts in ts_list:
 
         for field in field_list:
@@ -193,12 +195,17 @@ if __name__ == "__main__":
             else:
                 data = read_nodal_data(filestem, 1, component)
 
-            if ( not data.empty):
-              # Sort the data (needed to be able to reshape and not regrid)
-              data = data.sort_values(['y', 'x', 'z'])
+            if (not data.empty):
+                # Sort the data (needed to be able to reshape and not regrid)
+                data = data.sort_values(['y', 'x', 'z'])
 
-              levels = np.sort(data.level.unique())
+                levels = np.sort(data.level.unique())
 
-              # Only try to plot if we found some files for this timestep
-              if len(levels) > 0:
-                  make_figure(plotpath, nx, ny, field, component, ts, cntrs)
+                # Only try to plot if we found some files for this timestep
+                if len(levels) > 0:
+                    make_figure(plotpath, nx, ny, field, component, ts, cntrs)
+                    any_plots = True
+
+    if not any_plots:
+        print("Error: No plots made.")
+        exit(2)
