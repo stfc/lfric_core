@@ -71,7 +71,8 @@ subroutine vertical_trapezoidal_code(  nlayers,              &
 
   use biperiodic_deppts_mod,       only : calc_dep_point,           &
                                           calc_vertical_trapezoidal
-  use biperiodic_deppt_config_mod, only : n_dep_pt_iterations
+  use biperiodic_deppt_config_mod, only : n_dep_pt_iterations,      &
+                                          vertical_method
   use timestepping_config_mod,     only : dt
 
   implicit none
@@ -129,6 +130,7 @@ subroutine vertical_trapezoidal_code(  nlayers,              &
                                                              u_n_local,            &
                                                              u_np1_local,          &
                                                              dt,                   &
+                                                             vertical_method,      &
                                                              n_dep_pt_iterations )
   end do
 

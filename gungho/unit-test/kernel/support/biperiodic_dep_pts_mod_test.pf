@@ -149,7 +149,8 @@ contains
     use biperiodic_deppts_mod,       only: calc_dep_point
     use biperiodic_deppt_config_mod, only: method_euler,    &
                                            method_midpoint, &
-                                           method_trapezoidal
+                                           method_trapezoidal, &
+                                           method_timeaverage
 
     implicit none
 
@@ -193,6 +194,10 @@ contains
     use pFUnit_Mod
     use constants_mod,               only: r_def, i_def
     use biperiodic_deppts_mod,       only: calc_vertical_trapezoidal
+    use biperiodic_deppt_config_mod, only: vertical_method_euler,    &
+                                           vertical_method_midpoint, &
+                                           vertical_method_trapezoidal, &
+                                           vertical_method_timeaverage
 
     implicit none
 
@@ -214,7 +219,7 @@ contains
     n_dep_pt_iterations = 1
 
     departure_dist =  calc_vertical_trapezoidal( x_arrival,nCellEdges,u_n,u_np1,deltaT,     &
-                                    n_dep_pt_iterations )
+                                    vertical_method_trapezoidal, n_dep_pt_iterations )
     @assertEqual(0.42_r_def, departure_dist, tol)
 
     deallocate(u_n)
@@ -231,7 +236,7 @@ contains
     x_arrival = 3.0_r_def
 
     departure_dist =  calc_vertical_trapezoidal( x_arrival,nCellEdges,u_n,u_np1,deltaT,     &
-                                    n_dep_pt_iterations )
+                                    vertical_method_trapezoidal, n_dep_pt_iterations )
     @assertEqual(-0.92_r_def, departure_dist, tol)
 
     deallocate(u_n)

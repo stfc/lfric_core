@@ -13,7 +13,12 @@ use constants_mod, only : r_def, i_def
 use log_mod,       only : log_event, LOG_LEVEL_ERROR, log_scratch_space
 use biperiodic_deppt_config_mod, only : method_euler,       &
                                         method_midpoint,    &
-                                        method_trapezoidal
+                                        method_trapezoidal,    &
+                                        method_timeaverage, &
+                                        vertical_method_euler,       &
+                                        vertical_method_midpoint,    &
+                                        vertical_method_trapezoidal,    &
+                                        vertical_method_timeaverage
 
 implicit none
 
@@ -70,6 +75,7 @@ contains
     real(kind=r_def) :: left_limit
     real(kind=r_def) :: right_limit
     real(kind=r_def) :: x_departure
+    real(kind=r_def) :: u_arrival_np
 
     integer :: iLoop
 
@@ -112,6 +118,13 @@ contains
         call test_value_in_limits(x_departure,left_limit,right_limit)
       end do
 
+    case(method_timeaverage) ! Time averaged velocity at arrival point
+
+      u_arrival = calc_u_at_x(x_arrival,nCellEdges,u_n)
+      u_arrival_np = calc_u_at_x(x_arrival,nCellEdges,u_np1)
+      x_departure = x_arrival - deltaT*0.5_r_def*(u_arrival+u_arrival_np)
+      call test_value_in_limits(x_departure,left_limit,right_limit)
+
     case default
       call log_event( " Departure point method undefined ", LOG_LEVEL_ERROR )
     end select
@@ -123,10 +136,7 @@ contains
 
 !------------------------------------------------------------------------------
 !>  @brief  Calculates the distance between the arrival point and the departure
-!!          point in 1D using the trapezoidal method for integrating the
-!!          velocity.
-!!
-!!          u. Note that the distance has sign (+/-) and positive
+!!          point in 1D in the vertical. Note that the distance has sign (+/-) and positive
 !!          values represent the case when the wind is positive, such that
 !!          x_departure < x_arrival. The distance is negative if the wind is
 !!          negative.
@@ -136,6 +146,7 @@ contains
 !!  @param[in]   u_n          Velocity at cell edges at time n
 !!  @param[in]   u_np1        Velocity at cell edges at time n+1
 !!  @param[in]   deltaT       Time step length
+!!  @param[in]   vertical_method     Integration method
 !!  @param[in]   n_dep_pt_iterations Number of solver iterations
 !!  @param[out]  distance     Distance between arrival point and departure
 !!                            point.
@@ -145,6 +156,7 @@ contains
                                       u_n,                    &
                                       u_np1,                  &
                                       deltaT,                 &
+                                      vertical_method,        &
                                       n_dep_pt_iterations )   &
            result(distance)
 
@@ -155,14 +167,18 @@ contains
     real(kind=r_def), intent(in)        :: u_n(1:nCellEdges)
     real(kind=r_def), intent(in)        :: u_np1(1:nCellEdges)
     real(kind=r_def), intent(in)        :: deltaT
+    integer, intent(in)                 :: vertical_method
     integer(kind=i_def), intent(in)     :: n_dep_pt_iterations
     real(kind=r_def)                    :: distance
 
     real(kind=r_def) :: u_arrival
+    real(kind=r_def) :: u_at_midpoint
     real(kind=r_def) :: u_departure
+    real(kind=r_def) :: x_at_mid_point
     real(kind=r_def) :: left_limit
     real(kind=r_def) :: right_limit
     real(kind=r_def) :: x_departure
+    real(kind=r_def) :: u_arrival_np
 
     integer(kind=i_def) :: iLoop
 
@@ -172,15 +188,49 @@ contains
     right_limit = real(nCellEdges,r_def)
     call test_value_in_limits(x_arrival,left_limit,right_limit)
 
-    u_arrival = calc_u_in_vertical(x_arrival,nCellEdges,u_np1)
-    x_departure = x_arrival - deltaT*u_arrival
-    call test_value_in_limits(x_departure,left_limit,right_limit)
+    select case (vertical_method)
 
-    do iLoop=1,n_dep_pt_iterations
-      u_departure = calc_u_in_vertical(x_departure,nCellEdges,u_n)
-      x_departure = x_arrival - deltaT*0.5_r_def*(u_arrival+u_departure)
-      call test_value_in_limits(x_departure,left_limit,right_limit)
-    end do
+    case(vertical_method_euler) ! Euler's method
+
+        u_arrival = calc_u_in_vertical(x_arrival,nCellEdges,u_np1)
+        x_departure = x_arrival - deltaT*u_arrival
+        call test_value_in_vertical_limits(x_departure,left_limit,right_limit)
+
+    case(vertical_method_trapezoidal) ! Trapezoidal
+
+        u_arrival = calc_u_in_vertical(x_arrival,nCellEdges,u_np1)
+        x_departure = x_arrival - deltaT*u_arrival
+        call test_value_in_vertical_limits(x_departure,left_limit,right_limit)
+
+        do iLoop=1,n_dep_pt_iterations
+          u_departure = calc_u_in_vertical(x_departure,nCellEdges,u_n)
+          x_departure = x_arrival - deltaT*0.5_r_def*(u_arrival+u_departure)
+          call test_value_in_vertical_limits(x_departure,left_limit,right_limit)
+        end do
+
+    case(vertical_method_midpoint) ! Mid-point
+
+        u_arrival = calc_u_in_vertical(x_arrival,nCellEdges,u_np1)
+        x_departure = x_arrival - deltaT*u_arrival
+        call test_value_in_vertical_limits(x_departure,left_limit,right_limit)
+
+        do iLoop=1,n_dep_pt_iterations
+          x_at_mid_point = 0.5_r_def*(x_departure+x_arrival)
+          u_at_midpoint = calc_u_in_vertical(x_at_mid_point,nCellEdges,u_n)
+          x_departure = x_arrival - deltaT*u_at_midpoint
+          call test_value_in_vertical_limits(x_departure,left_limit,right_limit)
+        end do
+
+    case(vertical_method_timeaverage) ! Time averaged velocity at arrival point
+
+        u_arrival = calc_u_in_vertical(x_arrival,nCellEdges,u_n)
+        u_arrival_np = calc_u_in_vertical(x_arrival,nCellEdges,u_np1)
+        x_departure = x_arrival - deltaT*0.5_r_def*(u_arrival+u_arrival_np)
+        call test_value_in_vertical_limits(x_departure,left_limit,right_limit)
+
+    case default
+        call log_event( " Vertical departure point method undefined ", LOG_LEVEL_ERROR )
+    end select
 
     distance = x_arrival - x_departure
 
@@ -276,6 +326,38 @@ contains
 
   end subroutine test_value_in_limits
 
+!------------------------------------------------------------------------------
+!>  @brief  Subroutine which checks whether departure points are outside the
+!!          vertical domain defined by the stencil length. We follow Wood et al.
+!!          2009 to make the departure point fall within the domain at the lowest
+!!          level and set it to the domain top and the highest level.
+!!
+!!  @param[inout] x_dep      X value to be tested
+!!  @param[in]    lower_limit   lower bound
+!!  @param[in]    upper_limit   upper bound
+!------------------------------------------------------------------------------
+  subroutine test_value_in_vertical_limits(x_dep,lower_limit,upper_limit)
+
+    implicit none
+
+    real(kind=r_def), intent(inout) ::   x_dep
+    real(kind=r_def), intent(in) ::      lower_limit
+    real(kind=r_def), intent(in) ::      upper_limit
+
+    if (x_dep > upper_limit) then
+      ! Set departure point value to upper limit
+      x_dep = upper_limit
+    end if
+
+    if (x_dep < lower_limit) then
+      ! Following Wood et al. (2009) we use the formula
+      ! x_departure = x_arrival exp(-dt * average_velocity/x_arrival)
+      ! At the lowest level x_arrival = 1
+      ! In our departure point calculation x_arrival - x_departure = dt * average_velocity
+      x_dep = exp(x_dep - 1.0_r_def)
+    end if
+
+  end subroutine test_value_in_vertical_limits
 
 !------------------------------------------------------------------------------
 !>  @brief  Returns an interpolated wind field value at x_in

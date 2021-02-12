@@ -107,6 +107,7 @@ l_multigrid=.false.
 /
 &biperiodic_deppt
 method='euler',
+vertical_method='trapezoidal',
 n_dep_pt_iterations=1,
 /
 &solver

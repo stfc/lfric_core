@@ -49,7 +49,8 @@ contains
                                              runge_kutta_method_ssp3
     use biperiodic_deppt_config_mod,  only : method_euler,  &
                                              method_trapezoidal, &
-                                             method_midpoint
+                                             method_midpoint, &
+                                             vertical_method_trapezoidal
 
     implicit none
 
@@ -61,6 +62,7 @@ contains
     call store_comm(this%getMpiCommunicator())
 
     call feign_biperiodic_deppt_config( method = method_trapezoidal,  &
+                                        vertical_method = vertical_method_trapezoidal,  &
                                         n_dep_pt_iterations=n_dep_pt_iterations  )
 
     call feign_timestepping_config(                                   &
@@ -104,7 +106,8 @@ contains
     use calc_departure_point_kernel_mod, only : calc_departure_point_code
     use flux_direction_mod,              only : x_direction
     use biperiodic_deppt_config_mod,     only : method_euler, &
-                                                method_trapezoidal
+                                                method_trapezoidal, &
+                                                vertical_method_trapezoidal
     use vertical_trapezoidal_kernel_mod, only : vertical_trapezoidal_code
 
     implicit none

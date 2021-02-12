@@ -121,4 +121,3 @@
 {%-     set rdef_precision = "32" %}
 {%-   endif %}
 {%- endif %}
-
