@@ -25,7 +25,8 @@ module rk_transport_theta_mod
                                                get_qr,                         &
                                                w2_id, w3_id, w3inv_id,         &
                                                wt_id, theta_space_id,          &
-                                               get_coordinates_xyz,            &
+                                               get_coordinates,                &
+                                               get_panel_id,                   &
                                                get_detj_at_w2
 
   use transport_config_mod,              only: operators,                      &
@@ -118,7 +119,7 @@ contains
     ! The quadrature object
     type( quadrature_xyoz_type ), pointer :: qr => null()
     ! Coordinate fields
-    type( field_type ), pointer         :: chi_xyz(:) => null()
+    type( field_type ), pointer         :: chi_sph(:) => null()
     type( field_type )                  :: theta_n
 
     integer(i_def) :: stage, st
@@ -135,7 +136,7 @@ contains
     if ( subroutine_timers ) call timer('rk_transport_theta_alg')
 
     qr => get_qr()
-    chi_xyz => get_coordinates_xyz()
+    chi_sph => get_coordinates()
     call theta_n%initialise( vector_space = theta%get_function_space() )
     call theta%copy_field(theta_n)
 
@@ -179,7 +180,7 @@ contains
           if ( consistent_metric ) then
             call invoke( poly_advective_kernel_type(theta_metrics, u, advective_av_chi3), &
             ! Modify advecting wind
-                       consistent_wind_kernel_type(consistent_wind, u, theta_metrics, chi_xyz) )
+                       consistent_wind_kernel_type(consistent_wind, u, theta_metrics, chi_sph) )
           end if
           call invoke_poly1d_vert_adv( rt_prediction(stage), consistent_wind, theta,  &
                                        vert_adv_coeffs, fv_advective_order, nfaces_v  )
@@ -213,7 +214,7 @@ contains
       end select
     end do
 
-    nullify( mm_w3_inv, mt_lumped_inv, chi_xyz, qr )
+    nullify( mm_w3_inv, mt_lumped_inv, chi_sph )
     if ( subroutine_timers ) call timer('rk_transport_theta_alg')
 
   end subroutine rk_transport_theta_step
@@ -246,7 +247,8 @@ contains
     integer(i_def)               :: stage
     type(operator_type), pointer :: mm_wt => null()
 
-    type( field_type ), pointer :: chi_xyz(:) => null()
+    type( field_type ), pointer :: chi_sph(:) => null()
+    type( field_type ), pointer :: panel_id => null()
     type( field_type ), pointer :: md_wt => null()
     type( field_type )          :: wt_multiplicity
 
@@ -258,6 +260,7 @@ contains
     type(mesh_type),               pointer :: mesh => null()
     integer(i_def)                         :: face_quad_order
     integer(i_def)                         :: nqp_xy, nqp_z
+    real(r_def)                            :: chi3_min, chi3_max
 
     if ( subroutine_timers ) call timer('rk_transport_theta_init')
 
@@ -297,7 +300,11 @@ contains
                    setval_c(mt_lumped, 0.0_r_def), &
                    matrix_vector_kernel_type(mt_lumped, ones, mm_wt) )
 
-      chi_xyz => get_coordinates_xyz()
+      chi_sph => get_coordinates()
+      panel_id => get_panel_id()
+      ! Compute the smallest surface height of chi(3)
+      ! (this is only needed for abh coordinates
+      call chi_sph(3)%field_minmax(chi3_min, chi3_max)
       nqp_xy = fv_advective_order+3_i_def
       nqp_z = 2
       if ( oned_reconstruction ) then
@@ -312,17 +319,18 @@ contains
       call theta_av%initialise( vector_space =                         &
           function_space_collection%get_fs(mesh_id, element_order, W1) )
       if ( oned_reconstruction ) then
-        call invoke_poly1d_advective_coeffs( adv_coeffs, md_wt, chi_xyz, qr, qre, &
-                                             fv_advective_order,                  &
-                                             advective_stencil_extent, nfaces_h   )
+        call invoke_poly1d_advective_coeffs( adv_coeffs, md_wt, chi_sph, panel_id, &
+                                             qr, qre, fv_advective_order,          &
+                                             advective_stencil_extent, nfaces_h,   &
+                                             chi3_min   )
       else
-        call invoke_poly2d_advective_coeffs( adv_coeffs, md_wt, chi_xyz, qr, &
-                                             qre, fv_advective_order,        &
-                                             advective2d_stencil_size,       &
-                                             nfaces_h                        )
+        call invoke_poly2d_advective_coeffs( adv_coeffs, md_wt, chi_sph, panel_id, &
+                                             qr, qre, fv_advective_order,          &
+                                             advective2d_stencil_size,             &
+                                             nfaces_h, chi3_min )
       end if
       call log_event( "Gungho: computing vertical advective coeffs", LOG_LEVEL_INFO )
-      call invoke_poly1d_vert_adv_coeffs( vert_adv_coeffs, chi_xyz,    &
+      call invoke_poly1d_vert_adv_coeffs( vert_adv_coeffs, chi_sph, &
                                           fv_advective_order, nfaces_v )
 
       if ( consistent_metric ) then
@@ -332,7 +340,7 @@ contains
         call wt_multiplicity%initialise(vector_space = theta_fs )
         call invoke( setval_c(wt_multiplicity, 0.0_r_def),                              &
                      multiplicity_kernel_type(wt_multiplicity),                         &
-                     sample_field_kernel_type( chi3_at_wt, wt_multiplicity, chi_xyz(3)) )
+                     sample_field_kernel_type( chi3_at_wt, wt_multiplicity, chi_sph(3)) )
       end if
 
     else
@@ -343,7 +351,7 @@ contains
 
     call theta%copy_field(theta0)
 
-    nullify( mm_wt, md_wt, chi_xyz, u_fs, theta_fs, mesh, reference_element )
+    nullify( mm_wt, md_wt, chi_sph, panel_id, u_fs, theta_fs, mesh, reference_element )
 
     if ( subroutine_timers ) call timer('rk_transport_theta_init')
 

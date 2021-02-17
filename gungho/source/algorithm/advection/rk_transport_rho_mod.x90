@@ -27,7 +27,8 @@ module rk_transport_rho_mod
                                                get_qr,                         &
                                                w2_id, w3_id, w3inv_id,         &
                                                wt_id, theta_space_id,          &
-                                               get_coordinates_xyz,            &
+                                               get_coordinates,                &
+                                               get_panel_id,                   &
                                                get_detj_at_w2
 
   use transport_config_mod,              only: operators,                      &
@@ -103,7 +104,8 @@ contains
 
     integer(i_def),  intent(in) :: mesh_id
     integer(i_def)              :: flux_stencil_size
-    type( field_type ), pointer :: chi_xyz(:) => null()
+    type( field_type ), pointer :: chi_sph(:) => null()
+    type( field_type ), pointer :: panel_id => null()
     type( field_type ), pointer :: md_w3 => null()
 
     type( quadrature_rule_gaussian_type )      :: gaussian_quadrature
@@ -116,6 +118,7 @@ contains
     type(mesh_type),               pointer :: mesh => null()
     integer(i_def)                         :: face_quad_order
     integer(i_def)                         :: nqp_xy, nqp_z, nqp_xyz
+    real(r_def)                            :: chi3_min, chi3_max
 
     nfaces_h = nfaces_re_h
     nfaces_v = nfaces_re_v
@@ -135,7 +138,11 @@ contains
           flux_stencil_size = flux2d_stencil_size
         end if
 
-        chi_xyz => get_coordinates_xyz()
+        chi_sph => get_coordinates()
+        panel_id => get_panel_id()
+        ! Compute the smallest surface height of chi(3)
+        ! (this is only needed for abh coordinates
+        call chi_sph(3)%field_minmax(chi3_min, chi3_max)
         nqp_xyz = fv_flux_order+1
         qr = quadrature_xyoz_type(nqp_xyz, gaussian_quadrature)
         if ( oned_reconstruction ) then
@@ -152,20 +159,22 @@ contains
         call log_event( "Gungho: computing horizontal flux coeffs", LOG_LEVEL_INFO )
         md_w3 => get_mass_matrix_diagonal(w3_id)
         if ( oned_reconstruction ) then
-          call invoke_poly1d_flux_coeffs( flux_coeffs, md_w3, chi_xyz, &
-                                          qr, qrf, fv_flux_order,      &
-                                          flux_stencil_extent, nfaces_h )
+          call invoke_poly1d_flux_coeffs( flux_coeffs, md_w3, chi_sph,      &
+                                          panel_id, qr, qrf, fv_flux_order, &
+                                          flux_stencil_extent, nfaces_h,    &
+                                          chi3_min )
         else
-          call invoke_poly2d_flux_coeffs( flux_coeffs, md_w3, chi_xyz, &
-                                          qr, qrf, fv_flux_order,      &
-                                          flux2d_stencil_size, nfaces_h )
+          call invoke_poly2d_flux_coeffs( flux_coeffs, md_w3, chi_sph,      &
+                                          panel_id, qr, qrf, fv_flux_order, &
+                                          flux2d_stencil_size, nfaces_h,    &
+                                          chi3_min )
         end if
         call log_event( "Gungho: computing vertical flux coeffs", LOG_LEVEL_INFO )
 
         nqp_xyz = 1
         qrf = quadrature_face_type(nqp_xyz, .false., .true.,                  &
                                    reference_element, gaussian_quadrature)
-        call invoke_poly1d_vert_flux_coeffs( vert_flux_coeffs, md_w3, chi_xyz, &
+        call invoke_poly1d_vert_flux_coeffs( vert_flux_coeffs, md_w3, chi_sph, &
                                              qr, qrf, fv_flux_order, nfaces_v )
       else
         call log_event( "Gungho: subgrid mappings needed for FV MoL with high &
@@ -173,7 +182,7 @@ contains
       end if
     end if
 
-    nullify( chi_xyz, md_w3, w3_fs, reference_element, mesh )
+    nullify( chi_sph, panel_id, md_w3, w3_fs, reference_element, mesh )
 
   end subroutine rk_transport_rho_init
 

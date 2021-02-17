@@ -296,7 +296,8 @@ end subroutine invoke_poly2d_flux
 !    PSyclone) and one for face quadrature: Issue #195
 ! 4) Uses face quadrature: Issue #193
 !-------------------------------------------------------------------------------
-subroutine invoke_poly2d_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, stencil_size, nfaces_re_h )
+subroutine invoke_poly2d_flux_coeffs( coeff, mdw3, chi, panel_id, &
+                                      qr, qr_face, order, stencil_size, nfaces_re_h, h0 )
 
   use poly2d_flux_coeffs_kernel_mod, only: poly2d_flux_coeffs_code
   use stencil_dofmap_mod,            only: stencil_dofmap_type, STENCIL_REGION
@@ -307,28 +308,32 @@ subroutine invoke_poly2d_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, sten
   integer(i_def), intent(in)          :: stencil_size
   integer(i_def), intent(in)          :: nfaces_re_h
   type(field_type), intent(inout)     :: coeff(stencil_size,nfaces_re_h)
-  type(field_type), intent(in)        :: chi(3), mdw3
+  type(field_type), intent(in)        :: chi(3), mdw3, panel_id
   type(quadrature_xyoz_type), intent( in ) :: qr
   type(quadrature_face_type), intent( in ) :: qr_face
+  real(r_def), intent(in)             :: h0
 
   type(quadrature_xyoz_proxy_type) :: qr_proxy
   type(quadrature_face_proxy_type) :: qr_face_proxy
 
-  type( field_proxy_type )  :: chi_proxy(3), mdw3_proxy
+  type( field_proxy_type )  :: chi_proxy(3), mdw3_proxy, panel_id_proxy
   type( field_proxy_type )  :: coeff_proxy(stencil_size,nfaces_re_h)
   type(stencil_dofmap_type), pointer :: w3_stencil => null()
   type(stencil_dofmap_type), pointer :: wx_stencil => null()
+  type(stencil_dofmap_type), pointer :: pid_stencil => null()
 
   integer(i_def), pointer :: w3_stencil_map(:,:,:) => null()
   integer(i_def), pointer :: wx_stencil_map(:,:,:) => null()
+  integer(i_def), pointer :: pid_stencil_map(:,:,:) => null()
   integer(i_def), pointer :: cells_in_stencil(:) => null()
 
   integer(i_def) :: undf_w3, ndf_w3
   integer(i_def) :: undf_wx, ndf_wx
+  integer(i_def) :: undf_pid, ndf_pid
   integer(i_def) :: df
   integer(i_def) :: cell
   integer(i_def) :: nlayers
-  integer(i_def) :: w3_stencil_size, wx_stencil_size
+  integer(i_def) :: w3_stencil_size, wx_stencil_size, pid_stencil_size
   integer(i_def) :: polynomial, direction, idx
   integer(i_def) :: dim_wx
   integer(i_def) :: stencil_extent
@@ -351,6 +356,7 @@ subroutine invoke_poly2d_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, sten
     chi_proxy(idx) = chi(idx)%get_proxy()
   end do
   mdw3_proxy = mdw3%get_proxy()
+  panel_id_proxy = panel_id%get_proxy()
 
   ndf_w3  = coeff_proxy(1,1)%vspace%get_ndf()
   undf_w3 = coeff_proxy(1,1)%vspace%get_undf()
@@ -358,6 +364,9 @@ subroutine invoke_poly2d_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, sten
   ndf_wx  = chi_proxy(1)%vspace%get_ndf()
   undf_wx = chi_proxy(1)%vspace%get_undf()
   dim_wx  = chi_proxy(1)%vspace%get_dim_space()
+
+  ndf_pid  = panel_id_proxy%vspace%get_ndf()
+  undf_pid = panel_id_proxy%vspace%get_undf()
 
   ! Pull out the quadrature
   qr_proxy  = qr%get_quadrature_proxy()
@@ -394,6 +403,11 @@ subroutine invoke_poly2d_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, sten
   wx_stencil_size = wx_stencil%get_size()
   wx_stencil_map => wx_stencil%get_whole_dofmap()
 
+  pid_stencil => panel_id_proxy%vspace%get_stencil_dofmap(STENCIL_REGION, &
+                                                           stencil_extent)
+  pid_stencil_size = pid_stencil%get_size()
+  pid_stencil_map => pid_stencil%get_whole_dofmap()
+
   ! Since chi is described as a field vector of length 3 in the kernel metadata
   ! then we loop over all 3 proxies
   do idx = 1,3
@@ -402,6 +416,8 @@ subroutine invoke_poly2d_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, sten
   end do
   if ( mdw3_proxy%is_dirty(depth=stencil_extent+1) )  &
     call mdw3_proxy%halo_exchange(depth=stencil_extent+1)
+  if ( panel_id_proxy%is_dirty(depth=stencil_extent+1) )  &
+    call panel_id_proxy%halo_exchange(depth=stencil_extent+1)
 
   ! Create a mesh object
   mesh => coeff_proxy(1,1)%vspace%get_mesh()
@@ -414,6 +430,7 @@ subroutine invoke_poly2d_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, sten
                                     chi_proxy(1)%data,           &
                                     chi_proxy(2)%data,           &
                                     chi_proxy(3)%data,           &
+                                    panel_id_proxy%data,         &
                                     ndf_w3,                      &
                                     undf_w3,                     &
                                     w3_stencil_size,             &
@@ -424,9 +441,14 @@ subroutine invoke_poly2d_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, sten
                                     wx_stencil_map(:,:,cell),    &
                                     basis_wx,                    &
                                     face_basis_wx,               &
+                                    ndf_pid,                     &
+                                    undf_pid,                    &
+                                    pid_stencil_size,            &
+                                    pid_stencil_map(:,:,cell),   &
                                     order,                       &
                                     nfaces_re_h,                 &
                                     cells_in_stencil(cell),      &
+                                    h0,                          &
                                     nqp_h, nqp_v, wqp_h, wqp_v,  &
                                     nfaces_qr, nqp_f, wqp_f )
 
@@ -616,7 +638,8 @@ end subroutine invoke_poly1d_flux
 !    #195
 ! 3) Uses face quadrature: Issue #193
 !-------------------------------------------------------------------------------
-subroutine invoke_poly1d_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, stencil_extent, nfaces_re_h )
+subroutine invoke_poly1d_flux_coeffs( coeff, mdw3, chi, panel_id, &
+                                      qr, qr_face, order, stencil_extent, nfaces_re_h, h0 )
 
   use poly1d_flux_coeffs_kernel_mod, only: poly1d_flux_coeffs_code
   use stencil_dofmap_mod,            only: stencil_dofmap_type, STENCIL_CROSS
@@ -626,27 +649,31 @@ subroutine invoke_poly1d_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, sten
   integer(i_def), intent(in)          :: order, stencil_extent
   integer(i_def), intent(in)          :: nfaces_re_h
   type(field_type), intent(inout)     :: coeff(order+1,nfaces_re_h)
-  type(field_type), intent(in)        :: chi(3), mdw3
+  type(field_type), intent(in)        :: chi(3), mdw3, panel_id
   type(quadrature_xyoz_type), intent( in ) :: qr
   type(quadrature_face_type), intent( in ) :: qr_face
+  real( r_def), intent(in)            :: h0
 
   type(quadrature_xyoz_proxy_type) :: qr_proxy
   type(quadrature_face_proxy_type) :: qr_face_proxy
 
-  type( field_proxy_type )  :: chi_proxy(3), mdw3_proxy
+  type( field_proxy_type )  :: chi_proxy(3), mdw3_proxy, panel_id_proxy
   type( field_proxy_type )  :: coeff_proxy(order+1,nfaces_re_h)
   type(stencil_dofmap_type), pointer :: w3_stencil => null()
   type(stencil_dofmap_type), pointer :: wx_stencil => null()
+  type(stencil_dofmap_type), pointer :: pid_stencil => null()
 
   integer(i_def), pointer :: w3_stencil_map(:,:,:) => null()
   integer(i_def), pointer :: wx_stencil_map(:,:,:) => null()
+  integer(i_def), pointer :: pid_stencil_map(:,:,:) => null()
 
   integer(i_def) :: undf_w3, ndf_w3
   integer(i_def) :: undf_wx, ndf_wx
+  integer(i_def) :: undf_pid, ndf_pid
   integer(i_def) :: df
   integer(i_def) :: cell
   integer(i_def) :: nlayers
-  integer(i_def) :: w3_stencil_size, wx_stencil_size
+  integer(i_def) :: w3_stencil_size, wx_stencil_size, pid_stencil_size
   integer(i_def) :: polynomial, direction, idx
   integer(i_def) :: dim_wx
   integer(i_def) :: nqp_h, nqp_v, nqp_f, nfaces_qr
@@ -667,6 +694,7 @@ subroutine invoke_poly1d_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, sten
     chi_proxy(idx) = chi(idx)%get_proxy()
   end do
   mdw3_proxy = mdw3%get_proxy()
+  panel_id_proxy = panel_id%get_proxy()
 
   ndf_w3  = coeff_proxy(1,1)%vspace%get_ndf()
   undf_w3 = coeff_proxy(1,1)%vspace%get_undf()
@@ -674,6 +702,9 @@ subroutine invoke_poly1d_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, sten
   ndf_wx  = chi_proxy(1)%vspace%get_ndf()
   undf_wx = chi_proxy(1)%vspace%get_undf()
   dim_wx  = chi_proxy(1)%vspace%get_dim_space()
+
+  ndf_pid  = panel_id_proxy%vspace%get_ndf()
+  undf_pid = panel_id_proxy%vspace%get_undf()
 
   ! Pull out the quadrature
   qr_proxy = qr%get_quadrature_proxy()
@@ -707,6 +738,11 @@ subroutine invoke_poly1d_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, sten
   wx_stencil_size = wx_stencil%get_size()
   wx_stencil_map => wx_stencil%get_whole_dofmap()
 
+  pid_stencil => panel_id_proxy%vspace%get_stencil_dofmap(STENCIL_CROSS, &
+                                                          stencil_extent)
+  pid_stencil_size = pid_stencil%get_size()
+  pid_stencil_map => pid_stencil%get_whole_dofmap()
+
   ! Since chi is described as a field vector of length 3 in the kernel metadata
   ! then we loop over all 3 proxies
   do idx = 1,3
@@ -715,6 +751,8 @@ subroutine invoke_poly1d_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, sten
   end do
   if ( mdw3_proxy%is_dirty(depth=stencil_extent+1) ) &
     call mdw3_proxy%halo_exchange(depth=stencil_extent+1)
+  if ( panel_id_proxy%is_dirty(depth=stencil_extent+1) ) &
+    call panel_id_proxy%halo_exchange(depth=stencil_extent+1)
 
   ! Create a mesh object
   mesh => coeff_proxy(1,1)%vspace%get_mesh()
@@ -727,6 +765,7 @@ subroutine invoke_poly1d_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, sten
                                     chi_proxy(1)%data,           &
                                     chi_proxy(2)%data,           &
                                     chi_proxy(3)%data,           &
+                                    panel_id_proxy%data,         &
                                     ndf_w3,                      &
                                     undf_w3,                     &
                                     w3_stencil_size,             &
@@ -737,8 +776,13 @@ subroutine invoke_poly1d_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, sten
                                     wx_stencil_map(:,:,cell),    &
                                     basis_wx,                    &
                                     face_basis_wx,               &
+                                    ndf_pid,                     &
+                                    undf_pid,                    &
+                                    pid_stencil_size,            &
+                                    pid_stencil_map(:,:,cell),   &
                                     order,                       &
                                     nfaces_re_h,                 &
+                                    h0,                          &
                                     nqp_h, nqp_v, wqp_h, wqp_v,  &
                                     nfaces_qr, nqp_f, wqp_f )
 
@@ -1228,7 +1272,8 @@ end subroutine invoke_poly1d_adv_recon
 !    #195
 ! 3) Uses edge quadrature: Issue #193
 !-------------------------------------------------------------------------------
-subroutine invoke_poly1d_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order, stencil_extent, nfaces_re_h )
+subroutine invoke_poly1d_advective_coeffs( coeff, mdwt, chi, panel_id, &
+                                           qr, qr_edge, order, stencil_extent, nfaces_re_h, h0 )
 
   use poly1d_advective_coeffs_kernel_mod, only: poly1d_advective_coeffs_code
   use stencil_dofmap_mod,                 only: stencil_dofmap_type, STENCIL_CROSS
@@ -1237,27 +1282,31 @@ subroutine invoke_poly1d_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order,
 
   integer(i_def),   intent(in)        :: order, stencil_extent, nfaces_re_h
   type(field_type), intent(inout)     :: coeff(order+1,nfaces_re_h)
-  type(field_type), intent(in)        :: chi(3), mdwt
+  type(field_type), intent(in)        :: chi(3), mdwt, panel_id
   type(quadrature_xyoz_type), intent( in ) :: qr
   type(quadrature_edge_type), intent( in ) :: qr_edge
+  real(r_def), intent(in)             :: h0
 
   type(quadrature_xyoz_proxy_type) :: qr_proxy
   type(quadrature_edge_proxy_type) :: qr_edge_proxy
 
-  type( field_proxy_type )  :: chi_proxy(3), mdwt_proxy
+  type( field_proxy_type )  :: chi_proxy(3), mdwt_proxy, panel_id_proxy
   type( field_proxy_type )  :: coeff_proxy(order+1,nfaces_re_h)
   type(stencil_dofmap_type), pointer :: wt_stencil => null()
   type(stencil_dofmap_type), pointer :: wx_stencil => null()
+  type(stencil_dofmap_type), pointer :: pid_stencil => null()
 
   integer(i_def), pointer :: wt_stencil_map(:,:,:) => null()
   integer(i_def), pointer :: wx_stencil_map(:,:,:) => null()
+  integer(i_def), pointer :: pid_stencil_map(:,:,:) => null()
 
   integer(i_def) :: undf_wt, ndf_wt
   integer(i_def) :: undf_wx, ndf_wx
+  integer(i_def) :: undf_pid, ndf_pid
   integer(i_def) :: df
   integer(i_def) :: cell
   integer(i_def) :: nlayers
-  integer(i_def) :: wt_stencil_size, wx_stencil_size
+  integer(i_def) :: wt_stencil_size, wx_stencil_size, pid_stencil_size
   integer(i_def) :: polynomial, direction, idx
   integer(i_def) :: dim_wx
   integer(i_def) :: nqp_h, nqp_v, nqp_e, nedges_qr
@@ -1276,6 +1325,7 @@ subroutine invoke_poly1d_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order,
     chi_proxy(idx) = chi(idx)%get_proxy()
   end do
   mdwt_proxy = mdwt%get_proxy()
+  panel_id_proxy = panel_id%get_proxy()
 
   ndf_wt  = coeff_proxy(1,1)%vspace%get_ndf()
   undf_wt = coeff_proxy(1,1)%vspace%get_undf()
@@ -1283,6 +1333,9 @@ subroutine invoke_poly1d_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order,
   ndf_wx  = chi_proxy(1)%vspace%get_ndf()
   undf_wx = chi_proxy(1)%vspace%get_undf()
   dim_wx  = chi_proxy(1)%vspace%get_dim_space()
+
+  ndf_pid  = panel_id_proxy%vspace%get_ndf()
+  undf_pid = panel_id_proxy%vspace%get_undf()
 
   ! Pull out the quadrature
   qr_proxy = qr%get_quadrature_proxy()
@@ -1316,6 +1369,11 @@ subroutine invoke_poly1d_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order,
   wx_stencil_size = wx_stencil%get_size()
   wx_stencil_map => wx_stencil%get_whole_dofmap()
 
+  pid_stencil => panel_id_proxy%vspace%get_stencil_dofmap(STENCIL_CROSS, &
+                                                          stencil_extent)
+  pid_stencil_size = pid_stencil%get_size()
+  pid_stencil_map => pid_stencil%get_whole_dofmap()
+
   ! Since chi is described as a field vector of length 3 in the kernel metadata
   ! then we loop over all 3 proxies
   do idx = 1,3
@@ -1324,6 +1382,8 @@ subroutine invoke_poly1d_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order,
   end do
   if ( mdwt_proxy%is_dirty(depth=stencil_extent+1) ) &
     call mdwt_proxy%halo_exchange(depth=stencil_extent+1)
+  if ( panel_id_proxy%is_dirty(depth=stencil_extent+1) ) &
+    call panel_id_proxy%halo_exchange(depth=stencil_extent+1)
 
   ! Create a mesh object
   mesh => coeff_proxy(1,1)%vspace%get_mesh()
@@ -1336,6 +1396,7 @@ subroutine invoke_poly1d_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order,
                                          chi_proxy(1)%data,           &
                                          chi_proxy(2)%data,           &
                                          chi_proxy(3)%data,           &
+                                         panel_id_proxy%data,         &
                                          ndf_wt,                      &
                                          undf_wt,                     &
                                          wt_stencil_size,             &
@@ -1346,8 +1407,13 @@ subroutine invoke_poly1d_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order,
                                          wx_stencil_map(:,:,cell),    &
                                          basis_wx,                    &
                                          edge_basis_wx,               &
+                                         ndf_pid,                     &
+                                         undf_pid,                    &
+                                         pid_stencil_size,            &
+                                         pid_stencil_map(:,:,cell),   &
                                          order,                       &
                                          nfaces_re_h,                 &
+                                         h0,                          &
                                          nqp_h, nqp_v, wqp_h, wqp_v,  &
                                          nedges_qr, nqp_e, wqp_e )
 
@@ -1555,7 +1621,8 @@ end subroutine invoke_poly2d_adv_recon
 !    #195
 ! 4) Uses edge quadrature: Issue #193
 !-------------------------------------------------------------------------------
-subroutine invoke_poly2d_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order, stencil_size, nfaces_re_h )
+subroutine invoke_poly2d_advective_coeffs( coeff, mdwt, chi, panel_id, &
+                                           qr, qr_edge, order, stencil_size, nfaces_re_h, h0 )
 
   use poly2d_advective_coeffs_kernel_mod, only: poly2d_advective_coeffs_code
   use stencil_dofmap_mod,                only: stencil_dofmap_type, STENCIL_REGION
@@ -1566,28 +1633,32 @@ subroutine invoke_poly2d_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order,
   integer(i_def), intent(in)          :: stencil_size
   integer(i_def), intent(in)          :: nfaces_re_h
   type(field_type), intent(inout)     :: coeff(stencil_size,nfaces_re_h)
-  type(field_type), intent(in)        :: chi(3), mdwt
+  type(field_type), intent(in)        :: chi(3), mdwt, panel_id
   type(quadrature_xyoz_type), intent( in ) :: qr
   type(quadrature_edge_type), intent( in ) :: qr_edge
+  real(r_def), intent(in)             :: h0
 
   type(quadrature_xyoz_proxy_type) :: qr_proxy
   type(quadrature_edge_proxy_type) :: qr_edge_proxy
 
-  type( field_proxy_type )  :: chi_proxy(3), mdwt_proxy
+  type( field_proxy_type )  :: chi_proxy(3), mdwt_proxy, panel_id_proxy
   type( field_proxy_type )  :: coeff_proxy(stencil_size,nfaces_re_h)
   type(stencil_dofmap_type), pointer :: wt_stencil => null()
   type(stencil_dofmap_type), pointer :: wx_stencil => null()
+  type(stencil_dofmap_type), pointer :: pid_stencil => null()
 
   integer(i_def), pointer :: wt_stencil_map(:,:,:) => null()
   integer(i_def), pointer :: wx_stencil_map(:,:,:) => null()
+  integer(i_def), pointer :: pid_stencil_map(:,:,:) => null()
   integer(i_def), pointer :: cells_in_stencil(:) => null()
 
   integer(i_def) :: undf_wt, ndf_wt
   integer(i_def) :: undf_wx, ndf_wx
+  integer(i_def) :: undf_pid, ndf_pid
   integer(i_def) :: df
   integer(i_def) :: cell
   integer(i_def) :: nlayers
-  integer(i_def) :: wt_stencil_size, wx_stencil_size
+  integer(i_def) :: wt_stencil_size, wx_stencil_size, pid_stencil_size
   integer(i_def) :: polynomial, direction, idx
   integer(i_def) :: dim_wx
   integer(i_def) :: stencil_extent
@@ -1610,6 +1681,7 @@ subroutine invoke_poly2d_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order,
     chi_proxy(idx) = chi(idx)%get_proxy()
   end do
   mdwt_proxy = mdwt%get_proxy()
+  panel_id_proxy = panel_id%get_proxy()
 
   ndf_wt  = coeff_proxy(1,1)%vspace%get_ndf()
   undf_wt = coeff_proxy(1,1)%vspace%get_undf()
@@ -1617,6 +1689,9 @@ subroutine invoke_poly2d_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order,
   ndf_wx  = chi_proxy(1)%vspace%get_ndf()
   undf_wx = chi_proxy(1)%vspace%get_undf()
   dim_wx  = chi_proxy(1)%vspace%get_dim_space()
+
+  ndf_pid  = panel_id_proxy%vspace%get_ndf()
+  undf_pid = panel_id_proxy%vspace%get_undf()
 
   ! Pull out the quadrature
   qr_proxy = qr%get_quadrature_proxy()
@@ -1652,6 +1727,11 @@ subroutine invoke_poly2d_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order,
   wx_stencil_map => wx_stencil%get_whole_dofmap()
   cells_in_stencil => wx_stencil%get_stencil_sizes()
 
+  pid_stencil => panel_id_proxy%vspace%get_stencil_dofmap(stencil_region, &
+                                                          stencil_extent)
+  pid_stencil_size = pid_stencil%get_size()
+  pid_stencil_map => pid_stencil%get_whole_dofmap()
+
   ! Since chi is described as a field vector of length 3 in the kernel metadata
   ! then we loop over all 3 proxies
   do idx = 1,3
@@ -1660,6 +1740,8 @@ subroutine invoke_poly2d_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order,
   end do
   if ( mdwt_proxy%is_dirty(depth=stencil_extent+1) )  &
     call mdwt_proxy%halo_exchange(depth=stencil_extent+1)
+  if ( panel_id_proxy%is_dirty(depth=stencil_extent+1) )  &
+    call panel_id_proxy%halo_exchange(depth=stencil_extent+1)
 
   ! Create a mesh object
   mesh => coeff_proxy(1,1)%vspace%get_mesh()
@@ -1672,6 +1754,7 @@ subroutine invoke_poly2d_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order,
                                          chi_proxy(1)%data,           &
                                          chi_proxy(2)%data,           &
                                          chi_proxy(3)%data,           &
+                                         panel_id_proxy%data,         &
                                          ndf_wt,                      &
                                          undf_wt,                     &
                                          wt_stencil_size,             &
@@ -1682,9 +1765,14 @@ subroutine invoke_poly2d_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order,
                                          wx_stencil_map(:,:,cell),    &
                                          basis_wx,                    &
                                          edge_basis_wx,               &
+                                         ndf_pid,                     &
+                                         undf_pid,                    &
+                                         pid_stencil_size,            &
+                                         pid_stencil_map(:,:,cell),   &
                                          order,                       &
                                          nfaces_re_h,                 &
                                          cells_in_stencil(cell),      &
+                                         h0,                          &
                                          nqp_h, nqp_v, wqp_h, wqp_v,  &
                                          nedges_qr, nqp_e, wqp_e )
 

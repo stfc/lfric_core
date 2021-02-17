@@ -109,9 +109,11 @@ subroutine poly1d_vert_flux_coeffs_code(nlayers,                    &
                                         nfaces_qr, nqp_f, wqp_f )
 
 
-  use matrix_invert_mod,    only: matrix_invert
-  use base_mesh_config_mod, only: geometry, &
-                                  geometry_spherical
+  use matrix_invert_mod,          only: matrix_invert
+  use base_mesh_config_mod,       only: geometry, &
+                                        geometry_spherical
+  use finite_element_config_mod,  only: spherical_coord_system,     &
+                                        spherical_coord_system_xyz
   implicit none
 
   ! Arguments
@@ -150,7 +152,8 @@ subroutine poly1d_vert_flux_coeffs_code(nlayers,                    &
   ! Ensure that we reduce the order if there are only a few layers
   vertical_order = min(global_order, nlayers-1)
 
-  if ( geometry == geometry_spherical ) then
+  if ( geometry == geometry_spherical .and. &
+       spherical_coord_system == spherical_coord_system_xyz ) then
     spherical = 1.0_r_def
     planar    = 0.0_r_def
   else

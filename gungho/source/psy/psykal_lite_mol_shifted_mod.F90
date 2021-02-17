@@ -21,15 +21,11 @@ module psykal_lite_mol_shifted_mod
                                   quadrature_xyoz_proxy_type
   use quadrature_face_mod, only : quadrature_face_type, &
                                   quadrature_face_proxy_type
-  use quadrature_edge_mod, only : quadrature_edge_type, &
-                                  quadrature_edge_proxy_type
 
   implicit none
 
   real(kind=r_def), allocatable, dimension(:,:,:), private :: flux_coeff_h, &
-                                                              flux_coeff_v, &
-                                                              adv_coeff_h, &
-                                                              adv_coeff_v
+                                                              flux_coeff_v
 
   public
 
@@ -65,36 +61,6 @@ subroutine psykal_lite_mol_shifted_flux_init(rho, order, h_stencil_size, &
   allocate( flux_coeff_h(h_stencil_size, nfaces_re_h, undf_w3) )
 
 end subroutine psykal_lite_mol_shifted_flux_init
-!-------------------------------------------------------------------------------
-! This gives a PSy layer representation of the coefficient arrays to avoid
-! copying the algorithm level representation of the data as a 2d array of field
-! types into the PSy and kernel level representation of a single
-! multidimensional array.
-! When PSyclone and LFRic support fields with multi-dimensional arrays
-! these can be removed
-!-------------------------------------------------------------------------------
-subroutine psykal_lite_mol_shifted_adv_init(theta, adv_order, adv_h_stencil_size, &
-                                       nfaces_re_h, nfaces_re_v)
-
-  implicit none
-
-  type(field_type), intent(in) :: theta
-  integer(i_def),   intent(in) :: adv_order, adv_h_stencil_size
-  integer(i_def),   intent(in) :: nfaces_re_h, nfaces_re_v
-  integer(i_def)               :: undf_wt
-  type(field_proxy_type)       :: theta_proxy
-
-  theta_proxy = theta%get_proxy()
-
-  undf_wt = theta_proxy%vspace%get_undf()
-
-  ! Allocate vertical coefficients
-  allocate( adv_coeff_v(adv_order+2, nfaces_re_v, undf_wt) )
-
-  ! Allocate horizontal coefficients
-  allocate( adv_coeff_h(adv_h_stencil_size, nfaces_re_h, undf_wt) )
-
-end subroutine psykal_lite_mol_shifted_adv_init
 
 !-------------------------------------------------------------------------------
 ! This deallocates the flux advection coefficients when they are no longer needed
@@ -106,17 +72,6 @@ subroutine psykal_lite_mol_shifted_flux_final()
   deallocate( flux_coeff_h, flux_coeff_v )
 
 end subroutine psykal_lite_mol_shifted_flux_final
-
-!-------------------------------------------------------------------------------
-! This deallocates the advective advection coefficients when they are no longer needed
-!-------------------------------------------------------------------------------
-subroutine psykal_lite_mol_shifted_adv_final()
-
-  implicit none
-
-  deallocate( adv_coeff_h, adv_coeff_v )
-
-end subroutine psykal_lite_mol_shifted_adv_final
 
 !-------------------------------------------------------------------------------
 ! PSy layer call to apply the horizontal advection coefficients for flux form
@@ -296,7 +251,8 @@ end subroutine invoke_poly2d_shifted_flux
 !    PSyclone) and one for face quadrature: Issue #195
 ! 4) Uses face quadrature: Issue #193
 !-------------------------------------------------------------------------------
-subroutine invoke_poly2d_shifted_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, stencil_size, nfaces_re_h )
+subroutine invoke_poly2d_shifted_flux_coeffs( coeff, mdw3, chi, panel_id, &
+                                      qr, qr_face, order, stencil_size, nfaces_re_h, h0 )
 
   use poly2d_flux_coeffs_kernel_mod, only: poly2d_flux_coeffs_code
   use stencil_dofmap_mod,            only: stencil_dofmap_type, STENCIL_REGION
@@ -307,28 +263,32 @@ subroutine invoke_poly2d_shifted_flux_coeffs( coeff, mdw3, chi, qr, qr_face, ord
   integer(i_def), intent(in)          :: stencil_size
   integer(i_def), intent(in)          :: nfaces_re_h
   type(field_type), intent(inout)     :: coeff(stencil_size,nfaces_re_h)
-  type(field_type), intent(in)        :: chi(3), mdw3
+  type(field_type), intent(in)        :: chi(3), mdw3, panel_id
   type(quadrature_xyoz_type), intent( in ) :: qr
   type(quadrature_face_type), intent( in ) :: qr_face
+  real(r_def), intent(in)             :: h0
 
   type(quadrature_xyoz_proxy_type) :: qr_proxy
   type(quadrature_face_proxy_type) :: qr_face_proxy
 
-  type( field_proxy_type )  :: chi_proxy(3), mdw3_proxy
+  type( field_proxy_type )  :: chi_proxy(3), mdw3_proxy, panel_id_proxy
   type( field_proxy_type )  :: coeff_proxy(stencil_size,nfaces_re_h)
   type(stencil_dofmap_type), pointer :: w3_stencil => null()
   type(stencil_dofmap_type), pointer :: wx_stencil => null()
+  type(stencil_dofmap_type), pointer :: pid_stencil => null()
 
   integer(i_def), pointer :: w3_stencil_map(:,:,:) => null()
   integer(i_def), pointer :: wx_stencil_map(:,:,:) => null()
+  integer(i_def), pointer :: pid_stencil_map(:,:,:) => null()
   integer(i_def), pointer :: cells_in_stencil(:) => null()
 
   integer(i_def) :: undf_w3, ndf_w3
   integer(i_def) :: undf_wx, ndf_wx
+  integer(i_def) :: undf_pid, ndf_pid
   integer(i_def) :: df
   integer(i_def) :: cell
   integer(i_def) :: nlayers
-  integer(i_def) :: w3_stencil_size, wx_stencil_size
+  integer(i_def) :: w3_stencil_size, wx_stencil_size, pid_stencil_size
   integer(i_def) :: polynomial, direction, idx
   integer(i_def) :: dim_wx
   integer(i_def) :: stencil_extent
@@ -351,6 +311,7 @@ subroutine invoke_poly2d_shifted_flux_coeffs( coeff, mdw3, chi, qr, qr_face, ord
     chi_proxy(idx) = chi(idx)%get_proxy()
   end do
   mdw3_proxy = mdw3%get_proxy()
+  panel_id_proxy = panel_id%get_proxy()
 
   ndf_w3  = coeff_proxy(1,1)%vspace%get_ndf()
   undf_w3 = coeff_proxy(1,1)%vspace%get_undf()
@@ -358,6 +319,9 @@ subroutine invoke_poly2d_shifted_flux_coeffs( coeff, mdw3, chi, qr, qr_face, ord
   ndf_wx  = chi_proxy(1)%vspace%get_ndf()
   undf_wx = chi_proxy(1)%vspace%get_undf()
   dim_wx  = chi_proxy(1)%vspace%get_dim_space()
+
+  ndf_pid  = panel_id_proxy%vspace%get_ndf()
+  undf_pid = panel_id_proxy%vspace%get_undf()
 
   ! Pull out the quadrature
   qr_proxy  = qr%get_quadrature_proxy()
@@ -394,6 +358,11 @@ subroutine invoke_poly2d_shifted_flux_coeffs( coeff, mdw3, chi, qr, qr_face, ord
   wx_stencil_size = wx_stencil%get_size()
   wx_stencil_map => wx_stencil%get_whole_dofmap()
 
+  pid_stencil => panel_id_proxy%vspace%get_stencil_dofmap(STENCIL_REGION, &
+                                                           stencil_extent)
+  pid_stencil_size = pid_stencil%get_size()
+  pid_stencil_map => pid_stencil%get_whole_dofmap()
+
   ! Since chi is described as a field vector of length 3 in the kernel metadata
   ! then we loop over all 3 proxies
   do idx = 1,3
@@ -402,6 +371,8 @@ subroutine invoke_poly2d_shifted_flux_coeffs( coeff, mdw3, chi, qr, qr_face, ord
   end do
   if ( mdw3_proxy%is_dirty(depth=stencil_extent+1) )  &
     call mdw3_proxy%halo_exchange(depth=stencil_extent+1)
+  if ( panel_id_proxy%is_dirty(depth=stencil_extent+1) )  &
+    call panel_id_proxy%halo_exchange(depth=stencil_extent+1)
 
   ! Create a mesh object
   mesh => coeff_proxy(1,1)%vspace%get_mesh()
@@ -414,6 +385,7 @@ subroutine invoke_poly2d_shifted_flux_coeffs( coeff, mdw3, chi, qr, qr_face, ord
                                     chi_proxy(1)%data,           &
                                     chi_proxy(2)%data,           &
                                     chi_proxy(3)%data,           &
+                                    panel_id_proxy%data,         &
                                     ndf_w3,                      &
                                     undf_w3,                     &
                                     w3_stencil_size,             &
@@ -424,9 +396,14 @@ subroutine invoke_poly2d_shifted_flux_coeffs( coeff, mdw3, chi, qr, qr_face, ord
                                     wx_stencil_map(:,:,cell),    &
                                     basis_wx,                    &
                                     face_basis_wx,               &
+                                    ndf_pid,                     &
+                                    undf_pid,                    &
+                                    pid_stencil_size,            &
+                                    pid_stencil_map(:,:,cell),   &
                                     order,                       &
                                     nfaces_re_h,                 &
                                     cells_in_stencil(cell),      &
+                                    h0,                          &
                                     nqp_h, nqp_v, wqp_h, wqp_v,  &
                                     nfaces_qr, nqp_f, wqp_f )
 
@@ -616,7 +593,8 @@ end subroutine invoke_poly1d_shifted_flux
 !    #195
 ! 3) Uses face quadrature: Issue #193
 !-------------------------------------------------------------------------------
-subroutine invoke_poly1d_shifted_flux_coeffs( coeff, mdw3, chi, qr, qr_face, order, stencil_extent, nfaces_re_h )
+subroutine invoke_poly1d_shifted_flux_coeffs( coeff, mdw3, chi, panel_id, &
+                                              qr, qr_face, order, stencil_extent, nfaces_re_h, h0 )
 
   use poly1d_flux_coeffs_kernel_mod, only: poly1d_flux_coeffs_code
   use stencil_dofmap_mod,            only: stencil_dofmap_type, STENCIL_CROSS
@@ -626,27 +604,31 @@ subroutine invoke_poly1d_shifted_flux_coeffs( coeff, mdw3, chi, qr, qr_face, ord
   integer(i_def), intent(in)          :: order, stencil_extent
   integer(i_def), intent(in)          :: nfaces_re_h
   type(field_type), intent(inout)     :: coeff(order+1,nfaces_re_h)
-  type(field_type), intent(in)        :: chi(3), mdw3
+  type(field_type), intent(in)        :: chi(3), mdw3, panel_id
   type(quadrature_xyoz_type), intent( in ) :: qr
   type(quadrature_face_type), intent( in ) :: qr_face
+  real(r_def), intent(in)             :: h0
 
   type(quadrature_xyoz_proxy_type) :: qr_proxy
   type(quadrature_face_proxy_type) :: qr_face_proxy
 
-  type( field_proxy_type )  :: chi_proxy(3), mdw3_proxy
+  type( field_proxy_type )  :: chi_proxy(3), mdw3_proxy, panel_id_proxy
   type( field_proxy_type )  :: coeff_proxy(order+1,nfaces_re_h)
   type(stencil_dofmap_type), pointer :: w3_stencil => null()
   type(stencil_dofmap_type), pointer :: wx_stencil => null()
+  type(stencil_dofmap_type), pointer :: pid_stencil => null()
 
   integer(i_def), pointer :: w3_stencil_map(:,:,:) => null()
   integer(i_def), pointer :: wx_stencil_map(:,:,:) => null()
+  integer(i_def), pointer :: pid_stencil_map(:,:,:) => null()
 
   integer(i_def) :: undf_w3, ndf_w3
   integer(i_def) :: undf_wx, ndf_wx
+  integer(i_def) :: undf_pid, ndf_pid
   integer(i_def) :: df
   integer(i_def) :: cell
   integer(i_def) :: nlayers
-  integer(i_def) :: w3_stencil_size, wx_stencil_size
+  integer(i_def) :: w3_stencil_size, wx_stencil_size, pid_stencil_size
   integer(i_def) :: polynomial, direction, idx
   integer(i_def) :: dim_wx
   integer(i_def) :: nqp_h, nqp_v, nqp_f, nfaces_qr
@@ -667,6 +649,7 @@ subroutine invoke_poly1d_shifted_flux_coeffs( coeff, mdw3, chi, qr, qr_face, ord
     chi_proxy(idx) = chi(idx)%get_proxy()
   end do
   mdw3_proxy = mdw3%get_proxy()
+  panel_id_proxy = panel_id%get_proxy()
 
   ndf_w3  = coeff_proxy(1,1)%vspace%get_ndf()
   undf_w3 = coeff_proxy(1,1)%vspace%get_undf()
@@ -674,6 +657,9 @@ subroutine invoke_poly1d_shifted_flux_coeffs( coeff, mdw3, chi, qr, qr_face, ord
   ndf_wx  = chi_proxy(1)%vspace%get_ndf()
   undf_wx = chi_proxy(1)%vspace%get_undf()
   dim_wx  = chi_proxy(1)%vspace%get_dim_space()
+
+  ndf_pid  = panel_id_proxy%vspace%get_ndf()
+  undf_pid = panel_id_proxy%vspace%get_undf()
 
   ! Pull out the quadrature
   qr_proxy = qr%get_quadrature_proxy()
@@ -707,6 +693,11 @@ subroutine invoke_poly1d_shifted_flux_coeffs( coeff, mdw3, chi, qr, qr_face, ord
   wx_stencil_size = wx_stencil%get_size()
   wx_stencil_map => wx_stencil%get_whole_dofmap()
 
+  pid_stencil => panel_id_proxy%vspace%get_stencil_dofmap(STENCIL_CROSS, &
+                                                          stencil_extent)
+  pid_stencil_size = pid_stencil%get_size()
+  pid_stencil_map => pid_stencil%get_whole_dofmap()
+
   ! Since chi is described as a field vector of length 3 in the kernel metadata
   ! then we loop over all 3 proxies
   do idx = 1,3
@@ -715,6 +706,8 @@ subroutine invoke_poly1d_shifted_flux_coeffs( coeff, mdw3, chi, qr, qr_face, ord
   end do
   if ( mdw3_proxy%is_dirty(depth=stencil_extent+1) ) &
     call mdw3_proxy%halo_exchange(depth=stencil_extent+1)
+  if ( panel_id_proxy%is_dirty(depth=stencil_extent+1) ) &
+    call panel_id_proxy%halo_exchange(depth=stencil_extent+1)
 
   ! Create a mesh object
   mesh => coeff_proxy(1,1)%vspace%get_mesh()
@@ -727,6 +720,7 @@ subroutine invoke_poly1d_shifted_flux_coeffs( coeff, mdw3, chi, qr, qr_face, ord
                                     chi_proxy(1)%data,           &
                                     chi_proxy(2)%data,           &
                                     chi_proxy(3)%data,           &
+                                    panel_id_proxy%data,         &
                                     ndf_w3,                      &
                                     undf_w3,                     &
                                     w3_stencil_size,             &
@@ -737,8 +731,13 @@ subroutine invoke_poly1d_shifted_flux_coeffs( coeff, mdw3, chi, qr, qr_face, ord
                                     wx_stencil_map(:,:,cell),    &
                                     basis_wx,                    &
                                     face_basis_wx,               &
+                                    ndf_pid,                     &
+                                    undf_pid,                    &
+                                    pid_stencil_size,            &
+                                    pid_stencil_map(:,:,cell),   &
                                     order,                       &
                                     nfaces_re_h,                 &
+                                    h0,                          &
                                     nqp_h, nqp_v, wqp_h, wqp_v,  &
                                     nfaces_qr, nqp_f, wqp_f )
 
@@ -755,6 +754,8 @@ subroutine invoke_poly1d_shifted_flux_coeffs( coeff, mdw3, chi, qr, qr_face, ord
   end do
 
   deallocate( basis_wx, face_basis_wx )
+
+
 
 end subroutine invoke_poly1d_shifted_flux_coeffs
 
@@ -1048,879 +1049,5 @@ subroutine invoke_poly1d_shifted_vert_flux_coeffs( coeff, mdw3, chi, qr, qr_face
   deallocate( basis_wx, face_basis_wx )
 
 end subroutine invoke_poly1d_shifted_vert_flux_coeffs
-
-!-------------------------------------------------------------------------------
-! PSy layer call to apply the horizontal advection coefficients for advective
-! form advection. This can not currently be generated by PSyclone because
-! 1) Uses a runtime specified 2D array of fields (coeff): Ticket #1104 & #1105
-!
-! TODO: nfaces_re_h is passed from the algorithm layer due to specifying
-!       dimensions for the 2D array of fields (coeff) required for region
-!       stencils. The invoked kernel uses the reference element metadata so
-!       PSyclone will generate a getter to nfaces_re_h as well. PSyclone rules
-!       will need to account for both occurences.
-!-------------------------------------------------------------------------------
-subroutine invoke_poly1d_shifted_adv_recon( reconstruction, wind, tracer, coeff, order, stencil_extent, nfaces_re_h )
-
-  use poly1d_adv_recon_kernel_mod,     only: poly1d_adv_recon_code
-  use stencil_dofmap_mod,              only: stencil_dofmap_type, STENCIL_CROSS
-  use reference_element_mod,           only: reference_element_type
-
-  implicit none
-
-  type(field_type), intent(inout)      :: reconstruction
-  type(field_type), intent(in)         :: wind
-  type(field_type), intent(in)         :: tracer
-  integer(i_def), intent(in)           :: order
-  integer(i_def), intent(in)           :: stencil_extent
-  integer(i_def), intent(in)           :: nfaces_re_h
-  type(field_type), intent(in)         :: coeff(order+1,nfaces_re_h)
-
-  class(reference_element_type), pointer :: reference_element => null()
-  type( field_proxy_type )  :: recon_proxy, wind_proxy, tracer_proxy
-  type( field_proxy_type )  :: coeff_proxy(order+1,nfaces_re_h)
-  type(stencil_dofmap_type), pointer :: stencil => null()
-
-  integer(i_def), pointer :: map_w1(:,:)        => null()
-  integer(i_def), pointer :: map_w2(:,:)        => null()
-  integer(i_def), pointer :: stencil_map(:,:,:) => null()
-
-  integer(i_def) :: undf_wt, ndf_wt
-  integer(i_def) :: undf_w2, ndf_w2
-  integer(i_def) :: undf_w1, ndf_w1
-  integer(i_def) :: df_w2, qp, df
-  integer(i_def) :: cell
-  integer(i_def) :: nlayers, stencil_size
-  integer(i_def) :: direction, polynomial
-  integer(i_def) :: dim_w2
-  type(mesh_type), pointer :: mesh => null()
-  real(kind=r_def), pointer :: nodes_w1(:,:) => null()
-  real(kind=r_def), allocatable :: basis_w2(:,:,:)
-  real(r_def), allocatable :: outward_normals_to_horizontal_faces(:,:)
-  logical(l_def) :: swap
-
-  ! Initialise field and/or operator proxies
-  recon_proxy  = reconstruction%get_proxy()
-  wind_proxy   = wind%get_proxy()
-  tracer_proxy = tracer%get_proxy()
-
-  ! Initialise number of layers
-  nlayers = recon_proxy%vspace%get_nlayers()
-
-  ! Create a mesh object
-  mesh => recon_proxy%vspace%get_mesh()
-
-  ! Create a reference_element object
-  reference_element => mesh%get_reference_element()
-
-  ! Initialise stencil dofmaps
-  stencil => tracer_proxy%vspace%get_stencil_dofmap(STENCIL_CROSS, stencil_extent)
-  stencil_size = stencil%get_size()
-  stencil_map => stencil%get_whole_dofmap()
-
-  ! Look-up dofmaps for each function space
-  map_w2 => wind_proxy%vspace%get_whole_dofmap()
-  map_w1 => recon_proxy%vspace%get_whole_dofmap()
-
-  ! Initialise number of DoFs
-  ndf_w1  = recon_proxy%vspace%get_ndf()
-  undf_w1 = recon_proxy%vspace%get_undf()
-
-  ndf_wt  = tracer_proxy%vspace%get_ndf()
-  undf_wt = tracer_proxy%vspace%get_undf()
-
-  ndf_w2  = wind_proxy%vspace%get_ndf()
-  undf_w2 = wind_proxy%vspace%get_undf()
-
-  ! Look-up reference element variables
-  ! Note: nfaces_re_h should be generated by PSyclone due to presence of
-  !       "normals" array, however it is already passed from the algorithm
-  ! nfaces_re_h = reference_element%get_number_horizontal_faces()
-  call reference_element%get_outward_normals_to_horizontal_faces( outward_normals_to_horizontal_faces )
-
-  ! Initialise 2D array of field proxies
-  do direction = 1,nfaces_re_h
-    do polynomial = 1,order+1
-      coeff_proxy(polynomial, direction) = coeff(polynomial, direction)%get_proxy()
-    end do
-  end do
-
-  ! Allocate basis/differential basis arrays
-  dim_w2  = wind_proxy%vspace%get_dim_space()
-  nodes_w1 => recon_proxy%vspace%get_nodes()
-  allocate (basis_w2(dim_w2, ndf_w2, ndf_w1))
-
-  ! Evaluate the basis function
-  do qp = 1, ndf_w1
-    do df_w2 = 1, ndf_w2
-      basis_w2(:,df_w2,qp) = wind_proxy%vspace%call_function(BASIS,df_w2,nodes_w1(:,qp))
-    end do
-  end do
-
-  ! Call kernels and communication routines
-  if ( recon_proxy%is_dirty(depth=1) ) &
-     call recon_proxy%halo_exchange(depth=1)
-
-  if ( wind_proxy%is_dirty(depth=1) ) &
-     call wind_proxy%halo_exchange(depth=1)
-
-  if ( tracer_proxy%is_dirty(depth=stencil_extent+1) ) &
-     call tracer_proxy%halo_exchange(depth=stencil_extent+1)
-
-  swap = .false.
-  do direction = 1,nfaces_re_h
-    do polynomial = 1,order+1
-      if ( coeff_proxy(polynomial, direction)%is_dirty(depth=1) ) then
-         call coeff_proxy(polynomial, direction)%halo_exchange(depth=1)
-         swap = .true.
-      end if
-    end do
-  end do
-
-  ! Make sure module array has the correct halo swapped values
-  if ( swap ) then
-    do df = 1,undf_wt
-      do direction = 1,nfaces_re_h
-        do polynomial = 1,order+1
-          adv_coeff_h(polynomial, direction,df) = coeff_proxy(polynomial, direction)%data(df)
-        end do
-      end do
-    end do
-  end if
-
-  do cell = 1,mesh%get_last_halo_cell(1)
-
-      call poly1d_adv_recon_code( nlayers,                     &
-                                  recon_proxy%data,            &
-                                  wind_proxy%data,             &
-                                  tracer_proxy%data,           &
-                                  adv_coeff_h,                 &
-                                  ndf_w1,                      &
-                                  undf_w1,                     &
-                                  map_w1(:,cell),              &
-                                  ndf_w2,                      &
-                                  undf_w2,                     &
-                                  map_w2(:,cell),              &
-                                  basis_w2,                    &
-                                  ndf_wt,                      &
-                                  undf_wt,                     &
-                                  stencil_size,                &
-                                  stencil_map(:,:,cell),       &
-                                  order,                       &
-                                  nfaces_re_h,                 &
-                                  outward_normals_to_horizontal_faces )
-
-  end do
-
-  ! Set halos dirty/clean for fields modified in the above loop
-  call recon_proxy%set_dirty()
-
-  deallocate( basis_w2 )
-
-end subroutine invoke_poly1d_shifted_adv_recon
-
-!-------------------------------------------------------------------------------
-! PSy layer call to compute the horizontal advection coefficients for advective
-! form advection. This can not currently be generated by PSyclone because
-! 1) Uses a runtime specified 2D array of fields (coeff): Ticket #1104 & #1105
-! 2) Needs two quadrature rules, one for volume integrals (supported by
-!    PSyclone) and one for face quadrature (not supported by PSyclone): Issue
-!    #195
-! 3) Uses edge quadrature: Issue #193
-!-------------------------------------------------------------------------------
-subroutine invoke_poly1d_shifted_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order, stencil_extent, nfaces_re_h )
-
-  use poly1d_advective_coeffs_kernel_mod, only: poly1d_advective_coeffs_code
-  use stencil_dofmap_mod,                 only: stencil_dofmap_type, STENCIL_CROSS
-
-  implicit none
-
-  integer(i_def),   intent(in)        :: order, stencil_extent, nfaces_re_h
-  type(field_type), intent(inout)     :: coeff(order+1,nfaces_re_h)
-  type(field_type), intent(in)        :: chi(3), mdwt
-  type(quadrature_xyoz_type), intent( in ) :: qr
-  type(quadrature_edge_type), intent( in ) :: qr_edge
-
-  type(quadrature_xyoz_proxy_type) :: qr_proxy
-  type(quadrature_edge_proxy_type) :: qr_edge_proxy
-
-  type( field_proxy_type )  :: chi_proxy(3), mdwt_proxy
-  type( field_proxy_type )  :: coeff_proxy(order+1,nfaces_re_h)
-  type(stencil_dofmap_type), pointer :: wt_stencil => null()
-  type(stencil_dofmap_type), pointer :: wx_stencil => null()
-
-  integer(i_def), pointer :: wt_stencil_map(:,:,:) => null()
-  integer(i_def), pointer :: wx_stencil_map(:,:,:) => null()
-
-  integer(i_def) :: undf_wt, ndf_wt
-  integer(i_def) :: undf_wx, ndf_wx
-  integer(i_def) :: df
-  integer(i_def) :: cell
-  integer(i_def) :: nlayers
-  integer(i_def) :: wt_stencil_size, wx_stencil_size
-  integer(i_def) :: polynomial, direction, idx
-  integer(i_def) :: dim_wx
-  integer(i_def) :: nqp_h, nqp_v, nqp_e, nedges_qr
-  type(mesh_type), pointer :: mesh => null()
-  real(kind=r_def), allocatable :: basis_wx(:,:,:,:), edge_basis_wx(:,:,:,:)
-  real(kind=r_def), pointer :: wqp_v(:) => null(),  wqp_h(:) => null(), wqp_e(:,:) => null()
-
-  do direction = 1,nfaces_re_h
-    do polynomial = 1,order+1
-      coeff_proxy(polynomial, direction) = coeff(polynomial, direction)%get_proxy()
-    end do
-  end do
-  ! Since chi is described as a field vector of length 3 in the kernel metadata
-  ! then we loop over all 3 proxies
-  do idx = 1,3
-    chi_proxy(idx) = chi(idx)%get_proxy()
-  end do
-  mdwt_proxy = mdwt%get_proxy()
-
-  ndf_wt  = coeff_proxy(1,1)%vspace%get_ndf()
-  undf_wt = coeff_proxy(1,1)%vspace%get_undf()
-
-  ndf_wx  = chi_proxy(1)%vspace%get_ndf()
-  undf_wx = chi_proxy(1)%vspace%get_undf()
-  dim_wx  = chi_proxy(1)%vspace%get_dim_space()
-
-  ! Pull out the quadrature
-  qr_proxy = qr%get_quadrature_proxy()
-  nqp_h = qr_proxy%np_xy
-  nqp_v = qr_proxy%np_z
-  wqp_h => qr_proxy%weights_xy
-  wqp_v => qr_proxy%weights_z
-
-  qr_edge_proxy = qr_edge%get_quadrature_proxy()
-  nqp_e = qr_edge_proxy%np_xyz
-  wqp_e => qr_edge_proxy%weights_xyz
-  nedges_qr = qr_edge_proxy%nedges
-
-  ! Evaluate the basis functions in the volume
-  allocate (basis_wx(dim_wx, ndf_wx, nqp_h, nqp_v))
-  call qr%compute_function(BASIS, chi_proxy(1)%vspace, dim_wx, ndf_wx, basis_wx)
-
-  ! Evaluate the basis functions on the edges
-  allocate( edge_basis_wx(dim_wx,ndf_wx,nqp_e,nedges_qr))
-  call qr_edge%compute_function(BASIS, chi_proxy(1)%vspace, dim_wx, ndf_wx, edge_basis_wx)
-
-  nlayers = coeff_proxy(1,1)%vspace%get_nlayers()
-
-  wt_stencil => coeff_proxy(1,1)%vspace%get_stencil_dofmap(STENCIL_CROSS, &
-                                                           stencil_extent)
-  wt_stencil_size = wt_stencil%get_size()
-  wt_stencil_map => wt_stencil%get_whole_dofmap()
-
-  wx_stencil => chi_proxy(1)%vspace%get_stencil_dofmap(STENCIL_CROSS, &
-                                                       stencil_extent)
-  wx_stencil_size = wx_stencil%get_size()
-  wx_stencil_map => wx_stencil%get_whole_dofmap()
-
-  ! Since chi is described as a field vector of length 3 in the kernel metadata
-  ! then we loop over all 3 proxies
-  do idx = 1,3
-    if ( chi_proxy(idx)%is_dirty(depth=stencil_extent+1) ) &
-      call chi_proxy(idx)%halo_exchange(depth=stencil_extent+1)
-  end do
-  if ( mdwt_proxy%is_dirty(depth=stencil_extent+1) ) &
-    call mdwt_proxy%halo_exchange(depth=stencil_extent+1)
-
-  ! Create a mesh object
-  mesh => coeff_proxy(1,1)%vspace%get_mesh()
-
-  do cell = 1,mesh%get_last_halo_cell(1)
-
-      call poly1d_advective_coeffs_code( nlayers,                     &
-                                         adv_coeff_h,                 &
-                                         mdwt_proxy%data,             &
-                                         chi_proxy(1)%data,           &
-                                         chi_proxy(2)%data,           &
-                                         chi_proxy(3)%data,           &
-                                         ndf_wt,                      &
-                                         undf_wt,                     &
-                                         wt_stencil_size,             &
-                                         wt_stencil_map(:,:,cell),    &
-                                         ndf_wx,                      &
-                                         undf_wx,                     &
-                                         wx_stencil_size,             &
-                                         wx_stencil_map(:,:,cell),    &
-                                         basis_wx,                    &
-                                         edge_basis_wx,               &
-                                         order,                       &
-                                         nfaces_re_h,                 &
-                                         nqp_h, nqp_v, wqp_h, wqp_v,  &
-                                         nedges_qr, nqp_e, wqp_e )
-
-  end do
-
-  ! Set halos dirty/clean for fields modified in the above loop
-  do direction = 1,nfaces_re_h
-    do polynomial = 1,order+1
-      do df = 1,undf_wt
-        coeff_proxy(polynomial, direction)%data(df) = adv_coeff_h(polynomial, direction,df)
-      end do
-      call coeff_proxy(polynomial, direction)%set_dirty()
-    end do
-  end do
-
-  deallocate( basis_wx, edge_basis_wx )
-
-end subroutine invoke_poly1d_shifted_advective_coeffs
-
-!-------------------------------------------------------------------------------
-! PSy layer call to apply the horizontal advection coefficients for advective
-! form advection. This can not currently be generated by PSyclone because
-! 1) Uses a runtime specified 2D array of fields (coeff): Ticket #1104 & #1105
-! 2) Uses a REGION stencil that requires the local size to be passed to the
-!    kernel: Issue #193
-!
-! TODO: nfaces_re_h is passed from the algorithm layer due to specifying
-!       dimensions for the 2D array of fields (coeff) required for region
-!       stencils. The invoked kernel uses the reference element metadata so
-!       PSyclone will generate a getter to nfaces_re_h as well. PSyclone rules
-!       will need to account for both occurences.
-!-------------------------------------------------------------------------------
-subroutine invoke_poly2d_shifted_adv_recon( reconstruction, wind, tracer, coeff, order, stencil_size, nfaces_re_h )
-
-  use poly2d_adv_recon_kernel_mod,     only: poly2d_adv_recon_code
-  use stencil_dofmap_mod,              only: stencil_dofmap_type, STENCIL_REGION
-  use reference_element_mod,           only: reference_element_type
-
-  implicit none
-
-  type(field_type), intent(inout)      :: reconstruction
-  type(field_type), intent(in)         :: wind
-  type(field_type), intent(in)         :: tracer
-  integer(i_def), intent(in)           :: order
-  integer(i_def), intent(in)           :: stencil_size
-  integer(i_def), intent(in)           :: nfaces_re_h
-  type(field_type), intent(in)         :: coeff(stencil_size,nfaces_re_h)
-
-  class(reference_element_type), pointer :: reference_element => null()
-  type( field_proxy_type )  :: recon_proxy, wind_proxy, tracer_proxy
-  type( field_proxy_type )  :: coeff_proxy(stencil_size,nfaces_re_h)
-  type(stencil_dofmap_type), pointer :: stencil => null()
-
-  integer(i_def), pointer :: map_w1(:,:)        => null()
-  integer(i_def), pointer :: map_w2(:,:)        => null()
-  integer(i_def), pointer :: stencil_map(:,:,:) => null()
-  integer(i_def), pointer :: cells_in_stencil(:) => null()
-
-  integer(i_def) :: undf_wt, ndf_wt
-  integer(i_def) :: undf_w2, ndf_w2
-  integer(i_def) :: undf_w1, ndf_w1
-  integer(i_def) :: df_w2, qp, df
-  integer(i_def) :: cell
-  integer(i_def) :: nlayers, stencil_extent
-  integer(i_def) :: direction, polynomial
-  integer(i_def) :: dim_w2
-  type(mesh_type), pointer :: mesh => null()
-  real(kind=r_def), pointer :: nodes_w1(:,:) => null()
-  real(kind=r_def), allocatable :: basis_w2(:,:,:)
-  real(r_def), allocatable :: outward_normals_to_horizontal_faces(:,:)
-  logical(l_def) :: swap
-
-  ! Initialise field and/or operator proxies
-  recon_proxy  = reconstruction%get_proxy()
-  wind_proxy   = wind%get_proxy()
-  tracer_proxy = tracer%get_proxy()
-
-  ! Initialise number of layers
-  nlayers = recon_proxy%vspace%get_nlayers()
-
-  ! Re-calculate stencil extent from the polynomial order
-  stencil_extent = order/2
-
-  ! Create a mesh object
-  mesh => recon_proxy%vspace%get_mesh()
-
-  ! Create a reference_element object
-  reference_element => mesh%get_reference_element()
-
-  ! Initialise stencil dofmaps
-  stencil => tracer_proxy%vspace%get_stencil_dofmap(STENCIL_REGION, &
-                                                    stencil_extent)
-  stencil_map => stencil%get_whole_dofmap()
-  cells_in_stencil => stencil%get_stencil_sizes()
-
-  ! Look-up dofmaps for each function space
-  map_w2 => wind_proxy%vspace%get_whole_dofmap()
-  map_w1 => recon_proxy%vspace%get_whole_dofmap()
-
-  ! Initialise number of DoFs
-  ndf_w1  = recon_proxy%vspace%get_ndf()
-  undf_w1 = recon_proxy%vspace%get_undf()
-
-  ndf_wt  = tracer_proxy%vspace%get_ndf()
-  undf_wt = tracer_proxy%vspace%get_undf()
-
-  ndf_w2  = wind_proxy%vspace%get_ndf()
-  undf_w2 = wind_proxy%vspace%get_undf()
-
-  ! Look-up reference element variables
-  ! Note: nfaces_re_h should be generated by PSyclone due to presence of
-  !       "normals" array, however it is already passed from the algorithm
-  ! nfaces_re_h = reference_element%get_number_horizontal_faces()
-  call reference_element%get_outward_normals_to_horizontal_faces( outward_normals_to_horizontal_faces )
-
-  ! Initialise 2D array of field proxies
-  do direction = 1,nfaces_re_h
-    do polynomial = 1,stencil_size
-      coeff_proxy(polynomial, direction) = coeff(polynomial, direction)%get_proxy()
-    end do
-  end do
-
-  ! Allocate basis/differential basis arrays
-  dim_w2  = wind_proxy%vspace%get_dim_space()
-  nodes_w1 => recon_proxy%vspace%get_nodes()
-  allocate (basis_w2(dim_w2, ndf_w2, ndf_w1))
-
-  ! Evaluate the basis function
-  do qp = 1, ndf_w1
-    do df_w2 = 1, ndf_w2
-      basis_w2(:,df_w2,qp) = wind_proxy%vspace%call_function(BASIS,df_w2,nodes_w1(:,qp))
-    end do
-  end do
-
-  ! Call kernels and communication routines
-  if ( recon_proxy%is_dirty(depth=1) ) &
-     call recon_proxy%halo_exchange(depth=1)
-
-  if ( wind_proxy%is_dirty(depth=1) ) &
-     call wind_proxy%halo_exchange(depth=1)
-
-  if ( tracer_proxy%is_dirty(depth=stencil_extent+1) ) &
-     call tracer_proxy%halo_exchange(depth=stencil_extent+1)
-
-  swap = .false.
-  do direction = 1,nfaces_re_h
-    do polynomial = 1,stencil_size
-      if ( coeff_proxy(polynomial, direction)%is_dirty(depth=1) ) then
-         call coeff_proxy(polynomial, direction)%halo_exchange(depth=1)
-         swap = .true.
-      end if
-    end do
-  end do
-
-  ! Make sure module array has the correct halo swapped values
-  if ( swap ) then
-    do df = 1,undf_wt
-      do direction = 1,nfaces_re_h
-        do polynomial = 1,stencil_size
-          adv_coeff_h(polynomial, direction,df) = coeff_proxy(polynomial, direction)%data(df)
-        end do
-      end do
-    end do
-  end if
-
-  do cell = 1,mesh%get_last_halo_cell(1)
-
-      call poly2d_adv_recon_code( nlayers,                     &
-                                  recon_proxy%data,            &
-                                  wind_proxy%data,             &
-                                  tracer_proxy%data,           &
-                                  adv_coeff_h,                 &
-                                  ndf_w1,                      &
-                                  undf_w1,                     &
-                                  map_w1(:,cell),              &
-                                  ndf_w2,                      &
-                                  undf_w2,                     &
-                                  map_w2(:,cell),              &
-                                  basis_w2,                    &
-                                  ndf_wt,                      &
-                                  undf_wt,                     &
-                                  stencil_size,                &
-                                  stencil_map(:,:,cell),       &
-                                  cells_in_stencil(cell),      &
-                                  nfaces_re_h,                 &
-                                  outward_normals_to_horizontal_faces )
-
-  end do
-
-  ! Set halos dirty/clean for fields modified in the above loop
-  call recon_proxy%set_dirty()
-
-  deallocate( basis_w2 )
-
-end subroutine invoke_poly2d_shifted_adv_recon
-
-!-------------------------------------------------------------------------------
-! PSy layer call to compute the horizontal advection coefficients for advective
-! form advection. This can not currently be generated by PSyclone because
-! 1) Uses a runtime specified 2D array of fields (coeff): Ticket #1104 & #1105
-! 2) Uses a REGION stencil that requires the local size to be passed to the
-!    kernel: Issue #194
-! 3) Needs two quadrature rules, one for volume integrals (supported by
-!    PSyclone) and one for face quadrature (not supported by PSyclone): Issue
-!    #195
-! 4) Uses edge quadrature: Issue #193
-!-------------------------------------------------------------------------------
-subroutine invoke_poly2d_shifted_advective_coeffs( coeff, mdwt, chi, qr, qr_edge, order, stencil_size, nfaces_re_h )
-
-  use poly2d_advective_coeffs_kernel_mod, only: poly2d_advective_coeffs_code
-  use stencil_dofmap_mod,                only: stencil_dofmap_type, STENCIL_REGION
-
-  implicit none
-
-  integer(i_def), intent(in)          :: order
-  integer(i_def), intent(in)          :: stencil_size
-  integer(i_def), intent(in)          :: nfaces_re_h
-  type(field_type), intent(inout)     :: coeff(stencil_size,nfaces_re_h)
-  type(field_type), intent(in)        :: chi(3), mdwt
-  type(quadrature_xyoz_type), intent( in ) :: qr
-  type(quadrature_edge_type), intent( in ) :: qr_edge
-
-  type(quadrature_xyoz_proxy_type) :: qr_proxy
-  type(quadrature_edge_proxy_type) :: qr_edge_proxy
-
-  type( field_proxy_type )  :: chi_proxy(3), mdwt_proxy
-  type( field_proxy_type )  :: coeff_proxy(stencil_size,nfaces_re_h)
-  type(stencil_dofmap_type), pointer :: wt_stencil => null()
-  type(stencil_dofmap_type), pointer :: wx_stencil => null()
-
-  integer(i_def), pointer :: wt_stencil_map(:,:,:) => null()
-  integer(i_def), pointer :: wx_stencil_map(:,:,:) => null()
-  integer(i_def), pointer :: cells_in_stencil(:) => null()
-
-  integer(i_def) :: undf_wt, ndf_wt
-  integer(i_def) :: undf_wx, ndf_wx
-  integer(i_def) :: df
-  integer(i_def) :: cell
-  integer(i_def) :: nlayers
-  integer(i_def) :: wt_stencil_size, wx_stencil_size
-  integer(i_def) :: polynomial, direction, idx
-  integer(i_def) :: dim_wx
-  integer(i_def) :: stencil_extent
-  integer(i_def) :: nqp_h, nqp_v, nqp_e, nedges_qr
-
-  type(mesh_type), pointer :: mesh => null()
-  real(kind=r_def), allocatable :: basis_wx(:,:,:,:), edge_basis_wx(:,:,:,:)
-  real(kind=r_def), pointer :: wqp_h(:) => null(), &
-                               wqp_v(:) => null(), &
-                               wqp_e(:,:) => null()
-
-  do direction = 1,nfaces_re_h
-    do polynomial = 1,stencil_size
-      coeff_proxy(polynomial, direction) = coeff(polynomial, direction)%get_proxy()
-    end do
-  end do
-  ! Since chi is described as a field vector of length 3 in the kernel metadata
-  ! then we loop over all 3 proxies
-  do idx = 1,3
-    chi_proxy(idx) = chi(idx)%get_proxy()
-  end do
-  mdwt_proxy = mdwt%get_proxy()
-
-  ndf_wt  = coeff_proxy(1,1)%vspace%get_ndf()
-  undf_wt = coeff_proxy(1,1)%vspace%get_undf()
-
-  ndf_wx  = chi_proxy(1)%vspace%get_ndf()
-  undf_wx = chi_proxy(1)%vspace%get_undf()
-  dim_wx  = chi_proxy(1)%vspace%get_dim_space()
-
-  ! Pull out the quadrature
-  qr_proxy = qr%get_quadrature_proxy()
-  nqp_h = qr_proxy%np_xy
-  nqp_v = qr_proxy%np_z
-  wqp_h => qr_proxy%weights_xy
-  wqp_v => qr_proxy%weights_z
-
-  qr_edge_proxy = qr_edge%get_quadrature_proxy()
-  nqp_e = qr_edge_proxy%np_xyz
-  wqp_e => qr_edge_proxy%weights_xyz
-  nedges_qr = qr_edge_proxy%nedges
-  ! Evaluate the basis functions in the volume
-  allocate (basis_wx(dim_wx, ndf_wx, nqp_h, nqp_v))
-  call qr%compute_function(BASIS, chi_proxy(1)%vspace, dim_wx, ndf_wx, basis_wx)
-
-  ! Evaluate the basis functions on the faces
-  allocate( edge_basis_wx(dim_wx,ndf_wx,nqp_e,nedges_qr))
-  call qr_edge%compute_function(BASIS, chi_proxy(1)%vspace, dim_wx, ndf_wx, edge_basis_wx)
-
-  nlayers = coeff_proxy(1,1)%vspace%get_nlayers()
-
-  stencil_extent = order/2
-
-  wt_stencil => coeff_proxy(1,1)%vspace%get_stencil_dofmap(STENCIL_REGION, &
-                                                           stencil_extent)
-  wt_stencil_size = wt_stencil%get_size()
-  wt_stencil_map => wt_stencil%get_whole_dofmap()
-
-  wx_stencil => chi_proxy(1)%vspace%get_stencil_dofmap(STENCIL_REGION, &
-                                                       stencil_extent)
-  wx_stencil_size = wx_stencil%get_size()
-  wx_stencil_map => wx_stencil%get_whole_dofmap()
-  cells_in_stencil => wx_stencil%get_stencil_sizes()
-
-  ! Since chi is described as a field vector of length 3 in the kernel metadata
-  ! then we loop over all 3 proxies
-  do idx = 1,3
-    if ( chi_proxy(idx)%is_dirty(depth=stencil_extent+1) ) &
-      call chi_proxy(idx)%halo_exchange(depth=stencil_extent+1)
-  end do
-  if ( mdwt_proxy%is_dirty(depth=stencil_extent+1) )  &
-    call mdwt_proxy%halo_exchange(depth=stencil_extent+1)
-
-  ! Create a mesh object
-  mesh => coeff_proxy(1,1)%vspace%get_mesh()
-
-  do cell = 1,mesh%get_last_halo_cell(1)
-
-      call poly2d_advective_coeffs_code( nlayers,                     &
-                                         adv_coeff_h,                 &
-                                         mdwt_proxy%data,             &
-                                         chi_proxy(1)%data,           &
-                                         chi_proxy(2)%data,           &
-                                         chi_proxy(3)%data,           &
-                                         ndf_wt,                      &
-                                         undf_wt,                     &
-                                         wt_stencil_size,             &
-                                         wt_stencil_map(:,:,cell),    &
-                                         ndf_wx,                      &
-                                         undf_wx,                     &
-                                         wx_stencil_size,             &
-                                         wx_stencil_map(:,:,cell),    &
-                                         basis_wx,                    &
-                                         edge_basis_wx,               &
-                                         order,                       &
-                                         nfaces_re_h,                 &
-                                         cells_in_stencil(cell),      &
-                                         nqp_h, nqp_v, wqp_h, wqp_v,  &
-                                         nedges_qr, nqp_e, wqp_e )
-
-
-  end do
-
-  ! Set halos dirty/clean for fields modified in the above loop
-  do direction = 1,nfaces_re_h
-    do polynomial = 1,stencil_size
-      do df = 1,undf_wt
-        coeff_proxy(polynomial, direction)%data(df) = adv_coeff_h(polynomial, direction,df)
-      end do
-      call coeff_proxy(polynomial, direction)%set_dirty()
-    end do
-  end do
-
-  deallocate( basis_wx, edge_basis_wx )
-
-end subroutine invoke_poly2d_shifted_advective_coeffs
-
-!-------------------------------------------------------------------------------
-! PSy layer call to apply the vertical advection coefficients for advective
-! form advection. This can not currently be generated by PSyclone because
-! 1) Uses a runtime specified 2D array of fields (coeff): Ticket #1104 & #1105
-!-------------------------------------------------------------------------------
-subroutine invoke_poly1d_shifted_vert_adv_coeffs( coeff, chi, order, nfaces_re_v )
-
-  use poly1d_vert_adv_coeffs_kernel_mod, only: poly1d_vert_adv_coeffs_code
-  implicit none
-
-  integer(i_def),   intent(in)        :: order, nfaces_re_v
-  type(field_type), intent(inout)     :: coeff(order+2,nfaces_re_v)
-  type(field_type), intent(in)        :: chi(3)
-
-  type( field_proxy_type )  :: chi_proxy(3)
-  type( field_proxy_type )  :: coeff_proxy(order+2,nfaces_re_v)
-
-  integer(i_def), pointer :: map_wt(:,:) => null()
-  integer(i_def), pointer :: map_wx(:,:) => null()
-
-  integer(i_def) :: undf_wt, ndf_wt
-  integer(i_def) :: undf_wx, ndf_wx
-  integer(i_def) :: df, dft
-  integer(i_def) :: cell
-  integer(i_def) :: nlayers
-  integer(i_def) :: polynomial, direction, idx
-  integer(i_def) :: dim_wx
-
-  type(mesh_type), pointer :: mesh => null()
-  real(kind=r_def), allocatable :: basis_wx(:,:,:)
-  real(kind=r_def), pointer :: nodes(:,:) => null()
-
-  do direction = 1,nfaces_re_v
-    do polynomial = 1,order+2
-      coeff_proxy(polynomial, direction) = coeff(polynomial, direction)%get_proxy()
-    end do
-  end do
-  ! Since chi is described as a field vector of length 3 in the kernel metadata
-  ! then we loop over all 3 proxies
-  do idx = 1,3
-    chi_proxy(idx) = chi(idx)%get_proxy()
-  end do
-
-  ndf_wt  = coeff_proxy(1,1)%vspace%get_ndf()
-  undf_wt = coeff_proxy(1,1)%vspace%get_undf()
-  nodes => coeff_proxy(1,1)%vspace%get_nodes()
-
-  ndf_wx  = chi_proxy(1)%vspace%get_ndf()
-  undf_wx = chi_proxy(1)%vspace%get_undf()
-  dim_wx  = chi_proxy(1)%vspace%get_dim_space()
-
-  allocate (basis_wx(dim_wx, ndf_wx, ndf_wt))
-  do dft = 1,ndf_wt
-    do df = 1,ndf_wx
-      basis_wx(:,df,dft) = chi_proxy(1)%vspace%call_function(BASIS,df,nodes(:,dft))
-    end do
-  end do
-
-  nlayers = coeff_proxy(1,1)%vspace%get_nlayers()
-
-  map_wt => coeff_proxy(1,1)%vspace%get_whole_dofmap()
-  map_wx => chi_proxy(1)%vspace%get_whole_dofmap()
-
-  ! Since chi is described as a field vector of length 3 in the kernel metadata
-  ! then we loop over all 3 proxies
-  do idx = 1,3
-    if ( chi_proxy(idx)%is_dirty(depth=1) ) &
-      call chi_proxy(idx)%halo_exchange(depth=1)
-  end do
-
-  ! Create a mesh object
-  mesh => coeff_proxy(1,1)%vspace%get_mesh()
-
-  do cell = 1,mesh%get_last_edge_cell()
-
-      call poly1d_vert_adv_coeffs_code( nlayers,                     &
-                                        adv_coeff_v,                 &
-                                        chi_proxy(1)%data,           &
-                                        chi_proxy(2)%data,           &
-                                        chi_proxy(3)%data,           &
-                                        ndf_wt,                      &
-                                        undf_wt,                     &
-                                        map_wt(:,cell),              &
-                                        ndf_wx,                      &
-                                        undf_wx,                     &
-                                        map_wx(:,cell),              &
-                                        basis_wx,                    &
-                                        order,                       &
-                                        nfaces_re_v )
-
-  end do
-
-  ! Set halos dirty/clean for fields modified in the above loop
-  do direction = 1,nfaces_re_v
-    do polynomial = 1,order+2
-      do df = 1,undf_wt
-        coeff_proxy(polynomial, direction)%data(df) = adv_coeff_v(polynomial, direction,df)
-      end do
-      call coeff_proxy(polynomial, direction)%set_dirty()
-    end do
-  end do
-
-  deallocate( basis_wx )
-
-end subroutine invoke_poly1d_shifted_vert_adv_coeffs
-
-!-------------------------------------------------------------------------------
-! PSy layer call to compute the vertical advection coefficients for advective
-! form advection. This can not currently be generated by PSyclone because
-! 1) Uses a runtime specified 2D array of fields (coeff): Ticket #1104 & #1105
-! 2) Needs two quadrature rules, one for volume integrals (supported by
-!    PSyclone) and one for face quadrature (not supported by PSyclone): Issue
-!    #195
-!-------------------------------------------------------------------------------
-subroutine invoke_poly1d_shifted_vert_adv( advective, wind, tracer, coeff, order, nfaces_re_v )
-
-  use poly1d_vert_adv_kernel_mod, only: poly1d_vert_adv_code
-
-  implicit none
-
-  type(field_type), intent(inout)      :: advective
-  type(field_type), intent(in)         :: wind
-  type(field_type), intent(in)         :: tracer
-  integer(i_def),   intent(in)         :: order
-  integer(i_def),   intent(in)         :: nfaces_re_v
-  type(field_type), intent(in)         :: coeff(order+2,nfaces_re_v)
-
-  type( field_proxy_type )  :: adv_proxy, wind_proxy, tracer_proxy
-  type( field_proxy_type )  :: coeff_proxy(order+2,nfaces_re_v)
-
-  integer(i_def), pointer :: map_w2(:,:) => null()
-  integer(i_def), pointer :: map_wt(:,:) => null()
-
-  integer(i_def) :: undf_wt, ndf_wt
-  integer(i_def) :: undf_w2, ndf_w2
-  integer(i_def) :: cell, df
-  integer(i_def) :: nlayers
-  integer(i_def) :: direction, polynomial
-  type(mesh_type), pointer :: mesh => null()
-  logical(l_def) :: swap
-
-  adv_proxy    = advective%get_proxy()
-  wind_proxy   = wind%get_proxy()
-  tracer_proxy = tracer%get_proxy()
-
-  do direction = 1,nfaces_re_v
-    do polynomial = 1,order+2
-      coeff_proxy(polynomial, direction) = coeff(polynomial, direction)%get_proxy()
-    end do
-  end do
-
-  ndf_wt  = tracer_proxy%vspace%get_ndf()
-  undf_wt = tracer_proxy%vspace%get_undf()
-
-  ndf_w2  = wind_proxy%vspace%get_ndf()
-  undf_w2 = wind_proxy%vspace%get_undf()
-
-  nlayers = adv_proxy%vspace%get_nlayers()
-
-  map_wt => adv_proxy%vspace%get_whole_dofmap()
-  map_w2 => wind_proxy%vspace%get_whole_dofmap()
-
-  if ( wind_proxy%is_dirty(depth=1) ) &
-     call wind_proxy%halo_exchange(depth=1)
-
-  if ( tracer_proxy%is_dirty(depth=1) ) &
-     call tracer_proxy%halo_exchange(depth=1)
-
-  if ( adv_proxy%is_dirty(depth=1) ) &
-     call adv_proxy%halo_exchange(depth=1)
-
-  swap = .false.
-  do direction = 1,nfaces_re_v
-    do polynomial = 1,order+2
-      if ( coeff_proxy(polynomial, direction)%is_dirty(depth=1) ) then
-         call coeff_proxy(polynomial, direction)%halo_exchange(depth=1)
-         swap = .true.
-      end if
-    end do
-  end do
-
-  ! Make sure module array has the correct halo swapped values
-  if ( swap ) then
-    do df = 1,undf_wt
-      do direction = 1,nfaces_re_v
-        do polynomial = 1,order+2
-          adv_coeff_v(polynomial, direction,df) = coeff_proxy(polynomial, direction)%data(df)
-        end do
-      end do
-    end do
-  end if
-
-  ! Create a mesh object
-  mesh => adv_proxy%vspace%get_mesh()
-
-  do cell = 1,mesh%get_last_edge_cell()
-
-      call poly1d_vert_adv_code( nlayers,                     &
-                                 adv_proxy%data,              &
-                                 wind_proxy%data,             &
-                                 tracer_proxy%data,           &
-                                 adv_coeff_v,                 &
-                                 ndf_wt,                      &
-                                 undf_wt,                     &
-                                 map_wt(:,cell),              &
-                                 ndf_w2,                      &
-                                 undf_w2,                     &
-                                 map_w2(:,cell),              &
-                                 order,                       &
-                                 nfaces_re_v )
-
-  end do
-
-  ! Set halos dirty/clean for fields modified in the above loop
-  call adv_proxy%set_dirty()
-
-end subroutine invoke_poly1d_shifted_vert_adv
 
 end module psykal_lite_mol_shifted_mod

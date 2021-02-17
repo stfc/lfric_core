@@ -28,10 +28,14 @@ module poly2d_advective_coeffs_kernel_mod_test
 contains
 
   subroutine setUp( this )
-    use feign_config_mod,     only: feign_base_mesh_config, &
-                                    feign_domain_size_config
-    use base_mesh_config_mod, only: geometry_planar, &
-                                    partitioner_planar
+    use feign_config_mod,          only: feign_base_mesh_config, &
+                                         feign_domain_size_config, &
+                                         feign_finite_element_config
+    use base_mesh_config_mod,      only: geometry_planar, &
+                                         partitioner_planar
+    use finite_element_config_mod, only: spherical_coord_system_xyz, &
+                                         cellshape_quadrilateral
+
     implicit none
     class(poly2d_advective_coeffs_test_type), intent(inout) :: this
     ! Initialise YAXT
@@ -50,6 +54,14 @@ contains
                                    planar_domain_min_y = -10.0_r_def, &
                                    planar_domain_max_y = 10.0_r_def )
 
+    call  feign_finite_element_config( cellshape = cellshape_quadrilateral, &
+                                       element_order = 0, &
+                                       coordinate_order = 1, &
+                                       rehabilitate = .true., &
+                                       vorticity_in_w1 = .true., &
+                                       spherical_coord_order = 1, &
+                                       spherical_coord_system = spherical_coord_system_xyz)
+
   end subroutine setUp
 
   @Test( npes=[1] )
@@ -66,6 +78,7 @@ contains
     integer(i_def), parameter :: nlayers = 1
     integer(i_def), parameter :: ndf_wt = 2
     integer(i_def), parameter :: ndf_wx = 8
+    integer(i_def), parameter :: ndf_pid = 1
     integer(i_def), parameter :: stencil_size = 9
     integer(i_def), parameter :: order = 2
     integer(i_def), parameter :: nqp = 3
@@ -74,8 +87,10 @@ contains
     integer(i_def), parameter :: nqp_e = 1
     integer(i_def), parameter :: undf_wt = (nlayers+1)*stencil_size
     integer(i_def), parameter :: undf_wx = ndf_wx*nlayers*stencil_size
+    integer(i_def), parameter :: undf_pid = stencil_size
     integer(i_def), dimension(ndf_wt,stencil_size) :: smap_wt
     integer(i_def), dimension(ndf_wx,stencil_size) :: smap_wx
+    integer(i_def), dimension(ndf_pid,stencil_size) :: smap_pid
 
     real(r_def), dimension(ndf_wx,nqp_h,nqp_v) :: basis_wx
     real(r_def), dimension(ndf_wx,nqp_e,4,2)   :: edge_basis_wx
@@ -86,6 +101,8 @@ contains
     real(r_def), dimension(stencil_size,4,undf_wt) :: coeff
     real(r_def), dimension(undf_wt)                :: mdwt
     real(r_def), dimension(undf_wx)                :: x, y, z
+    real(r_def), dimension(undf_pid)               :: panel_id
+
     real(r_def), dimension(stencil_size)           :: stencil_dx, stencil_dy
     real(r_def), dimension(3) :: xq, wqp
 
@@ -105,7 +122,10 @@ contains
       end do
     end do
 
+    panel_id(:) = 1.0_r_def
+
     do s = 1,stencil_size
+      smap_pid(1,s) = s
       smap_wt(1,s) = 1 + (s-1)*(nlayers+1)
       smap_wt(2,s) = 2 + (s-1)*(nlayers+1)
 
@@ -184,6 +204,7 @@ contains
                                       coeff,                     &
                                       mdwt,                      &
                                       x, y, z,                   &
+                                      panel_id,                  &
                                       ndf_wt,                    &
                                       undf_wt,                   &
                                       stencil_size,              &
@@ -194,9 +215,13 @@ contains
                                       smap_wx,                   &
                                       basis_wx,                  &
                                       edge_basis_wx,             &
+                                      ndf_pid, undf_pid,         &
+                                      stencil_size,              &
+                                      smap_pid,                  &
                                       order,                     &
                                       4_i_def,                   &
                                       stencil_size,              &
+                                      0.0_r_def,                 &
                                       nqp_h, nqp_v, wqp_h, wqp_v,&
                                       4_i_def, nqp_e, wqp_e )
 

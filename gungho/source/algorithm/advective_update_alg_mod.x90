@@ -9,7 +9,8 @@
 module advective_update_alg_mod
 
   use constants_mod,                  only: r_def, i_def
-  use runtime_constants_mod,          only: get_coordinates_xyz,                &
+  use runtime_constants_mod,          only: get_coordinates,                &
+                                            get_panel_id,                   &
                                             get_mass_matrix_diagonal,       &
                                             get_inverse_lumped_mass_matrix, &
                                             wt_id
@@ -92,8 +93,9 @@ contains
 
     integer(i_def)              :: advective_stencil_size, &
                                    direction, polynomial
-    type( field_type ), pointer :: chi_xyz(:) => null()
+    type( field_type ), pointer :: chi_sph(:) => null()
     type( field_type ), pointer :: md_wt => null()
+    type( field_type ), pointer :: panel_id => null()
 
     type( quadrature_rule_gaussian_type )      :: gaussian_quadrature
     type( quadrature_rule_gauss_lobatto_type ) :: gauss_lobatto_quadrature
@@ -107,6 +109,7 @@ contains
     type(mesh_type),               pointer :: mesh => null()
     integer(i_def)                         :: edge_quad_order
     integer(i_def)                         :: nqp_xy, nqp_z, nqp_xyz
+    real(r_def)                            :: chi3_min, chi3_max
 
     if ( operators == operators_fv ) then
       ! This setup is only needed for FV methods
@@ -152,7 +155,11 @@ contains
                                       advective_stencil_size, nfaces_re_h, &
                                       nfaces_re_v)
 
-        chi_xyz => get_coordinates_xyz()
+        chi_sph => get_coordinates()
+        panel_id => get_panel_id()
+        ! Compute the smallest surface height of chi(3)
+        ! (this is only needed for abh coordinates
+        call chi_sph(3)%field_minmax(chi3_min, chi3_max)
         nqp_xyz = fv_advective_order+1
         if ( oned_reconstruction ) then
           edge_quad_order = 1
@@ -178,14 +185,15 @@ contains
         w1_fs => function_space_collection%get_fs( mesh_id, element_order, W1 )
         call advective_av%initialise( vector_space =  w1_fs )
         if ( oned_reconstruction ) then
-          call invoke_poly1d_advective_coeffs( adv_coeffs, md_wt, chi_xyz, qr, qre,  &
-                                               fv_advective_order,                   &
-                                               advective_stencil_extent, nfaces_re_h )
+          call invoke_poly1d_advective_coeffs( adv_coeffs, md_wt, chi_sph, panel_id, &
+                                               qr, qre, fv_advective_order,          &
+                                               advective_stencil_extent, nfaces_re_h,&
+                                               chi3_min )
         else
-          call invoke_poly2d_advective_coeffs( adv_coeffs, md_wt, chi_xyz, qr, qre, &
-                                               fv_advective_order,                  &
-                                               advective2d_stencil_size,            &
-                                               nfaces_re_h )
+          call invoke_poly2d_advective_coeffs( adv_coeffs, md_wt, chi_sph, panel_id, &
+                                               qr, qre, fv_advective_order,          &
+                                               advective2d_stencil_size,             &
+                                               nfaces_re_h, chi3_min )
         end if
         ! Vertical advective coeffs
         call log_event( "Gungho: computing vertical advective coeffs", LOG_LEVEL_INFO )
@@ -195,7 +203,7 @@ contains
             call vert_adv_coeffs(polynomial, direction)%initialise( vector_space = wt_fs )
           end do
         end do
-        call invoke_poly1d_vert_adv_coeffs( vert_adv_coeffs, chi_xyz, &
+        call invoke_poly1d_vert_adv_coeffs( vert_adv_coeffs, chi_sph, &
                                             fv_advective_order, nfaces_re_v )
         if ( consistent_metric ) then
           call advective_av_chi3%initialise(vector_space = w1_fs )
@@ -204,7 +212,7 @@ contains
           call invoke( setval_c(wt_field,   0.0_r_def),       &
                        setval_c(chi3_at_wt, 0.0_r_def),       &
                        multiplicity_kernel_type(wt_field),    &
-                       sample_field_kernel_type(chi3_at_wt, wt_field, chi_xyz(3)) )
+                       sample_field_kernel_type(chi3_at_wt, wt_field, chi_sph(3)) )
         end if
         !======================================================================!
       else
@@ -213,7 +221,7 @@ contains
       end if
     end if
 
-    nullify( chi_xyz, md_wt, wt_fs, w1_fs, reference_element, mesh )
+    nullify( chi_sph, panel_id, md_wt, wt_fs, w1_fs, reference_element, mesh )
 
   end subroutine advective_update_alg_init
 
@@ -257,7 +265,7 @@ contains
     type(quadrature_xyoz_type)             :: qr
     type(quadrature_face_type)             :: qrf
     type(quadrature_rule_gaussian_type)    :: quadrature_rule
-    type(field_type), pointer              :: chi_xyz(:) => null()
+    type(field_type), pointer              :: chi_sph(:) => null()
     type(field_type), pointer              :: mt_lumped_inv => null()
     class(reference_element_type), pointer :: reference_element =>null()
     type(mesh_type),               pointer :: mesh => null()
@@ -299,10 +307,10 @@ contains
       call invoke( poly_advective_kernel_type(u_grad_f, wind, advective_av) )
       call wind%copy_field(consistent_wind)
       if ( consistent_metric ) then
-        chi_xyz => get_coordinates_xyz()
+        chi_sph => get_coordinates()
         call invoke( poly_advective_kernel_type(wt_metrics, wind, advective_av_chi3), &
         ! Modify advecting wind
-                     consistent_wind_kernel_type(consistent_wind, wind, wt_metrics, chi_xyz) )
+                     consistent_wind_kernel_type(consistent_wind, wind, wt_metrics, chi_sph) )
       end if
       ! Compute vertical component of advective update
       call invoke_poly1d_vert_adv( u_grad_f, consistent_wind, adv_field, &
@@ -336,7 +344,7 @@ contains
 
     call invoke( X_times_Y(rhs, u_grad_f, mt_lumped_inv) )
 
-    nullify( chi_xyz, mt_lumped_inv, reference_element, mesh )
+    nullify( chi_sph, mt_lumped_inv, reference_element, mesh )
 
   end subroutine advective_update_alg
 
