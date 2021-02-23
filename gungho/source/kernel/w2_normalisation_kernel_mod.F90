@@ -112,8 +112,8 @@ subroutine w2_normalisation_code(nlayers,                 &
   ! Internal variables
   integer(kind=i_def)                    :: df, k
   integer(kind=i_def)                    :: ipanel
-  real(kind=r_def), dimension(ndf,1)     :: dj
-  real(kind=r_def), dimension(3,3,ndf,1) :: jacobian
+  real(kind=r_def), dimension(ndf)       :: dj
+  real(kind=r_def), dimension(3,3,ndf)   :: jacobian
   real(kind=r_def), dimension(ndf_chi)   :: chi_1_cell, chi_2_cell, chi_3_cell
   real(kind=r_def), dimension(3)         :: Jv
   real(kind=r_def), dimension(3,3)       :: JTJ
@@ -129,7 +129,6 @@ subroutine w2_normalisation_code(nlayers,                 &
     end do
     call coordinate_jacobian(ndf_chi, &
                              ndf, &
-                             1_i_def, &
                              chi_1_cell, &
                              chi_2_cell, &
                              chi_3_cell, &
@@ -139,7 +138,7 @@ subroutine w2_normalisation_code(nlayers,                 &
                              jacobian, &
                              dj)
     do df = 1,ndf
-      JTJ =  matmul(transpose(jacobian(:,:,df,1)),jacobian(:,:,df,1))
+      JTJ =  matmul(transpose(jacobian(:,:,df)),jacobian(:,:,df))
       Jv = matmul(JTJ,basis(:,df,df))
       normalisation(map(df)+k) = normalisation(map(df)+k) &
                                + sqrt(dot_product(Jv,basis(:,df,df)))

@@ -87,8 +87,10 @@ subroutine calc_dA_at_w2_code( nlayers,                                  &
   integer(kind=i_def), intent(in)    :: undf_chi
   integer(kind=i_def), intent(in)    :: ndf_pid
   integer(kind=i_def), intent(in)    :: undf_pid
-  real(kind=r_def), dimension(undf_w2), intent(inout)       :: dA
-  real(kind=r_def), dimension(undf_chi), intent(in)         :: chi1, chi2, chi3
+  real(kind=r_def),    intent(inout) :: dA(undf_w2)
+  real(kind=r_def),    intent(in)    :: chi1(undf_chi)
+  real(kind=r_def),    intent(in)    :: chi2(undf_chi)
+  real(kind=r_def),    intent(in)    :: chi3(undf_chi)
   real(kind=r_def), dimension(undf_pid), intent(in)         :: panel_id
   integer(kind=i_def), dimension(ndf_w2), intent(in)        :: map_w2
   integer(kind=i_def), dimension(ndf_chi), intent(in)       :: map_chi
@@ -115,10 +117,10 @@ subroutine calc_dA_at_w2_code( nlayers,                                  &
       chi2_e(df) = chi2(map_chi(df) + k)
       chi3_e(df) = chi3(map_chi(df) + k)
     end do
-    call coordinate_jacobian(ndf_chi, ndf_w2, 1, chi1_e, chi2_e, chi3_e,    &
+    call coordinate_jacobian(ndf_chi, ndf_w2, chi1_e, chi2_e, chi3_e,    &
                              ipanel, basis_chi, diff_basis_chi, jacobian, dj)
 
-    call coordinate_jacobian_inverse(ndf_w2, 1, jacobian, dj, jac_inv)
+    call coordinate_jacobian_inverse(ndf_w2, jacobian, dj, jac_inv)
 
     do df = 1,ndf_w2
       JTJinvT(:,:,df) = matmul(jac_inv(:,:,df),transpose(jac_inv(:,:,df)))

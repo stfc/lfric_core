@@ -112,8 +112,9 @@ contains
     integer :: ipanel = 1
     integer :: df, i, j
 
-    real(kind=r_def) :: alpha(8), beta(8), height(8), diff_basis(3,8,1,1), basis(1,8,1,1)
-    real(kind=r_def) :: jac(3,3), dj(1,1), jac_inv(3,3), identity(3,3), err, answer(3,3)
+    real(kind=r_def) :: alpha(8), beta(8), height(8), diff_basis(3,8,1,1)
+    real(kind=r_def) :: basis(1,8,1,1), jac(3,3,1,1), dj(1,1)
+    real(kind=r_def) :: jac_inv(3,3,1,1), identity(3,3,1,1), err, answer(3,3)
 
     real(kind=r_def), parameter :: a = 0.1_r_def
     real(kind=r_def), parameter :: b = 0.1_r_def
@@ -144,9 +145,9 @@ contains
     answer(3,:) = (/ 0.0_r_def, 2*b*(radius+h/2), 0.0_r_def /)
     answer_dj = 4*a*b*h*(radius+h/2)**2
 
-    identity(1,:) = (/ 1.0_r_def, 0.0_r_def, 0.0_r_def /)
-    identity(2,:) = (/ 0.0_r_def, 1.0_r_def, 0.0_r_def /)
-    identity(3,:) = (/ 0.0_r_def, 0.0_r_def, 1.0_r_def /)
+    identity(1,:,1,1) = (/ 1.0_r_def, 0.0_r_def, 0.0_r_def /)
+    identity(2,:,1,1) = (/ 0.0_r_def, 1.0_r_def, 0.0_r_def /)
+    identity(3,:,1,1) = (/ 0.0_r_def, 0.0_r_def, 1.0_r_def /)
 
     diff_basis(:,:,:,:) = 0.25_r_def
     do df = 1,ndf
@@ -157,10 +158,12 @@ contains
 
     basis(:,:,:,:) = 0.125_r_def
 
-    call coordinate_jacobian(ndf, ngp, ngp, alpha, beta, height, ipanel, basis, diff_basis, jac, dj)
+    call coordinate_jacobian(ndf, ngp, ngp, alpha, beta, height, ipanel,      &
+                             basis, diff_basis, jac, dj)
     call coordinate_jacobian_inverse(ngp,ngp, jac, dj, jac_inv)
 
-    err = maxval( abs( matmul(jac_inv,jac)-identity(:,:) ) )
+    err = maxval( abs( matmul( jac_inv(:,:,1,1), jac(:,:,1,1) )               &
+                  - identity(:,:,1,1) ) )
 
     tol = 1.0e-14_r_def
 
@@ -171,14 +174,18 @@ contains
     do i = 1, 3
       do j = 1, 3
         ! Scale tolerance so it makes sense for big numbers as well as zero
-        @assertEqual( answer(i,j), jac(i,j), tol*(answer(i,j)+1.0_r_def) )
+        @assertEqual( answer(i,j), jac(i,j,1,1), tol*(answer(i,j)+1.0_r_def) )
       end do
     end do
 
     ! test the pointwise compuations
-    call pointwise_coordinate_jacobian(ndf, alpha, beta, height, ipanel, basis, diff_basis, jac, dj(1,1))
-    jac_inv =  pointwise_coordinate_jacobian_inverse(jac, dj(1,1))
-    err = maxval( abs( matmul(jac_inv,jac)-identity(:,:) ) )
+    call pointwise_coordinate_jacobian(ndf, alpha, beta, height, ipanel,      &
+                                       basis, diff_basis, jac(:,:,1,1),       &
+                                       dj(1,1) )
+    jac_inv(:,:,1,1) =  pointwise_coordinate_jacobian_inverse(jac(:,:,1,1),   &
+                                                              dj(1,1))
+    err = maxval( abs( matmul( jac_inv(:,:,1,1), jac(:,:,1,1) )               &
+                  - identity(:,:,1,1) ) )
 
     @assertEqual( answer_dj, dj, tol*answer_dj )
     @assertEqual( 0.0_r_def, err, tol)
@@ -186,7 +193,7 @@ contains
     ! Test Jacobian values
     do i = 1, 3
       do j = 1, 3
-        @assertEqual( answer(i,j), jac(i,j), tol*(answer(i,j)+1.0_r_def) )
+        @assertEqual( answer(i,j), jac(i,j,1,1), tol*(answer(i,j)+1.0_r_def) )
       end do
     end do
 

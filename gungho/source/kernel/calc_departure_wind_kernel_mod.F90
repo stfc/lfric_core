@@ -110,7 +110,7 @@ subroutine calc_departure_wind_code(nlayers,                                  &
 
   ! Internal variables
   integer(kind=i_def) :: df, k, ipanel
-  real(kind=r_def) :: jacobian(3,3,ndf,1), dj(ndf,1)
+  real(kind=r_def) :: jacobian(3,3,ndf), dj(ndf)
   real(kind=r_def), dimension(ndf_chi) :: chi1_e, chi2_e, chi3_e
 
   ipanel = int(panel_id(map_pid(1)), i_def)
@@ -121,12 +121,12 @@ subroutine calc_departure_wind_code(nlayers,                                  &
       chi2_e(df) = chi2(map_chi(df) + k)
       chi3_e(df) = chi3(map_chi(df) + k)
     end do
-    call coordinate_jacobian(ndf_chi, ndf, 1, chi1_e, chi2_e, chi3_e,  &
+    call coordinate_jacobian(ndf_chi, ndf, chi1_e, chi2_e, chi3_e,  &
                              ipanel, basis_chi, diff_basis_chi, jacobian, dj)
     do df = 1,ndf
       u_departure_wind(map(df)+k) =                                           &
           dot_product(nodal_basis_u(:,df,df),abs(nodal_basis_u(:,df,df)))*    &
-          u_piola(map(df)+k)/dj(df,1)
+          u_piola(map(df)+k)/dj(df)
     end do
   end do
 

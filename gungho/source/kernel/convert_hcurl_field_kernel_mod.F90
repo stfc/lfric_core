@@ -107,7 +107,7 @@ subroutine convert_hcurl_field_code(nlayers,                                  &
 
   ! Internal variables
   integer(kind=i_def) :: df, df2, k, ipanel
-  real(kind=r_def) :: jacobian(3,3,ndf,1), jacobian_inv(3,3,ndf,1), dj(ndf,1)
+  real(kind=r_def) :: jacobian(3,3,ndf), jacobian_inv(3,3,ndf), dj(ndf)
   real(kind=r_def) :: vector_in(3), vector_out(3)
   real(kind=r_def), dimension(ndf_chi) :: chi1_e, chi2_e, chi3_e
 
@@ -119,15 +119,15 @@ subroutine convert_hcurl_field_code(nlayers,                                  &
       chi2_e(df) = chi2(map_chi(df) + k)
       chi3_e(df) = chi3(map_chi(df) + k)
     end do
-    call coordinate_jacobian(ndf_chi, ndf, 1, chi1_e, chi2_e, chi3_e, &
+    call coordinate_jacobian(ndf_chi, ndf,chi1_e, chi2_e, chi3_e, &
                              ipanel, basis_chi, diff_basis_chi, jacobian, dj)
-    call coordinate_jacobian_inverse(ndf, 1, jacobian, dj, jacobian_inv)
+    call coordinate_jacobian_inverse(ndf, jacobian, dj, jacobian_inv)
     do df = 1,ndf
       vector_in(:) = 0.0_r_def
       do df2 = 1,ndf
         vector_in(:) = vector_in(:) + computational_field(map(df2)+k)*basis(:,df2,df)
       end do
-      vector_out(:) = matmul(transpose(jacobian_inv(:,:,df,1)),vector_in)
+      vector_out(:) = matmul(transpose(jacobian_inv(:,:,df)),vector_in)
       physical_field1(map(df)+k) = physical_field1(map(df)+k) + vector_out(1)
       physical_field2(map(df)+k) = physical_field2(map(df)+k) + vector_out(2)
       physical_field3(map(df)+k) = physical_field3(map(df)+k) + vector_out(3)

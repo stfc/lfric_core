@@ -93,15 +93,19 @@ contains
     integer :: df
 
     real(kind=r_def) :: x(8), y(8), z(8), diff_basis(3,8,1,1), basis(1,8,1,1)
-    real(kind=r_def) :: jac(3,3), dj(1,1), jac_inv(3,3), identity(3,3), err
+    real(kind=r_def) :: jac(3,3,1,1), dj(1,1), jac_inv(3,3,1,1)
+    real(kind=r_def) :: identity(3,3,1,1), err
 
-    x(:) = (/ 0.0_r_def, 2.0_r_def, 2.0_r_def, 0.0_r_def, 0.0_r_def, 2.0_r_def, 2.0_r_def, 0.0_r_def /)
-    y(:) = (/ 0.0_r_def, 0.0_r_def, 2.0_r_def, 2.0_r_def, 0.0_r_def, 0.0_r_def, 2.0_r_def, 2.0_r_def /)
-    z(:) = (/ 0.0_r_def, 0.0_r_def, 0.0_r_def, 0.0_r_def, 2.0_r_def, 2.0_r_def, 2.0_r_def, 2.0_r_def /)
+    x(:) = (/ 0.0_r_def, 2.0_r_def, 2.0_r_def, 0.0_r_def, 0.0_r_def, 2.0_r_def,&
+              2.0_r_def, 0.0_r_def /)
+    y(:) = (/ 0.0_r_def, 0.0_r_def, 2.0_r_def, 2.0_r_def, 0.0_r_def, 0.0_r_def,&
+              2.0_r_def, 2.0_r_def /)
+    z(:) = (/ 0.0_r_def, 0.0_r_def, 0.0_r_def, 0.0_r_def, 2.0_r_def, 2.0_r_def,&
+              2.0_r_def, 2.0_r_def /)
 
-    identity(1,:) = (/ 1.0_r_def, 0.0_r_def, 0.0_r_def /)
-    identity(2,:) = (/ 0.0_r_def, 1.0_r_def, 0.0_r_def /)
-    identity(3,:) = (/ 0.0_r_def, 0.0_r_def, 1.0_r_def /)
+    identity(1,:,1,1) = (/ 1.0_r_def, 0.0_r_def, 0.0_r_def /)
+    identity(2,:,1,1) = (/ 0.0_r_def, 1.0_r_def, 0.0_r_def /)
+    identity(3,:,1,1) = (/ 0.0_r_def, 0.0_r_def, 1.0_r_def /)
 
     diff_basis(:,:,:,:) = 0.25_r_def
     do df = 1,ndf
@@ -112,10 +116,12 @@ contains
 
     basis(:,:,:,:) = 0.125_r_def
 
-    call coordinate_jacobian(ndf, ngp, ngp, x, y, z, ipanel, basis, diff_basis, jac, dj)
+    call coordinate_jacobian(ndf, ngp, ngp, x, y, z, ipanel, basis,           &
+                             diff_basis, jac, dj)
     call coordinate_jacobian_inverse(ngp,ngp, jac, dj, jac_inv)
 
-    err = maxval( abs( matmul( jac_inv,jac)-identity(:,:) ) )
+    err = maxval( abs( matmul( jac_inv(:,:,1,1), jac(:,:,1,1) )               &
+                       - identity(:,:,1,1) ) )
 
     tol=1.0e-14_r_def
 
@@ -125,33 +131,37 @@ contains
     eight = 8.0_r_def
 
     @assertEqual( eight, dj(1,1), tol )
-    @assertEqual( two, jac(1,1), tol )
-    @assertEqual( two, jac(2,2), tol )
-    @assertEqual( two, jac(3,3), tol )
-    @assertEqual( zero, jac(1,2), tol )
-    @assertEqual( zero, jac(1,3), tol )
-    @assertEqual( zero, jac(2,1), tol )
-    @assertEqual( zero, jac(2,3), tol )
-    @assertEqual( zero, jac(3,1), tol )
-    @assertEqual( zero, jac(3,2), tol )
+    @assertEqual( two, jac(1,1,1,1), tol )
+    @assertEqual( two, jac(2,2,1,1), tol )
+    @assertEqual( two, jac(3,3,1,1), tol )
+    @assertEqual( zero, jac(1,2,1,1), tol )
+    @assertEqual( zero, jac(1,3,1,1), tol )
+    @assertEqual( zero, jac(2,1,1,1), tol )
+    @assertEqual( zero, jac(2,3,1,1), tol )
+    @assertEqual( zero, jac(3,1,1,1), tol )
+    @assertEqual( zero, jac(3,2,1,1), tol )
 
     @assertEqual( zero, err, tol)
 
     ! test the pointwise compuations
-    call pointwise_coordinate_jacobian(ndf, x, y, z, ipanel, basis, diff_basis, jac, dj(1,1))
-    jac_inv =  pointwise_coordinate_jacobian_inverse(jac, dj(1,1))
-    err = maxval( abs( matmul( jac_inv,jac)-identity(:,:) ) )
+    call pointwise_coordinate_jacobian(ndf, x, y, z, ipanel, basis,           &
+                                       diff_basis, jac(:,:,1,1), dj(1,1))
+
+    jac_inv(:,:,1,1) =                                                        &
+         pointwise_coordinate_jacobian_inverse(jac(:,:,1,1), dj(1,1))
+    err = maxval( abs( matmul( jac_inv(:,:,1,1), jac(:,:,1,1) )               &
+                  - identity(:,:,1,1)) )
     @assertEqual( zero, err, tol)
     @assertEqual( eight, dj(1,1), tol )
-    @assertEqual( two, jac(1,1), tol )
-    @assertEqual( two, jac(2,2), tol )
-    @assertEqual( two, jac(3,3), tol )
-    @assertEqual( zero, jac(1,2), tol )
-    @assertEqual( zero, jac(1,3), tol )
-    @assertEqual( zero, jac(2,1), tol )
-    @assertEqual( zero, jac(2,3), tol )
-    @assertEqual( zero, jac(3,1), tol )
-    @assertEqual( zero, jac(3,2), tol )
+    @assertEqual( two, jac(1,1,1,1), tol )
+    @assertEqual( two, jac(2,2,1,1), tol )
+    @assertEqual( two, jac(3,3,1,1), tol )
+    @assertEqual( zero, jac(1,2,1,1), tol )
+    @assertEqual( zero, jac(1,3,1,1), tol )
+    @assertEqual( zero, jac(2,1,1,1), tol )
+    @assertEqual( zero, jac(2,3,1,1), tol )
+    @assertEqual( zero, jac(3,1,1,1), tol )
+    @assertEqual( zero, jac(3,2,1,1), tol )
 
   end subroutine test_all
 

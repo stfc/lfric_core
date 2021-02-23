@@ -122,7 +122,7 @@ subroutine convert_hdiv_field_code(nlayers,                                  &
 
   !Internal variables
   integer          :: df, df2, k
-  real(kind=r_def) :: jacobian(3,3,ndf1,1), dj(ndf1,1)
+  real(kind=r_def) :: jacobian(3,3,ndf1), dj(ndf1)
   real(kind=r_def) :: vector_in(3), vector_out(3)
   real(kind=r_def), dimension(ndf_chi) :: chi1_e, chi2_e, chi3_e
 
@@ -136,7 +136,7 @@ subroutine convert_hdiv_field_code(nlayers,                                  &
       chi2_e(df) = chi2(map_chi(df) + k)
       chi3_e(df) = chi3(map_chi(df) + k)
     end do
-    call coordinate_jacobian(ndf_chi, ndf1, 1, chi1_e, chi2_e, chi3_e,    &
+    call coordinate_jacobian(ndf_chi, ndf1, chi1_e, chi2_e, chi3_e,    &
                              ipanel, basis_chi, diff_basis_chi, jacobian, dj)
 
     do df = 1,ndf1
@@ -144,7 +144,7 @@ subroutine convert_hdiv_field_code(nlayers,                                  &
       do df2 = 1,ndf2
         vector_in(:) = vector_in(:) + computational_field(map2(df2)+k)*basis2(:,df2,df)
       end do
-      vector_out(:) = matmul(jacobian(:,:,df,1),vector_in)/dj(df,1)
+      vector_out(:) = matmul(jacobian(:,:,df),vector_in)/dj(df)
       physical_field1(map1(df)+k) = physical_field1(map1(df)+k) + vector_out(1)
       physical_field2(map1(df)+k) = physical_field2(map1(df)+k) + vector_out(2)
       physical_field3(map1(df)+k) = physical_field3(map1(df)+k) + vector_out(3)
