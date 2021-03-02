@@ -25,24 +25,26 @@ class TestExtractor(unittest.TestCase):
     def test_extractor(self):
         immutable_metadata = {
             "meta_data": {
-                "section_name": {
-                    "groups": {
-                        "field_group_1": {
-                            "fields": {
-                                "section_name__field_1": {
-                                    "_unique_id": "section_name__field_1",
-                                    "units": "units_1"},
-                                "section_name__field_2": {
-                                    "_unique_id": "section_name__field_2",
-                                    "units": "units_2"
+                "sections": {
+                    "section_name": {
+                        "groups": {
+                            "field_group_1": {
+                                "fields": {
+                                    "section_name__field_1": {
+                                        "_unique_id": "section_name__field_1",
+                                        "units": "units_1"},
+                                    "section_name__field_2": {
+                                        "_unique_id": "section_name__field_2",
+                                        "units": "units_2"
+                                    }
                                 }
-                            }
-                        },
-                        "field_group_2": {
-                            "fields": {
-                                "section_name__field_3": {
-                                    "_unique_id": "section_name__field_3",
-                                    "units": "units_3"
+                            },
+                            "field_group_2": {
+                                "fields": {
+                                    "section_name__field_3": {
+                                        "_unique_id": "section_name__field_3",
+                                        "units": "units_3"
+                                    }
                                 }
                             }
                         }

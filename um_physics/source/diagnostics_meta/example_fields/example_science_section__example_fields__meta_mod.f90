@@ -78,14 +78,15 @@ contains
       function_space = W2, &
       order = 0, &
       io_driver = "", &
-      trigger = "_checksum: true;", &
+      trigger = "__checksum: true;", &
       description = "u component of wind on u pts on native c grid.", &
       data_type = REAL_TYPE, &
       time_step = STANDARD_TIMESTEP, &
       recommended_interpolation = BILINEAR, &
       packing = 0, &
-      vertical_dimension = model_height_dimension(BOTTOM_ATMOSPHERIC_LEVEL, &
-                                                  TOP_ATMOSPHERIC_LEVEL), &
+      vertical_dimension = model_height_dimension( &
+              bottom = BOTTOM_ATMOSPHERIC_LEVEL, &
+              top = TOP_ATMOSPHERIC_LEVEL), &
       standard_name = "eastward_wind", &
       synonyms = [ &
             field_synonym_type(STASH, "2"),& !> literally this stash code or approx - let the user know
@@ -106,15 +107,16 @@ contains
       function_space = Wtheta, &
       order = 0, &
       io_driver = "", &
-      trigger = "_checksum: true;", &
+      trigger = "__checksum: true;", &
       description = "This is a microphysical process transfer rate. "// &
                     "Outputting all microphysics", &
       data_type = REAL_TYPE, &
       time_step = STANDARD_TIMESTEP, &
       recommended_interpolation = BILINEAR, &
       packing = 0, &
-      vertical_dimension = model_height_dimension(BOTTOM_ATMOSPHERIC_LEVEL, &
-                                                  TOP_WET_LEVEL))
+      vertical_dimension = model_height_dimension( &
+              bottom = BOTTOM_ATMOSPHERIC_LEVEL, &
+              top = TOP_WET_LEVEL))
 
     !> This field uses a different function space
     self%air_potential_temperature = field_meta_data_type(&
@@ -123,14 +125,15 @@ contains
       function_space = Wtheta, &
       order = 0, &
       io_driver = "", &
-      trigger = "_checksum: true;", &
+      trigger = "__checksum: true;", &
       description = "Potential temperature on p points on native c grid.", &
       data_type = REAL_TYPE, &
       time_step = STANDARD_TIMESTEP, &
       recommended_interpolation = BILINEAR, &
       packing = 0, &
-      vertical_dimension = model_height_dimension(BOTTOM_ATMOSPHERIC_LEVEL, &
-                                                  TOP_ATMOSPHERIC_LEVEL), &
+      vertical_dimension = model_height_dimension( &
+              bottom = BOTTOM_ATMOSPHERIC_LEVEL, &
+              top = TOP_ATMOSPHERIC_LEVEL), &
       standard_name = "air_potential_temperature",&
       synonyms = [ &
             field_synonym_type(AMIP, "theta"),&
@@ -147,7 +150,7 @@ contains
       function_space = W3, &
       order = 0, &
       io_driver = "", &
-      trigger = "_checksum: true;", &
+      trigger = "__checksum: true;", &
       description = "Total (frozen+unfrozen) soil moisture content in a "// &
                     "soil layer (kg/m2). This example field will be dealt"// &
                     " with using negative height values (Phase 3)", &
@@ -155,8 +158,9 @@ contains
       time_step = STANDARD_TIMESTEP, &
       recommended_interpolation = BILINEAR, &
       packing = 0, &
-      vertical_dimension = model_depth_dimension(BOTTOM_SOIL_LEVEL, &
-                                                 TOP_SOIL_LEVEL), &
+      vertical_dimension = model_depth_dimension( &
+              bottom = BOTTOM_SOIL_LEVEL, &
+              top = TOP_SOIL_LEVEL), &
       standard_name = "mass_content_of_water_in_soil_layer",&
       synonyms = [ &
             field_synonym_type(CF, "mass_content_of_water_in_soil_layer"),&
@@ -172,7 +176,7 @@ contains
       function_space = Wtheta, &
       order = 0, &
       io_driver = "", &
-      trigger = "_checksum: true;", &
+      trigger = "__checksum: true;", &
       description = 'The surface called "surface" means the lower boundary '// &
                     'of the atmosphere. Altitude is the (geometric) height '// &
                     'above the geoid, which is the reference geopotential '// &
@@ -201,7 +205,7 @@ contains
       function_space = WTheta, &
       order = 0, &
       io_driver = "", &
-      trigger = "_checksum: true;", &
+      trigger = "__checksum: true;", &
       description = "1.5M TEMPERATURE OVER TILES", &
       data_type = REAL_TYPE, &
       time_step = STANDARD_TIMESTEP, &
@@ -220,7 +224,7 @@ contains
       function_space = W3, &
       order = 0, &
       io_driver = "", &
-      trigger = "_checksum: true;", &
+      trigger = "__checksum: true;", &
       description = "Low cloud amount. Phase 3", &
       data_type = REAL_TYPE, &
       time_step = STANDARD_TIMESTEP, &

@@ -10,11 +10,11 @@ declarations in LFRic meta data
 e.g. model_height_dimension(top=TOP_WET_LEVEL)"""
 import logging
 import re
-from typing import Dict
+from typing import Dict, List
 
 from fparser.common.readfortran import FortranFileReader
 from fparser.two.Fortran2003 import Assignment_Stmt, Else_Stmt, \
-    Enumerator_Def_Stmt, Execution_Part, Function_Stmt, Function_Subprogram, \
+    Execution_Part, Function_Stmt, Function_Subprogram, \
     If_Construct, If_Then_Stmt, Name, Structure_Constructor_2
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk
@@ -28,21 +28,6 @@ LEVEL_DEF_REGEX = re.compile(r"(?P<level>[\d.]+)")
 ENUM_REGEX = re.compile(r"(?P<levels>[a-zA-Z_]+)")
 
 F2003_PARSER = ParserFactory().create(std="f2003")
-
-
-def read_enum(path: str):
-    """Reads enumerated values from a file. File should contain only one ENUM
-    :param path: Path to the file containing the ENUM
-    :return enumerated_values: A list of all enumerated values found
-    """
-    enumerated_values = []
-    reader = FortranFileReader(path)
-    parse_tree = F2003_PARSER(reader)
-
-    for enum in walk(parse_tree, types=Enumerator_Def_Stmt):
-        for item in enum.children[1].children:
-            enumerated_values.append(item.children[0].string)
-    return enumerated_values
 
 
 def get_default_values(if_construct, path, levels):
@@ -107,14 +92,14 @@ def get_hard_coded_values(assignment_statement):
     return hard_coded_values
 
 
-def parse_vertical_dimension_info(path: str) -> Dict:
-    """Parses though a "*_dimension_mod.f90 fortran file. Returns a dictionary
-    containing information about functions in the file.
+def parse_vertical_dimension_info(path: str, levels: List) -> Dict:
+    """Parses though a "vertical_dimension_mod.f90" fortran file. Returns a
+    dictionary containing information about functions in the file.
     :param path: Path to the LFRic meta data utility functions
+    :param levels: A list of model levels
     :return functions: A dictionary containing vertical dimension definitions
 """
 
-    levels = read_enum(path + "levels_enum_mod.f90")
     functions = {}
     reader = FortranFileReader(path + "vertical_dimensions_mod.f90")
     parse_tree = F2003_PARSER(reader)
@@ -190,8 +175,8 @@ def translate_vertical_dimension(dimension_definition, dimension_declaration):
             parsed_definition["bottom_arg"] = bottom_arg.group("bottom_arg")
         else:
             parsed_definition["bottom_arg"] = \
-                dimension_definition[dimension_type]["default_values"][
-                    "bottom"]
+                dimension_definition[
+                    dimension_type]["default_values"]["bottom"]
 
     for key, value in dimension_definition[dimension_type][
             "hard_coded_values"].items():

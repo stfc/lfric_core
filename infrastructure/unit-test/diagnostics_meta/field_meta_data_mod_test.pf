@@ -97,7 +97,7 @@ contains
       function_space = W2, &
       order = 0, &
       io_driver = "", &
-      trigger = "_checksum: true;", &
+      trigger = "__checksum: true;", &
       description = "u component of wind on u pts on native c grid.", &
       data_type = REAL_TYPE, &
       time_step = TEST_TIMESTEP_1, &
@@ -120,7 +120,7 @@ contains
       function_space = WTheta, &
       order = 0, &
       io_driver = "", &
-      trigger = "_checksum: true;", &
+      trigger = "__checksum: true;", &
       description = "1.5M TEMPERATURE OVER TILES", &
       data_type = REAL_TYPE, &
       time_step = TEST_TIMESTEP_1, &

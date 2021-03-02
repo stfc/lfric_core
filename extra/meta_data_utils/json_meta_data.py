@@ -29,6 +29,7 @@ def write_json_meta(data: Dict[str, Section], path: str):
     set_checksum(data_for_disk)
 
     with open(os.path.join(path, file_name), "w") as file_handle:
+        LOGGER.info("Writing %s", file_name)
         json.dump(data_for_disk, file_handle, indent=4)
         file_handle.write(os.linesep)
 

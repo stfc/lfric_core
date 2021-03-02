@@ -6,8 +6,8 @@
 """
 This module tests the macros found in add_section.py
 
-Note - Rose is written using Python 2. These tests can be run from a terminal by
-navigating into the macro directory and using:
+Note - Rose is written using Python 2. These tests can be run from a terminal
+by navigating into the macro directory and using:
 
 python2 -m unittest tests.test_add_section
 """

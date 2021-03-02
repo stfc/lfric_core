@@ -74,8 +74,8 @@ contains
             recommended_interpolation = BILINEAR, &
             packing = 0, &
             vertical_dimension = model_height_dimension( &
-                                              BOTTOM_ATMOSPHERIC_LEVEL, &
-                                              TOP_ATMOSPHERIC_LEVEL), &
+                    bottom = BOTTOM_ATMOSPHERIC_LEVEL, &
+                    top = TOP_ATMOSPHERIC_LEVEL), &
             standard_name = "red")
 
         self%green = field_meta_data_type(&
@@ -91,7 +91,9 @@ contains
             time_step = STANDARD_TIMESTEP, &
             recommended_interpolation = BILINEAR, &
             packing = 0, &
-            vertical_dimension = model_height_dimension(bottom=BOTTOM_ATMOSPHERIC_LEVEL, top=TOP_ATMOSPHERIC_LEVEL), &
+            vertical_dimension = model_height_dimension( &
+                    bottom = BOTTOM_ATMOSPHERIC_LEVEL, &
+                    top = TOP_ATMOSPHERIC_LEVEL), &
             standard_name = "green")
 
         self%blue = field_meta_data_type(&
@@ -107,7 +109,9 @@ contains
             time_step = STANDARD_TIMESTEP, &
             recommended_interpolation = BILINEAR, &
             packing = 0, &
-            vertical_dimension = model_height_dimension(bottom=BOTTOM_ATMOSPHERIC_LEVEL, top=TOP_ATMOSPHERIC_LEVEL), &
+            vertical_dimension = model_height_dimension( &
+                    bottom = BOTTOM_ATMOSPHERIC_LEVEL, &
+                    top = TOP_ATMOSPHERIC_LEVEL), &
             standard_name = "blue")
 
         end function colours__prognostics__meta_constructor

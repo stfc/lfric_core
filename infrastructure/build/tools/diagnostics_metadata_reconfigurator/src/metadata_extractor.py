@@ -106,8 +106,8 @@ class MetadataExtractor:
         """
         # get the current field's immutable metadata
         section_name, group_name = field.field_group_id.split('__')
-        metadata_section = self._immutable_metadata["meta_data"][section_name][
-            "groups"][group_name]["fields"][field.unique_id]
+        metadata_section = self._immutable_metadata["meta_data"]["sections"][
+                section_name]["groups"][group_name]["fields"][field.unique_id]
 
         # add the immutable metadata to the field
         for attr in metadata_section:

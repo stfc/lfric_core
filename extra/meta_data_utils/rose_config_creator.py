@@ -26,10 +26,10 @@ def write_file(path: str, file_name, data: str):
         file.write(data)
 
 
-def create_rose_meta(meta_data: Dict[str, Section], directory: str, file_name):
+def create_rose_meta(meta_data: Dict, directory: str, file_name):
     """
     Creates a rose_meta.conf file using the supplied meta data
-    :param meta_data: List containing all meta data
+    :param meta_data: Dict containing all meta data
     :param directory: The directory the file will be saved in
     :param file_name: The name of the file that the meta data will be
     written to
@@ -44,7 +44,7 @@ def create_rose_meta(meta_data: Dict[str, Section], directory: str, file_name):
 title=LFRic Field Configuration
 """
 
-    for section in meta_data.values():
+    for section in meta_data["sections"].values():
         rose_meta += f"""
 [field_config:{section.name}]
 title={section.title}"""
@@ -59,8 +59,8 @@ title={group.title}"""
 [field_config:{section.name}:{group.name}={field.unique_id}]
 type=boolean
 title=Enable {field.item_title}
-trigger=field_config:{section.name}:{group.name}={field.unique_id}
-{field.trigger}
+trigger=field_config:{section.name}:{group.name}={field.unique_id}{
+                field.trigger}
 help=Unit of Measure: {field.units}
     =Function Space: {field.function_space}
     =Data type: {field.data_type}
@@ -95,12 +95,13 @@ compulsory=true
 """
 
     rose_meta = add_file_meta(meta_data, rose_meta)
-    rose_meta = add_vertical_meta(rose_meta)
+    rose_meta = add_vertical_meta(rose_meta,
+                                  meta_data["standard_level_markers"])
 
     write_file(directory + "meta/", file_name, rose_meta)
 
 
-def add_file_meta(meta_data: Dict[str, Section], rose_meta: str) -> str:
+def add_file_meta(meta_data: Dict, rose_meta: str) -> str:
     """Adds meta data for file output in rose.
     :param meta_data: Dict containing parsed meta data
     :param rose_meta: String that the file output data will be appended to
@@ -109,7 +110,7 @@ def add_file_meta(meta_data: Dict[str, Section], rose_meta: str) -> str:
     values_list = []
     titles_list = []
 
-    for section in meta_data.values():
+    for section in meta_data["sections"].values():
         for group in section.groups.values():
             for field in group.fields.values():
 
@@ -144,57 +145,68 @@ values=instant,average,accumulate,minimum,maximum,once"""
     return rose_meta
 
 
-def add_vertical_meta(rose_meta: str) -> str:
+def add_vertical_meta(rose_meta: str, levels) -> str:
     """Adds data about vertical dimensions. Currently static, will be further
     developed in the future
     :param rose_meta: String that the vertical dimension data will be appended
     to
+    :param levels: A List of model levels
     :return rose_meta: String with vertical dimension data appended to it"""
     rose_meta += """
 [vertical_dimension]
 duplicate=true
+title=Vertical Dimension
 
 [vertical_dimension=name]
-title="Reference name for axis"
-description="be verbose"
+title=Name
+description=Name of the vertical dimension
+help=The name used to identify this vertical dimension when associating a field
+     with it in Rose
 type=character
+compulsory=true
+fail-if=len(this) == 0 # Name must be specified
 sort-key=01
 
-[vertical_dimension=direction]
-title="Direction of axis"
-values=up,down
+[vertical_dimension=positive]
+title=Positive
+description=The positive direction
+help=The positive direction of the vertical axis, either up or down
+values=up, down
+compulsory=true
 sort-key=02
 
-[vertical_dimension=level_definition_type]
-title="use namelist for level definition"
-type=boolean
+[vertical_dimension=units]
+title=Units
+description=Unit of measure
+help=The unit of measure for this vertical axis is restricted to be in metres
+values=m
+compulsory=true
 sort-key=03
-trigger=vertical_dimension=level_definition: false;
-       =vertical_dimension=level_definition_nml: true;
-
-[vertical_dimension=level_definition_nml]
-title="nml level file"
-type=character
-sort-key=04
 
 [vertical_dimension=level_definition]
-title="Definition of level boundaries"
-type=real
+title=Level boundaries
+description=Boundaries of levels in ascending order
+help=Positive numbers defining the edges of each level in the vertical
+     dimension. The boundaries should be entered in ascending order
 length=:
+type=real
+macro=level_definition.Validator, level_definition.Transformer
+range=0:
+fail-if=len(this)<2 # There must be at least two level boundaries
+compulsory=true
 sort-key=04
-
-[vertical_dimension=std_level_source]
-title="use namelist for standard levels"
-type=boolean
-sort-key=06
-trigger= vertical_dimension=std_level_min_atmos: false;
-       = vertical_dimension=std_level_max_wet: false;
-
-[vertical_dimension=std_level_min_atmos]
-title="Minimum Atmosphere Level"
+"""
+    num = 1001
+    for level in levels:
+        rose_meta += f"""[vertical_dimension={level}]
+title={level.replace("_", " ".title())}
+description=A Model Level
 type=integer
 
-[vertical_dimension=std_level_max_wet]
-title="Maximum Wet Level"
-type=integer"""
+range=0:
+# Layer out of range
+fail-if=this > len(vertical_dimension=level_definition)-1;
+sort-key=model-levels-{num}"""
+        rose_meta += os.linesep
+        num += 1
     return rose_meta

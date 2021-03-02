@@ -78,7 +78,7 @@ contains
       function_space = W2, &
       order = 0, &
       io_driver = "", &
-      trigger = "_checksum: true;", &
+      trigger = "__checksum: true;", &
       description = "u component of wind on u pts on native c grid.", &
       data_type = REAL_TYPE, &
       time_step = STANDARD_TIMESTEP, &
@@ -106,7 +106,7 @@ contains
       function_space = Wtheta, &
       order = 0, &
       io_driver = "", &
-      trigger = "_checksum: true;", &
+      trigger = "__checksum: true;", &
       description = "This is a microphysical process transfer rate. "// &
                     "Outputting all microphysics", &
       data_type = REAL_TYPE, &
@@ -123,7 +123,7 @@ contains
       function_space = Wtheta, &
       order = 0, &
       io_driver = "", &
-      trigger = "_checksum: true;", &
+      trigger = "__checksum: true;", &
       description = "Potential temperature on p points on native c grid.", &
       data_type = REAL_TYPE, &
       time_step = STANDARD_TIMESTEP, &
@@ -147,7 +147,7 @@ contains
       function_space = W3, &
       order = 0, &
       io_driver = "", &
-      trigger = "_checksum: true;", &
+      trigger = "__checksum: true;", &
       description = "Total (frozen+unfrozen) soil moisture content in a "// &
                     "soil layer (kg/m2). This example field will be dealt"// &
                     " with using negative height values (Phase 3)", &
@@ -172,7 +172,7 @@ contains
       function_space = Wtheta, &
       order = 0, &
       io_driver = "", &
-      trigger = "_checksum: true;", &
+      trigger = "__checksum: true;", &
       description = 'The surface called "surface" means the lower boundary '// &
                     'of the atmosphere. Altitude is the (geometric) height '// &
                     'above the geoid, which is the reference geopotential '// &
@@ -201,7 +201,7 @@ contains
       function_space = WTheta, &
       order = 0, &
       io_driver = "", &
-      trigger = "_checksum: true;", &
+      trigger = "__checksum: true;", &
       description = "1.5M TEMPERATURE OVER TILES", &
       data_type = REAL_TYPE, &
       time_step = STANDARD_TIMESTEP, &
@@ -220,7 +220,7 @@ contains
       function_space = W3, &
       order = 0, &
       io_driver = "", &
-      trigger = "_checksum: true;", &
+      trigger = "__checksum: true;", &
       description = "Low cloud amount. Phase 3", &
       data_type = REAL_TYPE, &
       time_step = STANDARD_TIMESTEP, &

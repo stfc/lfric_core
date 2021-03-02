@@ -13,7 +13,7 @@ from typing import Dict, Tuple
 
 from fparser.common.readfortran import FortranFileReader
 from fparser.two.Fortran2003 import Array_Constructor, Assignment_Stmt, \
-    Char_Literal_Constant, \
+    Char_Literal_Constant, Enumerator_Def_Stmt, \
     Level_3_Expr, Part_Ref, Section_Subscript_List, Structure_Constructor, \
     Structure_Constructor_2
 from fparser.two.parser import ParserFactory
@@ -24,12 +24,14 @@ from dimension_parser import parse_vertical_dimension_info, \
 from entities import Field, Group, Section
 from field_validator import validate_field
 
+F2003_PARSER = ParserFactory().create(std="f2003")
+
 
 class FortranMetaDataReader:
     """This encapsulates all the parsing functionality. It is give a root
     directory (Head of the repository) upon creation"""
 
-    logger = logging.getLogger("lfric_meta_data_parser")
+    LOGGER = logging.getLogger("lfric_meta_data_parser")
     vertical_dimension_definition = None
     valid_meta_data = True
 
@@ -39,6 +41,8 @@ class FortranMetaDataReader:
     def __init__(self, root_directory: str, meta_types_path: str):
         self.__root_dir = root_directory
         self.meta_types_path = meta_types_path
+        self.levels = read_enum(self.__root_dir + meta_types_path +
+                                "levels_enum_mod.f90")
         self.meta_mod_files = None
         self.find_fortran_files()
         self.get_vertical_dimension_definition()
@@ -48,29 +52,33 @@ class FortranMetaDataReader:
         Initialises the vertical_dimension_definition variable
         Returns a list of file names"""
 
-        self.logger.info("Scanning for fortran meta data files...")
+        self.LOGGER.info("Scanning for fortran meta data files...")
         self.meta_mod_files = glob.glob(
                 self.__root_dir +
                 '/**/source/diagnostics_meta/**/*__meta_mod.*90',
                 recursive=True)
 
         self.meta_mod_files.sort()
-        self.logger.info("Found %i meta data files", len(self.meta_mod_files))
+
+        for file in self.meta_mod_files:
+            self.LOGGER.debug("Found meta date file at: " + file)
+
+        self.LOGGER.info("Found %i meta data files", len(self.meta_mod_files))
 
     def get_vertical_dimension_definition(self):
         """Looks for functions that create vertical dimension objects and reads
-        the hard coded and default values"""
+        the hard coded values"""
         self.vertical_dimension_definition = \
             parse_vertical_dimension_info(
-                    self.__root_dir + self.meta_types_path)
+                    self.__root_dir + self.meta_types_path, self.levels)
 
-    def read_fortran_files(self) -> Tuple[Dict[str, Section], bool]:
+    def read_fortran_files(self) -> Tuple[Dict, bool]:
         """Takes a list of file names (meta_mod.f90 files)
         Checks for correctness and returns the relevant fortran lines in a list
         :return Metadata: A dictionary, each key represents a fortran file and
         it's value is a list of strings, each element representing a field"""
 
-        meta_data: Dict[str, Section] = {}
+        sections_dict: Dict[str, Section] = {}
         valid_files = 0
         # Loop over each found fortran file
         for file_path in self.meta_mod_files:
@@ -79,14 +87,14 @@ class FortranMetaDataReader:
                 # Load the fortran file
 
                 reader = FortranFileReader(file_path, ignore_comments=True)
-                f2003_parser = ParserFactory().create(std="f2003")
-                parse_tree = f2003_parser(reader)
+
+                parse_tree = F2003_PARSER(reader)
 
                 file_valid = True
                 file_name_parts = self.FILE_NAME_REGEX.search(file_path)
 
                 if not file_name_parts:
-                    self.logger.error('Filename in path is not correct' +
+                    self.LOGGER.error('Filename in path is not correct' +
                                       os.linesep + file_path)
                     self.valid_meta_data = False
                     break
@@ -95,15 +103,14 @@ class FortranMetaDataReader:
                 group_name = file_name_parts.group("group_name")
                 file_name = file_path[file_path.rfind("/") + 1:]
 
-                if section_name not in meta_data:
-                    meta_data.update({
-                        section_name:
-                            Section(name=section_name)
-                        })
+                if section_name not in sections_dict:
+                    sections_dict.update(
+                            {section_name: Section(name=section_name)}
+                            )
 
                 group = Group(name=group_name, file_name=file_name)
 
-                meta_data[section_name].add_group(group)
+                sections_dict[section_name].add_group(group)
 
                 # For every instance of a meta type object being created
                 for definition in walk(parse_tree.content,
@@ -118,7 +125,7 @@ class FortranMetaDataReader:
                     if validate_field(field):
                         group.add_field(field)
                     else:
-                        self.logger.error("%s is invalid. Please check",
+                        self.LOGGER.error("%s is invalid. Please check",
                                           field.unique_id)
                         self.valid_meta_data = False
                         file_valid = False
@@ -127,14 +134,17 @@ class FortranMetaDataReader:
                     valid_files += 1
 
             except FparserException as error:
-                self.logger.error(": Fparser Exception %s", error)
+                self.LOGGER.error(": Fparser Exception %s", error)
                 self.valid_meta_data = False
 
+        meta_data = {"sections": sections_dict,
+                     "standard_level_markers": self.levels}
+
         if valid_files == len(self.meta_mod_files):
-            self.logger.info("All %i files are valid",
+            self.LOGGER.info("All %i files are valid",
                              len(self.meta_mod_files))
         else:
-            self.logger.error("%i of %i files are invalid",
+            self.LOGGER.error("%i of %i files are invalid",
                               len(self.meta_mod_files) - valid_files,
                               len(self.meta_mod_files))
 
@@ -207,12 +217,12 @@ class FortranMetaDataReader:
 
             except Exception as error:
                 if field.unique_id:
-                    self.logger.warning(
+                    self.LOGGER.warning(
                             "Key: %s on field: %s in file: %s is invalid: %s",
                             key,
                             field.unique_id, file_name, error)
                 else:
-                    self.logger.warning("Key: %s in file: %s is invalid: %s ",
+                    self.LOGGER.warning("Key: %s in file: %s is invalid: %s ",
                                         key, file_name, error)
 
         return field, valid_field
@@ -243,3 +253,18 @@ class FortranMetaDataReader:
             statement = statement.parent
 
         return key, value
+
+
+def read_enum(path: str):
+    """Reads enumerated values from a file. File should contain only one ENUM
+    :param path: Path to the file containing the ENUM
+    :return enumerated_values: A list of all enumerated values found
+    """
+    enumerated_values = []
+    reader = FortranFileReader(path)
+    parse_tree = F2003_PARSER(reader)
+
+    for enum in walk(parse_tree, types=Enumerator_Def_Stmt):
+        for item in enum.children[1].children:
+            enumerated_values.append(item.children[0].string)
+    return enumerated_values

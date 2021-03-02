@@ -72,8 +72,8 @@ contains
             recommended_interpolation = BILINEAR, &
             packing = 0, &
             vertical_dimension = model_height_dimension(&
-                                                 BOTTOM_ATMOSPHERIC_LEVEL, &
-                                                 TOP_ATMOSPHERIC_LEVEL), &
+                    bottom = BOTTOM_ATMOSPHERIC_LEVEL, &
+                    top = TOP_ATMOSPHERIC_LEVEL), &
             standard_name = "hex")
 
         end function colours__diagnostics__meta_constructor

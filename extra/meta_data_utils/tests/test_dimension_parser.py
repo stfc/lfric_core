@@ -8,30 +8,30 @@ import os
 
 from diag_meta_gen import get_root_dir
 from dimension_parser import *
-
-TYPES_DIR = "/um_physics/source/diagnostics_meta/meta_types/"
+from fortran_reader import read_enum
 
 TEST_DIR = os.path.dirname(os.path.abspath(__file__)) + "/test_data"
-enum_test_file = "/enum_test_file"
-dimension_test_file = "/dimension_parser_test_file"
+ROOT_DIR = get_root_dir() + "/um_physics/source/diagnostics_meta/meta_types/"
+ENUM_TEST_FILE = "/enum_test_file"
+DIMENSION_TEST_FILE = "/dimension_parser_test_file"
+DEFAULT_TEST_FILE = "/get_default_values_test_file"
+LEVELS = read_enum(ROOT_DIR + "levels_enum_mod.f90")
 
 
 def test_read_enum():
-    assert read_enum(TEST_DIR + enum_test_file) == \
+    assert read_enum(TEST_DIR + ENUM_TEST_FILE) == \
            ["ONE", "TWO"]
 
 
 def test_get_default_values():
-    test_file = "/get_default_values_test_file"
-    path = get_root_dir() + TYPES_DIR
-    levels = read_enum(path + "levels_enum_mod.f90")
-    reader = FortranFileReader(TEST_DIR + test_file)
+
+    reader = FortranFileReader(TEST_DIR + DEFAULT_TEST_FILE)
     parse_tree = F2003_PARSER(reader)
 
     results = []
 
     for statement in walk(parse_tree.content, If_Construct):
-        results.append(get_default_values(statement, path, levels))
+        results.append(get_default_values(statement, ROOT_DIR, LEVELS))
 
     assert results == [('test_value_1', 'SOME_TEST_VALUE'),
                        ('Test_value_2', 'SOME_OTHER_TEST_VALUE')]
@@ -55,8 +55,8 @@ def test_get_hard_coded_values():
 
 
 def test_parse_vertical_dimension_info():
-    root_dir = get_root_dir() + TYPES_DIR
-    dimension_def = parse_vertical_dimension_info(root_dir)
+
+    dimension_def = parse_vertical_dimension_info(ROOT_DIR, LEVELS)
 
     assert "model_depth_dimension" in dimension_def.keys()
     assert "model_height_dimension" in dimension_def.keys()
@@ -65,8 +65,8 @@ def test_parse_vertical_dimension_info():
 
 
 def test_translate_vertical_dimension():
-    root_dir = get_root_dir() + TYPES_DIR
-    dimension_def = parse_vertical_dimension_info(root_dir)
+
+    dimension_def = parse_vertical_dimension_info(ROOT_DIR, LEVELS)
 
     model_height = translate_vertical_dimension(dimension_def,
                                                 "model_height_dimension("
@@ -82,27 +82,19 @@ def test_translate_vertical_dimension():
     fixed_depth = translate_vertical_dimension(dimension_def,
                                                "fixed_depth_dimension()")
 
-    assert model_height == {
-        "standard_name": "height",
-        "units": "m",
-        "top_arg": "TOP_ATMOSPHERIC_LEVEL",
-        "bottom_arg": "BOTTOM_ATMOSPHERIC_LEVEL",
-        "positive": "POSITIVE_UP"
-        }
-    assert model_depth == {
-        "standard_name": "depth",
-        "units": "m",
-        "top_arg": "TOP_SOIL_LEVEL",
-        "bottom_arg": "BOTTOM_SOIL_LEVEL",
-        "positive": "POSITIVE_DOWN"
-        }
-    assert fixed_height == {
-        "standard_name": "height",
-        "units": "m",
-        "positive": "POSITIVE_UP"
-        }
-    assert fixed_depth == {
-        "standard_name": "depth",
-        "units": "m",
-        "positive": "POSITIVE_DOWN"
-        }
+    assert model_height == {"standard_name": "height",
+                            "units": "m",
+                            "top_arg": "TOP_ATMOSPHERIC_LEVEL",
+                            "bottom_arg": "BOTTOM_ATMOSPHERIC_LEVEL",
+                            "positive": "POSITIVE_UP"}
+    assert model_depth == {"standard_name": "depth",
+                           "units": "m",
+                           "top_arg": "TOP_SOIL_LEVEL",
+                           "bottom_arg": "BOTTOM_SOIL_LEVEL",
+                           "positive": "POSITIVE_DOWN"}
+    assert fixed_height == {"standard_name": "height",
+                            "units": "m",
+                            "positive": "POSITIVE_UP"}
+    assert fixed_depth == {"standard_name": "depth",
+                           "units": "m",
+                           "positive": "POSITIVE_DOWN"}

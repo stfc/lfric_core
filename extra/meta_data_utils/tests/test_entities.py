@@ -31,17 +31,21 @@ def test_is_valid_1(caplog):
     assert validate_field(test_empty_field) is False
 
     assert "A unique id is missing from a field in A File Path" in caplog.text
-    assert "A unit of measure is missing from a field in A File Path" in \
+    assert "A unit of measure is missing from a field in A File Path"\
+           in \
            caplog.text
-    assert "A function space is missing from a field in A File Path" in \
+    assert "A function space is missing from a field in A File Path"\
+           in \
            caplog.text
-    assert "Triggering syntax is missing from a field in A File Path" in \
+    assert "Triggering syntax is missing from a field in A File Path"\
+           in \
            caplog.text
     assert "A description is missing from a field in A File Path" in \
            caplog.text
     assert "A data type is missing from a field in A File Path" in caplog.text
     assert "A time step is missing from a field in A File Path" in caplog.text
-    assert "A recommended_interpolation attribute is missing" in caplog.text
+    assert "A recommended_interpolation attribute is missing from a field " \
+           "in A File Path" in caplog.text
 
 
 def test_is_valid_2(caplog):
