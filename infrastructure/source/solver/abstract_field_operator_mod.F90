@@ -1,8 +1,9 @@
 !-----------------------------------------------------------------------------
 ! (C) Crown copyright 2018 Met Office. All rights reserved.
-! For further details please refer to the file COPYRIGHT.txt
-! which you should have received as part of this distribution..
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
 !-----------------------------------------------------------------------------
+
 !>@brief Single level operator for the pressure equation
 !>
 module abstract_field_operator_mod

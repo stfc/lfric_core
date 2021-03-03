@@ -1,9 +1,9 @@
 !-----------------------------------------------------------------------------
 ! (C) Crown copyright 2019 Met Office. All rights reserved.
-! For further details please refer to the file COPYRIGHT.txt
-! which you should have received as part of this distribution.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
 !-----------------------------------------------------------------------------
-!
+
 !> @brief Perform the prolongation operation from a coarse grid field to a fine
 !!        grid field
 !> @details Prolong the coarse grid correction into all cells on the fine grid

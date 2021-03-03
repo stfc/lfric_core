@@ -1,8 +1,9 @@
 !-----------------------------------------------------------------------------
 ! (C) Crown copyright 2019 Met Office. All rights reserved.
-! For further details please refer to the file COPYRIGHT.txt
-! which you should have received as part of this distribution.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
 !-----------------------------------------------------------------------------
+
 !> @brief Apply horizontal Smagorinsky diffusion visc_m * (d2dx2 + d2dy2) to
 !>        the components of the momentum equation for lowest order elements.
 !>        As in the UM, the Smagorinsky scheme has not been correctly

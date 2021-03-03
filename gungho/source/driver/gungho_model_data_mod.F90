@@ -50,13 +50,13 @@ module gungho_model_data_mod
   use init_gungho_prognostics_alg_mod,  only : init_gungho_prognostics_alg
   use init_gungho_lbcs_alg_mod,         only : init_gungho_lbcs_alg
   use init_physics_prognostics_alg_mod, only : init_physics_prognostics_alg
-  use update_tstar_alg_mod,             only : update_tstar_alg
   use moist_dyn_factors_alg_mod,        only : moist_dyn_factors_alg
   use init_fd_prognostics_mod,          only : init_fd_prognostics_dump
 #ifdef UM_PHYSICS
   use create_fd_prognostics_mod,        only : create_fd_prognostics
   use init_ancils_mod,                  only : create_fd_ancils
   use process_inputs_alg_mod,           only : process_inputs_alg
+  use update_tstar_alg_mod,             only : update_tstar_alg
 #endif
   use linked_list_mod,                  only : linked_list_type, &
                                                linked_list_item_type
@@ -138,8 +138,6 @@ module gungho_model_data_mod
 
   ! Set these to select how to initialize model prognostic fields
   integer(i_def) :: prognostic_init_choice, ancil_choice
-
-  logical(l_def) :: put_field
 
   public model_data_type, create_model_data, finalise_model_data, &
          initialise_model_data, output_model_data
@@ -491,11 +489,12 @@ contains
         case ( ancil_option_none )
           call log_event( "Gungho: No ancillaries to be read for this run.", LOG_LEVEL_INFO )
         case ( ancil_option_aquaplanet )
-          call log_event( "Gungho: Reading ancillaries from aquaplanet dump ", LOG_LEVEL_INFO )
+          call log_event( "Gungho: No ancillaries are read for aquaplanet run ", LOG_LEVEL_INFO )
+#ifdef UM_PHYSICS
           ! Update the tiled surface temperature with the calculated tstar
-          put_field = .true.
           call update_tstar_alg(model_data%surface_fields, &
-                                model_data%fd_fields, put_field )
+                                model_data%fd_fields, put_field=.true. )
+#endif
         case ( ancil_option_basic_gal, ancil_option_prototype_gal )
           call log_event( "Gungho: Reading basic/proto GAL ancils ", LOG_LEVEL_INFO )
           call read_state( model_data%ancil_fields )

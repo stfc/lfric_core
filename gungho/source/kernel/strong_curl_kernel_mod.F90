@@ -1,8 +1,9 @@
 !-----------------------------------------------------------------------------
 ! (C) Crown copyright 2018 Met Office. All rights reserved.
-! For further details please refer to the file COPYRIGHT.txt
-! which you should have received as part of this distribution.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
 !-----------------------------------------------------------------------------
+
 !> @brief Applies the strong curl: xi = curl(u) with u in W1 and xi in W2.
 !>
 !> @details Applies the strong form of the curl operator: xi = curl(u) with

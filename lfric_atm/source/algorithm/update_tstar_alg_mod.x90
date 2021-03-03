@@ -29,9 +29,7 @@ contains
   !>                                    being put or got from surface_fields
   subroutine update_tstar_alg(surface_fields, fd_fields, put_field)
 
-#ifdef UM_PHYSICS
     use jules_control_init_mod, only: first_sea_tile, n_sea_tile
-#endif
     use multi_insert_kernel_mod, only: multi_insert_kernel_type
     use multi_extract_kernel_mod, only: multi_extract_kernel_type
 
@@ -43,7 +41,6 @@ contains
 
     logical(kind=l_def) :: put_field
 
-#ifdef UM_PHYSICS
     ! Unpacked fields from collections
     type( field_type ), pointer :: tile_temperature => null()
     type( field_type ), pointer :: tstar => null()
@@ -62,7 +59,6 @@ contains
                                              first_sea_tile, n_sea_tile ) )
 
     end if
-#endif
 
   end subroutine update_tstar_alg
 

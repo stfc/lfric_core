@@ -1,9 +1,9 @@
-!-----------------------------------------------------------------------
-! (C) Crown copyright 2020 Met Office. All rights reserved.
-! For further details please refer to the file COPYRIGHT.txt
-! which you should have received as part of this distribution.
-!-----------------------------------------------------------------------
 !-----------------------------------------------------------------------------
+! (C) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
 !> @brief Constructs a w0 field from the w3 input field by averaging the
 !>        corner values.
 !>        If the weight is multiplicity_w0, then this will be a pointwise
