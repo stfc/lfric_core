@@ -4,14 +4,13 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 !> @brief Interface to the UM spectral gravity wave drag scheme
-!>
-!>
+
 module spectral_gwd_kernel_mod
 
   use argument_mod,             only: arg_type,                    &
                                       GH_FIELD, GH_READ, GH_WRITE, &
                                       CELLS, ANY_DISCONTINUOUS_SPACE_1
-  use constants_mod,            only: r_def, i_def, r_um
+  use constants_mod,            only: r_def, i_def, r_um, i_um
   use fs_continuity_mod,        only: W3, Wtheta
   use kernel_mod,               only: kernel_type
   use spectral_gwd_config_mod,  only: ussp_heating
@@ -57,28 +56,28 @@ contains
 !> @details This code calls the UM USSP spectral gravity wave drag scheme, which
 !>          calculates the zonal and meridional winds and temperature increments
 !>          from parametrized non-orographic gravity wave drag.
-!! @param[in]  nlayers             Integer the number of layers
-!! @param[out] du_spectral_gwd     'Zonal' wind increment from spectral gravity wave drag
-!! @param[out] dv_spectral_gwd     'Meridional' wind increment from spectral gravity wave drag
-!! @param[out] dtemp_spectral_gwd  Theta increment from spectral gravity wave drag
-!! @param[in]  u1_in_w3            'Zonal' wind in density space
-!! @param[in]  u2_in_w3            'Meridional' wind in density space
-!! @param[in]  wetrho_in_w3        Wet density in density space
-!! @param[in]  exner               Exner pressure in density space
-!! @param[in]  theta_in_wth        Theta in density space
-!! @param[in]  height_w3           Height of theta space levels above surface
-!! @param[in]  height_wtheta       Height of density space levels above surface
-!! @param[in]  totalppn_2d         Total precipitation from twod fields
-!! @param[in]  latitude            Latitude field
-!! @param[in]  ndf_w3              Number of degrees of freedom per cell for density space
-!! @param[in]  undf_w3             Number unique of degrees of freedom  for density space
-!! @param[in]  map_w3              Dofmap for the cell at the base of the column for density space
-!! @param[in]  ndf_wth             Number of degrees of freedom per cell for potential temperature space
-!! @param[in]  undf_wth            Number unique of degrees of freedom  for potential temperature space
-!! @param[in]  map_wth             Dofmap for the cell at the base of the column for potential temperature space
-!! @param[in]  ndf_2d              Number of degrees of freedom per cell for 2D fields
-!! @param[in]  undf_2d             Number unique of degrees of freedom  for 2D fields
-!! @param[in]  map_2d              Dofmap for the cell at the base of the column for 2D fields
+!> @param[in]  nlayers            Integer the number of layers
+!> @param[out] du_spectral_gwd    'Zonal' wind increment from spectral gravity wave drag
+!> @param[out] dv_spectral_gwd    'Meridional' wind increment from spectral gravity wave drag
+!> @param[out] dtemp_spectral_gwd Theta increment from spectral gravity wave drag
+!> @param[in]  u1_in_w3           'Zonal' wind in density space
+!> @param[in]  u2_in_w3           'Meridional' wind in density space
+!> @param[in]  wetrho_in_w3       Wet density in density space
+!> @param[in]  exner              Exner pressure in density space
+!> @param[in]  theta_in_wth       Theta in density space
+!> @param[in]  height_w3          Height of theta space levels above surface
+!> @param[in]  height_wtheta      Height of density space levels above surface
+!> @param[in]  totalppn_2d        Total precipitation from twod fields
+!> @param[in]  latitude           Latitude field
+!> @param[in]  ndf_w3             Number of degrees of freedom per cell for density space
+!> @param[in]  undf_w3            Number unique of degrees of freedom  for density space
+!> @param[in]  map_w3             Dofmap for the cell at the base of the column for density space
+!> @param[in]  ndf_wth            Number of degrees of freedom per cell for potential temperature space
+!> @param[in]  undf_wth           Number unique of degrees of freedom  for potential temperature space
+!> @param[in]  map_wth            Dofmap for the cell at the base of the column for potential temperature space
+!> @param[in]  ndf_2d             Number of degrees of freedom per cell for 2D fields
+!> @param[in]  undf_2d            Number unique of degrees of freedom  for 2D fields
+!> @param[in]  map_2d             Dofmap for the cell at the base of the column for 2D fields
 !>
   subroutine spectral_gwd_code(nlayers, du_spectral_gwd, dv_spectral_gwd,    &
                                dtemp_spectral_gwd, u1_in_w3, u2_in_w3,       &
@@ -87,16 +86,11 @@ contains
                                ndf_w3, undf_w3, map_w3, ndf_wth, undf_wth,   &
                                map_wth, ndf_2d, undf_2d, map_2d)
 
-    use constants_mod, ONLY: r_def, i_def, r_um, i_um
-
     !---------------------------------------
     ! UM modules
     !---------------------------------------
 
-    use nlsizes_namelist_mod,       only: row_length, rows, model_levels, &
-                                          global_row_length
-
-    use level_heights_mod,          only: r_rho_levels, r_theta_levels
+    use nlsizes_namelist_mod,       only: row_length, rows
 
     use planet_constants_mod,       only: p_zero, kappa, planet_radius
     use timestep_mod,               only: timestep
@@ -128,7 +122,8 @@ contains
 
     ! Local variables for the kernel
     ! Pressure at theta levels (but 0 at top)
-    real(r_um), dimension(row_length,rows,0:nlayers) :: p_theta_levels
+    real(r_um), dimension(row_length,rows,0:nlayers) :: p_theta_levels, &
+                                                        r_theta_levels
 
     real(r_um), dimension(row_length,rows) :: totalppn, & ! total percipitation
                                               sin_theta_latitude
@@ -138,6 +133,7 @@ contains
                                                         theta,          &
                                                         dtemp_on_t,     & ! temperature increment
                                                         wetrho_rsq,     & ! wetrho*r*r
+                                                        r_rho_levels,   &
                                                         du_on_p, dv_on_p  ! wind increments
     ! Local variables that are diagnostics
     real(r_um), dimension(row_length,rows,nlayers) :: gwspec_eflux, &
@@ -149,7 +145,7 @@ contains
 
     integer(i_um) :: k
 
-    integer(i_um), parameter :: n_proc = 1
+    integer(i_um), parameter :: n_proc = 1, global_row_length = 1
 
     ! These are flags for diagnostics that are not used in LFRic
     logical, parameter ::                                              &
@@ -178,12 +174,13 @@ contains
     ! This assumes that map_wth(1) points to level 0
     ! and map_w3(1) points to level 1
 
-     do k = 0, nlayers-1
+    do k = 0, nlayers-1
 
       ! Pressure on layer boundaries (note, top layer is set to zero below)
       p_theta_levels(1,1,k) = real(p_zero*(exner_in_wth(map_wth(1) + k)) &
                                       **(1.0_r_um/kappa), r_um)
     end do   ! k
+    p_theta_levels(1,1,nlayers) = 0.0_r_um
 
     do k = 1, nlayers
 
@@ -199,9 +196,6 @@ contains
                                (r_rho_levels(1,1,k)**2), r_um)
 
     end do   ! k
-
-    p_theta_levels(1,1,nlayers) = 0.0_r_um
-
     r_theta_levels(1,1,0) = real(height_wth(map_wth(1) + 0) &
                                  + planet_radius, r_um)
 
@@ -209,8 +203,8 @@ contains
     sin_theta_latitude(1,1) = real(sin( latitude(map_2d(1)) ) ,r_um)
 
     ! call USSP code from UM
-    call gw_ussp(nlayers, rows,row_length,                                   &
-                 global_row_length,n_proc,                                   &
+    call gw_ussp(nlayers, rows, row_length,                                  &
+                 global_row_length, n_proc,                                  &
                  r_rho_levels, r_theta_levels, p_theta_levels,               &
                  sin_theta_latitude, theta, wetrho_rsq, u_on_p, v_on_p,      &
                  totalppn, timestep, du_on_p, dv_on_p, dtemp_on_t,           &

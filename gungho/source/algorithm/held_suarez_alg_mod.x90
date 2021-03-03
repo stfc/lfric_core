@@ -19,6 +19,8 @@ module held_suarez_alg_mod
 
   use fs_continuity_mod,              only: W2
   use fem_constants_mod,              only: get_rmultiplicity
+  use geometric_constants_mod,        only: get_coordinates_xyz, &
+                                            get_da_at_w2
 
   use io_config_mod,                  only: subroutine_timers
   use timer_mod,                      only: timer
@@ -34,20 +36,18 @@ contains
   !> @param[in]     derived_fields         Group of derived fields
   !> @param[in]     theta                  Theta field
   !> @param[in]     exner_in_wth           Exner pressure on wtheta space
-  !> @param[in]     chi_xyz                (X,Y,Z) coordinate array
-  !> @param[in]     dA                     Areas of faces
   !> @param[out]    dtheta_hs              Theta increment from HS code
   !> @param[out]    du_hs                  Wind increment from HS code
   !> @param[in,out] held_suarez_thermo_done Flag to say if thermo code run
   !> @param[in,out] held_suarez_wind_done   Flag to say if wind code run
   subroutine held_suarez_alg(derived_fields, theta, exner_in_wth,          &
-                             chi_xyz, dA,  dtheta_hs, du_hs,               &
+                             dtheta_hs, du_hs,                             &
                              held_suarez_thermo_done, held_suarez_wind_done)
 
     implicit none
 
     type( field_collection_type ), intent(in) :: derived_fields
-    type( field_type ), intent( in )  :: theta, exner_in_wth, chi_xyz(3), dA
+    type( field_type ), intent( in )  :: theta, exner_in_wth
     type( field_type ), intent( out ) :: dtheta_hs, du_hs
 
     logical, intent(inout) :: held_suarez_thermo_done, held_suarez_wind_done
@@ -55,6 +55,8 @@ contains
     ! Temporary field to unpack from field collection
     type( field_type ), pointer :: u_physics => null()
     type( field_type ), pointer :: w2_rmultiplicity => null()
+    type( field_type ), pointer :: dA => null()
+    type( field_type ), pointer :: chi_xyz(:) => null()
 
     if ( subroutine_timers ) call timer("held_suarez_alg")
 
@@ -66,6 +68,7 @@ contains
       call log_event( &
          'slow_physics: Running Held-Suarez theta forcing', &
          LOG_LEVEL_INFO )
+      chi_xyz => get_coordinates_xyz()
       call invoke(held_suarez_fv_kernel_type(dtheta_hs, theta, exner_in_wth, chi_xyz))
       held_suarez_thermo_done=.true. ! Collect this increment later on
 
@@ -82,6 +85,7 @@ contains
       call log_event( &
          'slow_physics: Running Held-Suarez wind forcing', &
          LOG_LEVEL_INFO )
+      dA => get_da_at_w2()
       call invoke(held_suarez_fv_wind_kernel_type(du_hs, u_physics,   &
                                                   w2_rmultiplicity,   &
                                                   exner_in_wth),      &

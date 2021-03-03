@@ -16,6 +16,7 @@
       <axis id="soil_levels" name="soil_levels" n_glo="4"/>
       <axis id="plant_func_types" name="plant_func_types" n_glo="5"/>
       <axis id="monthly_axis" name="monthly_axis" n_glo="12"/>
+      <axis id="bl_types" name="bl_types" n_glo="7"/>
     </axis_definition>
 
     <domain_definition>
@@ -191,6 +192,9 @@
 	<field id="wetrho_in_wth" name="wetrho_in_wth" long_name="wet air density on wtheta points" standard_name="air_density" unit="kg m-3" grid_ref="full_level_face_grid" />
 	<field id="exner_in_wth" name="exner_in_wth" long_name="Exner pressure on wtheta points" standard_name="air_pressure" unit="1" grid_ref="full_level_face_grid" />
 	<field id="theta_star" name="theta_star" long_name="air potential temperature: physics predictor" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
+	<field id="u_star1" name="u_star1" long_name="eastward_wind: physics predictor" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+	<field id="u_star2" name="u_star2" long_name="northward_wind: physics predictor" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+	<field id="u_star3" name="u_star3" long_name="upward_air_velocity: physics predictor" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
 	<field id="shear" name="shear" long_name="3D wind shear" unit="s-1" grid_ref="full_level_face_grid" />
 	<field id="u1_in_w3" name="u1_in_w3" long_name="physics U wind on W3 points" standard_name="eastward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
 	<field id="u2_in_w3" name="u2_in_w3" long_name="physics V wind on W3 points" standard_name="northward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
@@ -200,25 +204,6 @@
 	<field id="u3_in_w3_star" name="u3_in_w3_star" long_name="physics W wind on W3 points: physics predictor" standard_name="upward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
 	<field id="theta_in_w3" name="theta_in_w3" long_name="air potential temperature on W3 points" standard_name="air_potential_temperature" unit="K" grid_ref="half_level_face_grid" />
 	<field id="wetrho_in_w3" name="wetrho_in_w3" long_name="wet air density on w3 points" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
-      </field_group>
-
-      <!-- derived fields group -->
-      <field_group id="init_derived_fields" freq_op="1ts" operation="instant" enabled=".TRUE." >
-	<field id="init_w_physics" name="w_physics" long_name="vertical wind on physics points" standard_name="vertical_velocity" unit="ms-1" grid_ref="full_level_face_grid" />
-	<field id="init_w_physics_star" name="w_physics_star" long_name="vertical wind on physics points: physics predictor" standard_name="vertical_velocity" unit="ms-1" grid_ref="full_level_face_grid" />
-	<field id="init_rho_in_wth" name="rho_in_wth" long_name="dry air density on wtheta points" standard_name="air_density" unit="kg m-3" grid_ref="full_level_face_grid" />
-	<field id="init_wetrho_in_wth" name="wetrho_in_wth" long_name="wet air density on wtheta points" standard_name="air_density" unit="kg m-3" grid_ref="full_level_face_grid" />
-	<field id="init_exner_in_wth" name="exner_in_wth" long_name="Exner pressure on wtheta points" standard_name="air_pressure" unit="1" grid_ref="full_level_face_grid" />
-	<field id="init_theta_star" name="theta_star" long_name="air potential temperature: physics predictor" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
-	<field id="init_shear" name="shear" long_name="3D wind shear" unit="s-1" grid_ref="full_level_face_grid" />
-	<field id="init_u1_in_w3" name="u1_in_w3" long_name="physics U wind on W3 points" standard_name="eastward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
-	<field id="init_u2_in_w3" name="u2_in_w3" long_name="physics V wind on W3 points" standard_name="northward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
-	<field id="init_u3_in_w3" name="u3_in_w3" long_name="physics W wind on W3 points" standard_name="upward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
-	<field id="init_u1_in_w3_star" name="u1_in_w3_star" long_name="physics U wind on W3 points: physics predictor" standard_name="eastward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
-	<field id="init_u2_in_w3_star" name="u2_in_w3_star" long_name="physics V wind on W3 points: physics predictor" standard_name="northward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
-	<field id="init_u3_in_w3_star" name="u3_in_w3_star" long_name="physics W wind on W3 points: physics predictor" standard_name="upward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
-	<field id="init_theta_in_w3" name="theta_in_w3" long_name="air potential temperature on W3 points" standard_name="air_potential_temperature" unit="K" grid_ref="half_level_face_grid" />
-	<field id="init_wetrho_in_w3" name="wetrho_in_w3" long_name="wet air density on w3 points" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
       </field_group>
 
       <!-- Main diagnostic group -->
@@ -358,8 +343,12 @@
 	<!-- turbulence fields -->
 	<field id="ntml" name="ntml" long_name="number_of_turbulent_mixing_levels" unit="1" domain_ref="face" />
 	<field id="cumulus" name="cumulus" long_name="cumulus_convection_indicator" unit="1" domain_ref="face" />
+	<field id="bl_types" name="bl_types" long_name="boundary_layer_type_indicator" unit="1" domain_ref="face" axis_ref="bl_types"/>
 	<field id="dt_bl" name="dt_bl" long_name="temperature_increment_from_bl_scheme" unit="K" grid_ref="full_level_face_grid" />
 	<field id="dmv_bl" name="dmv_bl" long_name="vapour_increment_from_bl_scheme" unit="kg kg-1" grid_ref="full_level_face_grid" />
+	<field id="du_bl1" name="du_bl1" long_name="eastward_wind_increment_from_bl_scheme" unit="m s-1" grid_ref="half_level_edge_grid" />
+	<field id="du_bl2" name="du_bl2" long_name="northward_wind_increment_from_bl_scheme" unit="m s-1" grid_ref="half_level_edge_grid" />
+	<field id="du_bl3" name="du_bl3" long_name="upward_air_velocity_increment_from_bl_scheme" unit="m s-1" grid_ref="full_level_face_grid" />
 	<field id="zh" name="zh" long_name="boundary_layer_depth" unit="m" domain_ref="face" />
 	<!-- radiation fields -->
 	<field id="lw_down_surf" name="lw_down_surf" long_name="surface_downward_longwave_flux" unit="W m-2" domain_ref="face" />

@@ -12,6 +12,7 @@ module spectral_gwd_alg_mod
    use io_config_mod,        only: subroutine_timers
    use timer_mod,            only: timer
    use log_mod,              only: log_event, LOG_LEVEL_INFO
+   use fs_continuity_mod,    only: W3, Wtheta
 
   ! XIOS output
   use io_config_mod, only: write_diag, &
@@ -33,17 +34,14 @@ contains
   !> @param[in]     microphysics_fields  Fields for mphys scheme
   !> @param[in]     convection_fields    Fields for convection scheme
   !> @param[in]     theta                Potential temperature in wtheta
-  !> @param[in]     height_w3            Height on w3
-  !> @param[in]     height_wth           Height on wtheta
    subroutine spectral_gwd_alg(du_tot_spectral_gwd, dtheta_spectral_gwd, &
                                derived_fields, microphysics_fields,      &
-                               convection_fields, theta,                 &
-                               height_w3, height_wth)
+                               convection_fields, theta)
 
     ! spectral_gwd kernels
     use spectral_gwd_kernel_mod, only: spectral_gwd_kernel_type
 
-    use geometric_constants_mod, only: get_latitude
+    use geometric_constants_mod, only: get_latitude, get_height
 
    implicit none
 
@@ -53,8 +51,6 @@ contains
     type( field_collection_type ), intent(in) :: microphysics_fields
     type( field_collection_type ), intent(in) :: convection_fields
     type( field_type ), intent(in) :: theta
-    type( field_type ), intent(in) :: height_w3
-    type( field_type ), intent(in) :: height_wth
 
     ! Local fields
     ! Increments from spectral gravity wave drag to ...
@@ -78,6 +74,8 @@ contains
     type( field_type ), pointer :: conv_snow => null()
 
     type( field_type ), pointer :: latitude_w3 => null()
+    type( field_type ), pointer :: height_w3 => null()
+    type( field_type ), pointer :: height_wth => null()
 
     if ( subroutine_timers ) call timer("spectral_gwd_alg")
 
@@ -96,6 +94,8 @@ contains
     conv_snow => convection_fields%get_field('conv_snow')
 
     latitude_w3 => get_latitude()
+    height_wth => get_height(Wtheta)
+    height_w3 => get_height(W3)
 
     call u1_in_w3%copy_field_properties(du_spectral_gwd)
     call u2_in_w3%copy_field_properties(dv_spectral_gwd)

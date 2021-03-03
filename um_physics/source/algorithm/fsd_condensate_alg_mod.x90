@@ -11,6 +11,10 @@ module fsd_condensate_alg_mod
    use field_mod,            only: field_type
    use field_collection_mod, only: field_collection_type
 
+  use physical_op_constants_mod, only: get_delta_at_wtheta
+  use geometric_constants_mod,   only: get_height
+  use fs_continuity_mod,         only: W3
+
    implicit none
 	
    private
@@ -26,11 +30,8 @@ contains
   !>@param[in,out] f_arr             Array of params for FSD
   !>@param[in,out] cloud_fields      Group of cloud fields
   !>@param[in]     convection_fields Group of convection fields
-  !>@param[in]     height_w3         Height from surface on density levels
-  !>@param[in]     delta             Edge length on wtheta points
 	
-  subroutine fsd_condensate_alg( f_arr, cloud_fields, convection_fields, &
-                                 height_w3, delta )
+  subroutine fsd_condensate_alg( f_arr, cloud_fields, convection_fields )
 
     use fsd_condensate_kernel_mod, only: fsd_condensate_kernel_type
     use io_config_mod,             only: subroutine_timers
@@ -41,8 +42,9 @@ contains
     type( field_type ),            intent(inout) :: f_arr
     type( field_collection_type ), intent(in)    :: cloud_fields
     type( field_collection_type ), intent(in)    :: convection_fields
-    type( field_type ),            intent(in)    :: height_w3
-    type( field_type ),            intent(in)    :: delta
+
+    type( field_type ), pointer :: height_w3 => null()
+    type( field_type ), pointer :: delta     => null()
 
     type( field_type ), pointer :: area_fraction        => null()
     type( field_type ), pointer :: sigma_qcw            => null()
@@ -54,6 +56,9 @@ contains
     area_fraction   => cloud_fields%get_field('area_fraction')
     sigma_qcw       => cloud_fields%get_field('sigma_qcw')
     cca             => convection_fields%get_field('cca')
+
+    height_w3 => get_height(W3)
+    delta => get_delta_at_wtheta()
 
     call invoke ( fsd_condensate_kernel_type ( sigma_qcw,     & ! fsd of condensate
                                                f_arr,         & ! fsd parameters

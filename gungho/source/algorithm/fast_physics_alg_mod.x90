@@ -10,7 +10,7 @@ module fast_physics_alg_mod
                                        convection, convection_um,         &
                                        surface, surface_jules,            &
                                        cloud, cloud_um
-
+  use clock_mod,            only: clock_type
   use constants_mod,        only: i_def,r_def
   use log_mod,              only: LOG_LEVEL_INFO
   use io_config_mod,        only: subroutine_timers, &
@@ -68,12 +68,8 @@ contains
   !> @param[in,out] surface_fields      Fields for surface scheme
   !> @param[in,out] soil_fields         Fields for soil hydrology scheme
   !> @param[in,out] snow_fields         Fields for snow scheme
-  !> @param[in]     dA                  Areas of faces
-  !> @param[in]     height_w3           Height in w3
-  !> @param[in]     height_wth          Height in wth
-  !> @param[in]     delta               Edge length on wtheta points
   !> @param[in]     outer               Outer loop counter
-  !> @param[in]     step                Current timestep
+  !> @param[in]     clock               The clock object
   !> @param[in]     rho_guess           Estimate of rho^n+1 for conservation
   !!                                    diagnostics
     subroutine fast_physics(du, dtheta, mr, theta, rho, exner, mr_n,           &
@@ -81,8 +77,7 @@ contains
                             microphysics_fields, orography_fields,             &
                             turbulence_fields, convection_fields, cloud_fields,&
                             surface_fields, soil_fields, snow_fields,          &
-                            dA, height_w3, height_wth, delta, outer, step,     &
-                            rho_guess)
+                            outer, clock, rho_guess)
 
     implicit none
 
@@ -107,12 +102,9 @@ contains
     type( field_collection_type ), intent(inout) :: soil_fields
     type( field_collection_type ), intent(inout) :: snow_fields
 
-    ! Coordinate fields
-    type( field_type ), intent( in )    :: dA, height_w3, height_wth
-    type( field_type ), intent( in )    :: delta
-
     ! scalars
-    integer(kind=i_def), intent(in)     :: outer, step
+    integer(kind=i_def), intent(in) :: outer
+    class(clock_type),   intent(in) :: clock
 
     ! Local fields...
     ! ...for boundary layer
@@ -138,7 +130,7 @@ contains
     if ( subroutine_timers ) call timer("fast_physics")
 
     if (write_conservation_diag .and. outer == outer_iterations .and. use_moisture) &
-      call moisture_conservation_alg( step, rho_guess, mr, 'Before fast' )
+      call moisture_conservation_alg( clock%get_step(), rho_guess, mr, 'Before fast' )
 
     !--------------------------------------------------------------------
     ! Initialisation of fields and flags
@@ -161,8 +153,7 @@ contains
         ! Call the UM Gregory Rowntree convection scheme
         call conv_gr_alg(mr, rho, exner, derived_fields,                  &
                          turbulence_fields, convection_fields,            &
-                         cloud_fields, surface_fields, height_w3,         &
-                         height_wth, delta, outer)
+                         cloud_fields, surface_fields, outer)
       end if
 
       if ( cloud == cloud_um .and. scheme == scheme_pc2 ) then
@@ -188,8 +179,7 @@ contains
                       total_snowmelt, theta, exner, mr_n,                 &
                       derived_fields, radiation_fields, orography_fields, &
                       turbulence_fields, convection_fields, cloud_fields, &
-                      surface_fields, soil_fields, snow_fields,           &
-                      dA, height_w3, height_wth, outer)
+                      surface_fields, soil_fields, snow_fields, outer, clock)
       boundary_layer_done=.true. ! Collect this increment later on
     end if
 
@@ -224,7 +214,7 @@ contains
       end do
 
       if (write_conservation_diag .and. outer == outer_iterations) &
-        call moisture_conservation_alg( step, rho_guess, mr, 'After fast' )
+        call moisture_conservation_alg( clock%get_step(), rho_guess, mr, 'After fast' )
     end if
 
     if ( subroutine_timers ) call timer("fast_physics")

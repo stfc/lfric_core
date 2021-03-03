@@ -92,22 +92,15 @@ contains
   !> @param[in,out] soil_fields            Fields for soil hydrology scheme
   !> @param[in,out] snow_fields            Fields for snow scheme
   !> @param[in,out] aerosol_fields         Fields for aerosol scheme
-  !> @param[in]     dA                     Areas of faces
-  !> @param[in]     height_w3              Height in w3
-  !> @param[in]     height_wth             Height in wth
-  !> @param[in]     chi_xyz                (X,Y,Z) coordinate array
-  !> @param[in]     delta                  Edge length on wtheta points
-  !> @param[in]     max_diff_smag          Maximum diffusion coef allowed
   !> @param[in]     clock                  Model time
   !> @param[in]     mesh_id                Identifier given to current mesh
   !> @param[in]     twod_mesh_id           Identifier given to current 2d mesh
-  subroutine slow_physics(du, dtheta, mr, visc_m, visc_h,                       &
-                          theta, rho, exner, mr_n, derived_fields,              &
-                          radiation_fields, microphysics_fields,                &
-                          orography_fields, turbulence_fields,                  &
-                          convection_fields, cloud_fields, surface_fields,      &
-                          soil_fields, snow_fields, aerosol_fields, dA,         &
-                          height_w3, height_wth, chi_xyz, delta, max_diff_smag, &
+  subroutine slow_physics(du, dtheta, mr, visc_m, visc_h,                      &
+                          theta, rho, exner, mr_n, derived_fields,             &
+                          radiation_fields, microphysics_fields,               &
+                          orography_fields, turbulence_fields,                 &
+                          convection_fields, cloud_fields, surface_fields,     &
+                          soil_fields, snow_fields, aerosol_fields,            &
                           clock, mesh_id, twod_mesh_id )
 
     implicit none
@@ -115,7 +108,6 @@ contains
     ! Fields
     type( field_type ), intent( inout ) :: du, dtheta, visc_m, visc_h
     type( field_type ), intent( in )    :: theta, rho, exner
-    type( field_type ), intent( in )    :: delta, max_diff_smag
 
     ! Field bundles
     type( field_type ), intent( inout ) :: mr(nummr)   ! Latest value, to update
@@ -134,10 +126,6 @@ contains
     type( field_collection_type ), intent(inout) :: soil_fields
     type( field_collection_type ), intent(inout) :: snow_fields
     type( field_collection_type ), intent(inout) :: aerosol_fields
-
-    ! Coordinate fields
-    type( field_type ), intent( in )    :: dA, height_w3, height_wth
-    type( field_type ), intent( in )    :: chi_xyz(3)
 
     integer, intent(in) :: mesh_id
     integer, intent(in) :: twod_mesh_id
@@ -221,7 +209,7 @@ contains
     if ( heldsuarez_thermo_placement < 0 .OR. &
          heldsuarez_wind_placement < 0 ) then
       call held_suarez_alg(derived_fields, theta, exner_in_wth,          &
-                           chi_xyz, dA, dtheta_hs, du_hs,                &
+                           dtheta_hs, du_hs,                             &
                            held_suarez_thermo_done, held_suarez_wind_done)
     end if
 
@@ -232,8 +220,7 @@ contains
     vector_space => function_space_collection%get_fs( mesh_id, 0, Wtheta, 3)
     call f_arr%initialise(vector_space)
     if ( cld_fsd_hill ) then
-      call fsd_condensate_alg( f_arr, cloud_fields, convection_fields,    &
-                               height_w3, delta )
+      call fsd_condensate_alg( f_arr, cloud_fields, convection_fields )
     end if
 
     !--------------------------------------------------------------------
@@ -264,11 +251,10 @@ contains
     !--------------------------------------------------------------------
     if ( microphysics == microphysics_um .and. &
          microphysics_placement == microphysics_placement_slow) then
-      call mphys_alg( mr_n, theta, rho, height_w3, height_wth,       &
-                      derived_fields, microphysics_fields,           &
-                      cloud_fields, aerosol_fields, f_arr,           &
-                      dmr_mphys, dtheta_mphys,                       &
-                      dcfl_pc2_mphys, dcff_pc2_mphys, dbcf_pc2_mphys )
+      call mphys_alg( mr_n, theta, rho, derived_fields, microphysics_fields, &
+                      cloud_fields, aerosol_fields, f_arr, dmr_mphys,        &
+                      dtheta_mphys, dcfl_pc2_mphys, dcff_pc2_mphys,          &
+                      dbcf_pc2_mphys )
       microphysics_done=.true. ! Collect this increment later on
     end if
 
@@ -293,13 +279,13 @@ contains
                           tile_lw_albedo, derived_fields,                 &
                           radiation_fields, orography_fields,             &
                           surface_fields, soil_fields, snow_fields,       &
-                          albedo_obs_scaling, height_w3, height_wth)
+                          albedo_obs_scaling)
       end if
 
       call radiation_alg( dtheta_rad, theta, exner, mr_n,                    &
                           derived_fields, radiation_fields, cloud_fields,    &
                           convection_fields, aerosol_fields, surface_fields, &
-                          height_w3, height_wth, clock%get_step(),           &
+                          clock%get_step(),                                  &
                           tile_sw_direct_albedo, tile_sw_diffuse_albedo,     &
                           tile_lw_albedo, aer_mix_ratio,                     &
                           aer_sw_absorption, aer_lw_absorption,              &
@@ -338,9 +324,7 @@ contains
                             derived_fields,      &
                             microphysics_fields, &
                             convection_fields,   &
-                            theta,               &
-                            height_w3,           &
-                            height_wth)
+                            theta)
       spectral_gwd_done=.true. ! Collect this increment later on
     end if
 
@@ -356,9 +340,7 @@ contains
                                derived_fields,         &
                                orography_fields,       &
                                theta,                  &
-                               mr_n,                   &
-                               height_w3,              &
-                               height_wth)
+                               mr_n)
       orographic_drag_done=.true. ! Collect this increment later on
     end if
 
@@ -377,7 +359,6 @@ contains
                       microphysics_fields, orography_fields,             &
                       turbulence_fields, convection_fields, cloud_fields,&
                       surface_fields, soil_fields, snow_fields,          &
-                      height_w3, height_wth, delta, max_diff_smag,       &
                       albedo_obs_scaling)
     end if
 #endif

@@ -15,6 +15,9 @@ module map_physics_fields_alg_mod
   use extract_w_kernel_mod,     only: extract_w_kernel_type
   use smagorinsky_shear_kernel_mod, only: smagorinsky_shear_kernel_type
   use mixing_config_mod,            only: smagorinsky
+  use geometric_constants_mod,  only: get_da_at_w2, get_height, &
+                                      get_coordinates_xyz
+  use fs_continuity_mod,        only: W3, Wtheta
 
   use log_mod,                   only: log_event,         &
                                        LOG_LEVEL_INFO
@@ -37,23 +40,14 @@ contains
   !> @param[in]    rho Density
   !> @param[in]    theta Potential temperature
   !> @param[in]    moist_dyn  Moist dynamics factors
-  !> @param[in]    dA         Areas of faces
-  !> @param[in]    height_wth Height of wth space
-  !> @param[in]    height_w3  Height of w3 space
-  !> @param[in]    chi_xyz    (X,Y,Z) Coordinate array
   !> @param[inout] derived_fields Group of derived fields
-  subroutine map_physics_fields_alg(u, exner, rho, theta, moist_dyn,    &
-                                    dA, height_wth, height_w3, chi_xyz, &
-                                    derived_fields)
+  subroutine map_physics_fields_alg(u, exner, rho, theta, moist_dyn, derived_fields)
+
     implicit none
     ! Prognostic fields
     type( field_type ), intent(in)               :: u, rho, theta, exner
     type( field_type ), intent(in)               :: moist_dyn(num_moist_factors)
     type( field_collection_type ), intent(inout) :: derived_fields
-
-    ! Coordinate fields
-    type( field_type ), intent( in )    :: dA, height_w3, height_wth
-    type( field_type ), intent( in )    :: chi_xyz(3)
 
     type( field_type ), pointer :: theta_in_w3 => null()
     type( field_type ), pointer :: rho_in_wth => null()
@@ -66,6 +60,10 @@ contains
     type( field_type ), pointer :: u_physics => null()
     type( field_type ), pointer :: w_physics => null()
     type( field_type ), pointer :: shear => null()
+    type( field_type ), pointer :: dA => null()
+    type( field_type ), pointer :: height_w3 => null()
+    type( field_type ), pointer :: height_wth => null()
+    type( field_type ), pointer :: chi_xyz(:) => null()
 
     if ( subroutine_timers ) call timer("map_physics_fields")
 
@@ -94,6 +92,7 @@ contains
     u_physics => derived_fields%get_field('u_physics')
     w_physics => derived_fields%get_field('w_physics')
     ! map dynamics winds into physics space
+    dA => get_da_at_w2()
     call invoke(         X_divideby_Y(u_physics, u, dA), &
                 extract_w_kernel_type(w_physics, u_physics) )
     call u_physics%log_minmax(LOG_LEVEL_INFO, 'u_physics')
@@ -103,6 +102,9 @@ contains
       call log_event( 'Calculate 3D shear', LOG_LEVEL_INFO )
       ! Calculate 3D shear
       shear => derived_fields%get_field('shear')
+      height_wth => get_height(Wtheta)
+      height_w3 => get_height(W3)
+      chi_xyz => get_coordinates_xyz()
       call invoke(smagorinsky_shear_kernel_type( shear,         &
                                                  u_physics,  1, &
                                                  height_wth, 1, &

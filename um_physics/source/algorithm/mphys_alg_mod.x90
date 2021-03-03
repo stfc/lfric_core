@@ -14,6 +14,9 @@ module mphys_alg_mod
   use field_bundle_mod,     only: clone_bundle, set_bundle_scalar
   use constants_mod,        only: r_def
 
+  use geometric_constants_mod, only: get_height
+  use fs_continuity_mod,       only: W3, Wtheta
+
   implicit none
 
   private
@@ -31,8 +34,6 @@ contains
   !>@param[in]     mr_n           Start of timestep mixing ratios
   !>@param[in]     theta          Potential temperature (theta) in wth space
   !>@param[in]     dry_rho_in_w3  Dry density in the w3 space
-  !>@param[in]     height_w3      Height from surface on density levels
-  !>@param[in]     height_wth     Height from surface on theta levels
   !>@param[in]     derived_fields Group of derived fields
   !>@param[in,out] microphysics_fields    Fields for mphys scheme
   !>@param[in]     cloud_fields           Fields for cloud scheme
@@ -43,11 +44,9 @@ contains
   !>@param[in,out] dcfl           Increment to liquid cloud fraction
   !>@param[in,out] dcff           Increment to ice cloud fraction
   !>@param[in,out] dbcf           Increment to bulk cloud fraction
-  subroutine mphys_alg( mr_n, theta, dry_rho_in_w3,                       &
-                        height_w3, height_wth, derived_fields,            &
-                        microphysics_fields, cloud_fields,                &
-                        aerosol_fields, f_arr, dmr_mphys, theta_inc,      &
-                        dcfl, dcff, dbcf )
+  subroutine mphys_alg( mr_n, theta, dry_rho_in_w3, derived_fields,            &
+                        microphysics_fields, cloud_fields, aerosol_fields,     &
+                        f_arr, dmr_mphys, theta_inc, dcfl, dcff, dbcf )
 
     use mphys_kernel_mod, only: mphys_kernel_type
     use mr_indices_mod,   only: imr_v, imr_cl, imr_r, imr_ci, imr_g, nummr
@@ -62,7 +61,6 @@ contains
     implicit none
 
     type( field_type ), intent( in )    :: mr_n ( nummr ), theta, dry_rho_in_w3
-    type( field_type ), intent( in )    :: height_w3, height_wth
 
     type( field_collection_type ), intent(in)    :: derived_fields
     type( field_collection_type ), intent(inout) :: microphysics_fields
@@ -92,6 +90,9 @@ contains
 
     type( field_type ), pointer :: cloud_drop_no_conc  => null()
 
+    type( field_type ), pointer :: height_w3 => null()
+    type( field_type ), pointer :: height_wth => null()
+
     if ( subroutine_timers ) call timer("mphys_alg")
 
     call log_event( 'slow_physics: Running Microphysics', LOG_LEVEL_INFO )
@@ -118,6 +119,9 @@ contains
     ls_snow            => microphysics_fields%get_field('ls_snow')
 
     cloud_drop_no_conc => aerosol_fields%get_field('cloud_drop_no_conc')
+
+    height_wth => get_height(Wtheta)
+    height_w3 => get_height(W3)
 
     call invoke( mphys_kernel_type ( mr_n(imr_v), mr_n(imr_cl), mr_n(imr_ci),  &
                                      mr_n(imr_r), mr_n(imr_g),                 &

@@ -29,6 +29,9 @@ module smagorinsky_alg_mod
   use timer_mod,                 only: timer
   use moisture_conservation_alg_mod, &
                                  only: moisture_conservation_alg
+  use geometric_constants_mod,   only: get_height, get_coordinates_xyz
+  use physical_op_constants_mod, only: get_delta_at_wtheta
+  use fs_continuity_mod,         only: W3, Wtheta
 
   implicit none
 
@@ -47,16 +50,11 @@ contains
   !> @param[in,out] u              3D wind field
   !> @param[in,out] visc_m         Smag diffusion coef for momentum
   !> @param[in,out] visc_h         Smag diffusion coef for heat
-  !> @param[in]     chi_xyz        (X,Y,Z) Coordinate array
-  !> @param[in]     height_wth     Height of wth space
-  !> @param[in]     height_w3      Height of w3 space
-  !> @param[in]     delta          Edge length on wtheta points
   !> @param[in]     derived_fields Group of derived fields
   !> @param[in]     rho            Density
   !> @param[in]     step           Model timestep
   subroutine smagorinsky_alg(mr, theta, u, visc_m,                   &
-                             visc_h, chi_xyz, height_wth, height_w3, &
-                             delta, derived_fields, rho, step )
+                             visc_h, derived_fields, rho, step )
 
     implicit none
 
@@ -67,19 +65,17 @@ contains
 
     type( field_collection_type ), intent(in) :: derived_fields
 
-
-    ! Coordinate fields
-    type( field_type ), intent( in )    :: height_w3, height_wth, delta
-    type( field_type ), intent( in )    :: chi_xyz(3)
-
     integer( i_def ),   intent(in) :: step
     type( field_type ), intent(in) :: rho
-
 
     ! Increments on state fields
     type( field_type ) :: du, dtheta
 
     type( field_type ), pointer :: shear => null()
+    type( field_type ), pointer :: height_w3 => null()
+    type( field_type ), pointer :: height_wth => null()
+    type( field_type ), pointer :: chi_xyz(:) => null()
+    type( field_type ), pointer :: delta => null()
     type( field_type ) :: dmr_v, dmr_cl
 
     ! Stencil depth for the Smagorinsky diffusion kernel
@@ -91,6 +87,10 @@ contains
 
     call du%initialise( u%get_function_space() )
     call dtheta%initialise( theta%get_function_space() )
+
+    height_wth => get_height(Wtheta)
+    height_w3 => get_height(W3)
+    chi_xyz => get_coordinates_xyz()
 
     if ( boundary_layer == boundary_layer_um ) then
 
@@ -137,6 +137,7 @@ contains
       call log_event( 'Using pure Smagorinsky coefficient', LOG_LEVEL_INFO )
       ! Calculate visc_h and visc_m as (mix_factor * delta)**2 * shear
       shear => derived_fields%get_field('shear')
+      delta => get_delta_at_wtheta()
 
       ! Potential temperature:
       call invoke( a_times_X( visc_h, mix_factor, delta ),                    &

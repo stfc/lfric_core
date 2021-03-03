@@ -72,6 +72,7 @@ contains
     type( field_type), pointer :: rho => null()
     type( field_type), pointer :: exner => null()
     type( field_type), pointer :: panel_id => null()
+    type( field_type), pointer :: u_star => null()
     ! Iterator for field collection
     type(field_collection_iterator_type)  :: iterator
 
@@ -143,7 +144,7 @@ contains
     end if
 
     ! Derived physics fields (only those on W3 or Wtheta)
-    if (use_physics) then
+    if (use_physics .and. .not. clock%is_initialisation()) then
 
       iterator = derived_fields%get_iterator()
       do
@@ -161,6 +162,10 @@ contains
         end select
       end do
       field_ptr => null()
+
+      ! Output u_star as diagnostic
+      u_star => derived_fields%get_field('u_star')
+      call write_vector_diagnostic('u_star',u_star,clock,mesh_id,nodal_output_on_w3)
     end if
 
     ! Other derived diagnostics with special pre-processing

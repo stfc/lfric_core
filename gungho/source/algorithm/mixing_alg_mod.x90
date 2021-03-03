@@ -21,17 +21,11 @@ contains
   !> @param[in,out] u              3D wind field
   !> @param[in,out] visc_m         Smag diffusion coef for momentum
   !> @param[in,out] visc_h         Smag diffusion coef for heat
-  !> @param[in]     chi_xyz        (X,Y,Z) Coordinate array
-  !> @param[in]     height_wth     Height of wth space
-  !> @param[in]     height_w3      Height of w3 space
-  !> @param[in]     delta          Edge length on wtheta points
   !> @param[in]     derived_fields Group of derived fields
   !> @param[in]     rho            Density
   !> @param[in]     step           model timestep index
-  !> @param[in]     dt             model timestep
   subroutine mixing_alg(mr, theta, u, visc_m,                   &
-                        visc_h, chi_xyz, height_wth, height_w3, &
-                        delta, derived_fields, rho, step, dt)
+                        visc_h, derived_fields, rho, step)
 
     use constants_mod,                 only: i_def,r_def
     use log_mod,                       only: log_event,         &
@@ -43,6 +37,8 @@ contains
     use smagorinsky_alg_mod,           only: smagorinsky_alg
     use tracer_viscosity_kernel_mod,   only: tracer_viscosity_kernel_type
     use momentum_viscosity_kernel_mod, only: momentum_viscosity_kernel_type
+    use timestepping_config_mod,       only: dt
+    use geometric_constants_mod,       only: get_coordinates_xyz
 
     implicit none
 
@@ -54,23 +50,19 @@ contains
     type( field_collection_type ), intent(in) :: derived_fields
     type( field_type ), intent(in) :: rho
 
-    ! Coordinate fields
-    type( field_type ), intent(in) :: height_w3, height_wth, delta
-    type( field_type ), intent(in) :: chi_xyz(3)
-
     ! Timestepping information
     integer( i_def ),   intent(in) :: step
-    real( r_def ),      intent(in) :: dt
 
     ! Increment fields
     type( field_type ) :: du, dtheta
+
+    type( field_type ), pointer :: chi_xyz(:) => null()
 
     !--------------------------------------------------------------------
     ! Apply horizontal Smagorinsky subgrid mixing
     !--------------------------------------------------------------------
     if ( smagorinsky ) call smagorinsky_alg(mr, theta, u, visc_m, visc_h,     &
-                                            chi_xyz, height_wth, height_w3,   &
-                                            delta, derived_fields, rho, step)
+                                            derived_fields, rho, step)
     !--------------------------------------------------------------------
     ! Apply viscosity
     !--------------------------------------------------------------------
@@ -78,6 +70,7 @@ contains
       call log_event( 'Applying Viscosity', LOG_LEVEL_INFO )
       call dtheta%initialise( theta%get_function_space() )
       call du%initialise( u%get_function_space() )
+      chi_xyz => get_coordinates_xyz()
       call invoke( tracer_viscosity_kernel_type( dtheta, theta, 1, chi_xyz ), &
                    momentum_viscosity_kernel_type( du, u, 1, chi_xyz ),       &
                    inc_X_plus_bY( theta, dt, dtheta ),                        &

@@ -13,6 +13,8 @@ module orographic_drag_alg_mod
   use io_config_mod,        only: subroutine_timers
   use timer_mod,            only: timer
   use log_mod,              only: log_event, LOG_LEVEL_INFO
+  use geometric_constants_mod, only: get_height
+  use fs_continuity_mod,       only: W3, Wtheta
 
   ! XIOS output
   use io_config_mod, only: write_diag, &
@@ -34,12 +36,9 @@ contains
   !> @param[in]     orography_fields       Fields for orographic drag scheme
   !> @param[in]     theta                  Potential temperature in wtheta
   !> @param[in]     mr_n                   Mixing ratios at time level n
-  !> @param[in]     height_w3              Height on w3
-  !> @param[in]     height_wth             Height on wtheta
   subroutine orographic_drag_alg(                                   &
                     du_tot_orographic_drag, dtheta_orographic_drag, &
-                    derived_fields, orography_fields, theta, mr_n,  &
-                    height_w3, height_wth)
+                    derived_fields, orography_fields, theta, mr_n)
 
     ! orographic kernels
     use orographic_drag_kernel_mod, only: orographic_drag_kernel_type
@@ -51,8 +50,6 @@ contains
     type( field_collection_type ), intent(in) :: derived_fields
     type( field_collection_type ), intent(in) :: orography_fields
     type( field_type ), intent(in) :: theta, mr_n(nummr)
-    type( field_type ), intent(in) :: height_w3
-    type( field_type ), intent(in) :: height_wth
 
     ! Local fields
     ! Total orographic drag increments to ...
@@ -82,6 +79,9 @@ contains
     type( field_type ), pointer :: grad_xy_orog => null()
     type( field_type ), pointer :: grad_yy_orog => null()
 
+    type( field_type ), pointer :: height_w3 => null()
+    type( field_type ), pointer :: height_wth => null()
+
     if ( subroutine_timers ) call timer("orographic_drag_alg")
 
     call log_event( 'slow_physics: Running Orographic drag', LOG_LEVEL_INFO )
@@ -91,6 +91,9 @@ contains
     u2_in_w3 => derived_fields%get_field('u2_in_w3')
     exner_in_wth => derived_fields%get_field('exner_in_wth')
     wetrho_in_w3 => derived_fields%get_field('wetrho_in_w3')
+
+    height_wth => get_height(Wtheta)
+    height_w3 => get_height(W3)
 
     ! Unpack orography fields
     sd_orog      => orography_fields%get_field('sd_orog')

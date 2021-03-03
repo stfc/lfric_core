@@ -12,6 +12,10 @@ module bl_exp_alg_mod
   use field_collection_mod, only: field_collection_type
   use mr_indices_mod,       only: nummr, imr_v, imr_cl, imr_ci
 
+  use physical_op_constants_mod, only: get_delta_at_wtheta, get_max_diff
+  use geometric_constants_mod,   only: get_height
+  use fs_continuity_mod,         only: W3, Wtheta
+
   use io_config_mod,        only: subroutine_timers
   use timer_mod,            only: timer
   use log_mod,              only: log_event, LOG_LEVEL_INFO
@@ -46,17 +50,12 @@ contains
   !>@param[in,out] surface_fields      Fields for surface scheme
   !>@param[in,out] soil_fields         Fields for soil hydrology scheme
   !>@param[in]     snow_fields         (in,out) Fields for snow scheme
-  !>@param[in]     height_w3         Height in w3
-  !>@param[in]     height_wth        Height in wth
-  !>@param[in]     delta             Edge length on wtheta points
-  !>@param[in]     max_diff_smag     Maximum diffusion coefficient allowed
   subroutine bl_exp_alg(visc_m, visc_h, theta, rho, exner, mr_n,         &
                         derived_fields, radiation_fields,                &
                         microphysics_fields, orography_fields,           &
                         turbulence_fields, convection_fields,            &
                         cloud_fields, surface_fields, soil_fields,       &
-                        snow_fields, height_w3, height_wth, delta,       &
-                        max_diff_smag, albedo_obs_scaling)
+                        snow_fields, albedo_obs_scaling)
 
     use bl_exp_kernel_mod, only: bl_exp_kernel_type
 
@@ -65,8 +64,6 @@ contains
     type( field_type ), intent( inout )     :: visc_m, visc_h
 
     type( field_type ), intent( in )        :: theta, rho, exner, mr_n(nummr)
-    type( field_type ), intent( in )        :: height_w3, height_wth
-    type( field_type ), intent( in )        :: delta, max_diff_smag
     type( field_type ), intent( in )        :: albedo_obs_scaling
 
     type( field_collection_type ), intent(in)    :: derived_fields
@@ -195,6 +192,11 @@ contains
     type( field_type ), pointer :: snow_layer_liq_mass  => null()
     type( field_type ), pointer :: snow_layer_temp      => null()
     type( field_type ), pointer :: snow_unload_rate     => null()
+
+    type( field_type ), pointer :: height_w3 => null()
+    type( field_type ), pointer :: height_wth => null()
+    type( field_type ), pointer :: delta => null()
+    type( field_type ), pointer :: max_diff_smag => null()
 
     ! local variables
     type( field_type ) :: gross_prim_prod
@@ -329,6 +331,11 @@ contains
     snow_layer_temp      => snow_fields%get_field('snow_layer_temp')
     snow_unload_rate     => snow_fields%get_field('snow_unload_rate')
 
+    height_wth => get_height(Wtheta)
+    height_w3 => get_height(W3)
+    delta => get_delta_at_wtheta()
+    max_diff_smag => get_max_diff()
+
     ! BL diagnostics
     call zh%copy_field_properties(gross_prim_prod)
 
@@ -382,6 +389,7 @@ contains
 
       call ntml%write_field('ntml')
       call cumulus%write_field('cumulus')
+      call bl_types%write_field('bl_types')
       call z0msea%write_field('z0msea')
       call gross_prim_prod%write_field('gross_prim_prod')
       call net_prim_prod%write_field('net_prim_prod')

@@ -33,12 +33,8 @@ module semi_implicit_timestep_alg_mod
                                        spinup_period, spinup_alpha, spinup_winds
   use derived_config_mod,        only: bundle_size
   use boundaries_config_mod,     only: limited_area
-  use geometric_constants_mod,   only: get_coordinates, get_height, &
-                                       get_da_at_w2, get_coordinates_xyz
   use fem_constants_mod,         only: get_mass_matrix,  &
-                                       wt_id, w2_id, dl_id, w2_id, get_qr
-  use physical_op_constants_mod, only : get_delta_at_wtheta, get_max_diff
-  use fs_continuity_mod,         only: W3, Wtheta
+                                       wt_id, w2_id, dl_id, get_qr
 
   use field_bundle_mod,          only: clone_bundle,      &
                                        bundle_axpy,       &
@@ -311,18 +307,9 @@ contains
 
     ! Quadrature object
     type( quadrature_xyoz_type ), pointer :: qr => null()
-    ! Coordinate fields
-    type( field_type ), pointer  :: chi_sph(:) => null()
-    type( field_type ), pointer  :: chi_xyz(:) => null()
 
-    type( field_type ), pointer :: height_w3  => null()
-    type( field_type ), pointer :: height_wth => null()
-    type(operator_type), pointer :: m3_inv => null()
-    type(operator_type), pointer :: mm_wt => null()
-    type(operator_type), pointer :: mm_vel    => null()
-    type( field_type ), pointer  :: dA => null() ! Areas of faces
-    type( field_type ), pointer  :: delta => null() ! Horizontal edge length
-    type( field_type ), pointer  :: max_diff_smag => null() ! Max Smagorinsky diffusion allowed in this run
+    type(operator_type), pointer :: mm_wt  => null()
+    type(operator_type), pointer :: mm_vel => null()
 
     integer(kind=i_def):: outer, inner, reset_ref_state, i_mr
     real(kind=r_def)   :: varalpha, varbeta ! alpha, beta weight to use
@@ -341,16 +328,8 @@ contains
 
     if ( subroutine_timers ) call timer('semi_implicit_timestep_alg')
 
-    qr => get_qr()
-
-    chi_sph       => get_coordinates()
-    chi_xyz       => get_coordinates_xyz()
-    height_w3     => get_height(W3)
-    height_wth    => get_height(Wtheta)
-    dA            => get_da_at_w2()
-    delta         => get_delta_at_wtheta()
-    max_diff_smag => get_max_diff()
-    mm_wt         => get_mass_matrix(wt_id)
+    qr    => get_qr()
+    mm_wt => get_mass_matrix(wt_id)
     ! Using modified velocity mass matrix if using damping layer
     if(dlayer_on) then
       mm_vel => get_mass_matrix(dl_id)
@@ -402,16 +381,14 @@ contains
       ! Calculate fields derived from dynamics fields for use in physics
       call map_physics_fields_alg(state_n(igh_u), state_n(igh_p),              &
                                   state_n(igh_d), state_n(igh_t),              &
-                                  moist_dyn, dA, height_wth, height_w3,        &
-                                  chi_xyz, derived_fields)
+                                  moist_dyn, derived_fields)
       call slow_physics(du, dtheta, mr_after_slow, visc_m, visc_h,             &
                         state_n(igh_t), state_n(igh_d), state_n(igh_p),        &
                         mr_n,  derived_fields, radiation_fields,               &
                         microphysics_fields, orography_fields,                 &
                         turbulence_fields, convection_fields, cloud_fields,    &
                         surface_fields, soil_fields, snow_fields,              &
-                        aerosol_fields, dA, height_w3, height_wth, chi_xyz,    &
-                        delta, max_diff_smag, clock, mesh_id, twod_mesh_id )
+                        aerosol_fields, clock, mesh_id, twod_mesh_id )
       call invoke(name="update_from_slow_physics",                             &
                   inc_X_plus_Y(state_after_slow(igh_t), dtheta),               &
                   inc_X_plus_Y(state_after_slow(igh_u), du)                    &
@@ -452,7 +429,7 @@ contains
         !--------------------------------------------------------------------
         call calc_phys_predictors_alg(derived_fields, rhs_np1,                 &
                                       rhs_adv, rhs_n, state, state_after_slow, &
-                                      moist_dyn, varalpha, dA, clock )
+                                      moist_dyn, varalpha, clock )
         !--------------------------------------------------------------------
         ! Call the fast physics terms
         !--------------------------------------------------------------------
@@ -461,9 +438,8 @@ contains
                           radiation_fields, microphysics_fields,               &
                           orography_fields, turbulence_fields,                 &
                           convection_fields, cloud_fields,                     &
-                          surface_fields, soil_fields, snow_fields, dA,        &
-                          height_w3, height_wth, delta, outer,                 &
-                          clock%get_step(), rho_guess)
+                          surface_fields, soil_fields, snow_fields,            &
+                          outer, clock, rho_guess)
 
         if (use_wavedynamics) then
           ! copy increments into rhs_phys, including premultiplication by mass matrix
@@ -586,9 +562,8 @@ contains
     ! Apply mixing
     !--------------------------------------------------------------------
     call mixing_alg(mr, state(igh_t),                             &
-                    state(igh_u), visc_m, visc_h, chi_xyz,        &
-                    height_wth, height_w3, delta, derived_fields, &
-                    state(igh_d), clock%get_step(), dt)
+                    state(igh_u), visc_m, visc_h, derived_fields, &
+                    state(igh_d), clock%get_step() )
 
     ! ----------------------------------------------------------------------
     ! Call cloud scheme to generate cloud and latent heating after pressure
@@ -616,8 +591,7 @@ contains
                  setval_X(rho,   state(igh_d)), &
                  setval_X(exner, state(igh_p)) )
 
-    nullify( m3_inv, chi_xyz, chi_sph, height_w3, height_wth, dA, delta, &
-             mm_wt, mm_vel, max_diff_smag, qr )
+    nullify( mm_wt, mm_vel, qr )
 
     if ( subroutine_timers ) call timer('semi_implicit_timestep_alg')
 

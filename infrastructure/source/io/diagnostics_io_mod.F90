@@ -294,17 +294,13 @@ subroutine write_vector_diagnostic( field_name, field, &
 
      end do
 
-    end if ! Check if vector field is Xi
-
+   else ! wind fields in w2
 
     ! Note winds are currently a special case so we
     ! call a special algorithm to process them for ugrid output
 
-    if ((field_name == 'u') .or. (field_name == 'wind')) then
-
       call split_wind_diagnostic_alg(u1_wind, u2_wind, u3_wind, &
                                     field,  mesh_id)
-
 
       ! Set up I/O handler as these are derived fields
       tmp_write_ptr => write_field_face
