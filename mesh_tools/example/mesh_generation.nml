@@ -21,15 +21,10 @@
 !        output in the mesh file.
 !===================================================================
 &mesh
-  mesh_filename = 'meshes_C24_MG.nc'
-  n_meshes      = 4
-  mesh_names    = 'C24',
-                  'C12',
-                  'C6',
-                  'C3',
-  mesh_maps     = 'C24:C12',
-                  'C12:C6',
-                  'C6:C3'
+  mesh_filename = 'planar_test.nc'
+  n_meshes      = 1
+  mesh_names    = 'planar_test'
+  n_partitions  = 0
 /
 
 !==================================================================
@@ -69,14 +64,21 @@
 !       be a factor of the other.
 
 &planar_mesh
-  cartesian     = .true.
-  edge_cells_x  = 48, 24,  8, 4, 2
-  edge_cells_y  = 24, 24, 12, 4, 2
-  domain_x      = 1600.0
-  domain_y      = 400.0
+  cartesian     = .false.
+  edge_cells_x  = 48
+  edge_cells_y  = 24
+  domain_x      = 48.0
+  domain_y      = 24.0
   periodic_x    = .true.
   periodic_y    = .false.
   create_lbc_mesh = .false.
   lbc_rim_depth   = 1
   lbc_parent_mesh = '<lam mesh name>'
+/
+
+&partitioning
+  panel_decomposition='auto'
+  panel_xproc=1
+  panel_yproc=1
+  max_stencil_depth=1
 /

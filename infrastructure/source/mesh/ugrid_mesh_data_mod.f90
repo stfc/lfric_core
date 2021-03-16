@@ -60,12 +60,15 @@ module ugrid_mesh_data_mod
 
   contains
     procedure, public :: read_from_file
+    procedure, public :: set_by_ugrid_2d
     procedure, public :: get_data
     procedure, public :: clear
     final :: ugrid_mesh_data_destructor
 
   end type ugrid_mesh_data_type
+
 contains
+
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Reads the information that is required to populate a global mesh
@@ -75,7 +78,7 @@ contains
   !> @param[in] global_mesh_name Name of ugrid mesh topology to create
   !>                             global mesh object from.
   !>
-  subroutine read_from_file( self, filename ,global_mesh_name )
+  subroutine read_from_file( self, filename, global_mesh_name )
 
     use ugrid_2d_mod,   only: ugrid_2d_type
     use ugrid_file_mod, only: ugrid_file_type
@@ -91,44 +94,15 @@ contains
 
     class(ugrid_file_type), allocatable :: file_handler
 
-    self%global_mesh_name = global_mesh_name
-
     allocate( ncdf_quad_type :: file_handler )
     call ugrid_2d%set_file_handler( file_handler )
     call ugrid_2d%set_from_file_read( trim(global_mesh_name), trim(filename) )
-    call ugrid_2d%get_dimensions                                &
-            ( num_nodes              = self%nnode,              &
-              num_edges              = self%nedge,              &
-              num_faces              = self%nface,              &
-              num_nodes_per_face     = self%num_nodes_per_face, &
-              num_edges_per_face     = self%num_edges_per_face, &
-              num_nodes_per_edge     = self%num_nodes_per_edge, &
-              max_num_faces_per_node = self%max_num_faces_per_node )
-    call ugrid_2d%get_metadata                                  &
-            ( mesh_class             = self%mesh_class,         &
-              periodic_x             = self%periodic_x,         &
-              periodic_y             = self%periodic_y,         &
-              nmaps                  = self%ntarget_meshes,     &
-              target_mesh_names      = self%target_global_mesh_names )
+    call set_by_ugrid_2d( self, ugrid_2d )
 
-    allocate( self%node_coords(2, self%nnode) )
-    call ugrid_2d%get_node_coords(self%node_coords)
-
-    allocate( self%face_coords(2, self%nface) )
-    self%face_coords = ugrid_2d%get_face_coords()
-
-    allocate( self%face_next_2d( self%num_edges_per_face, self%nface ) )
-    call ugrid_2d%get_face_face_connectivity( self%face_next_2d )
-
-    allocate( self%node_on_face_2d( self%num_nodes_per_face, self%nface ) )
-    call ugrid_2d%get_face_node_connectivity( self%node_on_face_2d )
-
-    allocate( self%edge_on_face_2d( self%num_edges_per_face, self%nface ) )
-    call ugrid_2d%get_face_edge_connectivity( self%edge_on_face_2d )
-
-    if(allocated(file_handler)) deallocate( file_handler )
+    if (allocated(file_handler)) deallocate( file_handler )
 
   end subroutine read_from_file
+
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Provides access to the data within the ugrid_mesh_data object - that
@@ -248,5 +222,56 @@ contains
     return
 
   end subroutine ugrid_mesh_data_destructor
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Populates ugrid_mesh_data_object from ugrid_2d object previously
+  !>        set by file or ugrid_generator object.
+  !>
+  !> @param[in] ugrid_2d  Ugrid_2d object holding global mesh data.
+  !>
+  subroutine set_by_ugrid_2d( self, ugrid_2d )
+
+    use ugrid_2d_mod, only: ugrid_2d_type
+
+    implicit none
+
+    class (ugrid_mesh_data_type), intent(inout) :: self
+    class (ugrid_2d_type),        intent(in)    :: ugrid_2d
+
+    call ugrid_2d%get_dimensions                                &
+            ( num_nodes              = self%nnode,              &
+              num_edges              = self%nedge,              &
+              num_faces              = self%nface,              &
+              num_nodes_per_face     = self%num_nodes_per_face, &
+              num_edges_per_face     = self%num_edges_per_face, &
+              num_nodes_per_edge     = self%num_nodes_per_edge, &
+              max_num_faces_per_node = self%max_num_faces_per_node )
+
+    call ugrid_2d%get_metadata                             &
+            ( mesh_name         = self%global_mesh_name,   &
+              mesh_class        = self%mesh_class,         &
+              periodic_x        = self%periodic_x,         &
+              periodic_y        = self%periodic_y,         &
+              nmaps             = self%ntarget_meshes,     &
+              target_mesh_names = self%target_global_mesh_names )
+
+    allocate( self%node_coords(2, self%nnode) )
+    call ugrid_2d%get_node_coords(self%node_coords)
+
+    allocate( self%face_coords(2, self%nface) )
+    self%face_coords = ugrid_2d%get_face_coords()
+
+    allocate( self%face_next_2d( self%num_edges_per_face, self%nface ) )
+    call ugrid_2d%get_face_face_connectivity( self%face_next_2d )
+
+    allocate( self%node_on_face_2d( self%num_nodes_per_face, self%nface ) )
+    call ugrid_2d%get_face_node_connectivity( self%node_on_face_2d )
+
+    allocate( self%edge_on_face_2d( self%num_edges_per_face, self%nface ) )
+    call ugrid_2d%get_face_edge_connectivity( self%edge_on_face_2d )
+
+    return
+  end subroutine set_by_ugrid_2d
 
 end module ugrid_mesh_data_mod

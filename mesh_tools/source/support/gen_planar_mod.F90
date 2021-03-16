@@ -32,7 +32,9 @@ module gen_planar_mod
 
   private
 
-  public :: NON_PERIODIC_ID
+
+  public :: set_partition_parameters
+  public :: NON_PERIODIC_ID, NPANELS
 
   ! set Cartesian axis for north
   real(r_def), parameter    :: TRUE_NORTH(3) = (/0._r_def, 0._r_def, 1._r_def/)
@@ -2096,6 +2098,151 @@ subroutine gen_planar_final(self)
 
     return
 end subroutine gen_planar_final
+
+
+!>==============================================================================
+!> @brief Sets common partition parameters to be applied to global meshes
+!>        of this type.
+!>
+!> @param[out]  total_ranks       Total number of MPI ranks in this job
+!> @param[out]  xproc             Number of ranks in mesh panel x-direction
+!> @param[out]  yproc             Number of ranks in mesh panel y-direction
+!> @param[out]  partitioner_ptr   Mesh partitioning strategy
+!>==============================================================================
+subroutine set_partition_parameters( total_ranks,  &
+                                     xproc, yproc, &
+                                     partitioner_ptr )
+
+  use partition_mod, only: partitioner_interface, &
+                           partitioner_planar
+
+  ! Configuration modules
+  use mesh_config_mod,         only: n_partitions
+  use partitioning_config_mod, only: panel_xproc, panel_yproc,   &
+                                     panel_decomposition,        &
+                                     PANEL_DECOMPOSITION_AUTO,   &
+                                     PANEL_DECOMPOSITION_ROW,    &
+                                     PANEL_DECOMPOSITION_COLUMN, &
+                                     PANEL_DECOMPOSITION_CUSTOM
+
+  implicit none
+
+  integer(i_def), intent(out) :: total_ranks
+  integer(i_def), intent(out) :: xproc
+  integer(i_def), intent(out) :: yproc
+
+  procedure(partitioner_interface), &
+                  intent(out), pointer :: partitioner_ptr
+
+  ! Locals
+  integer(i_def) :: ranks_per_panel
+  integer(i_def) :: start_factor
+  integer(i_def) :: end_factor
+  integer(i_def) :: fact_count
+  logical(l_def) :: found_factors
+  logical(l_def) :: set_panel_decomposition
+
+  character(str_def) :: domain_desc
+
+  integer(i_def), parameter :: max_factor_iters = 10000
+
+  partitioner_ptr => null()
+
+  ! 1.0 Setup the partitioning strategy
+  !===================================================================
+  set_panel_decomposition = .false.
+
+  if (n_partitions > 1) then
+     ! Parallel run job
+     ranks_per_panel = panel_xproc*panel_yproc
+     total_ranks     = NPANELS*ranks_per_panel
+     write(domain_desc,'(I0,A)') NPANELS,"x"
+     partitioner_ptr => partitioner_planar
+     call log_event( "Using planar partitioner", &
+                     LOG_LEVEL_INFO )
+     set_panel_decomposition = .true.
+
+  else if (n_partitions == 1) then
+     ! Serial run job
+     ranks_per_panel = 1
+     total_ranks     = 1
+     xproc           = 1
+     yproc           = 1
+     partitioner_ptr => partitioner_planar
+     call log_event( "Using planar partitioner", &
+                     LOG_LEVEL_INFO )
+  else
+
+   call log_event( 'Invalid number of total partitions for '// &
+                   'planar partitioner',                       &
+                   LOG_LEVEL_ERROR )
+  end if
+
+
+  ! 2.0 Setup Panel decomposition
+  !===================================================================
+  if (set_panel_decomposition) then
+    select case(panel_decomposition)
+
+    case( PANEL_DECOMPOSITION_AUTO )
+
+      ! For automatic partitioning, try to partition into the squarest
+      ! possible partitions by finding the two factors of ranks_per_panel
+      ! that are closest to sqrt(ranks_per_panel). If two factors can't
+      ! be found after max_factor_iters attempts, they would provide
+      ! partitions that are too un-square, so an error is produced.
+      start_factor  = nint(sqrt(real(ranks_per_panel, kind=r_def)), kind=i_def)
+      end_factor    = max(1,(start_factor-max_factor_iters))
+      found_factors = .false.
+      do fact_count = start_factor, end_factor, -1
+        if (mod(ranks_per_panel,fact_count) == 0) then
+          found_factors = .true.
+          exit
+        end if
+      end do
+
+      if (found_factors) then
+        xproc = fact_count
+        yproc = ranks_per_panel/fact_count
+      else
+        call log_event( "Could not automatically partition domain.", &
+                        LOG_LEVEL_ERROR )
+      end if
+
+    case( PANEL_DECOMPOSITION_ROW )
+      xproc = ranks_per_panel
+      yproc = 1
+
+    case( PANEL_DECOMPOSITION_COLUMN )
+      xproc = 1
+      yproc = ranks_per_panel
+
+    case( PANEL_DECOMPOSITION_CUSTOM )
+      ! Use the values provided from the partitioning namelist
+      xproc = panel_xproc
+      yproc = panel_yproc
+
+      if (xproc*yproc /= ranks_per_panel) then
+        call log_event( "The values of panel_xproc and panel_yproc "// &
+                        "are inconsistent with the total number of "// &
+                        "processors available.", LOG_LEVEL_ERROR )
+      end if
+
+    case default
+
+      call log_event( "Missing entry for panel decomposition, "// &
+                      "specify 'auto' if unsure.", LOG_LEVEL_ERROR )
+
+    end select
+
+    write(log_scratch_space, '(2(A,I0))' ) &
+        'Domain decomposition: '//trim(domain_desc), xproc,'x', yproc
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+  end if
+
+  return
+end subroutine set_partition_parameters
 
 !-------------------------------------------------------------------------------
 end module gen_planar_mod

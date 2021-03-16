@@ -15,7 +15,23 @@
 !-----------------------------------------------------------------------------
 program planar_mesh_generator
 
-  use mesh_config_mod,   only: n_meshes, mesh_names, mesh_filename, mesh_maps
+  use cli_mod,           only: get_initial_filename
+  use constants_mod,     only: i_def, str_def, str_long, l_def, imdi, cmdi
+  use configuration_mod, only: read_configuration, final_configuration
+  use gen_lbc_mod,       only: gen_lbc_type
+  use gen_planar_mod,    only: gen_planar_type,          &
+                               set_partition_parameters, &
+                               NPANELS
+  use global_mesh_mod,   only: global_mesh_type
+  use global_mesh_collection_mod, &
+                         only: global_mesh_collection_type
+  use mesh_config_mod,   only: mesh_filename, n_partitions, &
+                               n_meshes, mesh_names, mesh_maps
+  use mpi_mod,           only: initialise_comm, store_comm, finalise_comm, &
+                               get_comm_size, get_comm_rank
+  use partition_mod,     only: partition_type, partitioner_interface
+  use partitioning_config_mod, &
+                         only: max_stencil_depth
   use planar_mesh_config_mod,                                  &
                          only: edge_cells_x, edge_cells_y,     &
                                periodic_x, periodic_y,         &
@@ -24,30 +40,27 @@ program planar_mesh_generator
                                lbc_rim_depth, lbc_parent_mesh, &
                                do_rotate, pole_lat, pole_lon,  &
                                first_lat, first_lon
-  use configuration_mod, only: read_configuration, final_configuration
-  use cli_mod,           only: get_initial_filename
-  use constants_mod,     only: i_def, str_def, str_long, l_def, imdi, cmdi
-  use mpi_mod,           only: initialise_comm, store_comm, finalise_comm, &
-                               get_comm_size, get_comm_rank
-  use gen_planar_mod,    only: gen_planar_type
-  use gen_lbc_mod,       only: gen_lbc_type
-
   use io_utility_mod,    only: open_file, close_file
-  use log_mod,           only: initialise_logging, finalise_logging, &
-                               log_event, log_set_level,             &
-                               log_scratch_space,                    &
-                               LOG_LEVEL_INFO, LOG_LEVEL_ERROR
-  use ncdf_quad_mod,     only: ncdf_quad_type
+  use log_mod,           only: initialise_logging,       &
+                               finalise_logging,         &
+                               log_event, log_set_level, &
+                               log_scratch_space,        &
+                               LOG_LEVEL_INFO,           &
+                               LOG_LEVEL_ERROR
 
+  use ncdf_quad_mod,         only: ncdf_quad_type
   use reference_element_mod, only: reference_element_type, &
                                    reference_cube_type
   use remove_duplicates_mod, only: any_duplicates
-  use ugrid_2d_mod,      only: ugrid_2d_type
-  use ugrid_file_mod,    only: ugrid_file_type
+  use ugrid_2d_mod,          only: ugrid_2d_type
+  use ugrid_file_mod,        only: ugrid_file_type
+  use ugrid_mesh_data_mod,   only: ugrid_mesh_data_type
+  use yaxt,                  only: xt_initialize, xt_finalize
 
   implicit none
 
-  integer(i_def) :: comm, total_ranks, local_rank
+  integer(i_def) :: communicator = -999
+  integer(i_def) :: total_ranks, local_rank
 
   character(:), allocatable :: filename
 
@@ -60,6 +73,8 @@ program planar_mesh_generator
   type(ugrid_2d_type) :: ugrid_2d_lbc
 
   integer(i_def) :: fsize
+  integer(i_def) :: xproc, yproc
+  integer(i_def) :: n_mesh_maps = 0
   integer(i_def) :: n_targets
 
   character(str_def), allocatable :: target_mesh_names(:)
@@ -71,16 +86,19 @@ program planar_mesh_generator
   integer(i_def),     allocatable :: target_edge_cells_y_tmp(:)
   character(str_def), allocatable :: target_mesh_names_tmp(:)
 
+  ! Partition variables
+  procedure(partitioner_interface),  &
+                          pointer     :: partitioner_ptr => null()
+  type(global_mesh_collection_type), &
+                          allocatable :: global_mesh_collection
+  type(global_mesh_type)              :: global_mesh
+  type(ugrid_mesh_data_type)          :: ugrid_mesh_data
+
   ! Switches
   logical(l_def) :: l_found = .false.
   logical(l_def) :: any_duplicate_names = .false.
 
-  ! Parameters
-  integer(i_def), parameter :: npanels = 1
-  integer(i_def), parameter :: max_n_targets = 6
-
-  integer(i_def) :: n_mesh_maps = 0
-
+  ! Temporary variables
   character(str_def), allocatable :: requested_mesh_maps(:)
   character(str_def) :: first_mesh
   character(str_def) :: second_mesh
@@ -108,8 +126,12 @@ program planar_mesh_generator
   !===================================================================
   cube_element = reference_cube_type()
 
-  call initialise_comm(comm)
-  call store_comm(comm)
+  call initialise_comm(communicator)
+  call store_comm(communicator)
+
+  ! Initialise YAXT
+  call xt_initialize( communicator )
+
   total_ranks = get_comm_size()
   local_rank  = get_comm_rank()
   call initialise_logging(local_rank, total_ranks, "planar")
@@ -427,7 +449,6 @@ program planar_mesh_generator
                         pole_lon            = pole_lon,            &
                         first_lat           = first_lat,           &
                         first_lon           = first_lon )
-
     else
       write(log_scratch_space, "(A,I0,A)") &
          '  Number of meshes is negative [', n_meshes,']'
@@ -444,6 +465,32 @@ program planar_mesh_generator
   end do
 
   call log_event( "...generation complete.", LOG_LEVEL_INFO )
+
+  !=================================================================
+  ! 7.0 Partitioning
+  !=================================================================
+  if (n_partitions > 0 ) then
+
+    ! 7.1 Create global mesh objects.
+    allocate( global_mesh_collection, &
+              source = global_mesh_collection_type() )
+
+    do i=1, n_meshes
+      call ugrid_mesh_data%set_by_ugrid_2d( ugrid_2d(i) )
+      global_mesh = global_mesh_type( ugrid_mesh_data, NPANELS )
+      call global_mesh_collection%add_new_global_mesh(global_mesh)
+      call ugrid_mesh_data%clear()
+    end do
+
+    ! 7.2 Set partitioning parameters.
+    call set_partition_parameters( total_ranks, xproc, yproc, &
+                                   partitioner_ptr )
+
+    ! 7.3 Create global mesh partitions.
+    ! 7.4 Write output/write to file using xios?
+
+  end if
+
 
   !===================================================================
   ! 8.0 Now the write out mesh to the NetCDF file
@@ -514,10 +561,8 @@ program planar_mesh_generator
   end if
 
   !===================================================================
-  ! 10.0 Clean up and Finalise
+  ! 9.0 Clean up and Finalise
   !===================================================================
-
-  call finalise_comm()
 
   if ( allocated( mesh_gen ) ) deallocate (mesh_gen)
 
@@ -529,7 +574,14 @@ program planar_mesh_generator
   if ( allocated( target_edge_cells_x_tmp ) ) deallocate (target_edge_cells_x_tmp)
   if ( allocated( target_edge_cells_y_tmp ) ) deallocate (target_edge_cells_y_tmp)
 
-  ! Finalise the logging system
+  if ( allocated( global_mesh_collection ) ) deallocate (global_mesh_collection)
+
+  call xt_finalize()
+
+  call finalise_comm()
+
   call finalise_logging()
+
+  call final_configuration()
 
 end program planar_mesh_generator

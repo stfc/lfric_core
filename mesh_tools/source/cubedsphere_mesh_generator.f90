@@ -17,31 +17,47 @@ program cubedsphere_mesh_generator
   use cli_mod,           only: get_initial_filename
   use constants_mod,     only: i_def, imdi, l_def, str_def, str_long, cmdi
   use configuration_mod, only: read_configuration, final_configuration
-  use mesh_config_mod,   only: n_meshes, mesh_names, mesh_filename, mesh_maps
-  use cubedsphere_mesh_config_mod,                        &
-                         only: edge_cells, smooth_passes, &
-                               do_rotate, lat_north,      &
-                               lon_north, rotate_angle,   &
-                               stretch_factor
-  use mpi_mod,           only: initialise_comm, store_comm, finalise_comm, &
-                               get_comm_size, get_comm_rank
-  use gencube_ps_mod,    only: gencube_ps_type
+  use gencube_ps_mod,    only: gencube_ps_type,          &
+                               set_partition_parameters, &
+                               NPANELS
+  use global_mesh_mod,   only: global_mesh_type
+
+  use global_mesh_collection_mod, only: global_mesh_collection_type
+
   use io_utility_mod,    only: open_file, close_file
   use log_mod,           only: initialise_logging, finalise_logging, &
-                               log_event, log_set_level, &
-                               log_scratch_space, &
-                               LOG_LEVEL_INFO, LOG_LEVEL_ERROR
+                               log_event, log_set_level,             &
+                               log_scratch_space, LOG_LEVEL_INFO,    &
+                               LOG_LEVEL_ERROR
+  use mpi_mod,           only: initialise_comm, store_comm,  &
+                               finalise_comm, get_comm_size, &
+                               get_comm_rank
   use ncdf_quad_mod,     only: ncdf_quad_type
+  use partition_mod,     only: partition_type, partitioner_interface
 
   use remove_duplicates_mod, only: any_duplicates
-  use ugrid_2d_mod,      only: ugrid_2d_type
-  use ugrid_file_mod,    only: ugrid_file_type
+  use ugrid_2d_mod,          only: ugrid_2d_type
+  use ugrid_file_mod,        only: ugrid_file_type
+  use ugrid_mesh_data_mod,   only: ugrid_mesh_data_type
+  use yaxt,                  only: xt_initialize, xt_finalize
+
+  ! Configuration modules
+  use cubedsphere_mesh_config_mod, only: edge_cells, smooth_passes, &
+                                         do_rotate, lat_north,      &
+                                         lon_north, rotate_angle,   &
+                                         stretch_factor
+  use mesh_config_mod,             only: mesh_filename,        &
+                                         n_meshes, mesh_names, &
+                                         mesh_maps, n_partitions
+  use partitioning_config_mod,     only: max_stencil_depth
+
 
   implicit none
 
-  integer(i_def) :: comm, total_ranks, local_rank
+  integer(i_def) :: communicator = -999
+  integer(i_def) :: total_ranks, local_rank
 
-  character(:), allocatable   :: filename
+  character(:), allocatable :: filename
 
   integer(i_def),         allocatable :: ncells(:)
   integer(i_def),         allocatable :: cpp(:)
@@ -53,6 +69,7 @@ program cubedsphere_mesh_generator
   integer(i_def) :: max_res
 
   integer(i_def) :: nsmooth
+  integer(i_def) :: xproc, yproc
   integer(i_def) :: n_mesh_maps = 0
   integer(i_def) :: n_targets
 
@@ -70,9 +87,14 @@ program cubedsphere_mesh_generator
   logical(l_def) :: l_found = .false.
   logical(l_def) :: any_duplicate_names = .false.
 
-  ! Parametes
-  integer(i_def), parameter :: npanels = 6
-  integer(i_def), parameter :: max_n_targets = 6
+  ! Partition variables
+  procedure(partitioner_interface), &
+                          pointer     :: partitioner_ptr => null()
+  type(global_mesh_collection_type), &
+                          allocatable :: global_mesh_collection
+  type(global_mesh_type)              :: global_mesh
+  type(ugrid_mesh_data_type)          :: ugrid_mesh_data
+
 
   ! Temporary variables
   character(str_def), allocatable :: requested_mesh_maps(:)
@@ -97,8 +119,12 @@ program cubedsphere_mesh_generator
   !===================================================================
   ! 2.0 Start up
   !===================================================================
-  call initialise_comm(comm)
-  call store_comm(comm)
+  call initialise_comm(communicator)
+  call store_comm(communicator)
+
+  ! Initialise YAXT
+  call xt_initialize( communicator )
+
   total_ranks = get_comm_size()
   local_rank  = get_comm_rank()
   call initialise_logging(local_rank, total_ranks, "cubedsphere")
@@ -318,7 +344,7 @@ program cubedsphere_mesh_generator
 
   do i=1, n_meshes
     cpp(i)    = edge_cells(i)*edge_cells(i)
-    ncells(i) = cpp(i)*npanels
+    ncells(i) = cpp(i)*NPANELS
 
     ! Only smooth this mesh if it is the mesh with the highest
     ! number of cells in the chain.
@@ -408,6 +434,7 @@ program cubedsphere_mesh_generator
                         lon_north=lon_north,                 &
                         rotate_angle=rotate_angle,           &
                         stretch_factor=stretch_factor )
+
     else
       write(log_scratch_space, "(A,I0,A)") &
            '  Number of unique meshes is negative [', n_meshes,']'
@@ -416,6 +443,7 @@ program cubedsphere_mesh_generator
 
     ! Pass the cubesphere generation object to the ugrid file writer
     call ugrid_2d(i)%set_by_generator(mesh_gen(i))
+
     if (allocated(target_mesh_names)) deallocate(target_mesh_names)
 
   end do  ! n_meshes
@@ -425,9 +453,34 @@ program cubedsphere_mesh_generator
 
   call log_event( "...generation complete.", LOG_LEVEL_INFO )
 
+  !=================================================================
+  ! 7.0 Partitioning
+  !=================================================================
+  if (n_partitions > 0) then
+
+    ! 7.1 Create global mesh objects.
+    allocate( global_mesh_collection, &
+              source = global_mesh_collection_type() )
+
+    do i=1, n_meshes
+      call ugrid_mesh_data%set_by_ugrid_2d( ugrid_2d(i) )
+      global_mesh = global_mesh_type( ugrid_mesh_data, NPANELS )
+      call global_mesh_collection%add_new_global_mesh(global_mesh)
+      call ugrid_mesh_data%clear()
+    end do
+
+    ! 7.2 Set partitioning parameters.
+    call set_partition_parameters( total_ranks, xproc, yproc, &
+                                   partitioner_ptr )
+
+    ! 7.3 Create global mesh partitions.
+    ! 7.4 Write output/write to file using xios?
+
+  end if
+
 
   !===================================================================
-  ! 9.0 Write out to ugrid file
+  ! 8.0 Write out to ugrid file
   !===================================================================
   do i=1, n_meshes
 
@@ -455,7 +508,7 @@ program cubedsphere_mesh_generator
 
 
   !===================================================================
-  ! 10.0 Clean up and Finalise
+  ! 9.0 Clean up and Finalise
   !===================================================================
   if ( allocated( ncells   ) ) deallocate (ncells)
   if ( allocated( cpp      ) ) deallocate (cpp)
@@ -466,6 +519,10 @@ program cubedsphere_mesh_generator
   if ( allocated( target_mesh_names     ) ) deallocate (target_mesh_names)
   if ( allocated( target_edge_cells_tmp ) ) deallocate (target_edge_cells_tmp)
   if ( allocated( target_mesh_names_tmp ) ) deallocate (target_mesh_names_tmp)
+
+  if ( allocated( global_mesh_collection ) ) deallocate (global_mesh_collection)
+
+  call xt_finalize()
 
   call finalise_comm()
 
