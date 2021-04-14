@@ -120,7 +120,7 @@ contains
     implicit none
 
     class(local_mesh_collection_type) :: self
-    character(str_def), intent(in)    :: local_mesh_name
+    character(*), intent(in)          :: local_mesh_name
 
     type(local_mesh_type), pointer    :: local_mesh
 
@@ -142,7 +142,7 @@ contains
       ! Otherwise search list for the name we want
       select type(list_item => loop%payload)
       type is (local_mesh_type)
-        if ( local_mesh_name == list_item%get_mesh_name() ) then
+        if ( trim(local_mesh_name) == trim(list_item%get_mesh_name()) ) then
           local_mesh => list_item
           exit
         end if

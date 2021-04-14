@@ -25,11 +25,10 @@ module mesh_mod
   use extrusion_mod,         only : extrusion_type
   use global_mesh_mod,       only : global_mesh_type
   use global_mesh_collection_mod, only : global_mesh_collection
-  use global_mesh_map_mod,   only : global_mesh_map_type
-  use global_mesh_map_collection_mod , only: global_mesh_map_collection_type
   use linked_list_mod,       only : linked_list_type, &
                                     linked_list_item_type
   use linked_list_data_mod,  only : linked_list_data_type
+  use local_mesh_map_mod,    only : local_mesh_map_type
   use local_mesh_mod,        only : local_mesh_type
   use log_mod,               only : log_event, log_scratch_space, &
                                     LOG_LEVEL_ERROR, LOG_LEVEL_TRACE, &
@@ -2129,26 +2128,19 @@ contains
     type(mesh_type),  intent(in), pointer :: target_mesh
 
 
-    type(local_mesh_type),      pointer :: target_local_mesh  => null()
-    type(global_mesh_type),     pointer :: source_global_mesh => null()
-    type(global_mesh_map_type), pointer :: global_mesh_map    => null()
+    type(local_mesh_type), pointer      :: source_local_mesh  => null()
+    type(local_mesh_type), pointer      :: target_local_mesh  => null()
+    type(local_mesh_map_type), pointer  :: source_mesh_map    => null()
 
     integer(i_def) :: source_mesh_id
     integer(i_def) :: target_mesh_id
-    integer(i_def) :: source_global_mesh_id
-    integer(i_def) :: target_global_mesh_id
+    integer(i_def) :: target_local_mesh_id
     integer(i_def) :: mesh_map_id
-
-    integer(i_def) :: ntarget_cells
-    integer(i_def) :: i, j, k, search
-    integer(i_def) :: ntarget_cells_per_source_x
-    integer(i_def) :: ntarget_cells_per_source_y
+    integer(i_def) :: ntarget_cells_per_source_cell_x
+    integer(i_def) :: ntarget_cells_per_source_cell_y
     integer(i_def) :: nsource_cells
-
     logical(l_def) :: mesh_map_exists
-
-    integer(i_def), allocatable :: target_lid_gid_map(:)
-    integer(i_def), allocatable :: map(:,:,:)
+    integer(i_def), allocatable :: local_map(:,:,:)
 
     target_mesh_id = target_mesh%get_id()
     source_mesh_id = self%get_id()
@@ -2165,72 +2157,27 @@ contains
     mesh_map_exists = self%mesh_maps%query(mesh_map_id)
 
     if (.not. mesh_map_exists) then
-
-      ! Get the target meshes lid-gid map
-      target_local_mesh  => target_mesh%get_local_mesh()
-      ntarget_cells      =  target_local_mesh%get_num_cells_in_layer()
-
-      allocate(target_lid_gid_map(ntarget_cells))
-
-      do i=1, ntarget_cells
-        target_lid_gid_map(i) = target_mesh%get_gid_from_lid(i)
-      end do
-
-      ! Get the global map for source to target meshes
-      source_global_mesh_id =  self%global_mesh_id
-      target_global_mesh_id =  target_mesh%get_global_mesh_id()
-
-      source_global_mesh => &
-           global_mesh_collection%get_global_mesh(source_global_mesh_id)
-
-      global_mesh_map    => &
-           source_global_mesh%get_global_mesh_map(target_global_mesh_id)
-
-      if (.not. associated(global_mesh_map)) then
-        ! Error, no valid global mesh map
-      end if
-
-      ntarget_cells_per_source_x = &
-            global_mesh_map % get_ntarget_cells_per_source_x()
-      ntarget_cells_per_source_y = &
-            global_mesh_map % get_ntarget_cells_per_source_y()
-
-      nsource_cells = size(self%cell_lid_gid_map)
-
-      ! Get the get the source-target global mesh map GID-GID
-      allocate( map ( ntarget_cells_per_source_x, &
-                      ntarget_cells_per_source_y, &
-                      nsource_cells) )
-      call global_mesh_map%get_cell_map( self%cell_lid_gid_map, map )
-
-      ! At this point, instance%mesh_map holds
-      ! [target cells mapped to source cell (GID), source cell id (LID)], so
-      ! we need to convert the target cells from Global to local ids by
-      ! search through the target mesh local-global id map.
-
-      do k=1, nsource_cells
-        do j=1, ntarget_cells_per_source_y
-          do i=1, ntarget_cells_per_source_x
-            do search=1, ntarget_cells
-
-              if (target_lid_gid_map(search) == map(i,j,k)) then
-                map(i,j,k) = search
-                exit
-              end if
-
-            end do
-          end do
-        end do
-      end do
-
-      ! Should now have the source-target map in LID-LID
-
+      ! Get the target mesh id
+      target_local_mesh => target_mesh%get_local_mesh()
+      target_local_mesh_id = target_local_mesh%get_id()
+      ! Find the size of the local mesh map and allocate an array to hold it
+      source_local_mesh => self%get_local_mesh()
+      source_mesh_map => source_local_mesh%get_local_mesh_map( &
+                                                     target_local_mesh_id )
+      nsource_cells = source_mesh_map%get_nsource_cells()
+      ntarget_cells_per_source_cell_x = &
+                      source_mesh_map%get_ntarget_cells_per_source_cell_x()
+      ntarget_cells_per_source_cell_y = &
+                      source_mesh_map%get_ntarget_cells_per_source_cell_y()
+      allocate( local_map ( ntarget_cells_per_source_cell_x, &
+                            ntarget_cells_per_source_cell_y, &
+                            nsource_cells) )
+      ! Get the local mapping and add the mesh map to the mesh object
+      call source_mesh_map%get_cell_map( local_map )
       call self%mesh_maps%add_mesh_map( self%get_id(),  &
                                         target_mesh_id, &
-                                        map )
-
-      deallocate( target_lid_gid_map )
-
+                                        local_map )
+      deallocate( local_map )
     end if
     return
 

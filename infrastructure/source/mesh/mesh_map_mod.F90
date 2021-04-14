@@ -10,7 +10,6 @@ module mesh_map_mod
 
 use constants_mod,         only: i_def, str_def
 use linked_list_data_mod,  only: linked_list_data_type
-use global_mesh_map_mod,   only: global_mesh_map_type
 use log_mod,               only: log_event, log_scratch_space, &
                                  LOG_LEVEL_ERROR, LOG_LEVEL_TRACE
 implicit none

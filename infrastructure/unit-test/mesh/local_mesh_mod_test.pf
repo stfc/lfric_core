@@ -13,10 +13,12 @@ module local_mesh_mod_test
   use global_mesh_collection_mod, only: global_mesh_collection_type, &
                                         global_mesh_collection
   use global_mesh_mod,            only: global_mesh_type
+  use local_mesh_map_mod,         only: local_mesh_map_type
   use local_mesh_mod,             only: local_mesh_type
   use mpi_mod,                    only: store_comm, clear_comm, get_comm_size, get_comm_rank
   use partition_mod,              only: partition_type, &
                                         partitioner_planar, &
+                                        partitioner_cubedsphere_serial, &
                                         partitioner_interface
   use pFUnit_Mod
   use yaxt,                       only: xt_initialize, xt_finalize
@@ -25,9 +27,10 @@ module local_mesh_mod_test
   implicit none
 
   private
-  public :: setUp, &
-            tearDown, &
-            test_local_mesh
+  public :: setUp,           &
+            tearDown,        &
+            test_local_mesh, &
+            test_local_mesh_maps
 
   @testCase
   type, public, extends( MPITestCase ) :: local_mesh_test_type
@@ -38,6 +41,7 @@ module local_mesh_mod_test
     procedure :: setUp
     procedure :: tearDown
     procedure :: test_local_mesh
+    procedure :: test_local_mesh_maps
   end type local_mesh_test_type
 
 contains
@@ -276,5 +280,68 @@ contains
     end select
 
   end subroutine test_local_mesh
+
+  !> Test local mesh module functionality
+  !>
+  @Test(npes=[1] )
+  subroutine test_local_mesh_maps( this )
+
+    use ncdf_quad_mod,     only: ncdf_quad_type
+
+    implicit none
+
+    class(local_mesh_test_type), intent( inout ) :: this
+
+    type(ugrid_mesh_data_type)  :: ugrid_mesh_data
+    character(len = str_max_filename) :: filename
+    character(str_def), allocatable :: target_mesh_names(:)
+    type(ncdf_quad_type) :: file_handler
+    integer(i_def)       :: i
+    character(str_def), parameter :: mesh_names(2) = ['C8 ','C4 ']
+    integer(i_def) :: npanels
+
+    type(global_mesh_type), target  :: global_mesh
+    type(global_mesh_type), pointer :: global_mesh_ptr => null()
+
+    type(partition_type) :: partition
+    procedure (partitioner_interface), pointer :: partitioner_ptr => null()
+
+    type(local_mesh_type), target :: local_mesh(2)
+    type(local_mesh_map_type), pointer :: local_mesh_map
+    integer(i_def), allocatable     :: mesh_map(:,:,:)
+
+    npanels  = 6
+    filename='data/mesh_C32_MG.nc'
+
+    ! Read in two meshes
+    partitioner_ptr => partitioner_cubedsphere_serial
+    do i=1, size(mesh_names)
+      call ugrid_mesh_data%read_from_file(trim(filename), mesh_names(i))
+      global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
+      call ugrid_mesh_data%clear()
+      global_mesh_ptr => global_mesh
+      partition = partition_type( global_mesh_ptr, partitioner_ptr, &
+                                  1, 1, 0, 0, 1 )
+      call local_mesh(i)%initialise( global_mesh_ptr, partition )
+    end do
+
+    ! Read in mesh map between the two meshes
+    call file_handler%file_open(filename)
+    call file_handler%read_map( local_mesh(1)%get_mesh_name(), &
+                                local_mesh(2)%get_mesh_name(), &
+                                mesh_map )
+    call file_handler%file_close()
+
+    ! Add the mesh map to the local mesh
+    call local_mesh(1)%add_local_mesh_map(local_mesh(2)%get_id(), &
+                                          mesh_map )
+
+    local_mesh_map => local_mesh(1)%get_local_mesh_map( local_mesh(2)%get_id() )
+
+    ! Check the returned local mesh map is the correct one
+    @assertEqual( local_mesh(1)%get_id(), local_mesh_map%get_source_id() )
+    @assertEqual( local_mesh(2)%get_id(), local_mesh_map%get_target_id() )
+
+  end subroutine test_local_mesh_maps
 
 end module local_mesh_mod_test

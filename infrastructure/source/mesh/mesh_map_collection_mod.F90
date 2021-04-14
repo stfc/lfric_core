@@ -16,7 +16,6 @@ module mesh_map_collection_mod
 use constants_mod,       only: i_def, l_def
 use mesh_map_mod,        only: mesh_map_type
 use partition_mod,       only: partition_type
-use global_mesh_map_mod, only: global_mesh_map_type
 use linked_list_mod,     only: linked_list_type, linked_list_item_type
 use log_mod,             only: log_event, log_scratch_space, &
                                LOG_LEVEL_ERROR, LOG_LEVEL_TRACE

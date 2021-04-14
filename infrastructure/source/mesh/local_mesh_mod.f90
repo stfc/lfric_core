@@ -14,6 +14,8 @@ module local_mesh_mod
                                             l_def, str_def, integer_type
   use global_mesh_mod,                only: global_mesh_type
   use linked_list_data_mod,           only: linked_list_data_type
+  use local_mesh_map_collection_mod,  only: local_mesh_map_collection_type
+  use local_mesh_map_mod,             only: local_mesh_map_type
   use log_mod,                        only: log_event, log_scratch_space, &
                                             LOG_LEVEL_ERROR, LOG_LEVEL_TRACE
   use partition_mod,                  only: partition_type
@@ -63,6 +65,9 @@ module local_mesh_mod
     integer(i_def)              :: halo_depth
   ! The number of "ghost" cells in the <code>global_cell_id</code> list
     integer(i_def)              :: num_ghost
+  ! Collection of local mesh maps associated with this mesh
+    type(local_mesh_map_collection_type), allocatable :: &
+                                   local_mesh_map_collection
   ! Number of panels in the global mesh
     integer(i_def)              :: npanels
   contains
@@ -90,6 +95,8 @@ module local_mesh_mod
     procedure, public  :: get_num_panels_global_mesh
     procedure, public  :: get_gid_from_lid
     procedure, public  :: get_lid_from_gid
+    procedure, public  :: add_local_mesh_map
+    procedure, public  :: get_local_mesh_map
     final :: local_mesh_destructor
   end type local_mesh_type
 
@@ -123,7 +130,7 @@ contains
     type(global_mesh_type), intent(in), pointer  :: global_mesh
     type(partition_type),   intent(in)           :: partition
     character(str_def),     intent(in), optional :: mesh_name
-    integer(i_def) :: depth
+    integer(i_def)                               :: depth
 
     ! Set name from either the given name - or the name of the global mesh
     if (present(mesh_name)) then
@@ -174,6 +181,10 @@ contains
     !>  would allow that. But for now, it needs to be done here.
     allocate( self%cell_owner(self%num_cells_in_layer+self%num_ghost) )
     call self%init_cell_owner()
+
+    if (.not. allocated(self%local_mesh_map_collection) ) &
+        allocate ( self%local_mesh_map_collection,        &
+              source = local_mesh_map_collection_type() )
 
     self%npanels = partition%get_num_panels_global_mesh()
 
@@ -731,6 +742,69 @@ contains
     return
 
   end function get_lid_from_gid
+
+  !==============================================================================
+  !> @brief     Adds a local_mesh_map object to the mesh map collection
+  !.            held in this local mesh
+  !> @param[in] target_local_mesh_id ID of the target local mesh
+  !>                                  object for this local mesh map object.
+  !> @param[in] map
+  !>            Local cell ids of the target local mesh object which
+  !>            overlap with source local mesh cells. This array
+  !>            should have dimensions of
+  !>            [number of target cells for each source cell,
+  !>             number of source cells]
+  subroutine add_local_mesh_map( self,                  &
+                                 target_local_mesh_id, &
+                                 map )
+
+    implicit none
+
+    class(local_mesh_type), intent(inout) :: self
+    integer(i_def), intent(in) :: target_local_mesh_id
+    integer(i_def), intent(in) :: map(:,:,:)
+
+    integer(i_def) :: source_local_mesh_id
+
+    source_local_mesh_id = self%get_id()
+
+    call self%local_mesh_map_collection% &
+                          add_local_mesh_map( source_local_mesh_id, &
+                                              target_local_mesh_id, &
+                                              map )
+
+  end subroutine add_local_mesh_map
+
+  !==============================================================================
+  !> @brief     Returns a pointer to a local_mesh_map object which maps local
+  !>            cell ids in the target local mesh to local cell ids in the
+  !>            source local mesh.
+  !> @param[in] source_local_mesh_id ID of source local mesh
+  !>                                  object of requested local_mesh_map
+  !>                                  object.
+  !> @param[in] target_local_mesh_id ID of target local mesh
+  !>                                  object of requested local_mesh_map
+  !>                                  object.
+  !> @return    local_mesh_map_type A pointer to a local_mesh_map object
+  function get_local_mesh_map( self,                  &
+                               target_local_mesh_id ) &
+                       result( local_mesh_map )
+
+    implicit none
+
+    class(local_mesh_type), intent(in) :: self
+    integer(i_def),         intent(in) :: target_local_mesh_id
+    type(local_mesh_map_type), pointer :: local_mesh_map
+
+    integer(i_def) :: source_local_mesh_id
+
+    source_local_mesh_id = self%get_id()
+
+    local_mesh_map => self%local_mesh_map_collection% &
+                          get_local_mesh_map( source_local_mesh_id, &
+                                              target_local_mesh_id )
+
+  end function get_local_mesh_map
 
   !-------------------------------------------------------------------------------
   ! Performs a binary search through the given integer array. PRIVATE function.

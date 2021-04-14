@@ -14,7 +14,9 @@ module create_mesh_mod
                                         r_def, imdi, i_native
   use extrusion_mod,              only: extrusion_type, &
                                         uniform_extrusion_type
+  use global_mesh_collection_mod, only: global_mesh_collection
   use global_mesh_mod,            only: global_mesh_type
+  use local_mesh_collection_mod,  only: local_mesh_collection
   use local_mesh_mod,             only: local_mesh_type
   use log_mod,                    only: log_event,         &
                                         log_scratch_space, &
@@ -34,13 +36,13 @@ module create_mesh_mod
   private
   public  :: init_mesh, final_mesh
 
-  private :: read_global_meshes,           &
-             assign_global_intergrid_maps, &
-             set_partition_parameters,     &
-             create_3d_mesh_partitions,    &
-             create_3d_mesh_partition,     &
-             add_intergrid_maps,           &
-             load_mesh
+  private :: set_partition_parameters,     &
+             create_all_base_meshes,       &
+             create_base_meshes,           &
+             create_mesh_maps,             &
+             create_all_3d_meshes,         &
+             create_3d_mesh,               &
+             add_mesh_maps
 
 contains
 
@@ -137,7 +139,7 @@ subroutine init_mesh( local_rank, total_ranks, &
                     LOG_LEVEL_ERROR )
   end if
 
-  ! Set control flags
+  ! 1.0 Use input args to determine which meshes to create
   !=================================================================
   if ( present(twod_mesh_id) )         create_2d_mesh           = .true.
   if ( present(shifted_mesh_id) )      create_shifted_mesh      = .true.
@@ -156,46 +158,45 @@ subroutine init_mesh( local_rank, total_ranks, &
     end if
   end if
 
-
-  ! 1.0 Read in all the required global meshes from the mesh file.
-  !=================================================================
-  call read_global_meshes()
-
-
-  ! 2.0 Read in and assign any intergrid maps connected with
-  !     global meshes in the global mesh collection.
-  !=================================================================
-  call assign_global_intergrid_maps()
-
-
-  ! 3.0 Set runtime constant partition parameters.
+  ! 2.0 Set constants that will control partitioning.
   !=================================================================
   call set_partition_parameters( total_ranks,       &
                                  xproc, yproc,      &
                                  max_stencil_depth, &
                                  partitioner_ptr )
 
-  ! 4.0 Partition global meshes and extrude into 3D local meshes
-  !     after reading in ALL the global meshes required for the
-  !     run configuration.
+  ! 3.0 Read in all global meshes and create local meshes from them.
   !=================================================================
-  call create_3D_mesh_partitions( local_rank, total_ranks,  &
-                                  xproc, yproc,             &
-                                  max_stencil_depth,        &
-                                  partitioner_ptr,          &
-                                  create_2d_mesh,           &
-                                  create_shifted_mesh,      &
-                                  create_double_level_mesh, &
-                                  create_multigrid_meshes )
+  call create_all_base_meshes( local_rank, total_ranks, &
+                               xproc, yproc,            &
+                               max_stencil_depth,       &
+                               partitioner_ptr )
 
-  ! 5.0 Assign maps to local 3D meshes
+  ! 4.0 Read in the global intergrid mesh mappings, then create the
+  !     associated local mesh maps
+  !=================================================================
+  call create_mesh_maps()
+
+
+  ! 5.0 Extrude all neshes into 3D local meshes
+  !=================================================================
+  call create_all_3d_meshes( local_rank, total_ranks,  &
+                             xproc, yproc,             &
+                             max_stencil_depth,        &
+                             partitioner_ptr,          &
+                             create_2d_mesh,           &
+                             create_shifted_mesh,      &
+                             create_double_level_mesh, &
+                             create_multigrid_meshes )
+
+  ! 6.0 Assign maps to local 3D meshes
   !=================================================================
   n_chain_meshes = size(chain_mesh_tags)
   if (create_multigrid_meshes) then
     do i=1, n_chain_meshes-1
       mesh_name_A = chain_mesh_tags(i)
       mesh_name_B = chain_mesh_tags(i+1)
-      call add_intergrid_maps( mesh_name_A, mesh_name_B )
+      call add_mesh_maps( mesh_name_A, mesh_name_B )
       multigrid_mesh_ids(i) = mesh_collection%get_mesh_id(mesh_name_A)
     end do
     multigrid_mesh_ids(n_chain_meshes) = mesh_collection%get_mesh_id(mesh_name_B)
@@ -205,14 +206,13 @@ subroutine init_mesh( local_rank, total_ranks, &
     do i=1, n_chain_meshes-1
       mesh_name_A = trim(chain_mesh_tags(i))//'_2d'
       mesh_name_B = trim(chain_mesh_tags(i+1))//'_2d'
-      call add_intergrid_maps( mesh_name_A, mesh_name_B )
+      call add_mesh_maps( mesh_name_A, mesh_name_B )
       multigrid_2d_mesh_ids(i) = mesh_collection%get_mesh_id(mesh_name_A)
     end do
     multigrid_2d_mesh_ids(n_chain_meshes) = mesh_collection%get_mesh_id(mesh_name_B)
   end if
 
-
-  ! 6.0 Extract out mesh ids
+  ! 7.0 Extract out mesh ids
   !=================================================================
   mesh_name = prime_mesh_name
   mesh_id = mesh_collection%get_mesh_id(mesh_name)
@@ -232,125 +232,11 @@ subroutine init_mesh( local_rank, total_ranks, &
     double_level_mesh_id = mesh_collection%get_mesh_id(mesh_name)
   end if
 
-  return
 end subroutine init_mesh
 
-
-!>==============================================================================
-!> @brief   Reads in global meshes from file.
-!>          (private subroutine)
-!> @details All global meshes are loaded in similar fashion. The meshes
-!>          to be loaded are determined by the model configuration.
-!>==============================================================================
-subroutine read_global_meshes()
-
-  use base_mesh_config_mod,   only: prime_mesh_name, &
-                                    geometry, geometry_spherical, &
-                                    topology, topology_fully_periodic
-  use formulation_config_mod, only: l_multigrid
-  use multigrid_config_mod,   only: chain_mesh_tags
-
-  implicit none
-
-  integer(i_def) :: n_panels
-
-  if (geometry == geometry_spherical .and. topology == topology_fully_periodic) then
-    ! We assume that this is a cubed sphere (and not a global lon-lat mesh)
-    n_panels = 6
-  else
-    ! Planar / spherical LAM mesh
-    n_panels = 1
-  end if
-
-  write(log_scratch_space, '(A,I0,A)' )        &
-      'Creating global meshes comprising of ', &
-      n_panels, ' domain(s)'
-  call log_event( log_scratch_space, LOG_LEVEL_INFO )
-
-  ! 1.0 Read in prime mesh first by default
-  !----------------------------------------------
-  write(log_scratch_space,'(A)') &
-      'Reading prime global mesh: "'//trim(prime_mesh_name)//'"'
-  call log_event(log_scratch_space, LOG_LEVEL_INFO)
-
-  call load_mesh([prime_mesh_name], n_panels)
-
-  ! 2.0 Read in any other global meshes required
-  !     by other additional configuraed schemes
-  !----------------------------------------------
-  if (l_multigrid) call load_mesh(chain_mesh_tags, n_panels)
-
-  return
-end subroutine read_global_meshes
-
-
-!>==============================================================================
-!> @brief   Reads in and assigns available global intergrid maps from file.
-!>          (private subroutine)
-!> @details Global meshes which have been read into the models global mesh
-!>          collection will have a list of target mesh names. These target mesh
-!>          names (if any) indicate the valid intergrid maps avaiable in the
-!>          mesh file.
-!>
-!>          This routine will read in in the appropriate intergrid maps and
-!>          assign them to the correct global mesh object.
-!>==============================================================================
-subroutine assign_global_intergrid_maps()
-
-  use base_mesh_config_mod,       only: filename
-  use global_mesh_collection_mod, only: global_mesh_collection
-
-  implicit none
-
-  type(ncdf_quad_type) :: file_handler
-
-  character(str_def), allocatable :: global_mesh_names(:)
-  character(str_def), allocatable :: target_mesh_names(:)
-  integer(i_def),     allocatable :: mesh_map(:,:,:)
-
-  integer(i_def) :: i, j
-  integer(i_def) :: n_meshes
-
-  type(global_mesh_type), pointer :: global_mesh =>null()
-  type(global_mesh_type), pointer :: target_mesh =>null()
-
-  ! Read in the maps for each global mesh
-  !=================================================================
-  call file_handler%file_open(trim(filename))
-
-  global_mesh_names = global_mesh_collection%get_mesh_names()
-  n_meshes = global_mesh_collection%n_meshes()
-
-  do i=1, n_meshes
-    global_mesh => global_mesh_collection%get_global_mesh( global_mesh_names(i) )
-    call global_mesh%get_target_mesh_names(target_mesh_names)
-    if (allocated(target_mesh_names)) then
-      do j=1, size(target_mesh_names)
-
-        ! Only add a global mesh map if the required
-        ! target mesh has been read in.
-        if (global_mesh_collection%check_for(target_mesh_names(j))) then
-          call file_handler%read_map( global_mesh_names(i), &
-                                      target_mesh_names(j), &
-                                      mesh_map )
-          target_mesh => &
-              global_mesh_collection%get_global_mesh( target_mesh_names(j) )
-          call global_mesh%add_global_mesh_map( target_mesh, mesh_map )
-        end if
-
-      end do
-    end if
-  end do
-
-  call file_handler%file_close()
-
-  return
-end subroutine assign_global_intergrid_maps
-
-
-!>==============================================================================
+!===============================================================================
 !> @brief Sets common partition parameters to be applied to global meshes.
-!>        (private subroutine)
+!         (private subroutine)
 !>
 !> @param[in]   total_ranks  Total number of MPI ranks in this job
 !> @param[out]  xproc              Number of ranks in mesh panel x-direction
@@ -358,7 +244,7 @@ end subroutine assign_global_intergrid_maps
 !> @param[out]  max_stencil_depth  Maximum depth of cells outside the base cell
 !>                                 of stencil.
 !> @param[out]  partitioner_ptr    Mesh partitioning strategy
-!>==============================================================================
+!===============================================================================
 subroutine set_partition_parameters( total_ranks,       &
                                      xproc, yproc,      &
                                      max_stencil_depth, &
@@ -415,7 +301,8 @@ subroutine set_partition_parameters( total_ranks,       &
 
   ! 1.0 Setup the partitioning strategy
   !===================================================================
-  if (geometry == geometry_spherical  .and. topology == topology_fully_periodic ) then
+  if (geometry == geometry_spherical  .and. &
+      topology == topology_fully_periodic ) then
 
     ! Assume that we have a cubed sphere (and not a global lon-lat mesh)
     if (total_ranks == 1 .or. mod(total_ranks,6) == 0) then
@@ -459,7 +346,6 @@ subroutine set_partition_parameters( total_ranks,       &
     call log_event( "Using planar mesh partitioner ", &
                     LOG_LEVEL_INFO )
   end if
-
 
   ! 2.0 Setup Panel decomposition
   !===================================================================
@@ -541,16 +427,252 @@ subroutine set_partition_parameters( total_ranks,       &
                             rho_approximation_stencil_extent)
   end if
 
-  return
 end subroutine set_partition_parameters
 
+!===============================================================================
+!> @brief   Reads in global meshes from ugrid file, partitions them
+!>          and creates local meshes.
+!           (private subroutine)
+!> @param[in]   local_rank         Number of the local MPI rank
+!> @param[in]   total_ranks        Total number of MPI ranks in this job
+!> @param[out]  xproc              Number of ranks in mesh panel x-direction
+!> @param[out]  yproc              Number of ranks in mesh panel y-direction
+!> @param[out]  max_stencil_depth  Maximum depth of cells outside the base cell
+!>                                 of stencil.
+!> @param[out]  partitioner_ptr    Mesh partitioning strategy
+!===============================================================================
+subroutine create_all_base_meshes( local_rank, total_ranks, &
+                                   xproc, yproc,            &
+                                   max_stencil_depth,       &
+                                   partitioner_ptr )
 
-!========================================================================
-!> @brief Generates the 3D-mesh partitions required by the model
-!>        configuration. (private subroutine)
+  use base_mesh_config_mod,   only: prime_mesh_name, &
+                                    geometry, geometry_spherical, &
+                                    topology, topology_fully_periodic
+  use formulation_config_mod, only: l_multigrid
+  use multigrid_config_mod,   only: chain_mesh_tags
+
+  implicit none
+
+  integer(i_def), intent(in) :: local_rank
+  integer(i_def), intent(in) :: total_ranks
+  integer(i_def), intent(in) :: xproc
+  integer(i_def), intent(in) :: yproc
+  integer(i_def), intent(in) :: max_stencil_depth
+  procedure(partitioner_interface), intent(in), pointer :: partitioner_ptr
+
+  integer(i_def) :: n_panels
+
+  if (geometry == geometry_spherical .and. &
+      topology == topology_fully_periodic) then
+    n_panels = 6
+  else
+    n_panels = 1
+  end if
+
+  write(log_scratch_space, '(A,I0,A)' )        &
+      'Creating global meshes comprising of ', &
+      n_panels, ' domain(s)'
+  call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+  ! 1.0 Read in prime mesh first by default
+  !----------------------------------------------
+  write(log_scratch_space,'(A)') &
+      'Reading prime global mesh: "'//trim(prime_mesh_name)//'"'
+  call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
+  call create_base_meshes( [prime_mesh_name], n_panels, &
+                           local_rank, total_ranks,     &
+                           xproc, yproc,                &
+                           max_stencil_depth,           &
+                           partitioner_ptr )
+
+  ! 2.0 Read in any other global meshes required
+  !     by other additional configuraed schemes
+  !----------------------------------------------
+  if (l_multigrid) call create_base_meshes( chain_mesh_tags, n_panels, &
+                                            local_rank, total_ranks,   &
+                                            xproc, yproc,              &
+                                            max_stencil_depth,         &
+                                            partitioner_ptr )
+end subroutine create_all_base_meshes
+
+!===============================================================================
+!> @brief Loads the given list of global meshes, partitions them
+!>        and creates local meshes from them
+!         (private subroutine).
+!>
+!> @param[in]   mesh_names[:]      Array of requested mesh names to load
+!>                                 from the mesh input file.
+!> @param[in]   n_panels           Number of panel domains in global mesh
+!> @param[in]   local_rank         Number of the local MPI rank
+!> @param[in]   total_ranks        Total number of MPI ranks in this job
+!> @param[out]  xproc              Number of ranks in mesh panel x-direction
+!> @param[out]  yproc              Number of ranks in mesh panel y-direction
+!> @param[out]  max_stencil_depth  Maximum depth of cells outside the base cell
+!>                                 of stencil.
+!> @param[out]  partitioner_ptr    Mesh partitioning strategy
+!===============================================================================
+subroutine create_base_meshes( mesh_names, n_panels,    &
+                               local_rank, total_ranks, &
+                               xproc, yproc,            &
+                               max_stencil_depth,       &
+                               partitioner_ptr )
+
+  use base_mesh_config_mod,       only: filename
+
+  implicit none
+
+  character(str_def), intent(in) :: mesh_names(:)
+  integer(i_def),     intent(in) :: n_panels
+  integer(i_def),     intent(in) :: local_rank
+  integer(i_def),     intent(in) :: total_ranks
+  integer(i_def),     intent(in) :: xproc
+  integer(i_def),     intent(in) :: yproc
+  integer(i_def),     intent(in) :: max_stencil_depth
+
+  procedure(partitioner_interface), intent(in), pointer :: partitioner_ptr
+
+  type(ugrid_mesh_data_type)      :: ugrid_mesh_data
+  type(global_mesh_type)          :: global_mesh
+  type(global_mesh_type), pointer :: global_mesh_ptr
+  type(partition_type)            :: partition
+  type(local_mesh_type)           :: local_mesh
+  integer(i_def)                  :: local_mesh_id
+  integer(i_def)                  :: i
+
+  do i=1, size(mesh_names)
+    if (.not. global_mesh_collection%check_for(mesh_names(i))) then
+      ! Load mesh data into global_mesh
+      call ugrid_mesh_data%read_from_file(trim(filename), mesh_names(i))
+      global_mesh = global_mesh_type( ugrid_mesh_data, n_panels )
+      call ugrid_mesh_data%clear()
+      call global_mesh_collection%add_new_global_mesh ( global_mesh )
+      global_mesh_ptr => global_mesh_collection%get_global_mesh( mesh_names(i) )
+
+      ! Create partition
+      partition = partition_type( global_mesh_ptr,   &
+                                  partitioner_ptr,   &
+                                  xproc, yproc,      &
+                                  max_stencil_depth, &
+                                  local_rank, total_ranks )
+     ! Create local_mesh
+     call local_mesh%initialise( global_mesh_ptr, partition )
+     local_mesh_id = local_mesh_collection%add_new_local_mesh(local_mesh)
+    end if
+
+  end do
+
+end subroutine create_base_meshes
+
+!===============================================================================
+!> @brief   Reads in and assigns available global intergrid maps from file.
+!           (private subroutine)
+!> @details Global meshes which have been read into the models global mesh
+!>          collection will have a list of target mesh names. These target mesh
+!>          names (if any) indicate the valid intergrid maps avaiable in the
+!>          mesh file.
+!>
+!>          This routine will read in in the appropriate intergrid maps and
+!>          assign them to the correct global mesh object.
+!===============================================================================
+subroutine create_mesh_maps()
+
+  use base_mesh_config_mod,       only: filename
+
+  implicit none
+
+  type(ncdf_quad_type) :: file_handler
+
+  character(str_def), allocatable :: source_mesh_names(:)
+  character(str_def), allocatable :: target_mesh_names(:)
+  integer(i_def),     allocatable :: gid_mesh_map(:,:,:)
+  integer(i_def),     allocatable :: lid_mesh_map(:,:,:)
+
+  integer(i_def) :: i, j, n, x, y
+  integer(i_def) :: n_meshes
+
+  type(global_mesh_type), pointer :: source_global_mesh => null()
+
+  type(local_mesh_type), pointer :: source_local_mesh => null()
+  type(local_mesh_type), pointer :: target_local_mesh => null()
+
+  integer(i_def) :: ntarget_per_source_cell_x, ntarget_per_source_cell_y
+  integer(i_def) :: ncells
+  integer(i_def) :: target_local_mesh_id
+
+  ! Read in the maps for each global mesh
+  !=================================================================
+  call file_handler%file_open(trim(filename))
+
+  source_mesh_names = global_mesh_collection%get_mesh_names()
+  n_meshes = global_mesh_collection%n_meshes()
+
+  ! Loop over every source mesh
+  do i=1, n_meshes
+    ! Get the global and local source mesh
+    source_global_mesh => &
+        global_mesh_collection%get_global_mesh( source_mesh_names(i) )
+    source_local_mesh => &
+        local_mesh_collection%get_local_mesh( source_mesh_names(i) )
+    call source_global_mesh%get_target_mesh_names( target_mesh_names )
+    if (allocated(target_mesh_names)) then
+      ! Loop over each target mesh
+      do j=1, size(target_mesh_names)
+        target_local_mesh => &
+           local_mesh_collection%get_local_mesh( target_mesh_names(j) )
+
+        if ( associated(target_local_mesh) ) then
+          ! Read in the global mesh map
+          call file_handler%read_map( source_mesh_names(i), &
+                                      target_mesh_names(j), &
+                                      gid_mesh_map )
+
+          ! Create the local mesh map
+          ntarget_per_source_cell_x = size(gid_mesh_map, 1)
+          ntarget_per_source_cell_y = size(gid_mesh_map, 2)
+          ncells = source_local_mesh%get_num_cells_in_layer()
+          allocate( lid_mesh_map( ntarget_per_source_cell_x, &
+                                  ntarget_per_source_cell_y, &
+                                  ncells ) )
+          ! Convert global cell ids in the global mesh map
+          ! into local cell ids in a local mesh map
+          do x=1, ntarget_per_source_cell_x
+            do y=1, ntarget_per_source_cell_y
+              do n=1, ncells
+                lid_mesh_map( x,y, n ) = target_local_mesh%get_lid_from_gid( &
+                    gid_mesh_map( x,y, source_local_mesh%get_gid_from_lid(n) ) )
+              end do
+            end do
+          end do
+
+          ! Put the local mesh map in the local mesh
+          target_local_mesh_id = target_local_mesh%get_id()
+          call source_local_mesh%add_local_mesh_map( target_local_mesh_id, &
+                                                     lid_mesh_map )
+
+          if(allocated( gid_mesh_map )) deallocate( gid_mesh_map )
+          if(allocated( lid_mesh_map )) deallocate( lid_mesh_map )
+        end if
+
+      end do
+      if(allocated( target_mesh_names )) &
+                                      deallocate( target_mesh_names )
+    end if
+  end do
+
+  if(allocated( source_mesh_names ))  deallocate( source_mesh_names)
+  call file_handler%file_close()
+
+  return
+end subroutine create_mesh_maps
+
+!===============================================================================
+!> @brief Generates the 3D-meshes required by the model configuration.
+!         (private subroutine)
 !>
 !> @details The extrusion types are setup for the required configuration
-!>          before 3D-mesh partitions are instantiated.
+!>          before 3D-meshes are instantiated.
 !>
 !> @param[in] local_rank   The local process number
 !> @param[in] total_ranks  Total number of processes to run model
@@ -563,19 +685,18 @@ end subroutine set_partition_parameters
 !> @param[in] create_shifted_mesh      Create shifted mesh based on prime mesh
 !> @param[in] create_double_level_mesh Create double-level mesh based on prime mesh
 !> @param[in] create_multigrid_meshes  Create meshes to support multigrid
-!========================================================================
-subroutine create_3D_mesh_partitions( local_rank, total_ranks,  &
-                                      xproc, yproc,             &
-                                      max_stencil_depth,        &
-                                      partitioner_ptr,          &
-                                      create_2d_mesh,           &
-                                      create_shifted_mesh,      &
-                                      create_double_level_mesh, &
-                                      create_multigrid_meshes )
+!===============================================================================
+subroutine create_all_3D_meshes( local_rank, total_ranks,  &
+                                 xproc, yproc,             &
+                                 max_stencil_depth,        &
+                                 partitioner_ptr,          &
+                                 create_2d_mesh,           &
+                                 create_shifted_mesh,      &
+                                 create_double_level_mesh, &
+                                 create_multigrid_meshes )
 
   use base_mesh_config_mod,    only: prime_mesh_name
   use extrusion_config_mod,    only: domain_top
-  use formulation_config_mod,  only: l_multigrid
   use gungho_extrusion_mod,    only: create_extrusion,         &
                                      create_shifted_extrusion, &
                                      create_double_level_extrusion
@@ -609,19 +730,18 @@ subroutine create_3D_mesh_partitions( local_rank, total_ranks,  &
   integer(i_def), parameter :: one_layer = 1_i_def
   real(r_def),    parameter :: atmos_bottom = 0.0_r_def
 
-
   ! 1.0 Prime Mesh
   !===================================================================
   ! 1.1 Always generate the prime 3D mesh
   allocate( extrusion, &
             source=create_extrusion() )
 
-  call create_3d_mesh_partition( local_rank, total_ranks, &
-                                 xproc, yproc,            &
-                                 max_stencil_depth,       &
-                                 partitioner_ptr,         &
-                                 prime_mesh_name,         &
-                                 extrusion )
+  call create_3d_mesh( local_rank, total_ranks, &
+                       xproc, yproc,            &
+                       max_stencil_depth,       &
+                       partitioner_ptr,         &
+                       prime_mesh_name,         &
+                       extrusion )
 
   ! 2.0 Generate addition 3d mesh partitions based on the prime mesh
   ! NOTE: This includes 2D meshes as they are currently impplemented
@@ -633,13 +753,13 @@ subroutine create_3D_mesh_partitions( local_rank, total_ranks,  &
 
     mesh_name = trim(prime_mesh_name)//'_2d'
 
-    call create_3d_mesh_partition( local_rank, total_ranks, &
-                                   xproc, yproc,            &
-                                   max_stencil_depth,       &
-                                   partitioner_ptr,         &
-                                   prime_mesh_name,         &
-                                   extrusion_2d,            &
-                                   mesh_name=mesh_name )
+    call create_3d_mesh( local_rank, total_ranks, &
+                         xproc, yproc,            &
+                         max_stencil_depth,       &
+                         partitioner_ptr,         &
+                         prime_mesh_name,         &
+                         extrusion_2d,            &
+                         mesh_name=mesh_name )
   end if
 
   ! 3.0 Generate addition shifted 3d mesh partition
@@ -651,13 +771,13 @@ subroutine create_3D_mesh_partitions( local_rank, total_ranks,  &
 
     mesh_name = trim(prime_mesh_name)//'_shifted'
 
-    call create_3d_mesh_partition( local_rank, total_ranks, &
-                                   xproc, yproc,            &
-                                   max_stencil_depth,       &
-                                   partitioner_ptr,         &
-                                   prime_mesh_name,         &
-                                   extrusion_shifted,       &
-                                   mesh_name=mesh_name )
+    call create_3d_mesh( local_rank, total_ranks, &
+                         xproc, yproc,            &
+                         max_stencil_depth,       &
+                         partitioner_ptr,         &
+                         prime_mesh_name,         &
+                         extrusion_shifted,       &
+                         mesh_name=mesh_name )
   end if
 
   ! 4.0 Generate addition double-level 3d mesh partition
@@ -669,37 +789,37 @@ subroutine create_3D_mesh_partitions( local_rank, total_ranks,  &
 
     mesh_name = trim(prime_mesh_name)//'_double'
 
-    call create_3d_mesh_partition( local_rank, total_ranks, &
-                                   xproc, yproc,            &
-                                   max_stencil_depth,       &
-                                   partitioner_ptr,         &
-                                   prime_mesh_name,         &
-                                   extrusion_double,        &
-                                   mesh_name=mesh_name )
+    call create_3d_mesh( local_rank, total_ranks, &
+                         xproc, yproc,            &
+                         max_stencil_depth,       &
+                         partitioner_ptr,         &
+                         prime_mesh_name,         &
+                         extrusion_double,        &
+                         mesh_name=mesh_name )
   end if
 
   ! 5.0 Generate meshes required by any other schemes
   !     in the model run configuration.
   !===================================================================
-  ! 5.0 Dynamics Multigrid
+  ! 5.1 Dynamics Multigrid
   if (create_multigrid_meshes) then
 
     do i=1, size(chain_mesh_tags)
-      call create_3d_mesh_partition( local_rank, total_ranks, &
-                                     xproc, yproc,            &
-                                     max_stencil_depth,       &
-                                     partitioner_ptr,         &
-                                     chain_mesh_tags(i),      &
-                                     extrusion )
+      call create_3d_mesh( local_rank, total_ranks, &
+                           xproc, yproc,            &
+                           max_stencil_depth,       &
+                           partitioner_ptr,         &
+                           chain_mesh_tags(i),      &
+                           extrusion )
 
       mesh_name = trim(chain_mesh_tags(i))//'_2d'
-      call create_3d_mesh_partition( local_rank, total_ranks, &
-                                     xproc, yproc,            &
-                                     max_stencil_depth,       &
-                                     partitioner_ptr,         &
-                                     chain_mesh_tags(i),      &
-                                     extrusion_2d,            &
-                                     mesh_name=mesh_name )
+      call create_3d_mesh( local_rank, total_ranks, &
+                           xproc, yproc,            &
+                           max_stencil_depth,       &
+                           partitioner_ptr,         &
+                           chain_mesh_tags(i),      &
+                           extrusion_2d,            &
+                           mesh_name=mesh_name )
     end do
 
   end if
@@ -709,11 +829,11 @@ subroutine create_3D_mesh_partitions( local_rank, total_ranks,  &
   if (allocated(extrusion_double))  deallocate( extrusion_double )
 
   return
-end subroutine create_3D_mesh_partitions
+end subroutine create_all_3D_meshes
 
-
-!========================================================================
-!> @brief   Generates a single 3D-mesh partition (private subroutine).
+!===============================================================================
+!> @brief   Generates a single (partitioned) 3D-mesh.
+!           (private subroutine)
 !> @details Instantiates a 3d-mesh partition and adds it to the model's
 !>          mesh collection. Multiple meshes may be generated in the model
 !>          based on the same global mesh but with differing extrusions.
@@ -729,16 +849,14 @@ end subroutine create_3D_mesh_partitions
 !> @param[in] base_global_mesh_name Name of global base mesh
 !> @param[in] mesh_name             Optional name of local 3D-mesh,
 !>                                  defaults to name of base global mesh
-!========================================================================
-subroutine create_3D_mesh_partition( local_rank, total_ranks, &
-                                     xproc, yproc,            &
-                                     max_stencil_depth,       &
-                                     partitioner_ptr,         &
-                                     base_global_mesh_name,   &
-                                     extrusion, mesh_name )
+!===============================================================================
+subroutine create_3d_mesh( local_rank, total_ranks, &
+                           xproc, yproc,            &
+                           max_stencil_depth,       &
+                           partitioner_ptr,         &
+                           base_global_mesh_name,   &
+                           extrusion, mesh_name )
 
-  use global_mesh_collection_mod, only: global_mesh_collection
-  use local_mesh_collection_mod,  only: local_mesh_collection
   use partition_mod,              only: partitioner_cubedsphere_serial, &
                                         partitioner_cubedsphere,        &
                                         partitioner_planar
@@ -761,11 +879,9 @@ subroutine create_3D_mesh_partition( local_rank, total_ranks, &
 
   type(global_mesh_type), pointer :: base_global_mesh => null()
 
-  type(local_mesh_type)          :: local_mesh
   type(local_mesh_type), pointer :: local_mesh_ptr
-  integer(i_def)                 :: local_mesh_id
+  type(partition_type)           :: partition
 
-  type(partition_type) :: partition
 
   type(mesh_type)    :: mesh
   integer(i_def)     :: mesh_id
@@ -786,16 +902,13 @@ subroutine create_3D_mesh_partition( local_rank, total_ranks, &
   base_global_mesh => global_mesh_collection % &
                       get_global_mesh( base_global_mesh_name )
 
-  partition = partition_type( base_global_mesh,  &
+  local_mesh_ptr => local_mesh_collection%get_local_mesh(base_global_mesh_name)
+
+  partition = partition_type( base_global_mesh,   &
                               partitioner_ptr,   &
                               xproc, yproc,      &
                               max_stencil_depth, &
                               local_rank, total_ranks )
-
-  ! Create local mesh
-  call local_mesh%initialise( base_global_mesh, partition )
-  local_mesh_id = local_mesh_collection%add_new_local_mesh(local_mesh)
-  local_mesh_ptr => local_mesh_collection%get_mesh_by_id( local_mesh_id )
 
   mesh = mesh_type( local_mesh_ptr, &
                     base_global_mesh, &
@@ -821,12 +934,11 @@ subroutine create_3D_mesh_partition( local_rank, total_ranks, &
   end if
 
   return
-end subroutine create_3D_mesh_partition
+end subroutine create_3d_mesh
 
-
-!========================================================================
+!===============================================================================
 !> @brief   Assigns intergrid maps to 3D-mesh partitions
-!>          (private subroutine).
+!           (private subroutine).
 !> @details Adds local ID integrid mappings 3D-mesh parititons.
 !>          Local integrid maps are assign to to source (source-> target)
 !>          and target (target -> source) meshes. A number of
@@ -841,9 +953,9 @@ end subroutine create_3D_mesh_partition
 !>
 !> @param[in] source_mesh_name   Name of source 3D mesh partition
 !> @param[in] target_mesh_name   Name of target 3D mesh partition
-!========================================================================
-subroutine add_intergrid_maps( source_mesh_name, &
-                               target_mesh_name )
+!===============================================================================
+subroutine add_mesh_maps( source_mesh_name, &
+                          target_mesh_name )
 
   use mesh_collection_mod, only: mesh_collection
 
@@ -892,52 +1004,11 @@ subroutine add_intergrid_maps( source_mesh_name, &
   nullify(target_mesh)
 
   return
-end subroutine add_intergrid_maps
+end subroutine add_mesh_maps
 
-
-!========================================================================
-!> @brief Loads list of global meshes from configuration mesh input
-!>        file (private subroutine).
-!>
-!> @param[in] mesh_names[:]   Array of requested mesh names to load
-!>                            from the configuration mesh input
-!>                            file.
-!> @param[in] n_panels        Number of panel domains in global mesh
-!========================================================================
-subroutine load_mesh(mesh_names, n_panels)
-
-  use base_mesh_config_mod,       only: filename
-  use global_mesh_collection_mod, only: global_mesh_collection
-
-  implicit none
-
-  character(str_def), intent(in) :: mesh_names(:)
-  integer(i_def),     intent(in) :: n_panels
-
-  type(ugrid_mesh_data_type) :: ugrid_mesh_data
-  type (global_mesh_type)    :: global_mesh
-
-  integer(i_def) :: i
-
-  do i=1, size(mesh_names)
-    if (.not. global_mesh_collection%check_for(mesh_names(i))) then
-
-      call ugrid_mesh_data%read_from_file(trim(filename), mesh_names(i))
-      global_mesh = global_mesh_type( ugrid_mesh_data, n_panels )
-      call ugrid_mesh_data%clear()
-
-      call global_mesh_collection%add_new_global_mesh ( global_mesh )
-
-    end if
-  end do
-
-  return
-end subroutine load_mesh
-
-
-!========================================================================
+!===============================================================================
 !> @brief Finalises the mesh_collection
-!========================================================================
+!===============================================================================
 subroutine final_mesh()
 
   use mesh_collection_mod, only: mesh_collection

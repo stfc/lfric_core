@@ -15,6 +15,9 @@ module mesh_mod_test
                                   global_mesh_collection
   use global_mesh_mod,      only: global_mesh_type
   use partition_mod,        only: partition_type
+  use local_mesh_collection_mod, &
+                            only: local_mesh_collection_type, &
+                                  local_mesh_collection
   use local_mesh_mod,       only: local_mesh_type
   use mesh_mod,             only: mesh_type
   use mesh_collection_mod,  only: mesh_collection_type, &
@@ -181,6 +184,7 @@ contains
     call store_comm(this%getMpiCommunicator())
 
     global_mesh_collection = global_mesh_collection_type()
+    local_mesh_collection  = local_mesh_collection_type()
     global_mesh_id = global_mesh_collection%add_unit_test_global_mesh()
 
     this%global_mesh => global_mesh_collection%get_global_mesh(global_mesh_id)
@@ -784,104 +788,126 @@ contains
 
     type(ugrid_mesh_data_type) :: ugrid_mesh_data
 
-    integer(i_def) :: source_mesh_id
-    integer(i_def) :: target_mesh_id
+
     integer(i_def) :: mesh_map_id
     integer(i_def) :: test_integer
 
     ! Global meshes
-    type(global_mesh_type) :: global_mesh
-
-    type(global_mesh_type), pointer :: source_global_mesh_ptr => null()
-    type(global_mesh_type), pointer :: target_global_mesh_ptr => null()
+    type(global_mesh_type)          :: global_mesh
     type(global_mesh_type), pointer :: global_mesh_ptr => null()
+
+    ! Local meshes
+    type(local_mesh_type)          :: local_mesh
+    type(local_mesh_type), pointer :: source_local_mesh_ptr
+    type(local_mesh_type), pointer :: target_local_mesh_ptr
+    integer(i_def) :: local_mesh_id
+    integer(i_def) :: target_local_mesh_id
 
     ! Partitioned meshes
     type(mesh_type) :: mesh
     type(mesh_type), pointer :: source_mesh_ptr => null()
     type(mesh_type), pointer :: target_mesh_ptr => null()
-
-    type(local_mesh_type), pointer :: local_mesh_ptr
+    integer(i_def) :: mesh_id
+    integer(i_def) :: source_mesh_id
+    integer(i_def) :: target_mesh_id
 
     integer(i_def), parameter :: npanels = 6
     type(ncdf_quad_type) :: file_handler
     type(mesh_map_type), pointer   :: mesh_map => null()
-    integer(i_def), allocatable    :: cell_map(:,:,:)
+    integer(i_def), allocatable    :: gid_mesh_map(:,:,:)
+    integer(i_def), allocatable    :: lid_mesh_map(:,:,:)
     type(partition_type)           :: partition
-    type(local_mesh_type), target  :: source_local_mesh
-    type(local_mesh_type), pointer :: source_local_mesh_ptr
-    type(local_mesh_type), target  :: target_local_mesh
-    type(local_mesh_type), pointer :: target_local_mesh_ptr
     type(uniform_extrusion_type)   :: extrusion
 
     procedure (partitioner_interface), pointer :: partitioner_ptr => null ()
 
-    integer(i_def), pointer :: test_1d_array_ptr(:,:)   => null()
-    integer(i_def), pointer :: test_2d_array_ptr(:,:,:) => null()
-    integer(i_def) :: i, j
+    integer(i_def), pointer :: test_1_array_ptr(:,:)   => null()
+    integer(i_def), pointer :: test_2_array_ptr(:,:,:) => null()
+    integer(i_def) :: i, j, n, x, y
+    integer(i_def) :: ntarget_per_source_cell_x
+    integer(i_def) :: ntarget_per_source_cell_y
+    integer(i_def) :: ncells
     character(str_def), allocatable :: target_mesh_names(:)
 
-    ! Clear out the global mesh collection, as it may have the
-    ! unit test global mesh which is not what we want.
+    ! Clear out the global and local mesh collection, as they may contain
+    ! unit test meshes - which is not what we want.
     call global_mesh_collection%clear()
+    call local_mesh_collection%clear()
     global_mesh_collection = global_mesh_collection_type()
+    local_mesh_collection  = local_mesh_collection_type()
     mesh_collection        = mesh_collection_type()
+    partitioner_ptr => partitioner_cubedsphere_serial
 
-    ! Read in global meshes
+    ! Create all the meshes: global and local
     do i=1, size(mesh_names)
       call ugrid_mesh_data%read_from_file(trim(filename), mesh_names(i))
       global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
       call ugrid_mesh_data%clear()
       call global_mesh_collection%add_new_global_mesh( global_mesh )
+      global_mesh_ptr => global_mesh_collection % get_global_mesh( mesh_names(i) )
+
+      partition = partition_type(global_mesh_ptr, partitioner_ptr,1,1,1,0,1)
+      call local_mesh%initialise( global_mesh_ptr, partition )
+      local_mesh_id = local_mesh_collection%add_new_local_mesh( local_mesh )
+      call global_mesh%clear()
+      call local_mesh%clear()
     end do
 
-    ! Read in global mesh maps
+    ! Now all the meshes exist, read in global mesh maps, convert them to local ids
+    ! and associate them with the approprate source local mesh
     call file_handler%file_open(trim(filename))
     do i=1, size(mesh_names)
       global_mesh_ptr => global_mesh_collection % get_global_mesh (mesh_names(i))
+      source_local_mesh_ptr => local_mesh_collection % get_local_mesh (mesh_names(i))
       call global_mesh_ptr%get_target_mesh_names(target_mesh_names)
       do j=1, size(target_mesh_names)
-        if (global_mesh_collection%check_for(target_mesh_names(j))) then
+        target_local_mesh_ptr => local_mesh_collection % get_local_mesh (target_mesh_names(j))
+        if ( associated(target_local_mesh_ptr) ) then
           call file_handler%read_map( mesh_names(i),        &
                                       target_mesh_names(j), &
-                                      cell_map )
-          target_global_mesh_ptr => global_mesh_collection%get_global_mesh( target_mesh_names(j) )
-          call global_mesh_ptr%add_global_mesh_map(target_global_mesh_ptr, cell_map)
+                                      gid_mesh_map )
+          ntarget_per_source_cell_x = size(gid_mesh_map, 1)
+          ntarget_per_source_cell_y = size(gid_mesh_map, 2)
+          ncells = source_local_mesh_ptr%get_num_cells_in_layer()
+          allocate( lid_mesh_map( ntarget_per_source_cell_x, &
+                                  ntarget_per_source_cell_y, &
+                                  ncells ) )
+          do x=1, ntarget_per_source_cell_x
+            do y=1, ntarget_per_source_cell_y
+              do n=1, ncells
+                lid_mesh_map(x,y, source_local_mesh_ptr%get_lid_from_gid(n)) = &
+                    target_local_mesh_ptr%get_lid_from_gid(gid_mesh_map(x,y, n))
+              end do
+            end do
+          end do
+
+          target_local_mesh_id = target_local_mesh_ptr%get_id()
+          call source_local_mesh_ptr%add_local_mesh_map( target_local_mesh_id, &
+                                                         lid_mesh_map )
+
+          if(allocated( gid_mesh_map )) deallocate( gid_mesh_map )
+          if(allocated( lid_mesh_map )) deallocate( lid_mesh_map )
         end if
       end do
+      if(allocated( target_mesh_names )) deallocate( target_mesh_names )
     end do
-    call file_handler%file_close()
 
-    source_global_mesh_ptr => global_mesh_collection%get_global_mesh(source_mesh_name)
-    target_global_mesh_ptr => global_mesh_collection%get_global_mesh(target_mesh_name)
-
-    ! Set partition method/extrusion
-    partitioner_ptr => partitioner_cubedsphere_serial
+    ! Create the 3d partitioned meshes
     extrusion = uniform_extrusion_type( radius, domain_top, nlayers )
+    do i=1, size(mesh_names)
+      global_mesh_ptr => global_mesh_collection % get_global_mesh (mesh_names(i))
+      source_local_mesh_ptr => local_mesh_collection % get_local_mesh (mesh_names(i))
+      partition = partition_type(global_mesh_ptr, partitioner_ptr,1,1,1,0,1)
+      mesh = mesh_type( source_local_mesh_ptr, global_mesh_ptr, partition, extrusion )
+      mesh_id =  mesh_collection % add_new_mesh( mesh )
+      call mesh%clear()
+    end do
 
-    ! Generate the local meshes
-    partition = partition_type(source_global_mesh_ptr, partitioner_ptr,1,1,1,0,1)
-    call source_local_mesh%initialise( source_global_mesh_ptr, partition )
-    source_local_mesh_ptr => source_local_mesh
-    mesh = mesh_type( source_local_mesh_ptr, &
-                      source_global_mesh_ptr, &
-                      partition, &
-                      extrusion )
-    source_mesh_id = mesh_collection%add_new_mesh( mesh )
-    call mesh%clear()
+    source_mesh_ptr => mesh_collection%get_mesh(mesh_names(1))
+    target_mesh_ptr => mesh_collection%get_mesh(mesh_names(2))
 
-    partition = partition_type(target_global_mesh_ptr, partitioner_ptr,1,1,1,0,1)
-    call target_local_mesh%initialise( target_global_mesh_ptr, partition )
-    target_local_mesh_ptr => target_local_mesh
-    mesh = mesh_type( target_local_mesh_ptr, &
-                      target_global_mesh_ptr, &
-                      partition, &
-                      extrusion )
-    target_mesh_id = mesh_collection%add_new_mesh( mesh )
-    call mesh%clear()
-
-    source_mesh_ptr => mesh_collection%get_mesh(source_mesh_id)
-    target_mesh_ptr => mesh_collection%get_mesh(target_mesh_id)
+    source_mesh_id = mesh_collection%get_mesh_id(mesh_names(1))
+    target_mesh_id = mesh_collection%get_mesh_id(mesh_names(2))
 
     ! Add maps to the local meshes
     call source_mesh_ptr % add_mesh_map(target_mesh_ptr)
@@ -904,9 +930,14 @@ contains
     @assertEqual ( target_mesh_ptr%get_id(), test_integer )
 
     !-------------------------------------------------------------------
-    ! Test get_cell_factor
-    test_integer = mesh_map%get_ntarget_cells_per_source_cell()
-    @assertEqual ( 4, test_integer )
+    ! Test get_ntarget_cells_per_source_cell_x
+    test_integer = mesh_map%get_ntarget_cells_per_source_x()
+    @assertEqual ( 2, test_integer )
+
+    !-------------------------------------------------------------------
+    ! Test get_ntarget_cells_per_source_cell_y
+    test_integer = mesh_map%get_ntarget_cells_per_source_y()
+    @assertEqual ( 2, test_integer )
 
     !-------------------------------------------------------------------
     ! Test get_nsource_cells
@@ -915,15 +946,15 @@ contains
 
     !-------------------------------------------------------------------
     ! Test get_map_from_cell
-    test_1d_array_ptr => mesh_map%get_cell_map(11)
-    @assertEqual ( reshape([37,38,45,46], (/2,2/)), test_1d_array_ptr )
-    nullify(test_1d_array_ptr)
+    test_1_array_ptr => mesh_map%get_cell_map(11)
+    @assertEqual ( reshape([37,38,45,46],(/2,2/)), test_1_array_ptr )
+    nullify(test_1_array_ptr)
 
     !-------------------------------------------------------------------
     ! Test get_full_map
-    test_2d_array_ptr => mesh_map%get_whole_cell_map()
-    @assertEqual ( CoarseToFineMap, test_2d_array_ptr )
-    nullify(test_2d_array_ptr)
+    test_2_array_ptr => mesh_map%get_whole_cell_map()
+    @assertEqual ( CoarseToFineMap, test_2_array_ptr )
+    nullify(test_2_array_ptr)
 
     ! Test fine to coarse
     !-------------------------------------------------------------------
@@ -952,20 +983,19 @@ contains
 
     !-------------------------------------------------------------------
     ! Test get_map_from_cell
-    test_1d_array_ptr => mesh_map%get_cell_map(11)
-    @assertEqual ( reshape([2],(/1,1/)), test_1d_array_ptr )
-    nullify(test_1d_array_ptr)
+    test_1_array_ptr => mesh_map%get_cell_map(11)
+    @assertEqual ( reshape([2],(/1,1/)), test_1_array_ptr )
+    nullify(test_1_array_ptr)
 
     !-------------------------------------------------------------------
     ! Test get_full_map
-    test_2d_array_ptr => mesh_map%get_whole_cell_map()
-    @assertEqual ( FineToCoarseMap, test_2d_array_ptr )
-    nullify(test_2d_array_ptr)
+    test_2_array_ptr => mesh_map%get_whole_cell_map()
+    @assertEqual ( FineToCoarseMap, test_2_array_ptr )
+    nullify(test_2_array_ptr)
 
     call partition%clear()
     call mesh_collection%clear()
     partitioner_ptr => null()
-
 
   end subroutine test_mesh_map_retrieval
 

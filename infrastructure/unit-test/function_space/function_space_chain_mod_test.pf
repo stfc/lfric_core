@@ -101,10 +101,11 @@ type(global_mesh_type), pointer :: target_global_mesh_ptr => null()
 type(global_mesh_type), pointer :: global_mesh_ptr    => null()
 type(global_mesh_type)          :: global_mesh
 type(mesh_type)                 :: mesh
-type(mesh_type), pointer        :: source_mesh => null()
-type(mesh_type), pointer        :: target_mesh => null()
+type(mesh_type), pointer        :: source_mesh_ptr => null()
+type(mesh_type), pointer        :: target_mesh_ptr => null()
 type(local_mesh_type)           :: local_mesh
-type(local_mesh_type), pointer  :: local_mesh_ptr
+type(local_mesh_type), pointer  :: source_local_mesh_ptr => null()
+type(local_mesh_type), pointer  :: target_local_mesh_ptr => null()
 
 type(partition_type)               :: partition
 type(uniform_extrusion_type)       :: extrusion
@@ -113,11 +114,14 @@ type(ncdf_quad_type) :: file_handler
 
 character(str_def), allocatable :: target_mesh_names(:)
 
-integer(i_def), allocatable :: cell_map(:,:,:)
-
+integer(i_def), allocatable :: gid_mesh_map(:,:,:)
+integer(i_def), allocatable :: lid_mesh_map(:,:,:)
+integer(i_def) :: ntarget_per_source_cell_x, ntarget_per_source_cell_y
+integer(i_def) :: ncells
+integer(i_def) :: target_local_mesh_id
 integer(i_def) :: mesh_id(4)
 integer(i_def) :: local_mesh_id
-integer(i_def) :: i, j
+integer(i_def) :: i, j, n, x, y
 integer(i_def) :: npanels = 6
 
 procedure (partitioner_interface), pointer :: partitioner_ptr => null()
@@ -134,32 +138,12 @@ mesh_collection           = mesh_collection_type()
 local_mesh_collection     = local_mesh_collection_type()
 function_space_collection = function_space_collection_type()
 
+! Create all the meshes: global and local
 do i=1, size(mesh_names)
   call ugrid_mesh_data%read_from_file(trim(filename), mesh_names(i))
   global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
   call ugrid_mesh_data%clear()
   call global_mesh_collection%add_new_global_mesh( global_mesh )
-end do
-
-! Read in global mesh maps
-call file_handler%file_open(trim(filename))
-do i=1, size(mesh_names)
-  global_mesh_ptr => global_mesh_collection % get_global_mesh (mesh_names(i))
-  call global_mesh_ptr%get_target_mesh_names(target_mesh_names)
-  do j=1, size(target_mesh_names)
-    if (global_mesh_collection%check_for(target_mesh_names(j))) then
-      call file_handler%read_map( mesh_names(i),        &
-                                  target_mesh_names(j), &
-                                  cell_map )
-      target_global_mesh_ptr => global_mesh_collection%get_global_mesh( target_mesh_names(j) )
-      call global_mesh_ptr%add_global_mesh_map(target_global_mesh_ptr, cell_map)
-    end if
-  end do
-end do
-call file_handler%file_close()
-
-do i=1, size(mesh_names)
-
   global_mesh_ptr => global_mesh_collection % get_global_mesh( mesh_names(i) )
 
   partition =  partition_type( global_mesh_ptr, partitioner_ptr, &
@@ -167,22 +151,69 @@ do i=1, size(mesh_names)
                                local_rank, total_ranks )
   call local_mesh%initialise( global_mesh_ptr, partition )
   local_mesh_id = local_mesh_collection%add_new_local_mesh( local_mesh )
-  local_mesh_ptr => local_mesh_collection%get_local_mesh( local_mesh_id )
+  call global_mesh%clear()
   call local_mesh%clear()
+enddo
 
-  extrusion = uniform_extrusion_type( radius, domain_top, nlayers )
+! Now all the meshes exist, read in global mesh maps, convert them to local ids
+! and associate them with the approprate source local mesh
+call file_handler%file_open(trim(filename))
+do i=1, size(mesh_names)
+  global_mesh_ptr => global_mesh_collection % get_global_mesh (mesh_names(i))
+  source_local_mesh_ptr => local_mesh_collection % get_local_mesh (mesh_names(i))
+  call global_mesh_ptr%get_target_mesh_names(target_mesh_names)
+  do j=1, size(target_mesh_names)
+    target_local_mesh_ptr => local_mesh_collection % get_local_mesh (target_mesh_names(j))
+    if ( associated(target_local_mesh_ptr) ) then
+      call file_handler%read_map( mesh_names(i),        &
+                                  target_mesh_names(j), &
+                                  gid_mesh_map )
+      ntarget_per_source_cell_x = size(gid_mesh_map, 1)
+      ntarget_per_source_cell_y = size(gid_mesh_map, 2)
+      ncells = source_local_mesh_ptr%get_num_cells_in_layer()
+      allocate( lid_mesh_map( ntarget_per_source_cell_x, &
+                              ntarget_per_source_cell_y, &
+                              ncells ) )
+      do x=1, ntarget_per_source_cell_x
+        do y=1, ntarget_per_source_cell_y
+          do n=1, ncells
+            lid_mesh_map(x,y, source_local_mesh_ptr%get_lid_from_gid(n)) = &
+                  target_local_mesh_ptr%get_lid_from_gid(gid_mesh_map(x,y, n))
+          end do
+        end do
+      end do
 
-  mesh = mesh_type( local_mesh_ptr, global_mesh_ptr, partition, extrusion )
+      target_local_mesh_id = target_local_mesh_ptr%get_id()
+      call source_local_mesh_ptr%add_local_mesh_map( target_local_mesh_id, &
+                                                     lid_mesh_map )
+
+      if(allocated( gid_mesh_map )) deallocate( gid_mesh_map )
+      if(allocated( lid_mesh_map )) deallocate( lid_mesh_map )
+    end if
+  end do
+  if(allocated( target_mesh_names )) deallocate( target_mesh_names )
+end do
+call file_handler%file_close()
+
+! Create the 3d partitioned meshes
+extrusion = uniform_extrusion_type( radius, domain_top, nlayers )
+do i=1, size(mesh_names)
+  global_mesh_ptr => global_mesh_collection % get_global_mesh (mesh_names(i))
+  source_local_mesh_ptr => local_mesh_collection % get_local_mesh (mesh_names(i))
+  partition =  partition_type( global_mesh_ptr, partitioner_ptr, &
+                               xproc, yproc, max_stencil_depth,  &
+                               local_rank, total_ranks )
+  mesh = mesh_type( source_local_mesh_ptr, global_mesh_ptr, partition, extrusion )
   mesh_id(i) =  mesh_collection % add_new_mesh( mesh )
   call mesh%clear()
 end do
 
-! Add mesh maps
+! Associate the local maps with their 3d mesh
 do i=1, size(mesh_names)-1
-  source_mesh => mesh_collection%get_mesh(mesh_names(i))
-  target_mesh => mesh_collection%get_mesh(mesh_names(i+1))
-  call source_mesh%add_mesh_map(target_mesh)
-  call target_mesh%add_mesh_map(source_mesh)
+  source_mesh_ptr => mesh_collection%get_mesh(mesh_names(i))
+  target_mesh_ptr => mesh_collection%get_mesh(mesh_names(i+1))
+  call source_mesh_ptr%add_mesh_map( target_mesh_ptr )
+  call target_mesh_ptr%add_mesh_map( source_mesh_ptr )
 end do
 
 this%function_space1 => function_space_collection%get_fs( mesh_id(1), &

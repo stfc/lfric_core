@@ -273,6 +273,8 @@ contains
     allocate( self%vert_cell_owner (nverts) )
     allocate( self%edge_cell_owner (nedges) )
 
+    self%ntarget_meshes = 0
+
     ! Note: These test coordinates are in [Long, Lat] in units of Radians
     self%vert_coords(1:2,1)  = [-2.0_r_def, -2.0_r_def]
     self%vert_coords(1:2,2)  = [-1.0_r_def, -2.0_r_def]

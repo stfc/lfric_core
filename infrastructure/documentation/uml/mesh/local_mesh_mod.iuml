@@ -20,6 +20,7 @@ class local_mesh_mod::local_mesh_type {
   -halo_depth: integer
   -num_ghost: integer
   -npanels: integer
+  -local_mesh_map_collection: local_mesh_map_collection_type <<allocatable>>
 
   +<<destroy>> local_mesh_destructor()
   +clear()
@@ -47,4 +48,6 @@ class local_mesh_mod::local_mesh_type {
   +get_num_panels_global_mesh(): integer
   +get_gid_from_lid(<<in>>lid: integer): integer
   +get_lid_from_gid(<<in>>gid: integer): integer
+  +add_local_mesh_map(<<in>>target_local_mesh_id: integer, <<in>>map{:::}: integer)
+  +get_local_mesh_map(<<in>>target_local_mesh_id: integer): local_mesh_map_type<<pointer>>
 }
