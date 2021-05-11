@@ -16,17 +16,20 @@
 !>
 module weighted_proj_2theta_kernel_mod
 
-  use argument_mod,      only: arg_type, func_type,            &
-                               GH_OPERATOR, GH_FIELD, GH_REAL, &
-                               GH_READ, GH_WRITE,              &
-                               ANY_SPACE_9,                    &
-                               GH_BASIS,GH_DIFF_BASIS,         &
-                               CELLS, GH_QUADRATURE_XYoZ
+  use argument_mod,      only: arg_type, func_type,     &
+                               GH_OPERATOR, GH_FIELD,   &
+                               GH_SCALAR, GH_REAL,      &
+                               GH_READ, GH_WRITE,       &
+                               ANY_SPACE_9,             &
+                               GH_BASIS, GH_DIFF_BASIS, &
+                               CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,     only: r_def, i_def
   use fs_continuity_mod, only: W2, W3
   use kernel_mod,        only: kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -34,17 +37,17 @@ module weighted_proj_2theta_kernel_mod
 
   type, public, extends(kernel_type) :: weighted_proj_2theta_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                   &
-        arg_type(GH_OPERATOR, GH_WRITE, W2, ANY_SPACE_9), &
-        arg_type(GH_FIELD,    GH_READ,  W3),              &
-        arg_type(GH_REAL,     GH_READ)                    &
-        /)
-    type(func_type) :: meta_funcs(3) = (/                &
-        func_type(W2, GH_BASIS, GH_DIFF_BASIS),          &
-        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS), &
-        func_type(W3, GH_BASIS)                          &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(3) = (/                             &
+         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W2, ANY_SPACE_9), &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  W3),              &
+         arg_type(GH_SCALAR,   GH_REAL, GH_READ)                    &
+         /)
+    type(func_type) :: meta_funcs(3) = (/                           &
+         func_type(W2,          GH_BASIS, GH_DIFF_BASIS),           &
+         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS),           &
+         func_type(W3,          GH_BASIS)                           &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
     procedure, nopass :: weighted_proj_2theta_code
@@ -53,27 +56,29 @@ module weighted_proj_2theta_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public weighted_proj_2theta_code
+  public :: weighted_proj_2theta_code
 
 contains
 
 !> @brief Compute the weigthed projection from Wtheta to W2
 !! @param[in] cell Cell number
-!! @param[in] nlayers Number of layers.
+!! @param[in] nlayers Number of layers
 !! @param[in] ncell_3d ncell*ndf
-!! @param[inout] projection Projection operator to compute
+!! @param[in,out] projection Projection operator to compute
 !! @param[in] exner Exner pressure
 !! @param[in] scalar Real to scale matrix by
-!! @param[in] ndf_w2 Number of degrees of freedom per cell.
-!! @param[in] basis_w2 Basis functions evaluated at quadrature points.
-!! @param[in] diff_basis_w2 Differential vector basis functions evaluated at quadrature points.
-!! @param[in] ndf_wtheta Number of degrees of freedom per cell.
-!! @param[in] basis_wtheta Basis functions evaluated at quadrature points.
-!! @param[in] diff_basis_wtheta Differential vector basis functions evaluated at quadrature points.
-!! @param[in] ndf_w3 Number of degrees of freedom per cell.
-!! @param[in] undf_w3 Total number of degrees.
+!! @param[in] ndf_w2 Number of degrees of freedom per cell
+!! @param[in] basis_w2 Basis functions evaluated at quadrature points
+!! @param[in] diff_basis_w2 Differential vector basis functions evaluated
+!!                          at quadrature points
+!! @param[in] ndf_wtheta Number of degrees of freedom per cell
+!! @param[in] basis_wtheta Basis functions evaluated at quadrature points
+!! @param[in] diff_basis_wtheta Differential vector basis functions
+!!                              evaluated at quadrature points
+!! @param[in] ndf_w3 Number of degrees of freedom per cell
+!! @param[in] undf_w3 Total number of degrees of freedom
 !! @param[in] map_w3 Dofmap at the base of the column
-!! @param[in] basis_w3 Basis functions evaluated at quadrature points.
+!! @param[in] basis_w3 Basis functions evaluated at quadrature points
 !! @param[in] nqp_h Number of horizontal quadrature points
 !! @param[in] nqp_v Number of vertical quadrature points
 !! @param[in] wqp_h Horizontal quadrature weights
@@ -89,6 +94,7 @@ subroutine weighted_proj_2theta_code(cell, nlayers, ncell_3d,             &
                                      nqp_h, nqp_v, wqp_h, wqp_v)
 
   implicit none
+
   ! Arguments
   integer(kind=i_def),                     intent(in) :: cell, nqp_h, nqp_v
   integer(kind=i_def),                     intent(in) :: nlayers

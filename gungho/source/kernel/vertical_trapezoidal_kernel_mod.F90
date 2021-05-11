@@ -21,14 +21,17 @@
 
 module vertical_trapezoidal_kernel_mod
 
-use argument_mod,  only : arg_type, func_type,                  &
-                          GH_FIELD, GH_INC, GH_READ,            &
-                          GH_BASIS, CELLS
-use fs_continuity_mod, only : W0, W2, W3
+use argument_mod,  only : arg_type,          &
+                          GH_FIELD, GH_REAL, &
+                          GH_INC, GH_READ,   &
+                          CELL_COLUMN
+use fs_continuity_mod, only : W2
 use constants_mod, only : r_def, i_def
 use kernel_mod,    only : kernel_type
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -36,12 +39,12 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: vertical_trapezoidal_kernel_type
   private
-  type(arg_type) :: meta_args(3) = (/                                  &
-       arg_type(GH_FIELD,   GH_INC, W2),                               &
-       arg_type(GH_FIELD,   GH_READ,  W2),                             &
-       arg_type(GH_FIELD,   GH_READ,  W2)                              &
+  type(arg_type) :: meta_args(3) = (/            &
+       arg_type(GH_FIELD, GH_REAL, GH_INC,  W2), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, W2), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, W2)  &
        /)
-  integer(kind=i_def) :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: vertical_trapezoidal_code
 end type
@@ -49,7 +52,8 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public vertical_trapezoidal_code
+public :: vertical_trapezoidal_code
+
 contains
 
 !> @brief Kernel which computes the departure distances for cell faces in the

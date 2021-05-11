@@ -7,12 +7,12 @@
 
 module pc2_homogeneous_kernel_mod
 
-use argument_mod, only: arg_type,                     &
-                        GH_FIELD, GH_READ, GH_WRITE,  &
-                        CELLS
+use argument_mod,      only: arg_type,          &
+                             GH_FIELD, GH_REAL, &
+                             GH_READ, GH_WRITE, &
+                             CELL_COLUMN
 use fs_continuity_mod, only: WTHETA
-
-use kernel_mod,   only: kernel_type
+use kernel_mod,        only: kernel_type
 
 implicit none
 
@@ -25,53 +25,57 @@ private
 
 type, public, extends(kernel_type) :: pc2_homogeneous_kernel_type
   private
-  type(arg_type) :: meta_args(16) = (/           &
-       arg_type(GH_FIELD,   GH_READ,    WTHETA), & ! mv_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA), & ! ml_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA), & ! cfl_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA), & ! cff_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA), & ! bcf_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA), & ! theta_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA), & ! exner_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA), & ! exner_earlier_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA), & ! dtheta_forcing_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA), & ! dqv_forcing_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA), & ! dqcl_forcing_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA), & ! dtheta_inc
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA), & ! dqv_inc_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA), & ! dqcl_inc_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA), & ! dcfl_inc_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA)  & ! dbcf_inc_wth
+  type(arg_type) :: meta_args(16) = (/                &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! mv_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! ml_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! cfl_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! cff_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! bcf_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! theta_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! exner_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! exner_earlier_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! dtheta_forcing_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! dqv_forcing_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! dqcl_forcing_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA), & ! dtheta_inc
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA), & ! dqv_inc_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA), & ! dqcl_inc_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA), & ! dcfl_inc_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA)  & ! dbcf_inc_wth
        /)
-   integer :: iterates_over = CELLS
+   integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: pc2_homogeneous_code
 end type
 
-public pc2_homogeneous_code
+public :: pc2_homogeneous_code
+
 contains
 
 !> @brief Interface to the pc2 homogeneous forcing code
-!> @param[in]    nlayers            Number of layers
-!> @param[in]    mv_wth             vapour mass mixing ratio
-!> @param[in]    ml_wth             liquid cloud mass mixing ratio
-!> @param[in]    cfl_wth            liquid cloud fraction
-!> @param[in]    cff_wth            ice cloud fraction
-!> @param[in]    bcf_wth            bulk cloud fraction
-!> @param[in]    theta_wth          Potential temperature field
-!> @param[in]    exner_wth          Exner pressure in potential temperature space
-!> @param[in]    exner_earlier_wth  Exner pressure in potential temperature space
-!> @param[in]    dtheta_forcing_wth Potential temperature forcing
-!> @param[in]    dqv_forcing_wth    Water vapour forcing
-!> @param[in]    dqcl_forcing_wth   Liquid water content forcing
-!> @param[inout] dtheta_inc_wth     Increment to potential temperature
-!> @param[inout] dqv_inc_wth        Increment to water vapour
-!> @param[inout] dqcl_inc_wth       Increment to liquid water content
-!> @param[inout] dcfl_inc_wth       Increment to liquid cloud fraction
-!> @param[inout] dbcf_inc_wth       Increment to bulk cloud fraction
-!> @param[in]    ndf_wth  Number of degrees of freedom per cell for potential temperature space
-!> @param[in]    undf_wth Number unique of degrees of freedom  for potential temperature space
-!> @param[in]    map_wth  Dofmap for the cell at the base of the column for potential temperature space
+!> @param[in]     nlayers            Number of layers
+!> @param[in]     mv_wth             Vapour mass mixing ratio
+!> @param[in]     ml_wth             Liquid cloud mass mixing ratio
+!> @param[in]     cfl_wth            Liquid cloud fraction
+!> @param[in]     cff_wth            Ice cloud fraction
+!> @param[in]     bcf_wth            Bulk cloud fraction
+!> @param[in]     theta_wth          Potential temperature field
+!> @param[in]     exner_wth          Exner pressure in potential temperature space
+!> @param[in]     exner_earlier_wth  Exner pressure in potential temperature space
+!> @param[in]     dtheta_forcing_wth Potential temperature forcing
+!> @param[in]     dqv_forcing_wth    Water vapour forcing
+!> @param[in]     dqcl_forcing_wth   Liquid water content forcing
+!> @param[in,out] dtheta_inc_wth     Increment to potential temperature
+!> @param[in,out] dqv_inc_wth        Increment to water vapour
+!> @param[in,out] dqcl_inc_wth       Increment to liquid water content
+!> @param[in,out] dcfl_inc_wth       Increment to liquid cloud fraction
+!> @param[in,out] dbcf_inc_wth       Increment to bulk cloud fraction
+!> @param[in]     ndf_wth            Number of degrees of freedom per cell for
+!!                                    potential temperature space
+!> @param[in]     undf_wth           Number of unique of degrees of freedom
+!!                                    for potential temperature space
+!> @param[in]     map_wth            Dofmap for the cell at the base of the column
+!!                                    for potential temperature space
 
 subroutine pc2_homogeneous_code( nlayers,                    &
                                  mv_wth,                     &

@@ -9,15 +9,17 @@ module cosmic_departure_wind_kernel_mod
 
   use argument_mod,       only : arg_type, func_type,       &
                                  GH_FIELD, GH_READ, GH_INC, &
-                                 ANY_SPACE_9,               &
+                                 GH_REAL, ANY_SPACE_9,      &
                                  GH_DIFF_BASIS, GH_BASIS,   &
-                                 CELLS, GH_EVALUATOR
+                                 CELL_COLUMN, GH_EVALUATOR
   use constants_mod,      only : r_def, i_def
   use flux_direction_mod, only : x_direction, y_direction
   use fs_continuity_mod,  only : W2
   use kernel_mod,         only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -27,16 +29,16 @@ module cosmic_departure_wind_kernel_mod
   !>
   type, public, extends(kernel_type) :: cosmic_departure_wind_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                     &
-        arg_type(GH_FIELD,    GH_INC,   W2),                &
-        arg_type(GH_FIELD,    GH_READ,  W2),                &
-        arg_type(GH_FIELD*3,  GH_READ,  ANY_SPACE_9)        &
-        /)
-    type(func_type) :: meta_funcs(2) = (/                   &
-        func_type(W2,          GH_BASIS),                   &
-        func_type(ANY_SPACE_9, GH_DIFF_BASIS)               &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(3) = (/                      &
+         arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),         &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, W2),         &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9) &
+         /)
+    type(func_type) :: meta_funcs(2) = (/                    &
+         func_type(W2,          GH_BASIS),                   &
+         func_type(ANY_SPACE_9, GH_DIFF_BASIS)               &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_EVALUATOR
   contains
     procedure, nopass :: cosmic_departure_wind_code
@@ -45,15 +47,16 @@ module cosmic_departure_wind_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public cosmic_departure_wind_code
+  public :: cosmic_departure_wind_code
 
 contains
 
   !> @brief Divides the Piola wind values by detJ at W2 dofs.
   !> @details The Piola wind values are divided by detJ at the W2 dofs which rescales
-  !>          the wind values to the computational grid.
+  !>          the wind values to the computational grid
   !> @param[in] nlayers Number of layers
-  !> @param[inout] u_departure_wind Output field containing the departure wind used to calculate departure points
+  !> @param[in,out] u_departure_wind Output field containing the departure
+  !!                                 wind used to calculate departure points
   !> @param[in] u_piola Field for the Piola wind
   !> @param[in] detj_at_w2 Input field containing the detj values at W2 locations
   !> @param[in] ndf Number of degrees of freedom per cell for the output field

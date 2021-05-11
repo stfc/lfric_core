@@ -13,17 +13,20 @@
 !>
 module lhs_exner_kernel_mod
 
-  use argument_mod,      only : arg_type, func_type,         &
-                                GH_FIELD, GH_READ, GH_WRITE, &
-                                ANY_SPACE_9,                 &
-                                GH_BASIS, GH_DIFF_BASIS,     &
-                                CELLS, GH_QUADRATURE_XYoZ,   &
-                                ANY_DISCONTINUOUS_SPACE_3
+  use argument_mod,      only : arg_type, func_type,       &
+                                GH_FIELD, GH_REAL,         &
+                                GH_READ, GH_WRITE,         &
+                                ANY_SPACE_9,               &
+                                ANY_DISCONTINUOUS_SPACE_3, &
+                                GH_BASIS, GH_DIFF_BASIS,   &
+                                CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W3, Wtheta
   use kernel_mod,        only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -33,23 +36,23 @@ module lhs_exner_kernel_mod
   !>
   type, public, extends(kernel_type) :: lhs_exner_kernel_type
     private
-    type(arg_type) :: meta_args(9) = (/                           &
-        arg_type(GH_FIELD,   GH_WRITE, W3),                       &
-        arg_type(GH_FIELD,   GH_READ,  Wtheta),                   &
-        arg_type(GH_FIELD,   GH_READ,  W3),                       &
-        arg_type(GH_FIELD,   GH_READ,  W3),                       &
-        arg_type(GH_FIELD,   GH_READ,  Wtheta),                   &
-        arg_type(GH_FIELD,   GH_READ,  W3),                       &
-        arg_type(GH_FIELD,   GH_READ,  W3),                       &
-        arg_type(GH_FIELD*3, GH_READ,  ANY_SPACE_9),              &
-        arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
-        /)
-    type(func_type) :: meta_funcs(3) = (/                         &
-        func_type(W3,          GH_BASIS),                         &
-        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS),          &
-        func_type(Wtheta,      GH_BASIS)                          &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(9) = (/                                     &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                       &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                   &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                       &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                       &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                   &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                       &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                       &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),              &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
+         /)
+    type(func_type) :: meta_funcs(3) = (/                                   &
+         func_type(W3,          GH_BASIS),                                  &
+         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS),                   &
+         func_type(Wtheta,      GH_BASIS)                                   &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
     procedure, nopass :: lhs_exner_code
@@ -58,13 +61,13 @@ module lhs_exner_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public lhs_exner_code
+  public :: lhs_exner_code
 
 contains
 
 !> @brief Computes lhs of the equation of state for the nonlinear equations
 !! @param[in] nlayers Number of layers
-!! @param[inout] l_exner LHS array for the equation of state
+!! @param[in,out] l_exner LHS array for the equation of state
 !! @param[in] theta Potential temperature increment
 !! @param[in] rho Density increment
 !! @param[in] exner Exner pressure increment
@@ -109,6 +112,7 @@ subroutine lhs_exner_code(nlayers,                                              
   use planet_config_mod,        only: kappa
 
   implicit none
+
   ! Arguments
   integer(kind=i_def), intent(in) :: nlayers, nqp_h, nqp_v
   integer(kind=i_def), intent(in) :: ndf_wtheta, ndf_w3, ndf_chi, ndf_pid

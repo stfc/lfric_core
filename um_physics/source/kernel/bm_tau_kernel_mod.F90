@@ -3,13 +3,14 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-!> @brief Interface to calculation of the bimodal cloud scheme time scales 
+!> @brief Interface to calculation of the bimodal cloud scheme time scales
 !>
 module bm_tau_kernel_mod
 
-  use argument_mod,       only : arg_type,                        &
-                                 GH_FIELD, GH_READ, &
-                                 CELLS, GH_WRITE
+  use argument_mod,       only : arg_type,          &
+                                 GH_FIELD, GH_REAL, &
+                                 GH_READ, GH_WRITE, &
+                                 CELL_COLUMN
   use constants_mod,      only : r_def, i_def, i_um, r_um
   use fs_continuity_mod,  only : Wtheta
   use kernel_mod,         only : kernel_type
@@ -18,72 +19,71 @@ module bm_tau_kernel_mod
 
   private
 
-
   !> Kernel metadata type.
   !>
   type, public, extends(kernel_type) :: bm_tau_kernel_type
     private
-    type(arg_type) :: meta_args(12) = (/                                &
-        arg_type(GH_FIELD,   GH_READ,       WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READ,       WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READ,       WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READ,       WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READ,       WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READ,       WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READ,       WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READ,       WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READ,       WTHETA),                    &
-        arg_type(GH_FIELD,   GH_WRITE,      WTHETA),                    &
-        arg_type(GH_FIELD,   GH_WRITE,      WTHETA),                    &
-        arg_type(GH_FIELD,   GH_WRITE,      WTHETA)                     &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(12) = (/                &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! m_v
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! theta_in_wth
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! exner_in_wth
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! m_ci
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! cf_ice
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! wvar
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! lmix_bl
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! rho_in_wth
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! wetrho_in_wth
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA), & ! tau_dec_bm
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA), & ! tau_hom_bm
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA)  & ! tau_mph_bm
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: bm_tau_code
   end type
 
-  public bm_tau_code
+  public :: bm_tau_code
 
 contains
 
-!>@brief Calculate various time scales for the bimodal cloud scheme
-!>@details The calculation of time sales:
-!>         calculates decorrelation, homogenisation and phase-relaxation
-!>         time scales for use in the variance calculation in the bimodal
-!>         cloud scheme, as described in UMDP39
-!> @param[in]     nlayers       Number of layers
-!> @param[in]     m_v           Vapour mixing ratio in wth
-!> @param[in]     theta_in_wth  Predicted theta in its native space
-!> @param[in]     exner_in_wth  Exner Pressure in the theta space
-!> @param[in]     m_ci          Cloud ice mixing ratio in wth
-!> @param[in]     cf_ice        Ice cloud fraction
-!> @param[in]     wvar          Vertical velocity variance in wth
-!> @param[in]     lmix_bl       Turbulence mixing length in wth
-!> @param[in]     rho_in_wth    Dry rho in wth
-!> @param[in]     wetrho_in_wth Wet rho in wth
-!> @param[in,out] tau_dec_bm    Decorrelation time scale in wth
-!> @param[in,out] tau_hom_bm    Homogenisation time scale in wth
-!> @param[in,out] tau_mph_bm    Phase-relaxation time scale in wth
-!> @param[in]     ndf_wth       Number of degrees of freedom per cell for potential temperature space
-!> @param[in]     undf_wth      Number unique of degrees of freedom  for potential temperature space
-!> @param[in]     map_wth       Dofmap for the cell at the base of the column for potential temperature space
+  !> @brief Calculate various time scales for the bimodal cloud scheme
+  !> @details The calculation of time sales:
+  !>          calculates decorrelation, homogenisation and phase-relaxation
+  !>          time scales for use in the variance calculation in the bimodal
+  !>          cloud scheme, as described in UMDP39
+  !> @param[in]     nlayers       Number of layers
+  !> @param[in]     m_v           Vapour mixing ratio in wth
+  !> @param[in]     theta_in_wth  Predicted theta in its native space
+  !> @param[in]     exner_in_wth  Exner Pressure in the theta space
+  !> @param[in]     m_ci          Cloud ice mixing ratio in wth
+  !> @param[in]     cf_ice        Ice cloud fraction
+  !> @param[in]     wvar          Vertical velocity variance in wth
+  !> @param[in]     lmix_bl       Turbulence mixing length in wth
+  !> @param[in]     rho_in_wth    Dry rho in wth
+  !> @param[in]     wetrho_in_wth Wet rho in wth
+  !> @param[in,out] tau_dec_bm    Decorrelation time scale in wth
+  !> @param[in,out] tau_hom_bm    Homogenisation time scale in wth
+  !> @param[in,out] tau_mph_bm    Phase-relaxation time scale in wth
+  !> @param[in]     ndf_wth       Number of degrees of freedom per cell for potential temperature space
+  !> @param[in]     undf_wth      Number unique of degrees of freedom  for potential temperature space
+  !> @param[in]     map_wth       Dofmap for the cell at the base of the column for potential temperature space
 
-subroutine bm_tau_code(nlayers,      &
-                    m_v,          &
-                    theta_in_wth, &
-                    exner_in_wth, &
-                    m_ci,         &
-                    cf_ice,       &
-                    wvar,         &
-                    lmix_bl,      &
-                    rho_in_wth,   &
-                    wetrho_in_wth,&
-                    tau_dec_bm,   &
-                    tau_hom_bm,   &
-                    tau_mph_bm,   &
-                    ndf_wth,      &
-                    undf_wth,     &
-                    map_wth)
+  subroutine bm_tau_code(nlayers,       &
+                         m_v,           &
+                         theta_in_wth,  &
+                         exner_in_wth,  &
+                         m_ci,          &
+                         cf_ice,        &
+                         wvar,          &
+                         lmix_bl,       &
+                         rho_in_wth,    &
+                         wetrho_in_wth, &
+                         tau_dec_bm,    &
+                         tau_hom_bm,    &
+                         tau_mph_bm,    &
+                         ndf_wth,       &
+                         undf_wth,      &
+                         map_wth)
 
     !---------------------------------------
     ! UM modules
@@ -93,7 +93,7 @@ subroutine bm_tau_code(nlayers,      &
     ! Other modules containing stuff passed to CLD
     use nlsizes_namelist_mod, only: row_length, rows, bl_levels
     use planet_constants_mod, only: p_zero, kappa
-    use bm_calc_tau_mod,     ONLY: bm_calc_tau
+    use bm_calc_tau_mod,      only: bm_calc_tau
 
     implicit none
 
@@ -120,10 +120,10 @@ subroutine bm_tau_code(nlayers,      &
 
 
     ! Local variables for the kernel
-    integer (i_um):: k
+    integer(i_um) :: k
 
     ! profile fields from level 1 upwards
-    real(r_um), dimension(row_length,rows,nlayers) ::        &
+    real(r_um), dimension(row_length,rows,nlayers) ::   &
          cff, q, theta, qcf, rho_dry_theta, rho_wet_tq, &
          exner_theta_levels
 
@@ -131,11 +131,11 @@ subroutine bm_tau_code(nlayers,      &
     real(r_um), dimension(row_length,rows,nlayers) :: wvar_in
 
     ! profile fields from level 1 upwards
-    real(r_um), dimension(row_length,rows,nlayers) ::        &
+    real(r_um), dimension(row_length,rows,nlayers) ::   &
          tau_dec_out, tau_hom_out, tau_mph_out
 
     ! profile fields from level 0 upwards
-    real(r_um), dimension(row_length,rows,0:nlayers) ::      &
+    real(r_um), dimension(row_length,rows,0:nlayers) :: &
          p_theta_levels
 
     do k = 1, nlayers
@@ -165,12 +165,12 @@ subroutine bm_tau_code(nlayers,      &
     p_theta_levels(1,1,nlayers) = p_zero*(exner_in_wth(map_wth(1) + nlayers))** &
                     (1.0_r_def/kappa)
 
-    CALL bm_calc_tau(q, theta, exner_theta_levels, qcf, bl_levels, cff,        &
-                    p_theta_levels, wvar_in, elm_in, rho_dry_theta,    &
+    call bm_calc_tau(q, theta, exner_theta_levels, qcf, bl_levels, cff, &
+                    p_theta_levels, wvar_in, elm_in, rho_dry_theta,     &
                     rho_wet_tq, tau_dec_out, tau_hom_out, tau_mph_out)
 
 
-    ! update output fields 
+    ! update output fields
     !-----------------------------------------------------------------------
     do k = 1, nlayers
       tau_dec_bm(map_wth(1) + k) = tau_dec_out(1,1,k)
@@ -181,6 +181,6 @@ subroutine bm_tau_code(nlayers,      &
     tau_hom_bm(map_wth(1) + 0) = tau_hom_bm(map_wth(1) + 1)
     tau_mph_bm(map_wth(1) + 0) = tau_mph_bm(map_wth(1) + 1)
 
-end subroutine bm_tau_code
+  end subroutine bm_tau_code
 
 end module bm_tau_kernel_mod

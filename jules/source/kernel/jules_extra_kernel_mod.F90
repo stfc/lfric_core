@@ -7,13 +7,15 @@
 !>
 module jules_extra_kernel_mod
 
-  use argument_mod,            only : arg_type,                               &
-                                      GH_FIELD, GH_READ, GH_READWRITE, CELLS, &
-                                      ANY_DISCONTINUOUS_SPACE_1,              &
-                                      ANY_DISCONTINUOUS_SPACE_2,              &
-                                      ANY_DISCONTINUOUS_SPACE_3,              &
-                                      ANY_DISCONTINUOUS_SPACE_4,              &
-                                      ANY_DISCONTINUOUS_SPACE_5
+  use argument_mod,            only : arg_type,                  &
+                                      GH_FIELD, GH_REAL,         &
+                                      GH_READ, GH_READWRITE,     &
+                                      ANY_DISCONTINUOUS_SPACE_1, &
+                                      ANY_DISCONTINUOUS_SPACE_2, &
+                                      ANY_DISCONTINUOUS_SPACE_3, &
+                                      ANY_DISCONTINUOUS_SPACE_4, &
+                                      ANY_DISCONTINUOUS_SPACE_5, &
+                                      CELL_COLUMN
   use constants_mod,           only : i_def, i_um, r_def, r_um
   use kernel_mod,              only : kernel_type
 
@@ -28,67 +30,67 @@ module jules_extra_kernel_mod
   !>
   type, public, extends(kernel_type) :: jules_extra_kernel_type
     private
-    type(arg_type) :: meta_args(53) = (/                             &
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! ls_rain
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! conv_rain
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! ls_snow
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! conv_snow
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! lsca_2d
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! cca_2d
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! tile_fraction
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_3), & ! leaf_area_index
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_3), & ! canopy_height
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_3), & ! snow_unload_rate
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! soil_moist_wilt
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! soil_moist_crit
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! soil_moist_sat
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! soil_cond_sat
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! soil_thermal_cap
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! soil_thermal_cond
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! soil_suction_sat
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! clapp_horn_b
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! soil_carbon_content
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! soil_roughness
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! mean_topog_index
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! a_sat_frac
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! c_sat_frac
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! a_wet_frac
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! c_wet_frac
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! tile_temperature
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! net_prim_prod
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! snow_sublimation
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! surf_heat_flux
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! canopy_evap
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_4), & ! water_extraction
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! thermal_cond_wet_soil
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! soil_respiration
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_4), & ! soil_temperature
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_4), & ! soil_moisture
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_4), & ! unfrozen_soil_moisture
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_4), & ! frozen_soil_moisture
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! canopy_water
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! tile_snow_mass
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! tile_snow_rgrain
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! n_snow_layers
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! snow_depth
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! snow_under_canopy
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! snowpack_density
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_5), & ! snow_layer_thickness
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_5), & ! snow_layer_ice_mass
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_5), & ! snow_layer_liq_mass
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_5), & ! snow_layer_temp
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_5), & ! snow_layer_rgrain
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! total_snowmelt
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! soil_sat_frac
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! water_table
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1)  & ! wetness_under_soil
+    type(arg_type) :: meta_args(53) = (/                                       &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! ls_rain
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! conv_rain
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! ls_snow
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! conv_snow
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! lsca_2d
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! cca_2d
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! tile_fraction
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_3), & ! leaf_area_index
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_3), & ! canopy_height
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_3), & ! snow_unload_rate
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! soil_moist_wilt
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! soil_moist_crit
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! soil_moist_sat
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! soil_cond_sat
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! soil_thermal_cap
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! soil_thermal_cond
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! soil_suction_sat
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! clapp_horn_b
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! soil_carbon_content
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! soil_roughness
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! mean_topog_index
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! a_sat_frac
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! c_sat_frac
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! a_wet_frac
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! c_wet_frac
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! tile_temperature
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! net_prim_prod
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! snow_sublimation
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! surf_heat_flux
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! canopy_evap
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_4), & ! water_extraction
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! thermal_cond_wet_soil
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! soil_respiration
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_4), & ! soil_temperature
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_4), & ! soil_moisture
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_4), & ! unfrozen_soil_moisture
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_4), & ! frozen_soil_moisture
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! canopy_water
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! tile_snow_mass
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! tile_snow_rgrain
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! n_snow_layers
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! snow_depth
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! snow_under_canopy
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! snowpack_density
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_5), & ! snow_layer_thickness
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_5), & ! snow_layer_ice_mass
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_5), & ! snow_layer_liq_mass
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_5), & ! snow_layer_temp
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_5), & ! snow_layer_rgrain
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! total_snowmelt
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! soil_sat_frac
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! water_table
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1)  & ! wetness_under_soil
         /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
   contains
-    procedure, nopass ::jules_extra_code
+    procedure, nopass :: jules_extra_code
   end type
 
-  public jules_extra_code
+  public :: jules_extra_code
 
 contains
 
@@ -342,7 +344,7 @@ contains
     real(kind=r_def), intent(inout) :: wetness_under_soil(undf_2d)
 
     ! Local variables for the kernel
-    integer :: i, j, n, i_snow
+    integer(kind=i_def) :: i, j, n, i_snow
 
 !------------------------------------------------------------------------------
     ! JULES surf_couple_extra subroutine arguments declared using JULESvn5.4

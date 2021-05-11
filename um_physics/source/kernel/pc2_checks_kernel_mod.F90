@@ -7,12 +7,12 @@
 
 module pc2_checks_kernel_mod
 
-use argument_mod, only: arg_type,                     &
-                        GH_FIELD, GH_READ, GH_WRITE,  &
-                        GH_READWRITE, CELLS
+use argument_mod,      only: arg_type,          &
+                             GH_FIELD, GH_REAL, &
+                             GH_READ, GH_WRITE, &
+                             CELL_COLUMN
 use fs_continuity_mod, only: WTHETA
-
-use kernel_mod,   only: kernel_type
+use kernel_mod,        only: kernel_type
 
 implicit none
 
@@ -25,29 +25,30 @@ private
 
 type, public, extends(kernel_type) :: pc2_checks_kernel_type
   private
-  type(arg_type) :: meta_args(15) = (/                                 &
-       arg_type(GH_FIELD,   GH_READ,    WTHETA), & ! mv_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA), & ! ml_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA), & ! mi_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA), & ! cfl_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA), & ! cff_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA), & ! bcf_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA), & ! theta_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA), & ! exner_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA), & ! dtheta_response
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA), & ! dqv_response_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA), & ! dqcl_response_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA), & ! dqcf_response_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA), & ! dcfl_response_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA), & ! dcff_response_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA)  & ! dbcf_response_wth
+  type(arg_type) :: meta_args(15) = (/                &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! mv_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! ml_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! mi_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! cfl_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! cff_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! bcf_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! theta_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! exner_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA), & ! dtheta_response
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA), & ! dqv_response_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA), & ! dqcl_response_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA), & ! dqcf_response_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA), & ! dcfl_response_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA), & ! dcff_response_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA)  & ! dbcf_response_wth
        /)
-   integer :: iterates_over = CELLS
+   integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: pc2_checks_code
 end type
 
-public pc2_checks_code
+public :: pc2_checks_code
+
 contains
 
 !> @brief Interface to the pc2 checks code
@@ -55,25 +56,28 @@ contains
 !>          as a result of combining cloud increments caculated in
 !>          parallel without knowledge of each other.
 !>          The PC2 cloud scheme is described in UMDP 30.
-!> @param[in]  nlayers              Number of layers
-!> @param[in]  mv_wth               vapour mass mixing ratio
-!> @param[in]  ml_wth               liquid cloud mass mixing ratio
-!> @param[in]  mi_wth               liquid cloud mass mixing ratio
-!> @param[in]  cfl_wth              liquid cloud fraction
-!> @param[in]  cff_wth              ice cloud fraction
-!> @param[in]  bcf_wth              bulk cloud fraction
-!> @param[in]  theta_wth            Potential temperature field
-!> @param[in]  exner_wth            Exner pressure in potential temperature space
-!> @param[out] dtheta_response_wth  Change in theta
-!> @param[out] dqv_response_wth     Change in water vapour
-!> @param[out] dqcl_response_wth    Change in liquid water content
-!> @param[out] dqcf_response_wth    Change in ice    water content
-!> @param[out] dcfl_response_wth    Change in liquid cloud fraction
-!> @param[out] dcff_response_wth    Change in ice    cloud fraction
-!> @param[out] dbcf_response_wth    Change in bulk   cloud fraction
-!> @param[in]  ndf_wth  Number of degrees of freedom per cell for potential temperature space
-!> @param[in]  undf_wth Number unique of degrees of freedom  for potential temperature space
-!> @param[in]  map_wth  Dofmap for the cell at the base of the column for potential temperature space
+!> @param[in]     nlayers              Number of layers
+!> @param[in]     mv_wth               Vapour mass mixing ratio
+!> @param[in]     ml_wth               Liquid cloud mass mixing ratio
+!> @param[in]     mi_wth               Liquid cloud mass mixing ratio
+!> @param[in]     cfl_wth              Liquid cloud fraction
+!> @param[in]     cff_wth              Ice cloud fraction
+!> @param[in]     bcf_wth              Bulk cloud fraction
+!> @param[in]     theta_wth            Potential temperature field
+!> @param[in]     exner_wth            Exner pressure in potential temperature space
+!> @param[in,out] dtheta_response_wth  Change in theta
+!> @param[in,out] dqv_response_wth     Change in water vapour
+!> @param[in,out] dqcl_response_wth    Change in liquid water content
+!> @param[in,out] dqcf_response_wth    Change in ice    water content
+!> @param[in,out] dcfl_response_wth    Change in liquid cloud fraction
+!> @param[in,out] dcff_response_wth    Change in ice    cloud fraction
+!> @param[in,out] dbcf_response_wth    Change in bulk   cloud fraction
+!> @param[in]     ndf_wth              Number of degrees of freedom per cell for
+!!                                      potential temperature space
+!> @param[in]     undf_wth             Number of unique of degrees of freedom
+!!                                      for potential temperature space
+!> @param[in]     map_wth              Dofmap for the cell at the base of the column
+!!                                      for potential temperature space
 
 subroutine pc2_checks_code( nlayers,                   &
                                            ! Atm fields

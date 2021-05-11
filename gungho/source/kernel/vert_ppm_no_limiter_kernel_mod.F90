@@ -9,8 +9,8 @@
 !>        in the vertical direction.
 
 
-!> @details The kernel computes the coefficients a0,a1,a2 where rho is represented in 1D
-!>          by the approximation rho(x) = a0+a1*x+a2*x**2
+!> @details The kernel computes the coefficients a0,a1,a2 where rho is represented
+!>          in 1D by the approximation rho(x) = a0+a1*x+a2*x**2
 !>          PPM is used to calculate the quadratic subgrid representation of rho.
 !>
 !>          This kernel is designed to work in the vertical direction only and
@@ -21,13 +21,17 @@
 !>          the relevant dofmaps.
 module vert_ppm_no_limiter_kernel_mod
 
-use argument_mod,       only : arg_type, func_type, GH_FIELD, GH_WRITE, &
-                               CELLS, GH_READ
+use argument_mod,       only : arg_type,          &
+                               GH_FIELD, GH_REAL, &
+                               GH_READ, GH_WRITE, &
+                               CELL_COLUMN
 use fs_continuity_mod,  only : W3
 use constants_mod,      only : r_def, i_def, l_def
 use kernel_mod,         only : kernel_type
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -35,20 +39,22 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: vert_ppm_no_limiter_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_FIELD, GH_WRITE, W3),                               &
-       arg_type(GH_FIELD, GH_WRITE, W3),                               &
-       arg_type(GH_FIELD, GH_WRITE, W3),                               &
-       arg_type(GH_FIELD, GH_READ,  W3)                                &
+  type(arg_type) :: meta_args(4) = (/             &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W3)  &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
-  procedure, public, nopass :: vert_ppm_no_limiter_code
+  procedure, nopass :: vert_ppm_no_limiter_code
 end type
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
+public :: vert_ppm_no_limiter_code
+
 contains
 
 !> @brief Compute the subgrid reconstruction coeffiecients for a density field
@@ -72,6 +78,7 @@ subroutine vert_ppm_no_limiter_code( nlayers,                      &
   use subgrid_rho_mod, only: second_order_coeffs
 
   implicit none
+
   ! Arguments
   integer(kind=i_def), intent(in)   :: nlayers
   integer(kind=i_def), intent(in)   :: undf_w3

@@ -16,13 +16,13 @@
 !>
 module eos_operators_kernel_mod
 
-  use argument_mod,            only: arg_type, func_type,            &
-                                     GH_OPERATOR, GH_FIELD, GH_REAL, &
-                                     GH_READ, GH_WRITE,              &
-                                     ANY_SPACE_1,                    &
-                                     GH_BASIS, GH_DIFF_BASIS,        &
-                                     CELLS, GH_QUADRATURE_XYoZ,      &
-                                     ANY_DISCONTINUOUS_SPACE_3
+  use argument_mod,            only: arg_type, func_type,         &
+                                     GH_OPERATOR, GH_FIELD,       &
+                                     GH_SCALAR, GH_REAL, GH_READ, &
+                                     GH_WRITE, ANY_SPACE_1,       &
+                                     ANY_DISCONTINUOUS_SPACE_3,   &
+                                     GH_BASIS, GH_DIFF_BASIS,     &
+                                     CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,           only: r_def, i_def
   use coordinate_jacobian_mod, only: pointwise_coordinate_jacobian
   use fs_continuity_mod,       only: W3, Wtheta
@@ -30,28 +30,30 @@ module eos_operators_kernel_mod
 
   implicit none
 
+  private
+
   !---------------------------------------------------------------------------
   ! Public types
   !---------------------------------------------------------------------------
   type, public, extends(kernel_type) :: eos_operators_kernel_type
     private
-    type(arg_type) :: meta_args(9) = (/                             &
-        arg_type(GH_OPERATOR, GH_WRITE, W3, W3),                    &
-        arg_type(GH_OPERATOR, GH_WRITE, W3, W3),                    &
-        arg_type(GH_OPERATOR, GH_WRITE, W3, Wtheta),                &
-        arg_type(GH_FIELD,    GH_READ,  W3),                        &
-        arg_type(GH_FIELD,    GH_READ,  W3),                        &
-        arg_type(GH_FIELD,    GH_READ,  Wtheta),                    &
-        arg_type(GH_FIELD*3,  GH_READ,  ANY_SPACE_1),               &
-        arg_type(GH_FIELD,    GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
-        arg_type(GH_REAL,     GH_READ)                              &
-        /)
-    type(func_type) :: meta_funcs(3) = (/                           &
-        func_type(W3,          GH_BASIS),                           &
-        func_type(Wtheta,      GH_BASIS),                           &
-        func_type(ANY_SPACE_1, GH_BASIS, GH_DIFF_BASIS)             &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(9) = (/                                       &
+         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W3, W3),                    &
+         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W3, W3),                    &
+         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W3, Wtheta),                &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  W3),                        &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  W3),                        &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta),                    &
+         arg_type(GH_FIELD*3,  GH_REAL, GH_READ,  ANY_SPACE_1),               &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
+         arg_type(GH_SCALAR,   GH_REAL, GH_READ)                              &
+         /)
+    type(func_type) :: meta_funcs(3) = (/                                     &
+         func_type(W3,          GH_BASIS),                                    &
+         func_type(Wtheta,      GH_BASIS),                                    &
+         func_type(ANY_SPACE_1, GH_BASIS, GH_DIFF_BASIS)                      &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
     procedure, nopass :: eos_operators_code
@@ -60,40 +62,40 @@ module eos_operators_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public eos_operators_code
+  public :: eos_operators_code
 
 contains
 
 !> @brief Computes the equation of state operators
 !! @param[in] cell Cell number
-!! @param[in] nlayers Number of layers.
+!! @param[in] nlayers Number of layers
 !! @param[in] ncell_3d1 ncell*nlayers
-!! @param[inout] m3exner W3 mass matrix weighted by reference pressure
+!! @param[in,out] m3exner W3 mass matrix weighted by reference pressure
 !! @param[in] ncell_3d2 ncell*nlayers
-!! @param[inout] m3rho W3 mass matrix weighted by reference density
+!! @param[in,out] m3rho W3 mass matrix weighted by reference density
 !! @param[in] ncell_3d3 ncell*nlayers
-!! @param[inout] p3theta Projection matrix weighted by reference potential temperature
+!! @param[in,out] p3theta Projection matrix weighted by reference potential temperature
 !! @param[in] exner Reference pressure
 !! @param[in] rho Reference density
 !! @param[in] theta Reference potential temperature
 !! @param[in] chi1 1st (spherical) coordinate field in Wchi
 !! @param[in] chi2 2nd (spherical) coordinate field in Wchi
 !! @param[in] chi3 3rd (spherical) coordinate field in Wchi
-!! @param[in] panel_id Field giving the ID for mesh panels.
+!! @param[in] panel_id Field giving the ID for mesh panels
 !! @param[in] scalar Scalar weight for the operator
-!! @param[in] ndf_w3 Number of degrees of freedom per cell for the operator space.
+!! @param[in] ndf_w3 Number of degrees of freedom per cell for the operator space
 !! @param[in] undf_w3 Total number of degrees of freedom for the W3 space
 !! @param[in] map_w3 Dofmap for the bottom layer in the W3 space
-!! @param[in] basis_w3 Basis functions evaluated at quadrature points.
+!! @param[in] basis_w3 Basis functions evaluated at quadrature points
 !! @param[in] ndf_wt Number of degrees of freedom per cell for the theta space
 !! @param[in] undf_wt Total number of degrees of freedom for the theta space
 !! @param[in] map_wt Dofmap for the bottom layer in the theta space
-!! @param[in] basis_wt Basis functions evaluated at quadrature points.
-!! @param[in] ndf_chi Number of degrees of freedom per cell for the coordinate field.
+!! @param[in] basis_wt Basis functions evaluated at quadrature points
+!! @param[in] ndf_chi Number of degrees of freedom per cell for the coordinate field
 !! @param[in] undf_chi Number of unique degrees of freedom for chi field
-!! @param[in] map_chi Dofmap for the cell at the base of the column.
-!! @param[in] basis_chi Wchi basis functions evaluated at quadrature points.
-!! @param[in] diff_basis_chi Wchi differential basis functions evaluated at quadrature points.
+!! @param[in] map_chi Dofmap for the cell at the base of the column
+!! @param[in] basis_chi Wchi basis functions evaluated at quadrature points
+!! @param[in] diff_basis_chi Wchi differential basis functions evaluated at quadrature points
 !! @param[in] ndf_pid  Number of degrees of freedom per cell for panel_id
 !! @param[in] undf_pid Number of unique degrees of freedom for panel_id
 !! @param[in] map_pid  Dofmap for the cell at the base of the column for panel_id

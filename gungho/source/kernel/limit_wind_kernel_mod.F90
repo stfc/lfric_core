@@ -7,10 +7,10 @@
 !>
 module limit_wind_kernel_mod
 
-  use argument_mod,            only : arg_type, func_type,      &
-                                     GH_FIELD, GH_READ, GH_INC, &
-                                     GH_BASIS,                  &
-                                     CELLS
+  use argument_mod,            only : arg_type,          &
+                                      GH_FIELD, GH_REAL, &
+                                      GH_READ, GH_INC,   &
+                                      CELL_COLUMN
   use checks_config_mod,       only : max_cfl
   use constants_mod,           only : i_def, r_def
   use fs_continuity_mod,       only : W2
@@ -18,6 +18,8 @@ module limit_wind_kernel_mod
   use timestepping_config_mod, only : dt
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -27,25 +29,25 @@ module limit_wind_kernel_mod
   !>
   type, public, extends(kernel_type) :: limit_wind_kernel_type
     private
-    type(arg_type) :: meta_args(2) = (/    &
-        arg_type(GH_FIELD,   GH_INC,  W2), &
-        arg_type(GH_FIELD,   GH_READ, W2)  &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(2) = (/            &
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  W2), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, W2)  &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
-    procedure, nopass ::limit_wind_code
+    procedure, nopass :: limit_wind_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public limit_wind_code
+  public :: limit_wind_code
 
 contains
 
 !> @brief Limits the wind dofs by some measure of CFL limit
 !! @param[in] nlayers Number of layers
-!! @param[inout] wind Wind
+!! @param[in,out] wind Wind
 !! @param[in] dJ_on_w2 detJ evaluated on w2 points
 !! @param[in] ndf_w2 Number of degrees of freedom per cell
 !! @param[in] undf_w2 Total number of degrees of freedom
@@ -55,15 +57,15 @@ subroutine limit_wind_code(nlayers, wind, dJ_on_w2, &
 
   implicit none
 
-  !Arguments
-  integer, intent(in) :: nlayers, ndf_w2, undf_w2
-  integer, dimension(ndf_w2), intent(in) :: map_w2
+  ! Arguments
+  integer(kind=i_def), intent(in) :: nlayers, ndf_w2, undf_w2
+  integer(kind=i_def), dimension(ndf_w2), intent(in)  :: map_w2
   real(kind=r_def), dimension(undf_w2), intent(inout) :: wind
   real(kind=r_def), dimension(undf_w2), intent(in)    :: dJ_on_w2
 
-  !Internal variables
-  real(kind=r_def) :: wind_max
-  integer          :: df, k
+  ! Internal variables
+  real(kind=r_def)    :: wind_max
+  integer(kind=i_def) :: df, k
 
   do k = 0, nlayers-1
     do df = 1, ndf_w2

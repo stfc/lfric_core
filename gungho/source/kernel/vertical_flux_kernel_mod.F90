@@ -16,14 +16,17 @@
 !>
 module vertical_flux_kernel_mod
 
-use argument_mod,      only : arg_type, func_type,                  &
-                              GH_FIELD, GH_INC, GH_READ,            &
-                              GH_BASIS, CELLS, GH_REAL
+use argument_mod,      only : arg_type,            &
+                              GH_FIELD, GH_SCALAR, &
+                              GH_READ, GH_INC,     &
+                              GH_REAL, CELL_COLUMN
 use constants_mod,     only : r_def, i_def
 use fs_continuity_mod, only : W2, W3
 use kernel_mod,        only : kernel_type
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -31,16 +34,16 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: vertical_flux_kernel_type
   private
-  type(arg_type) :: meta_args(7) = (/                               &
-       arg_type(GH_FIELD, GH_INC,   W2),                            &
-       arg_type(GH_FIELD, GH_READ,  W2),                            &
-       arg_type(GH_FIELD, GH_READ,  W3),                            &
-       arg_type(GH_FIELD, GH_READ,  W3),                            &
-       arg_type(GH_FIELD, GH_READ,  W3),                            &
-       arg_type(GH_FIELD, GH_READ,  W3),                            &
-       arg_type(GH_REAL,  GH_READ)                                  &
+  type(arg_type) :: meta_args(7) = (/              &
+       arg_type(GH_FIELD,  GH_REAL, GH_INC,   W2), &
+       arg_type(GH_FIELD,  GH_REAL, GH_READ,  W2), &
+       arg_type(GH_FIELD,  GH_REAL, GH_READ,  W3), &
+       arg_type(GH_FIELD,  GH_REAL, GH_READ,  W3), &
+       arg_type(GH_FIELD,  GH_REAL, GH_READ,  W3), &
+       arg_type(GH_FIELD,  GH_REAL, GH_READ,  W3), &
+       arg_type(GH_SCALAR, GH_REAL, GH_READ)       &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: vertical_flux_code
 end type
@@ -48,9 +51,9 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public vertical_flux_code
-contains
+public :: vertical_flux_code
 
+contains
 
 !> @brief Kernel which computes the mass flux for Cosmic in the z direction.
 !> @details The Cosmic scheme updates density in the x, y and z directions
@@ -60,7 +63,7 @@ contains
 !>          wall and divides by dt (timestep length) to obtain a rate of flow.
 !>          The scheme is able to handle Courant numbers larger than 1.
 !! @param[in] nlayers Number of layers
-!! @param[inout] flux Flux values which are calculated
+!! @param[in,out] flux Flux values which are calculated
 !! @param[in] dep_pts Departure points
 !! @param[in] rho Density values in W3
 !! @param[in] a0_coeffs Coefficients for the subgrid approximation of density

@@ -13,16 +13,19 @@
 !>
 module weighted_div_kernel_mod
 
-  use argument_mod,      only: arg_type, func_type,            &
-                               GH_OPERATOR, GH_FIELD, GH_REAL, &
-                               GH_READ, GH_WRITE,              &
-                               GH_BASIS,GH_DIFF_BASIS,         &
-                               CELLS, GH_QUADRATURE_XYoZ
+  use argument_mod,      only: arg_type, func_type,     &
+                               GH_OPERATOR, GH_FIELD,   &
+                               GH_SCALAR, GH_REAL,      &
+                               GH_READ, GH_WRITE,       &
+                               GH_BASIS, GH_DIFF_BASIS, &
+                               CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,     only: r_def, i_def
   use fs_continuity_mod, only: W2, W3, Wtheta
   use kernel_mod,        only: kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -30,17 +33,17 @@ module weighted_div_kernel_mod
 
   type, public, extends(kernel_type) :: weighted_div_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/               &
-        arg_type(GH_OPERATOR, GH_WRITE, W2, W3),      &
-        arg_type(GH_FIELD,    GH_READ,  Wtheta),      &
-        arg_type(GH_REAL,     GH_READ)                &
+    type(arg_type) :: meta_args(3) = (/                    &
+         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W2, W3), &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta), &
+         arg_type(GH_SCALAR,   GH_REAL, GH_READ)           &
+         /)
+    type(func_type) :: meta_funcs(3) = (/                  &
+         func_type(W2,     GH_BASIS, GH_DIFF_BASIS),       &
+         func_type(W3,     GH_BASIS),                      &
+         func_type(Wtheta, GH_BASIS, GH_DIFF_BASIS)        &
         /)
-    type(func_type) :: meta_funcs(3) = (/             &
-        func_type(W2,     GH_BASIS, GH_DIFF_BASIS),   &
-        func_type(W3,     GH_BASIS),                  &
-        func_type(Wtheta, GH_BASIS, GH_DIFF_BASIS)    &
-        /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
     procedure, nopass :: weighted_div_code
@@ -49,27 +52,29 @@ module weighted_div_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public weighted_div_code
+  public :: weighted_div_code
 
 contains
 
 !> @brief Computes the LMA form of the divegence operator
 !! @param[in] cell Cell number
-!! @param[in] nlayers Number of layers.
+!! @param[in] nlayers Number of layers
 !! @param[in] ncell_3d ncell*ndf
 !! @param[in,out] div Local stencil of the div operator
 !! @param[in] theta Potential temperature
 !! @param[in] scalar Real to scale operator by
-!! @param[in] ndf_w2 Number of degrees of freedom per cell.
-!! @param[in] basis_w2 Scalar basis functions evaluated at quadrature points.
-!! @param[in] diff_basis_w2 Differential vector basis functions evaluated at quadrature points.
-!! @param[in] ndf_w3 Number of degrees of freedom per cell.
-!! @param[in] basis_w3 Basis functions evaluated at quadrature points.
-!! @param[in] ndf_wtheta Number of degrees of freedom per cell.
+!! @param[in] ndf_w2 Number of degrees of freedom per cell
+!! @param[in] basis_w2 Scalar basis functions evaluated at quadrature points
+!! @param[in] diff_basis_w2 Differential vector basis functions evaluated
+!!                          at quadrature points
+!! @param[in] ndf_w3 Number of degrees of freedom per cell
+!! @param[in] basis_w3 Basis functions evaluated at quadrature points
+!! @param[in] ndf_wtheta Number of degrees of freedom per cell
 !! @param[in] undf_wtheta Total number of degrees of freedom
 !! @param[in] map_wtheta Dofmap for Wtheta
-!! @param[in] basis_wtheta Basis functions evaluated at quadrature points.
-!! @param[in] diff_basis_wtheta Differential vector basis functions evaluated at quadrature points.
+!! @param[in] basis_wtheta Basis functions evaluated at quadrature points
+!! @param[in] diff_basis_wtheta Differential vector basis functions evaluated
+!!            at quadrature points
 !! @param[in] nqp_h Number of horizontal quadrature points
 !! @param[in] nqp_v Number of vertical quadrature points
 !! @param[in] wqp_h Horizontal quadrature weights
@@ -83,8 +88,11 @@ subroutine weighted_div_code(cell, nlayers, ncell_3d,             &
                              ndf_wtheta, undf_wtheta, map_wtheta, &
                              basis_wtheta, diff_basis_wtheta,     &
                              nqp_h, nqp_v, wqp_h, wqp_v)
+
   implicit none
+
   ! Arguments
+
   integer(kind=i_def),                         intent(in) :: cell, nqp_h, nqp_v
   integer(kind=i_def),                         intent(in) :: nlayers
   integer(kind=i_def),                         intent(in) :: ncell_3d

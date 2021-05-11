@@ -10,7 +10,7 @@ module apply_mixed_lu_operator_kernel_mod
 use argument_mod,      only : arg_type,              &
                               GH_FIELD, GH_OPERATOR, &
                               GH_READ, GH_INC,       &
-                              CELLS
+                              GH_REAL, CELL_COLUMN
 use constants_mod,     only : r_def, i_def
 use kernel_mod,        only : kernel_type
 use fs_continuity_mod, only : W2, W3, Wtheta
@@ -24,17 +24,17 @@ private
 
 type, public, extends(kernel_type) :: apply_mixed_lu_operator_kernel_type
   private
-  type(arg_type) :: meta_args(8) = (/              &
-       arg_type(GH_FIELD,    GH_INC,  W2),         & ! lhs_u
-       arg_type(GH_FIELD,    GH_READ, W2),         & ! u'
-       arg_type(GH_FIELD,    GH_READ, Wtheta),     & ! theta'
-       arg_type(GH_FIELD,    GH_READ, W3),         & ! exner'
-       arg_type(GH_OPERATOR, GH_READ, W2, W2),     & ! Mu^{c,d}
-       arg_type(GH_OPERATOR, GH_READ, W2, Wtheta), & ! P2theta
-       arg_type(GH_OPERATOR, GH_READ, W2, W3),     & ! grad
-       arg_type(GH_FIELD,    GH_READ, W2)          & ! norm_u
+  type(arg_type) :: meta_args(8) = (/                       &
+       arg_type(GH_FIELD,    GH_REAL, GH_INC,  W2),         & ! lhs_u
+       arg_type(GH_FIELD,    GH_REAL, GH_READ, W2),         & ! u'
+       arg_type(GH_FIELD,    GH_REAL, GH_READ, Wtheta),     & ! theta'
+       arg_type(GH_FIELD,    GH_REAL, GH_READ, W3),         & ! exner'
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ, W2, W2),     & ! Mu^{c,d}
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ, W2, Wtheta), & ! P2theta
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ, W2, W3),     & ! grad
+       arg_type(GH_FIELD,    GH_REAL, GH_READ, W2)          & ! norm_u
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: apply_mixed_lu_operator_code
 end type
@@ -42,14 +42,14 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public apply_mixed_lu_operator_code
+public :: apply_mixed_lu_operator_code
 
 contains
 
 !> @brief Compute the LHS of the momentum equation lhs_u = norm_u*(Mu*u - P2t*t - grad*p).
 !! @param[in] cell Horizontal cell index
 !! @param[in] nlayers number of layers
-!! @param[inout] lhs_u Mixed operator applied to the momentum equation
+!! @param[in,out] lhs_u Mixed operator applied to the momentum equation
 !! @param[in] wind Wind field
 !! @param[in] theta Potential temperature field
 !! @param[in] exner Exner pressure field

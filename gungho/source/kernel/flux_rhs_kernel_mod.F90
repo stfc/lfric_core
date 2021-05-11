@@ -11,16 +11,19 @@
 module flux_rhs_kernel_mod
 
   use argument_mod,      only : arg_type, func_type,       &
-                                GH_FIELD, GH_READ, GH_INC, &
+                                GH_FIELD, GH_REAL,         &
+                                GH_READ, GH_INC,           &
                                 ANY_SPACE_9, ANY_SPACE_1,  &
                                 ANY_DISCONTINUOUS_SPACE_3, &
                                 GH_BASIS, GH_DIFF_BASIS,   &
-                                CELLS, GH_QUADRATURE_XYoZ
+                                CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2
   use kernel_mod,        only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -30,19 +33,19 @@ module flux_rhs_kernel_mod
   !>
   type, public, extends(kernel_type) :: flux_rhs_kernel_type
     private
-    type(arg_type) :: meta_args(5) = (/                          &
-        arg_type(GH_FIELD,   GH_INC,  W2),                       &
-        arg_type(GH_FIELD,   GH_READ, W2),                       &
-        arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1),              &
-        arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_9),              &
-        arg_type(GH_FIELD,   GH_READ, ANY_DISCONTINUOUS_SPACE_3) &
-        /)
-    type(func_type) :: meta_funcs(3) = (/                        &
-        func_type(W2,          GH_BASIS),                        &
-        func_type(ANY_SPACE_1, GH_BASIS),                        &
-        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)          &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(5) = (/                                    &
+         arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),                       &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, W2),                       &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_SPACE_1),              &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),              &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3) &
+         /)
+    type(func_type) :: meta_funcs(3) = (/                                  &
+         func_type(W2,          GH_BASIS),                                 &
+         func_type(ANY_SPACE_1, GH_BASIS),                                 &
+         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                   &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
     procedure, nopass :: flux_rhs_code
@@ -51,19 +54,19 @@ module flux_rhs_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public flux_rhs_code
+  public :: flux_rhs_code
 
 contains
 
 !> @brief
 !! @param[in] nlayers Number of layers
-!! @param[inout] rhs Field to contain the right hand side to be computed
+!! @param[in,out] rhs Field to contain the right hand side to be computed
 !! @param[in] u Advecting field
 !! @param[in] f Advected field
 !! @param[in] chi_1 1st (spherical) coordinate field in Wchi
 !! @param[in] chi_2 2nd (spherical) coordinate field in Wchi
 !! @param[in] chi_3 3rd (spherical) coordinate field in Wchi
-!! @param[in] panel_id Field giving the ID for mesh panels.
+!! @param[in] panel_id Field giving the ID for mesh panels
 !! @param[in] ndf_u Number of degrees of freedom per cell for w2
 !! @param[in] undf_u Number of unique degrees of freedom for w2
 !! @param[in] map_u Dofmap for the cell at the base of the column for w2
@@ -72,10 +75,12 @@ contains
 !! @param[in] undf_f Number of unique degrees of freedom for the advected field
 !! @param[in] map_f Dofmap for the cell at the base of the column for the field to be advected
 !! @param[in] basis_f Basis functions evaluated at gaussian quadrature points
-!! @param[in] ndf_chi Number of degrees of freedom per cell for the function space containing chi
+!! @param[in] ndf_chi Number of degrees of freedom per cell for the function
+!!                    space containing chi
 !! @param[in] undf_chi Number of unique degrees of freedom for chi arrays
-!! @param[in] map_chi Dofmap for the cell at the base of the column for the function space containing chi
-!! @param[in] basis_chi Wchi basis functions evaluated at gaussian quadrature points.
+!! @param[in] map_chi Dofmap for the cell at the base of the column for the
+!!                    function space containing chi
+!! @param[in] basis_chi Wchi basis functions evaluated at gaussian quadrature points
 !! @param[in] diff_basis_chi Derivatives of Wchi basis functions
 !!                           evaluated at gaussian quadrature points
 !! @param[in] ndf_pid  Number of degrees of freedom per cell for panel_id

@@ -10,17 +10,20 @@
 !>
 module calc_departure_point_kernel_mod
 
-  use argument_mod,                only : arg_type, func_type,         &
-                                          GH_FIELD, GH_READ, GH_WRITE, &
-                                          GH_BASIS, GH_DIFF_BASIS,     &
-                                          CELLS
+  use argument_mod,                only : arg_type, func_type,     &
+                                          GH_FIELD, GH_REAL,       &
+                                          GH_READ, GH_WRITE,       &
+                                          GH_BASIS, GH_DIFF_BASIS, &
+                                          CELL_COLUMN
   use biperiodic_deppt_config_mod, only : n_dep_pt_iterations
-  use constants_mod,               only : r_def
+  use constants_mod,               only : r_def, i_def
   use fs_continuity_mod,           only : W0, W2, W3
   use kernel_mod,                  only : kernel_type
   use timestepping_config_mod,     only : dt
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -30,16 +33,16 @@ module calc_departure_point_kernel_mod
   !>
   type, public, extends(kernel_type) :: calc_departure_point_kernel_type
     private
-    type(arg_type) :: meta_args(2) = (/     &
-        arg_type(GH_FIELD,   GH_WRITE, W3), &
-        arg_type(GH_FIELD,   GH_READ,  W2)  &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(2) = (/             &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  W2)  &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
-    procedure, nopass ::calc_departure_point_code
+    procedure, nopass :: calc_departure_point_code
   end type
 
-  public calc_departure_point_code
+  public :: calc_departure_point_code
 
 contains
 
@@ -48,7 +51,7 @@ contains
 !-------------------------------------------------------------------------------
 !> @brief Subroutine to calculate the departure point
 !! @param[in]    nlayers Number of model levels
-!! @param[inout] dep_pts Departure point values in W2 space
+!! @param[in,out] dep_pts Departure point values in W2 space
 !! @param[in]    departure_pt_stencil_length  Length of stencil
 !! @param[in]    undf_w2 Number of unique degrees of freedom for W2
 !! @param[in]    ndf_w2 Number of degrees of freedom per cell in W2
@@ -82,28 +85,28 @@ subroutine calc_departure_point_code( nlayers,                       &
 
   implicit none
 
-  integer, intent(in)                     :: nlayers
-  integer, intent(in)                     :: undf_w2
+  integer(kind=i_def), intent(in)         :: nlayers
+  integer(kind=i_def), intent(in)         :: undf_w2
   real(kind=r_def), intent(inout)         :: dep_pts(1:undf_w2)
-  integer, intent(in)                     :: departure_pt_stencil_length
-  integer, intent(in)                     :: ndf_w2
-  integer, intent(in)                     :: undf_w3
-  integer, intent(in)                     :: ndf_w3
-  integer, intent(in)                     :: stencil_map_w2(1:ndf_w2,1:departure_pt_stencil_length)
-  integer, intent(in)                     :: stencil_map_w3(1:ndf_w3,1:departure_pt_stencil_length)
+  integer(kind=i_def), intent(in)         :: departure_pt_stencil_length
+  integer(kind=i_def), intent(in)         :: ndf_w2
+  integer(kind=i_def), intent(in)         :: undf_w3
+  integer(kind=i_def), intent(in)         :: ndf_w3
+  integer(kind=i_def), intent(in)         :: stencil_map_w2(1:ndf_w2,1:departure_pt_stencil_length)
+  integer(kind=i_def), intent(in)         :: stencil_map_w3(1:ndf_w3,1:departure_pt_stencil_length)
   real(kind=r_def), intent(in)            :: u_n(1:undf_w2)
   real(kind=r_def), intent(in)            :: u_np1(1:undf_w2)
   real(kind=r_def), intent(in)            :: cell_orientation(1:undf_w3)
-  integer, intent(in)                     :: direction
-  integer, intent(in)                     :: dep_pt_method
+  integer(kind=i_def), intent(in)         :: direction
+  integer(kind=i_def), intent(in)         :: dep_pt_method
 
   real(kind=r_def)     :: xArrival
   real(kind=r_def)     :: u_n_local(1:departure_pt_stencil_length+1)
   real(kind=r_def)     :: u_np1_local(1:departure_pt_stencil_length+1)
 
-  integer              :: nCellEdges
-  integer              :: k, df1, df2, ii, jj
-  integer              :: stencil_order_out(1:departure_pt_stencil_length)
+  integer(kind=i_def)  :: nCellEdges
+  integer(kind=i_def)  :: k, df1, df2, ii, jj
+  integer(kind=i_def)  :: stencil_order_out(1:departure_pt_stencil_length)
 
   real(kind=r_def)     :: unordered_u_n(1:4,1:departure_pt_stencil_length)
   real(kind=r_def)     :: unordered_u_np1(1:4,1:departure_pt_stencil_length)

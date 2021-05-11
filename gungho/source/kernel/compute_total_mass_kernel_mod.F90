@@ -7,12 +7,12 @@
 !>
 module compute_total_mass_kernel_mod
 
-  use argument_mod,      only : arg_type, func_type,             &
-                                GH_FIELD, GH_WRITE, GH_READ,     &
-                                ANY_SPACE_9,                     &
-                                GH_BASIS, GH_DIFF_BASIS,         &
-                                CELLS, GH_QUADRATURE_XYoZ,       &
-                                ANY_DISCONTINUOUS_SPACE_3
+  use argument_mod,      only : arg_type, func_type,         &
+                                GH_FIELD, GH_WRITE, GH_READ, &
+                                GH_REAL, ANY_SPACE_9,        &
+                                ANY_DISCONTINUOUS_SPACE_3,   &
+                                GH_BASIS, GH_DIFF_BASIS,     &
+                                CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W3
   use kernel_mod,        only : kernel_type
@@ -29,17 +29,17 @@ module compute_total_mass_kernel_mod
   !>
   type, public, extends(kernel_type) :: compute_total_mass_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                           &
-        arg_type(GH_FIELD,   GH_WRITE, W3),                       &
-        arg_type(GH_FIELD,   GH_READ,  W3),                       &
-        arg_type(GH_FIELD*3, GH_READ,  ANY_SPACE_9),              &
-        arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
-        /)
-    type(func_type) :: meta_funcs(2) = (/                         &
-        func_type(W3, GH_BASIS),                                  &
-        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)           &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(4) = (/                                     &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                       &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                       &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),              &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
+         /)
+    type(func_type) :: meta_funcs(2) = (/                                   &
+         func_type(W3,          GH_BASIS),                                  &
+         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                    &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
     procedure, nopass :: compute_total_mass_code
@@ -48,18 +48,18 @@ module compute_total_mass_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public compute_total_mass_code
+  public :: compute_total_mass_code
 
 contains
 
 !> @brief Computes the cell integrated mass for a single model column
 !! @param[in] nlayers Number of layers
-!! @param[inout] mass Cell integrated mass
+!! @param[in,out] mass Cell integrated mass
 !! @param[in] rho Density
 !! @param[in] chi_1 1st (spherical) coordinate field in Wchi
 !! @param[in] chi_2 2nd (spherical) coordinate field in Wchi
 !! @param[in] chi_3 3rd (spherical) coordinate field in Wchi
-!! @param[in] panel_id A field giving the ID for mesh panels.
+!! @param[in] panel_id A field giving the ID for mesh panels
 !! @param[in] ndf_w3 Number of degrees of freedom per cell
 !! @param[in] undf_w3 Total number of degrees of freedom for w3
 !! @param[in] map_w3 Dofmap for the cell at the base of the column

@@ -33,14 +33,14 @@ ifdef OPTIMISATION_PATH
 $(WORKING_DIR)/%_psy.f90: $(WORKING_DIR)/%.x90 $$(LOCAL_OPTIMISATION_FILE) \
                           | $(KERNEL_SOURCE)
 	$(call MESSAGE,Full psyclone - local optimisations,$<)
-	$(Q)psyclone -api dynamo0.3 -l -d $(WORKING_DIR) \
+	$(Q)psyclone -api dynamo0.3 -l all -d $(WORKING_DIR) \
 	             -s $(LOCAL_OPTIMISATION_FILE) \
 	             -opsy $@ -oalg $(WORKING_DIR)/$*.f90 $<
 
 $(WORKING_DIR)/%_psy.f90: $(WORKING_DIR)/%.x90 $(GLOBAL_OPTIMISATION_FILE) \
                           | $(KERNEL_SOURCE)
 	$(call MESSAGE,Full psyclone - global optimisations,$<)
-	$(Q)psyclone -api dynamo0.3 -l -d $(WORKING_DIR) \
+	$(Q)psyclone -api dynamo0.3 -l all -d $(WORKING_DIR) \
 	             -s $(GLOBAL_OPTIMISATION_FILE) \
 	             -opsy $@ -oalg $(WORKING_DIR)/$*.f90 $<
 
@@ -50,13 +50,13 @@ $(OPTIMISATION_PATH)/global.py:
 else
 $(WORKING_DIR)/%_psy.f90: $(WORKING_DIR)/%.x90 | $(KERNEL_SOURCE)
 	$(call MESSAGE,Full psyclone,$(subst $(PWD)/,,$<))
-	$(Q)psyclone -api dynamo0.3 -l -d $(WORKING_DIR) \
+	$(Q)psyclone -api dynamo0.3 -l all -d $(WORKING_DIR) \
 	             -opsy $@ -oalg $(WORKING_DIR)/$*.f90 $<
 endif
 
 $(WORKING_DIR)/%.f90: $(WORKING_DIR)/%.x90
 	$(call MESSAGE,Algorithm only,$<)
-	$(Q)psyclone -api dynamo0.3 -l -d $(WORKING_DIR) \
+	$(Q)psyclone -api dynamo0.3 -l all -d $(WORKING_DIR) \
 	             -oalg $@ -opsy /dev/null $<
 
 .PRECIOUS: $(WORKING_DIR)/%.x90

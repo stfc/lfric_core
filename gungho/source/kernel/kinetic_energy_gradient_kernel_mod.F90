@@ -22,16 +22,19 @@
 module kinetic_energy_gradient_kernel_mod
 
   use argument_mod,      only : arg_type, func_type,       &
-                                GH_FIELD, GH_READ, GH_INC, &
+                                GH_FIELD, GH_REAL,         &
+                                GH_READ, GH_INC,           &
                                 ANY_SPACE_9,               &
                                 ANY_DISCONTINUOUS_SPACE_3, &
                                 GH_BASIS, GH_DIFF_BASIS,   &
-                                CELLS, GH_QUADRATURE_XYoZ
+                                CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2
   use kernel_mod,        only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -40,17 +43,17 @@ module kinetic_energy_gradient_kernel_mod
   !> Psy layer.
   type, public, extends(kernel_type) :: kinetic_energy_gradient_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                          &
-        arg_type(GH_FIELD,   GH_INC,  W2),                       &
-        arg_type(GH_FIELD,   GH_READ, W2),                       &
-        arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_9),              &
-        arg_type(GH_FIELD,   GH_READ, ANY_DISCONTINUOUS_SPACE_3) &
-        /)
-    type(func_type) :: meta_funcs(2) = (/                        &
-        func_type(W2,          GH_BASIS, GH_DIFF_BASIS),         &
-        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)          &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(4) = (/                                    &
+         arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),                       &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, W2),                       &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),              &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3) &
+         /)
+    type(func_type) :: meta_funcs(2) = (/                                  &
+         func_type(W2,          GH_BASIS, GH_DIFF_BASIS),                  &
+         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                   &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
     procedure, nopass :: kinetic_energy_gradient_code
@@ -59,23 +62,24 @@ module kinetic_energy_gradient_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public kinetic_energy_gradient_code
+  public :: kinetic_energy_gradient_code
 
 contains
 
 !> @brief Computes the kinetic gradient component of the rhs of the momentum equation
 !! @param[in] nlayers Number of layers
-!! @param[inout] r_u Right hand side of momentum equation
+!! @param[in,out] r_u Right hand side of momentum equation
 !! @param[in] u Velocity
 !! @param[in] chi_1 1st (spherical) coordinate field in Wchi
 !! @param[in] chi_2 2nd (spherical) coordinate field in Wchi
 !! @param[in] chi_3 3rd (spherical) coordinate field in Wchi
-!! @param[in] panel_id Field giving the ID for mesh panels.
+!! @param[in] panel_id Field giving the ID for mesh panels
 !! @param[in] ndf_w2 Number of degrees of freedom per cell for w2
 !! @param[in] undf_w2 Number of unique degrees of freedom  for w2
 !! @param[in] map_w2 Dofmap for the cell at the base of the column for w2
 !! @param[in] w2_basis Basis functions evaluated at quadrature points
-!! @param[in] w2_diff_basis Differntial of the basis functions evaluated at  quadrature points
+!! @param[in] w2_diff_basis Differential of the W2 basis functions evaluated
+!!                          at gaussian quadrature points
 !! @param[in] ndf_chi Number of degrees of freedom per cell for chi
 !! @param[in] undf_chi Number of unique degrees of freedom  for chi
 !! @param[in] map_chi Dofmap for the cell at the base of the column for chi
@@ -105,13 +109,13 @@ subroutine kinetic_energy_gradient_code(nlayers,                       &
 
   implicit none
 
-  !Arguments
-  integer, intent(in) :: nlayers,nqp_h, nqp_v
-  integer, intent(in) :: ndf_chi, ndf_w2, ndf_pid
-  integer, intent(in) :: undf_chi, undf_w2, undf_pid
-  integer, dimension(ndf_chi), intent(in) :: map_chi
-  integer, dimension(ndf_w2),  intent(in) :: map_w2
-  integer, dimension(ndf_pid), intent(in) :: map_pid
+  ! Arguments
+  integer(kind=i_def), intent(in) :: nlayers,nqp_h, nqp_v
+  integer(kind=i_def), intent(in) :: ndf_chi, ndf_w2, ndf_pid
+  integer(kind=i_def), intent(in) :: undf_chi, undf_w2, undf_pid
+  integer(kind=i_def), dimension(ndf_chi), intent(in) :: map_chi
+  integer(kind=i_def), dimension(ndf_w2),  intent(in) :: map_w2
+  integer(kind=i_def), dimension(ndf_pid), intent(in) :: map_pid
 
   real(kind=r_def), dimension(3,ndf_w2,nqp_h,nqp_v),  intent(in) :: w2_basis
   real(kind=r_def), dimension(1,ndf_w2,nqp_h,nqp_v),  intent(in) :: w2_diff_basis

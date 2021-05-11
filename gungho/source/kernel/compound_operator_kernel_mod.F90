@@ -8,14 +8,19 @@
 !> @brief Computes a compound operator A = B*C*D where A,B,C & D are all locally
 !!        assembled operators and B & C are mass matrices
 module compound_operator_kernel_mod
+
 use constants_mod,           only: r_def, i_def
 use kernel_mod,              only: kernel_type
-use argument_mod,            only: arg_type, func_type,            &
-                                   GH_OPERATOR, GH_FIELD, GH_REAL, &
-                                   GH_READ, GH_WRITE,              &
-                                   ANY_SPACE_1, ANY_SPACE_2,       &
-                                   CELLS
+use argument_mod,            only: arg_type,                 &
+                                   GH_OPERATOR, GH_FIELD,    &
+                                   GH_SCALAR, GH_REAL,       &
+                                   GH_READ, GH_WRITE,        &
+                                   ANY_SPACE_1, ANY_SPACE_2, &
+                                   CELL_COLUMN
+
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -23,16 +28,15 @@ implicit none
 
 type, public, extends(kernel_type) :: compound_operator_kernel_type
   private
-  type(arg_type) :: meta_args(6) = (/                                  &
-       arg_type(GH_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2),      &
-       arg_type(GH_OPERATOR, GH_READ,  ANY_SPACE_1, ANY_SPACE_1),      &
-       arg_type(GH_OPERATOR, GH_READ,  ANY_SPACE_1, ANY_SPACE_1),      &
-       arg_type(GH_OPERATOR, GH_READ,  ANY_SPACE_1, ANY_SPACE_2),      &
-       arg_type(GH_FIELD,    GH_READ,  ANY_SPACE_2),                   &
-       arg_type(GH_REAL,     GH_READ)                                  &
+  type(arg_type) :: meta_args(6) = (/                                      &
+       arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  ANY_SPACE_1, ANY_SPACE_1), &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  ANY_SPACE_1, ANY_SPACE_1), &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  ANY_SPACE_1, ANY_SPACE_2), &
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,  ANY_SPACE_2),              &
+       arg_type(GH_SCALAR,   GH_REAL, GH_READ)                             &
        /)
-  integer :: iterates_over = CELLS
-
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: compound_operator_kernel_code
 end type
@@ -40,7 +44,7 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public compound_operator_kernel_code
+public :: compound_operator_kernel_code
 contains
 
 !> @brief This subroutine computes the div operator
@@ -50,7 +54,7 @@ contains
 !! @param[in] ncell_3d_2 Ncell*ndf
 !! @param[in] ncell_3d_3 Ncell*ndf
 !! @param[in] ncell_3d_4 Ncell*ndf
-!! @param[inout] compound_operator LMA operator to create
+!! @param[in,out] compound_operator LMA operator to create
 !! @param[in] mass_matrix1 First mass matrix
 !! @param[in] mass_matrix2 Second mass matrix
 !! @param[in] differential_matrix Third operator
@@ -60,7 +64,6 @@ contains
 !! @param[in] ndf2 Number of dofs per cell for space 2
 !! @param[in] undf2 total Number of dofs per cell for space 2
 !! @param[in] map2 dofmap for space 2
-
 
 subroutine compound_operator_kernel_code(cell, nlayers, &
                                          ncell_3d_1,  &
@@ -75,7 +78,8 @@ subroutine compound_operator_kernel_code(cell, nlayers, &
                                          tau, &
                                          ndf1, ndf2, undf2, map2)
   implicit none
-  !Arguments
+
+  ! Arguments
   integer(kind=i_def),                     intent(in) :: cell
   integer(kind=i_def),                     intent(in) :: nlayers
   integer(kind=i_def),                     intent(in) :: ncell_3d_1, ncell_3d_2, ncell_3d_3, ncell_3d_4
@@ -89,7 +93,8 @@ subroutine compound_operator_kernel_code(cell, nlayers, &
   real(kind=r_def), dimension(ndf1,ndf2,ncell_3d_4), intent(in)    :: differential_matrix
   real(kind=r_def), dimension(undf2),                intent(in)    :: field
   real(kind=r_def),                                  intent(in)    :: tau
-  !Internal variables
+
+  ! Internal variables
   integer(kind=i_def)                     :: k, ik, df
   real(kind=r_def),  dimension(ndf1,ndf2) :: d
 
@@ -101,6 +106,7 @@ subroutine compound_operator_kernel_code(cell, nlayers, &
       compound_operator(:,df,ik) = tau*d(:,df)*field(map2(df)+k)
     end do
   end do
+
 end subroutine compound_operator_kernel_code
 
 end module compound_operator_kernel_mod

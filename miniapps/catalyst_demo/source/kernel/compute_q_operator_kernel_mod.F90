@@ -9,16 +9,17 @@
 module compute_q_operator_kernel_mod
 
 use argument_mod,      only: arg_type, func_type,   &
-                             GH_OPERATOR, GH_FIELD, &
-                             GH_READ, GH_WRITE,     &
-                             ANY_SPACE_1,           &
-                             GH_BASIS,              &
-                             CELLS, GH_QUADRATURE_XYoZ
+                             GH_OPERATOR, GH_REAL,  &
+                             GH_WRITE, ANY_SPACE_1, &
+                             GH_BASIS, CELL_COLUMN, &
+                             GH_QUADRATURE_XYoZ
 use constants_mod,     only: r_def, i_def
 use fs_continuity_mod, only: W2
 use kernel_mod,        only: kernel_type
 
 implicit none
+
+private
 
 ! Precomputed arrays
 real(kind=r_def), allocatable, private :: delta_z(:)
@@ -29,14 +30,14 @@ real(kind=r_def), allocatable, private :: delta_z(:)
 
 type, public, extends(kernel_type) :: compute_q_operator_type
   private
-  type(arg_type) :: meta_args(1) = (/                                  &
-       arg_type(GH_OPERATOR, GH_WRITE, W2, ANY_SPACE_1)                &
+  type(arg_type) :: meta_args(1) = (/                            &
+       arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W2, ANY_SPACE_1) &
        /)
-  type(func_type) :: meta_funcs(2) = (/                                &
-       func_type(W2,          GH_BASIS),                               &
-       func_type(ANY_SPACE_1, GH_BASIS)                                &
+  type(func_type) :: meta_funcs(2) = (/                          &
+       func_type(W2,          GH_BASIS),                         &
+       func_type(ANY_SPACE_1, GH_BASIS)                          &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_QUADRATURE_XYoZ
 contains
   procedure, nopass :: compute_q_operator_code
@@ -46,23 +47,23 @@ end type
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 public compute_q_operator_init
-public compute_q_operator_code
+public :: compute_q_operator_code
 public compute_q_operator_final
 
 contains
 
 !> @brief Computes the q operator which is the projection of the vertical
 !!        bouyancy term
-!! @param[in] cell cell id
-!! @param[in] nlayers number of layers.
+!! @param[in] cell Cell id
+!! @param[in] nlayers Number of layers
 !! @param[in] ncell_3d ncell*nlayers
-!! @param[in] ndf_w2 number of degrees of freedom per cell.
-!! @param[in] basis_w2 basis functions evaluated at quadrature points.
-!! @param[in] ndf_wt number of degrees of freedom per cell.
-!! @param[in] basis_wt basis functions evaluated at quadrature points.
-!! @param[in] q local stencil of the q operator
-!! @param[in] nqp_h number of horizontal quadrature points
-!! @param[in] nqp_v number of vertical quadrature points
+!! @param[in] ndf_w2 Number of degrees of freedom per cell
+!! @param[in] basis_w2 Basis functions evaluated at quadrature points
+!! @param[in] ndf_wt Number of degrees of freedom per cell
+!! @param[in] basis_wt Basis functions evaluated at quadrature points
+!! @param[in,out] q Local stencil of the q operator
+!! @param[in] nqp_h Number of horizontal quadrature points
+!! @param[in] nqp_v Number of vertical quadrature points
 !! @param[in] wqp_h Horizontal quadrature weights
 !! @param[in] wqp_v Vertical quadrature weights
 subroutine compute_q_operator_code(cell, nlayers, ncell_3d,     &
@@ -73,7 +74,7 @@ subroutine compute_q_operator_code(cell, nlayers, ncell_3d,     &
 
   implicit none
 
-  !Arguments
+  ! Arguments
   integer(kind=i_def),                    intent(in) :: cell, nqp_h, nqp_v
   integer(kind=i_def),                    intent(in) :: nlayers
   integer(kind=i_def),                    intent(in) :: ncell_3d
@@ -86,7 +87,7 @@ subroutine compute_q_operator_code(cell, nlayers, ncell_3d,     &
   real(kind=r_def), dimension(nqp_h),                  intent(in)    :: wqp_h
   real(kind=r_def), dimension(nqp_v),                  intent(in)    :: wqp_v
 
-  !Internal variables
+  ! Internal variables
   integer(kind=i_def)                          :: df2, dft, k, ik
   integer(kind=i_def)                          :: qp1, qp2
   real(kind=r_def)                             :: integrand
@@ -113,10 +114,10 @@ subroutine compute_q_operator_code(cell, nlayers, ncell_3d,     &
 end subroutine compute_q_operator_code
 
 !=============================================================================!
-!>@brief Initialise the q computation kernel, copies the dz array into a local
-!!       copy
-!!@param[in] dz layer thickness array
-!!@param[in] nlayers the number of layers
+!> @brief Initialise the q computation kernel, copies the dz array into a local
+!!        copy
+!! @param[in] dz Layer thickness array
+!! @param[in] nlayers The number of layers
 subroutine compute_q_operator_init(dz, nlayers)
 
   implicit none
@@ -129,7 +130,7 @@ subroutine compute_q_operator_init(dz, nlayers)
 end subroutine compute_q_operator_init
 
 !=============================================================================!
-!>@brief Reclaims memory from private allocatable arrays
+!> @brief Reclaims memory from private allocatable arrays
 subroutine compute_q_operator_final()
 
   implicit none

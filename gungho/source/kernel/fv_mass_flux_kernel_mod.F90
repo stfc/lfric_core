@@ -15,9 +15,10 @@
 !>
 module fv_mass_flux_kernel_mod
 
-  use argument_mod,      only : arg_type, func_type,       &
-                                GH_FIELD, GH_INC, GH_READ, &
-                                GH_BASIS, CELLS
+  use argument_mod,      only : arg_type,          &
+                                GH_FIELD, GH_REAL, &
+                                GH_INC, GH_READ,   &
+                                CELL_COLUMN
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W0, W2, W3
   use kernel_mod,        only : kernel_type
@@ -34,12 +35,12 @@ module fv_mass_flux_kernel_mod
   !>
   type, public, extends(kernel_type) :: fv_mass_flux_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/     &
-        arg_type(GH_FIELD,   GH_INC,   W2), &
-        arg_type(GH_FIELD,   GH_READ,  W2), &
-        arg_type(GH_FIELD,   GH_READ,  W3)  &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(3) = (/            &
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  W2), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, W2), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, W3)  &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: fv_mass_flux_code
   end type
@@ -47,7 +48,7 @@ module fv_mass_flux_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public fv_mass_flux_code
+  public :: fv_mass_flux_code
 
 contains
 

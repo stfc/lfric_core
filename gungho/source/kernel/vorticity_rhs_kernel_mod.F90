@@ -11,16 +11,19 @@
 module vorticity_rhs_kernel_mod
 
   use argument_mod,      only : arg_type, func_type,       &
-                                GH_FIELD, GH_READ, GH_INC, &
+                                GH_FIELD, GH_REAL,         &
+                                GH_READ, GH_INC,           &
                                 ANY_SPACE_9,               &
+                                ANY_DISCONTINUOUS_SPACE_3, &
                                 GH_BASIS, GH_DIFF_BASIS,   &
-                                CELLS, GH_QUADRATURE_XYoZ, &
-                                ANY_DISCONTINUOUS_SPACE_3
+                                CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W1, W2
   use kernel_mod,        only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -30,18 +33,18 @@ module vorticity_rhs_kernel_mod
   !>
   type, public, extends(kernel_type) :: vorticity_rhs_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                          &
-        arg_type(GH_FIELD,   GH_INC,  W1),                       &
-        arg_type(GH_FIELD,   GH_READ, W2),                       &
-        arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_9),              &
-        arg_type(GH_FIELD,   GH_READ, ANY_DISCONTINUOUS_SPACE_3) &
-        /)
-    type(func_type) :: meta_funcs(3) = (/                        &
-        func_type(W1, GH_DIFF_BASIS),                            &
-        func_type(W2, GH_BASIS),                                 &
-        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)          &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(4) = (/                                    &
+         arg_type(GH_FIELD,   GH_REAL, GH_INC,  W1),                       &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, W2),                       &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),              &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3) &
+         /)
+    type(func_type) :: meta_funcs(3) = (/                                  &
+         func_type(W1,          GH_DIFF_BASIS),                            &
+         func_type(W2,          GH_BASIS),                                 &
+         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                   &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
     procedure, nopass :: vorticity_rhs_code
@@ -50,32 +53,35 @@ module vorticity_rhs_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public vorticity_rhs_code
+  public :: vorticity_rhs_code
 
 contains
 
 !> @brief Compute the projection of curl(u) into the vorticity function space
 !! @param[in] nlayers Number of layers
-!! @param[inout] rhs Right hand side to be computed
+!! @param[in,out] rhs Right hand side to be computed
 !! @param[in] u Velocity field
 !! @param[in] chi_1 1st (spherical) coordinate field in Wchi
 !! @param[in] chi_2 2nd (spherical) coordinate field in Wchi
 !! @param[in] chi_3 3rd (spherical) coordinate field in Wchi
-!! @param[in] panel_id Field giving the ID for mesh panels.
-!! @param[in] ndf_xi Number of degrees of freedom per cell for w1
-!! @param[in] undf_xi Unique number of degrees of freedom for w1
-!! @param[in] map_xi Dofmap for the cell at the base of the column for w1
-!! @param[in] diff_basis_xi Differential of the basis functions evaluated at gaussian quadrature point
+!! @param[in] panel_id Field giving the ID for mesh panels
+!! @param[in] ndf_xi Number of degrees of freedom per cell for W1
+!! @param[in] undf_xi Unique number of degrees of freedom for W1
+!! @param[in] map_xi Dofmap for the cell at the base of the column for W1
+!! @param[in] diff_basis_xi Differential of the basis functions evaluated
+!!                          at Gaussian quadrature point
 !! @param[in] ndf_u Number of degrees of freedom per cell for the velocity field
 !! @param[in] undf_u Unique number of degrees of freedom for the velocity field
 !! @param[in] map_u Dofmap for the cell at the base of the column for the velocity field
-!! @param[in] basis_u Basis functions evaluated at gaussian quadrature points
-!! @param[in] ndf_chi Number of degrees of freedom per cell for the function space containing chi
+!! @param[in] basis_u Basis functions evaluated at Gaussian quadrature points
+!! @param[in] ndf_chi Number of degrees of freedom per cell for the function
+!!                    space containing chi
 !! @param[in] undf_chi Unique number of degrees of freedom for the chi arrays
-!! @param[in] map_chi Dofmap for the cell at the base of the column for the function space containing chi
-!! @param[in] basis_chi Wchi basis functions evaluated at gaussian quadrature points.
+!! @param[in] map_chi Dofmap for the cell at the base of the column for the
+!!                    function space containing chi
+!! @param[in] basis_chi Wchi basis functions evaluated at Gaussian quadrature points
 !! @param[in] diff_basis_chi Derivatives of Wchi basis functions
-!!                           evaluated at gaussian quadrature points
+!!                           evaluated at Gaussian quadrature points
 !! @param[in] ndf_pid  Number of degrees of freedom per cell for panel_id
 !! @param[in] undf_pid Number of unique degrees of freedom for panel_id
 !! @param[in] map_pid  Dofmap for the cell at the base of the column for panel_id

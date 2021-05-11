@@ -17,16 +17,18 @@
 module calc_computational_wind_kernel_mod
 
 use argument_mod,      only : arg_type, func_type,       &
-                              GH_FIELD, GH_READ, GH_INC, &
-                              ANY_SPACE_9,               &
+                              GH_FIELD, GH_REAL, GH_INC, &
+                              GH_READ, ANY_SPACE_9,      &
                               ANY_DISCONTINUOUS_SPACE_3, &
                               GH_DIFF_BASIS, GH_BASIS,   &
-                              CELLS, GH_EVALUATOR
+                              CELL_COLUMN, GH_EVALUATOR
 use constants_mod,     only : r_def, i_def
 use fs_continuity_mod, only : W2
 use kernel_mod,        only : kernel_type
 
 implicit none
+
+private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -36,31 +38,32 @@ implicit none
   !>
   type, public, extends(kernel_type) :: calc_computational_wind_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                            &
-        arg_type(GH_FIELD,    GH_INC,   W2),                       &
-        arg_type(GH_FIELD,    GH_READ,  W2),                       &
-        arg_type(GH_FIELD*3,  GH_READ,  ANY_SPACE_9),              &
-        arg_type(GH_FIELD,    GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
-        /)
-    type(func_type) :: meta_funcs(2) = (/                          &
-        func_type(W2,          GH_BASIS),                          &
-        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)            &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(4) = (/                                    &
+         arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),                       &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, W2),                       &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),              &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3) &
+         /)
+    type(func_type) :: meta_funcs(2) = (/                                  &
+         func_type(W2,          GH_BASIS),                                 &
+         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                   &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_EVALUATOR
   contains
-    procedure, nopass ::calc_computational_wind_code
+    procedure, nopass :: calc_computational_wind_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public calc_computational_wind_code
+  public :: calc_computational_wind_code
 
   contains
 
   !> @param[in] nlayers Number of layers
-  !> @param[inout] u_departure_wind Output field containing the departure wind used to calculate departure points
+  !> @param[in,out] u_departure_wind Output field containing the departure wind
+  !!                                 used to calculate departure points
   !> @param[in] u_piola Field for the Piola wind
   !> @param[in] chi1 Coordinates in the first direction
   !> @param[in] chi2 Coordinates in the second direction
@@ -74,7 +77,8 @@ implicit none
   !> @param[in] undf_chi Number of unique degrees of freedom for the coordinate field
   !> @param[in] map_chi Dofmap for the cell at the base of the column for the coordinate field
   !> @param[in] basis_chi Basis functions of the coordinate space evaluated at the nodal points
-  !> @param[in] diff_basis_chi Differential basis functions of the coordinate space evaluated at the nodal points
+  !> @param[in] diff_basis_chi Differential basis functions of the coordinate space
+  !!                           evaluated at the nodal points
   !> @param[in] ndf_pid  Number of degrees of freedom per cell for panel_id
   !> @param[in] undf_pid Number of unique degrees of freedom for panel_id
   !> @param[in] map_pid  Dofmap for the cell at the base of the column for panel_id

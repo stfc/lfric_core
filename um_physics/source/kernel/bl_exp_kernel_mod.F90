@@ -9,9 +9,9 @@
 module bl_exp_kernel_mod
 
   use argument_mod,           only : arg_type,                   &
-                                     GH_FIELD, GH_INTEGER,       &
+                                     GH_FIELD, GH_REAL,          &
                                      GH_READ, GH_WRITE, GH_INC,  &
-                                     GH_READWRITE, CELLS,        &
+                                     GH_READWRITE, CELL_COLUMN,  &
                                      ANY_DISCONTINUOUS_SPACE_1,  &
                                      ANY_DISCONTINUOUS_SPACE_2,  &
                                      ANY_DISCONTINUOUS_SPACE_3,  &
@@ -50,136 +50,136 @@ module bl_exp_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_exp_kernel_type
     private
-    type(arg_type) :: meta_args(122) = (/                           &
-        arg_type(GH_FIELD, GH_READ,      WTHETA),                   &! theta_in_wth
-        arg_type(GH_FIELD, GH_READ,      W3),                       &! rho_in_w3
-        arg_type(GH_FIELD, GH_READ,      W3),                       &! wetrho_in_w3
-        arg_type(GH_FIELD, GH_READ,      WTHETA),                   &! wetrho_in_wth
-        arg_type(GH_FIELD, GH_READ,      W3),                       &! exner_in_w3
-        arg_type(GH_FIELD, GH_READ,      WTHETA),                   &! exner_in_wth
-        arg_type(GH_FIELD, GH_READ,      W3, STENCIL(CROSS)),       &! u1_in_w3
-        arg_type(GH_FIELD, GH_READ,      W3, STENCIL(CROSS)),       &! u2_in_w3
-        arg_type(GH_FIELD, GH_READ,      WTHETA),                   &! u3_in_wth
-        arg_type(GH_FIELD, GH_READ,      WTHETA),                   &! m_v_n
-        arg_type(GH_FIELD, GH_READ,      WTHETA),                   &! m_cl_n
-        arg_type(GH_FIELD, GH_READ,      WTHETA),                   &! m_ci_n
-        arg_type(GH_FIELD, GH_READ,      W3),                       &! height_w3
-        arg_type(GH_FIELD, GH_READ,      WTHETA),                   &! height_wth
-        arg_type(GH_FIELD, GH_READ,      WTHETA),                   &! shear
-        arg_type(GH_FIELD, GH_READ,      WTHETA),                   &! delta
-        arg_type(GH_FIELD, GH_READ,      WTHETA),                   &! max_diff_smag
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1),&! zh_2d
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1),&! z0msea_2d
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! ntml_2d
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! cumulus_2d
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2, STENCIL(CROSS)),&! tile_fraction
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_3),&! leaf_area_index
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_3),&! canopy_height
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! sd_orog_2d
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! peak_to_trough_orog
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! silhouette_area_orog
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! soil_albedo
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! soil_roughness
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! soil_moist_wilt
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! soil_moist_crit
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! soil_moist_sat
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! soil_thermal_cond
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! soil_suction_sat
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! clapp_horn_b
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! soil_carbon_content
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! soil_respiration
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! thermal_cond_wet_soil
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_4),&! sea_ice_temperature
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2),&! tile_temperature
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! tile_snow_mass
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! n_snow_layers
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! snow_depth
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_5),&! snow_layer_thickness
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_5),&! snow_layer_ice_mass
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_5),&! snow_layer_liq_mass
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_5),&! snow_layer_temp
-        arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1),&! surface_conductance
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! canopy_water
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_6),&! soil_temperature
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_6),&! soil_moisture
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_6),&! unfrozen_soil_moisture
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_6),&! frozen_soil_moisture
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! tile_heat_flux
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! tile_moisture_flux
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! gross_prim_prod
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! net_prim_prod
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! cos_zen_angle
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! sw_up_tile
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! sw_down_surf
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! lw_down_surf
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! sw_down_surf_blue
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! dd_mf_cb
-        arg_type(GH_FIELD, GH_READ,      WTHETA),                   &! dtl_mphys
-        arg_type(GH_FIELD, GH_READ,      WTHETA),                   &! dmt_mphys
-        arg_type(GH_FIELD, GH_READ,      WTHETA),                   &! sw_heating_rate
-        arg_type(GH_FIELD, GH_READ,      WTHETA),                   &! lw_heating_rate
-        arg_type(GH_FIELD, GH_READ,      WTHETA),                   &! ozone
-        arg_type(GH_FIELD, GH_READ,      WTHETA),                   &! cf_bulk
-        arg_type(GH_FIELD, GH_READWRITE, WTHETA),                   &! rh_crit
-        arg_type(GH_FIELD, GH_WRITE,     WTHETA),                   &! dsldzm
-        arg_type(GH_FIELD, GH_WRITE,     WTHETA),                   &! wvar
-        arg_type(GH_FIELD, GH_WRITE,     WTHETA),                   &! visc_m_blend
-        arg_type(GH_FIELD, GH_WRITE,     WTHETA),                   &! visc_h_blend
-        arg_type(GH_FIELD, GH_INC,       W2),                       &! du_bl
-        arg_type(GH_FIELD, GH_WRITE,     WTHETA),                   &! rhokm_bl
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_7),&! rhokm_surf
-        arg_type(GH_FIELD, GH_WRITE,     W3),                       &! rhokh_bl
-        arg_type(GH_FIELD, GH_WRITE,     WTHETA),                   &! ngstress_bl
-        arg_type(GH_FIELD, GH_WRITE,     WTHETA),                   &! bq_bl
-        arg_type(GH_FIELD, GH_WRITE,     WTHETA),                   &! bt_bl
-        arg_type(GH_FIELD, GH_WRITE,     W3),                       &! moist_flux_bl
-        arg_type(GH_FIELD, GH_WRITE,     W3),                       &! heat_flux_bl
-        arg_type(GH_FIELD, GH_WRITE,     W3),                       &! dtrdz_uv_bl
-        arg_type(GH_FIELD, GH_WRITE,     WTHETA),                   &! dtrdz_tq_bl
-        arg_type(GH_FIELD, GH_WRITE,     W3),                       &! rdz_tq_bl
-        arg_type(GH_FIELD, GH_WRITE,     WTHETA),                   &! rdz_uv_bl
-        arg_type(GH_FIELD, GH_WRITE,     WTHETA),                   &! fd_taux
-        arg_type(GH_FIELD, GH_WRITE,     WTHETA),                   &! fd_tauy
-        arg_type(GH_FIELD, GH_WRITE,     WTHETA),                   &! lmix_bl
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! alpha1_tile
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! ashtf_prime_tile
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! dtstar_tile
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! fraca_tile
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! z0h_tile
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! z0m_tile
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! rhokh_tile
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! chr1p5m_tile
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! resfs_tile
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! canhc_tile
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_8),&! tile_water_extract
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! blend_height_tq
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! blend_height_uv
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! ustar
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! soil_moist_avail
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! zh_nonloc
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! z_lcl
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! inv_depth
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! qcl_at_inv_top
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! shallow_flag
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! uw0_flux
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! vw0_flux
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! lcl_height
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! parcel_top
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! level_parcel_top
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! wstar_2d
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! thv_flux
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! parcel_buoyancy
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! qsat_at_lcl
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_9),&! bl_type_ind
-        arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_3),&! snow_unload_rate
-        arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_10)&! albedo_obs_scaling
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(122) = (/                                      &
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! theta_in_wth
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      W3),                       &! rho_in_w3
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      W3),                       &! wetrho_in_w3
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! wetrho_in_wth
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      W3),                       &! exner_in_w3
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! exner_in_wth
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      W3, STENCIL(CROSS)),       &! u1_in_w3
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      W3, STENCIL(CROSS)),       &! u2_in_w3
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! u3_in_wth
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! m_v_n
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! m_cl_n
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! m_ci_n
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      W3),                       &! height_w3
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! height_wth
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! shear
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! delta
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! max_diff_smag
+         arg_type(GH_FIELD, GH_REAL,  GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1),&! zh_2d
+         arg_type(GH_FIELD, GH_REAL,  GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1),&! z0msea_2d
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! ntml_2d
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! cumulus_2d
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_2, STENCIL(CROSS)),&! tile_fraction
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_3),&! leaf_area_index
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_3),&! canopy_height
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! sd_orog_2d
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! peak_to_trough_orog
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! silhouette_area_orog
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! soil_albedo
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! soil_roughness
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! soil_moist_wilt
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! soil_moist_crit
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! soil_moist_sat
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! soil_thermal_cond
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! soil_suction_sat
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! clapp_horn_b
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! soil_carbon_content
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! soil_respiration
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! thermal_cond_wet_soil
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_4),&! sea_ice_temperature
+         arg_type(GH_FIELD, GH_REAL,  GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2),&! tile_temperature
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! tile_snow_mass
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! n_snow_layers
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! snow_depth
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_5),&! snow_layer_thickness
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_5),&! snow_layer_ice_mass
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_5),&! snow_layer_liq_mass
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_5),&! snow_layer_temp
+         arg_type(GH_FIELD, GH_REAL,  GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1),&! surface_conductance
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! canopy_water
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_6),&! soil_temperature
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_6),&! soil_moisture
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_6),&! unfrozen_soil_moisture
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_6),&! frozen_soil_moisture
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! tile_heat_flux
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! tile_moisture_flux
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! gross_prim_prod
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! net_prim_prod
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! cos_zen_angle
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! sw_up_tile
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! sw_down_surf
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! lw_down_surf
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! sw_down_surf_blue
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! dd_mf_cb
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! dtl_mphys
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! dmt_mphys
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! sw_heating_rate
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! lw_heating_rate
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! ozone
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! cf_bulk
+         arg_type(GH_FIELD, GH_REAL,  GH_READWRITE, WTHETA),                   &! rh_crit
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     WTHETA),                   &! dsldzm
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     WTHETA),                   &! wvar
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     WTHETA),                   &! visc_m_blend
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     WTHETA),                   &! visc_h_blend
+         arg_type(GH_FIELD, GH_REAL,  GH_INC,       W2),                       &! du_bl
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     WTHETA),                   &! rhokm_bl
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_7),&! rhokm_surf
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     W3),                       &! rhokh_bl
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     WTHETA),                   &! ngstress_bl
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     WTHETA),                   &! bq_bl
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     WTHETA),                   &! bt_bl
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     W3),                       &! moist_flux_bl
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     W3),                       &! heat_flux_bl
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     W3),                       &! dtrdz_uv_bl
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     WTHETA),                   &! dtrdz_tq_bl
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     W3),                       &! rdz_tq_bl
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     WTHETA),                   &! rdz_uv_bl
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     WTHETA),                   &! fd_taux
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     WTHETA),                   &! fd_tauy
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     WTHETA),                   &! lmix_bl
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! alpha1_tile
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! ashtf_prime_tile
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! dtstar_tile
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! fraca_tile
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! z0h_tile
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! z0m_tile
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! rhokh_tile
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! chr1p5m_tile
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! resfs_tile
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! canhc_tile
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_8),&! tile_water_extract
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! blend_height_tq
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! blend_height_uv
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! ustar
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! soil_moist_avail
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! zh_nonloc
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! z_lcl
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! inv_depth
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! qcl_at_inv_top
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! shallow_flag
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! uw0_flux
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! vw0_flux
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! lcl_height
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! parcel_top
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! level_parcel_top
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! wstar_2d
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! thv_flux
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! parcel_buoyancy
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! qsat_at_lcl
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_9),&! bl_type_ind
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_3),&! snow_unload_rate
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_10)&! albedo_obs_scaling
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: bl_exp_code
   end type
 
-  public bl_exp_code
+  public :: bl_exp_code
 
 contains
 
@@ -188,160 +188,160 @@ contains
   !>             vertical mixing of heat, momentum and moisture,
   !>             as documented in UMDP24
   !>          NB This version uses winds in w3 space (i.e. A-grid)
-  !> @param[in]     nlayers              Number of layers
-  !> @param[in]     theta_in_wth         Potential temperature field
-  !> @param[in]     rho_in_w3            Density field in density space
-  !> @param[in]     wetrho_in_w3         Wet density field in density space
-  !> @param[in]     wetrho_in_wth        Wet density field in wth space
-  !> @param[in]     exner_in_w3          Exner pressure field in density space
-  !> @param[in]     exner_in_wth         Exner pressure field in wth space
-  !> @param[in]     u1_in_w3             'Zonal' wind in density space
-  !> @param[in]     u2_in_w3             'Meridional' wind in density space
-  !> @param[in]     u3_in_wth            'Vertical' wind in theta space
-  !> @param[in]     m_v_n                Vapour mixing ratio at time level n
-  !> @param[in]     m_cl_n               Cloud liq mixing ratio at time level n
-  !> @param[in]     m_ci_n               Cloud ice mixing ratio at time level n
-  !> @param[in]     height_w3            Height of density space above surface
-  !> @param[in]     height_wth           Height of theta space above surface
-  !> @param[in]     shear                3D wind shear on wtheta points
-  !> @param[in]     delta                Edge length on wtheta points
-  !> @param[in]     max_diff_smag        Maximum diffusion coefficient allowed
-  !> @param[in,out] zh_2d                Boundary layer depth
-  !> @param[in,out] z0msea_2d            Roughness length
-  !> @param[out]    ntml_2d              Number of turbulently mixed levels
-  !> @param[out]    cumulus_2d           Cumulus flag (true/false)
-  !> @param[in]     tile_fraction        Surface tile fractions
-  !> @param[in]     leaf_area_index      Leaf Area Index
-  !> @param[in]     canopy_height        Canopy height
-  !> @param[in]     sd_orog_2d           Standard deviation of orography
-  !> @param[in]     peak_to_trough_orog  Half of peak-to-trough height over root(2) of orography
-  !> @param[in]     silhouette_area_orog Silhouette area of orography
-  !> @param[in]     soil_albedo          Snow-free soil albedo
-  !> @param[in]     soil_roughness       Bare soil surface roughness length
-  !> @param[in]     soil_moist_wilt      Volumetric soil moisture at wilting point
-  !> @param[in]     soil_moist_crit      Volumetric soil moisture at critical point
-  !> @param[in]     soil_moist_sat       Volumetric soil moisture at saturation
-  !> @param[in]     soil_thermal_cond    Soil thermal conductivity
-  !> @param[in]     soil_suction_sat     Saturated soil water suction
-  !> @param[in]     clapp_horn_b         Clapp and Hornberger b coefficient
-  !> @param[in]     soil_carbon_content  Soil carbon content
-  !> @param[out]    soil_respiration     Soil respiration  (kg m-2 s-1)
-  !> @param[out]    thermal_cond_wet_soil Thermal conductivity of wet soil (W m-1 K-1)
-  !> @param[in]     sea_ice_temperature  Bulk temperature of sea-ice (K)
-  !> @param[in,out] tile_temperature     Surface tile temperatures
-  !> @param[in]     tile_snow_mass       Snow mass on tiles (kg/m2)
-  !> @param[in]     n_snow_layers        Number of snow layers on tiles
-  !> @param[in]     snow_depth           Snow depth on tiles
-  !> @param[in]     snow_layer_thickness Thickness of snow layers (m)
-  !> @param[in]     snow_layer_ice_mass  Mass of ice in snow layers (kg m-2)
-  !> @param[in]     snow_layer_liq_mass  Mass of liquid in snow layers (kg m-2)
-  !> @param[in]     snow_layer_temp      Temperature of snow layer (K)
-  !> @param[in,out] surface_conductance  Surface conductance
-  !> @param[in]     canopy_water         Canopy water on each tile
-  !> @param[in]     soil_temperature     Soil temperature
-  !> @param[in]     soil_moisture        Soil moisture content (kg m-2)
+  !> @param[in]     nlayers                Number of layers
+  !> @param[in]     theta_in_wth           Potential temperature field
+  !> @param[in]     rho_in_w3              Density field in density space
+  !> @param[in]     wetrho_in_w3           Wet density field in density space
+  !> @param[in]     wetrho_in_wth          Wet density field in wth space
+  !> @param[in]     exner_in_w3            Exner pressure field in density space
+  !> @param[in]     exner_in_wth           Exner pressure field in wth space
+  !> @param[in]     u1_in_w3               'Zonal' wind in density space
+  !> @param[in]     u2_in_w3               'Meridional' wind in density space
+  !> @param[in]     u3_in_wth              'Vertical' wind in theta space
+  !> @param[in]     m_v_n                  Vapour mixing ratio at time level n
+  !> @param[in]     m_cl_n                 Cloud liquid mixing ratio at time level n
+  !> @param[in]     m_ci_n                 Cloud ice mixing ratio at time level n
+  !> @param[in]     height_w3              Height of density space above surface
+  !> @param[in]     height_wth             Height of theta space above surface
+  !> @param[in]     shear                  3D wind shear on wtheta points
+  !> @param[in]     delta                  Edge length on wtheta points
+  !> @param[in]     max_diff_smag          Maximum diffusion coefficient allowed
+  !> @param[in,out] zh_2d                  Boundary layer depth
+  !> @param[in,out] z0msea_2d              Roughness length
+  !> @param[in,out] ntml_2d                Number of turbulently mixed levels
+  !> @param[in,out] cumulus_2d             Cumulus flag (true/false)
+  !> @param[in]     tile_fraction          Surface tile fractions
+  !> @param[in]     leaf_area_index        Leaf Area Index
+  !> @param[in]     canopy_height          Canopy height
+  !> @param[in]     sd_orog_2d             Standard deviation of orography
+  !> @param[in]     peak_to_trough_orog    Half of peak-to-trough height over root(2) of orography
+  !> @param[in]     silhouette_area_orog   Silhouette area of orography
+  !> @param[in]     soil_albedo            Snow-free soil albedo
+  !> @param[in]     soil_roughness         Bare soil surface roughness length
+  !> @param[in]     soil_moist_wilt        Volumetric soil moisture at wilting point
+  !> @param[in]     soil_moist_crit        Volumetric soil moisture at critical point
+  !> @param[in]     soil_moist_sat         Volumetric soil moisture at saturation
+  !> @param[in]     soil_thermal_cond      Soil thermal conductivity
+  !> @param[in]     soil_suction_sat       Saturated soil water suction
+  !> @param[in]     clapp_horn_b           Clapp and Hornberger b coefficient
+  !> @param[in]     soil_carbon_content    Soil carbon content
+  !> @param[in,out] soil_respiration       Soil respiration  (kg m-2 s-1)
+  !> @param[in,out] thermal_cond_wet_soil  Thermal conductivity of wet soil (W m-1 K-1)
+  !> @param[in]     sea_ice_temperature    Bulk temperature of sea-ice (K)
+  !> @param[in,out] tile_temperature       Surface tile temperatures
+  !> @param[in]     tile_snow_mass         Snow mass on tiles (kg/m2)
+  !> @param[in]     n_snow_layers          Number of snow layers on tiles
+  !> @param[in]     snow_depth             Snow depth on tiles
+  !> @param[in]     snow_layer_thickness   Thickness of snow layers (m)
+  !> @param[in]     snow_layer_ice_mass    Mass of ice in snow layers (kg m-2)
+  !> @param[in]     snow_layer_liq_mass    Mass of liquid in snow layers (kg m-2)
+  !> @param[in]     snow_layer_temp        Temperature of snow layer (K)
+  !> @param[in,out] surface_conductance    Surface conductance
+  !> @param[in]     canopy_water           Canopy water on each tile
+  !> @param[in]     soil_temperature       Soil temperature
+  !> @param[in]     soil_moisture          Soil moisture content (kg m-2)
   !> @param[in]     unfrozen_soil_moisture Unfrozen soil moisture proportion
-  !> @param[in]     frozen_soil_moisture Frozen soil moisture proportion
-  !> @param[out]    tile_heat_flux       Surface heat flux
-  !> @param[out]    tile_moisture_flux   Surface moisture flux
-  !> @param[out]    gross_prim_prod      Gross Primary Productivity
-  !> @param[out]    net_prim_prod        Net Primary Productivity
-  !> @param[in]     cos_zen_angle        Cosing of solar zenith angle
-  !> @param[in]     sw_up_tile           Upwelling SW radiation on surface tiles
-  !> @param[in]     sw_down_surf         Downwelling SW radiation at surface
-  !> @param[in]     lw_down_surf         Downwelling LW radiation at surface
-  !> @param[in]     sw_down_surf_blue    Photosynthetically active SW down
-  !> @param[in]     dd_mf_cb             Downdraft massflux at cloud base (Pa/s)
-  !> @param[in]     dtl_mphys            Microphysics liq temperature increment
-  !> @param[in]     dmt_mphys            Microphysics total water increment
-  !> @param[in]     sw_heating_rate      Shortwave radiation heating rate
-  !> @param[in]     lw_heating_rate      Longwave radiation heating rate
-  !> @param[in]     ozone                Ozone field
-  !> @param[in]     cf_bulk              Bulk cloud fraction
-  !> @param[in,out] rh_crit              Critical rel humidity
-  !> @param[out]    visc_m_blend         Blended BL-Smag diffusion coefficient for momentum
-  !> @param[out]    visc_h_blend         Blended BL-Smag diffusion coefficient for scalars
-  !> @param[in,out] du_bl                Wind increment from BL scheme
-  !> @param[out]    rhokm_bl             Momentum eddy diffusivity on BL levels
-  !> @param[out]    rhokm_surf           Momentum eddy diffusivity for coastal tiling
-  !> @param[out]    rhokh_bl             Heat eddy diffusivity on BL levels
-  !> @param[out]    ngstress_bl          Non-gradient stress function on BL levels
-  !> @param[out]    bq_bl                Buoyancy parameter for moisture
-  !> @param[out]    bt_bl                Buoyancy parameter for heat
-  !> @param[out]    moist_flux_bl        Vertical moisture flux on BL levels
-  !> @param[out]    heat_flux_bl         Vertical heat flux on BL levels
-  !> @param[out]    dtrdz_uv_bl          dt/(rho*r*r*dz) in w3 space
-  !> @param[out]    dtrdz_tq_bl          dt/(rho*r*r*dz) in wth
-  !> @param[out]    rdz_tq_bl            1/dz in w3
-  !> @param[out]    rdz_uv_bl            1/dz in wth space
-  !> @param[out]    alpha1_tile          dqsat/dT in surface layer on tiles
-  !> @param[out]    ashtf_prime_tile     Heat flux coefficient on tiles
-  !> @param[out]    dtstar_tile          Change in surface temperature on tiles
-  !> @param[out]    fraca_tile           Fraction of moisture flux with only aerodynamic resistance
-  !> @param[out]    z0h_tile             Heat roughness length on tiles
-  !> @param[out]    z0m_tile             Momentum roughness length on tiles
-  !> @param[out]    rhokh_tile           Surface heat diffusivity on tiles
-  !> @param[out]    chr1p5m_tile         1.5m transfer coefficients on tiles
-  !> @param[out]    resfs_tile           Combined aerodynamic resistance
-  !> @param[out]    canhc_tile           Canopy heat capacity on tiles
-  !> @param[out]    tile_water_extract   Extraction of water from each tile
-  !> @param[out]    blend_height_tq      Blending height for wth levels
-  !> @param[out]    blend_height_uv      Blending height for w3 levels
-  !> @param[out]    ustar                Friction velocity
-  !> @param[out]    soil_moist_avail     Available soil moisture for evaporation
-  !> @param[out]    zh_nonloc            Depth of non-local BL scheme
-  !> @param[out]    z_lcl                Height of the LCL (wtheta levels)
-  !> @param[out]    inv_depth            Depth of BL top inversion layer
-  !> @param[out]    qcl_at_inv_top       Cloud water at top of inversion
-  !> @param[out]    shallow_flag         Indicator of shallow convection
-  !> @param[out]    uw0_flux             'Zonal' surface momentum flux
-  !> @param[out]    vw0 flux             'Meridional' surface momentum flux
-  !> @param[out]    lcl_height           Height of lifting condensation level (w3 levels)
-  !> @param[out]    parcel_top           Height of surface based parcel ascent
-  !> @param[out]    level_parcel_top     Model level of parcel_top
-  !> @param[out]    wstar_2d             BL velocity scale
-  !> @param[out]    thv_flux             Surface flux of theta_v
-  !> @param[out]    parcel_buoyancy      Integral of parcel buoyancy
-  !> @param[out]    qsat_at_lcl          Saturation specific hum at LCL
-  !> @param[out]    bl_type_ind          Diagnosed BL types
-  !> @param[out]    snow_unload_rate     Unloading of snow from PFTs by wind
-  !> @param[in]     albedo_obs_scaling   Scaling factor to adjust albedos by
-  !> @param[in]     ndf_wth              Number of DOFs per cell for potential temperature space
-  !> @param[in]     undf_wth             Number of unique DOFs for potential temperature space
-  !> @param[in]     map_wth              Dofmap for the cell at the base of the column for potential temperature space
-  !> @param[in]     ndf_w3               Number of DOFs per cell for density space
-  !> @param[in]     undf_w3              Number of unique DOFs for density space
-  !> @param[in]     map_w3               Dofmap for the cell at the base of the column for density space
-  !> @param[in]     ndf_2d               Number of DOFs per cell for 2D fields
-  !> @param[in]     undf_2d              Number of unique DOFs for 2D fields
-  !> @param[in]     map_2d               Dofmap for the cell at the base of the column for 2D fields
-  !> @param[in]     ndf_tile             Number of DOFs per cell for tiles
-  !> @param[in]     undf_tile            Number of total DOFs for tiles
-  !> @param[in]     map_tile             Dofmap for cell for surface tiles
-  !> @param[in]     ndf_pft              Number of DOFs per cell for PFTs
-  !> @param[in]     undf_pft             Number of total DOFs for PFTs
-  !> @param[in]     map_pft              Dofmap for cell for PFTs
-  !> @param[in]     ndf_sice             Number of DOFs per cell for sice
-  !> @param[in]     undf_sice            Number of total DOFs for sice
-  !> @param[in]     map_sice             Dofmap for cell for sice
-  !> @param[in]     ndf_snow             Number of DOFs per cell for snow
-  !> @param[in]     undf_snow            Number of total DOFs for snow
-  !> @param[in]     map_snow             Dofmap for cell for snow
-  !> @param[in]     ndf_soil             Number of DOFs per cell for soil levels
-  !> @param[in]     undf_soil            Number of total DOFs for soil levels
-  !> @param[in]     map_soil             Dofmap for cell for soil levels
-  !> @param[in]     ndf_surf             Number of DOFs per cell for surface variables
-  !> @param[in]     undf_surf            Number of unique DOFs for surface variables
-  !> @param[in]     map_surf             Dofmap for the cell at the base of the column for surface variables
-  !> @param[in]     ndf_smtile           Number of DOFs per cell for soil levels and tiles
-  !> @param[in]     undf_smtile          Number of total DOFs for soil levels and tiles
-  !> @param[in]     map_smtile           Dofmap for cell for soil levels and tiles
-  !> @param[in]     ndf_bl               Number of DOFs per cell for BL types
-  !> @param[in]     undf_bl              Number of total DOFs for BL types
-  !> @param[in]     map_bl               Dofmap for cell for BL types
-  !> @param[in]     ndf_scal             Number of DOFs per cell for albedo scaling
-  !> @param[in]     undf_scal            Number of total DOFs for albedo scaling
-  !> @param[in]     map_scal             Dofmap for cell at the base of the column
+  !> @param[in]     frozen_soil_moisture   Frozen soil moisture proportion
+  !> @param[in,out] tile_heat_flux         Surface heat flux
+  !> @param[in,out] tile_moisture_flux     Surface moisture flux
+  !> @param[in,out] gross_prim_prod        Gross Primary Productivity
+  !> @param[in,out] net_prim_prod          Net Primary Productivity
+  !> @param[in]     cos_zen_angle          Cosine of solar zenith angle
+  !> @param[in]     sw_up_tile             Upwelling SW radiation on surface tiles
+  !> @param[in]     sw_down_surf           Downwelling SW radiation at surface
+  !> @param[in]     lw_down_surf           Downwelling LW radiation at surface
+  !> @param[in]     sw_down_surf_blue      Photosynthetically active SW down
+  !> @param[in]     dd_mf_cb               Downdraft massflux at cloud base (Pa/s)
+  !> @param[in]     dtl_mphys              Microphysics liq temperature increment
+  !> @param[in]     dmt_mphys              Microphysics total water increment
+  !> @param[in]     sw_heating_rate        Shortwave radiation heating rate
+  !> @param[in]     lw_heating_rate        Longwave radiation heating rate
+  !> @param[in]     ozone                  Ozone field
+  !> @param[in]     cf_bulk                Bulk cloud fraction
+  !> @param[in,out] rh_crit                Critical rel humidity
+  !> @param[in,out] visc_m_blend           Blended BL-Smag diffusion coefficient for momentum
+  !> @param[in,out] visc_h_blend           Blended BL-Smag diffusion coefficient for scalars
+  !> @param[in,out] du_bl                  Wind increment from BL scheme
+  !> @param[in,out] rhokm_bl               Momentum eddy diffusivity on BL levels
+  !> @param[in,out] rhokm_surf             Momentum eddy diffusivity for coastal tiling
+  !> @param[in,out] rhokh_bl               Heat eddy diffusivity on BL levels
+  !> @param[in,out] ngstress_bl            Non-gradient stress function on BL levels
+  !> @param[in,out] bq_bl                  Buoyancy parameter for moisture
+  !> @param[in,out] bt_bl                  Buoyancy parameter for heat
+  !> @param[in,out] moist_flux_bl          Vertical moisture flux on BL levels
+  !> @param[in,out] heat_flux_bl           Vertical heat flux on BL levels
+  !> @param[in,out] dtrdz_uv_bl            dt/(rho*r*r*dz) in w3 space
+  !> @param[in,out] dtrdz_tq_bl            dt/(rho*r*r*dz) in wth
+  !> @param[in,out] rdz_tq_bl              1/dz in w3
+  !> @param[in,out] rdz_uv_bl              1/dz in wth space
+  !> @param[in,out] alpha1_tile            dqsat/dT in surface layer on tiles
+  !> @param[in,out] ashtf_prime_tile       Heat flux coefficient on tiles
+  !> @param[in,out] dtstar_tile            Change in surface temperature on tiles
+  !> @param[in,out] fraca_tile             Fraction of moisture flux with only aerodynamic resistance
+  !> @param[in,out] z0h_tile               Heat roughness length on tiles
+  !> @param[in,out] z0m_tile               Momentum roughness length on tiles
+  !> @param[in,out] rhokh_tile             Surface heat diffusivity on tiles
+  !> @param[in,out] chr1p5m_tile           1.5m transfer coefficients on tiles
+  !> @param[in,out] resfs_tile             Combined aerodynamic resistance
+  !> @param[in,out] canhc_tile             Canopy heat capacity on tiles
+  !> @param[in,out] tile_water_extract     Extraction of water from each tile
+  !> @param[in,out] blend_height_tq        Blending height for wth levels
+  !> @param[in,out] blend_height_uv        Blending height for w3 levels
+  !> @param[in,out] ustar                  Friction velocity
+  !> @param[in,out] soil_moist_avail       Available soil moisture for evaporation
+  !> @param[in,out] zh_nonloc              Depth of non-local BL scheme
+  !> @param[in,out] z_lcl                  Height of the LCL (wtheta levels)
+  !> @param[in,out] inv_depth              Depth of BL top inversion layer
+  !> @param[in,out] qcl_at_inv_top         Cloud water at top of inversion
+  !> @param[in,out] shallow_flag           Indicator of shallow convection
+  !> @param[in,out] uw0_flux               'Zonal' surface momentum flux
+  !> @param[in,out] vw0 flux               'Meridional' surface momentum flux
+  !> @param[in,out] lcl_height             Height of lifting condensation level (w3 levels)
+  !> @param[in,out] parcel_top             Height of surface based parcel ascent
+  !> @param[in,out] level_parcel_top       Model level of parcel_top
+  !> @param[in,out] wstar_2d               BL velocity scale
+  !> @param[in,out] thv_flux               Surface flux of theta_v
+  !> @param[in,out] parcel_buoyancy        Integral of parcel buoyancy
+  !> @param[in,out] qsat_at_lcl            Saturation specific hum at LCL
+  !> @param[in,out] bl_type_ind            Diagnosed BL types
+  !> @param[in,out] snow_unload_rate       Unloading of snow from PFTs by wind
+  !> @param[in]     albedo_obs_scaling     Scaling factor to adjust albedos by
+  !> @param[in]     ndf_wth                Number of DOFs per cell for potential temperature space
+  !> @param[in]     undf_wth               Number of unique DOFs for potential temperature space
+  !> @param[in]     map_wth                Dofmap for the cell at the base of the column for potential temperature space
+  !> @param[in]     ndf_w3                 Number of DOFs per cell for density space
+  !> @param[in]     undf_w3                Number of unique DOFs for density space
+  !> @param[in]     map_w3                 Dofmap for the cell at the base of the column for density space
+  !> @param[in]     ndf_2d                 Number of DOFs per cell for 2D fields
+  !> @param[in]     undf_2d                Number of unique DOFs for 2D fields
+  !> @param[in]     map_2d                 Dofmap for the cell at the base of the column for 2D fields
+  !> @param[in]     ndf_tile               Number of DOFs per cell for tiles
+  !> @param[in]     undf_tile              Number of total DOFs for tiles
+  !> @param[in]     map_tile               Dofmap for cell for surface tiles
+  !> @param[in]     ndf_pft                Number of DOFs per cell for PFTs
+  !> @param[in]     undf_pft               Number of total DOFs for PFTs
+  !> @param[in]     map_pft                Dofmap for cell for PFTs
+  !> @param[in]     ndf_sice               Number of DOFs per cell for sice
+  !> @param[in]     undf_sice              Number of total DOFs for sice
+  !> @param[in]     map_sice               Dofmap for cell for sice
+  !> @param[in]     ndf_snow               Number of DOFs per cell for snow
+  !> @param[in]     undf_snow              Number of total DOFs for snow
+  !> @param[in]     map_snow               Dofmap for cell for snow
+  !> @param[in]     ndf_soil               Number of DOFs per cell for soil levels
+  !> @param[in]     undf_soil              Number of total DOFs for soil levels
+  !> @param[in]     map_soil               Dofmap for cell for soil levels
+  !> @param[in]     ndf_surf               Number of DOFs per cell for surface variables
+  !> @param[in]     undf_surf              Number of unique DOFs for surface variables
+  !> @param[in]     map_surf               Dofmap for the cell at the base of the column for surface variables
+  !> @param[in]     ndf_smtile             Number of DOFs per cell for soil levels and tiles
+  !> @param[in]     undf_smtile            Number of total DOFs for soil levels and tiles
+  !> @param[in]     map_smtile             Dofmap for cell for soil levels and tiles
+  !> @param[in]     ndf_bl                 Number of DOFs per cell for BL types
+  !> @param[in]     undf_bl                Number of total DOFs for BL types
+  !> @param[in]     map_bl                 Dofmap for cell for BL types
+  !> @param[in]     ndf_scal               Number of DOFs per cell for albedo scaling
+  !> @param[in]     undf_scal              Number of total DOFs for albedo scaling
+  !> @param[in]     map_scal               Dofmap for cell at the base of the column
   subroutine bl_exp_code(nlayers,                               &
                          theta_in_wth,                          &
                          rho_in_w3,                             &
@@ -823,7 +823,7 @@ contains
     integer(i_um), parameter :: nscmdpkgs=15
     logical,       parameter :: l_scmdiags(nscmdpkgs)=.false.
 
-    real(r_um), dimension(row_length,rows,nlayers) :: tgrad_bm 
+    real(r_um), dimension(row_length,rows,nlayers) :: tgrad_bm
     real(r_um), dimension(row_length,rows,2:nlayers+1) :: bl_w_var
 
     real(r_um), dimension(row_length,rows,nlayers) :: tnuc_new

@@ -11,16 +11,19 @@
 !>
 module sample_flux_kernel_mod
 
-  use argument_mod,      only : arg_type, func_type,       &
-                                GH_FIELD, GH_READ, GH_INC, &
-                                ANY_SPACE_1,               &
-                                GH_BASIS, GH_DIFF_BASIS,   &
-                                CELLS, GH_EVALUATOR
-  use constants_mod,     only : r_def
+  use argument_mod,      only : arg_type, func_type,     &
+                                GH_FIELD, GH_REAL,       &
+                                GH_READ, GH_INC,         &
+                                ANY_SPACE_1,             &
+                                GH_BASIS, GH_DIFF_BASIS, &
+                                CELL_COLUMN, GH_EVALUATOR
+  use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W0, W2
   use kernel_mod,        only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -30,41 +33,41 @@ module sample_flux_kernel_mod
   !>
   type, public, extends(kernel_type) :: sample_flux_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/            &
-        arg_type(GH_FIELD,   GH_INC,  W2),         &
-        arg_type(GH_FIELD,   GH_READ, W2),         &
-        arg_type(GH_FIELD,   GH_READ, W2),         &
-        arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1) &
-        /)
-    type(func_type) :: meta_funcs(1) = (/ &
-        func_type(ANY_SPACE_1, GH_BASIS)  &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(4) = (/                    &
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  W2),         &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, W2),         &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, W2),         &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_1) &
+         /)
+    type(func_type) :: meta_funcs(1) = (/                  &
+         func_type(ANY_SPACE_1, GH_BASIS)                  &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_EVALUATOR
   contains
-    procedure, nopass ::sample_flux_code
+    procedure, nopass :: sample_flux_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public sample_flux_code
+  public :: sample_flux_code
 
 contains
 
 !> @brief Kernel to sample a flux at nodal points: F = u*q
 !! @param[in] nlayers Number of layers
+!! @param[in,out] flux Field to contain the right hand side to be computed
+!! @param[in] u Advecting wind
+!! @param[in] rmultiplicity Reciprocal of How many times the dof has been visited in total
+!! @param[in] q Advected field
 !! @param[in] ndf_f Number of degrees of freedom per cell for w2
 !! @param[in] undf_f Number of unique degrees of freedom for w2
 !! @param[in] map_f Dofmap for the cell at the base of the column for w2
-!! @param[inout] flux Field to contain the right hand side to be computed
-!! @param[in] rmultiplicity Reciprocal of How many times the dof has been visited in total
-!! @param[in] u Advecting wind
 !! @param[in] ndf_q Number of degrees of freedom per cell for the field to be advected
 !! @param[in] undf_q  Number of unique degrees of freedom for the advected field
 !! @param[in] map_q Dofmap for the cell at the base of the column for the field to be advected
 !! @param[in] basis_q Basis functions evaluated at gaussian quadrature points
-!! @param[in] q Advected field
 subroutine sample_flux_code(nlayers,                                           &
                             flux, u, rmultiplicity, q,                         &
                             ndf_f, undf_f, map_f,                              &
@@ -73,18 +76,18 @@ subroutine sample_flux_code(nlayers,                                           &
 
   implicit none
 
-  !Arguments
-  integer, intent(in) :: nlayers
-  integer, intent(in) :: ndf_f, ndf_q, undf_f, undf_q
-  integer, dimension(ndf_f), intent(in) :: map_f
-  integer, dimension(ndf_q), intent(in) :: map_q
+  ! Arguments
+  integer(kind=i_def), intent(in) :: nlayers
+  integer(kind=i_def), intent(in) :: ndf_f, ndf_q, undf_f, undf_q
+  integer(kind=i_def), dimension(ndf_f), intent(in) :: map_f
+  integer(kind=i_def), dimension(ndf_q), intent(in) :: map_q
   real(kind=r_def), dimension(1,ndf_q,ndf_f), intent(in)    :: basis_q
   real(kind=r_def), dimension(undf_f),        intent(inout) :: flux
   real(kind=r_def), dimension(undf_f),        intent(in)    :: u, rmultiplicity
   real(kind=r_def), dimension(undf_q),        intent(in)    :: q
 
-  !Internal variables
-  integer               :: df, df_q, k, loc
+  ! Internal variables
+  integer(kind=i_def)                :: df, df_q, k, loc
 
   real(kind=r_def), dimension(ndf_q) :: q_cell
   real(kind=r_def)                   :: q_at_node

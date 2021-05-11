@@ -16,16 +16,18 @@ module compute_total_aam_kernel_mod
 
   use argument_mod,      only : arg_type, func_type,         &
                                 GH_FIELD, GH_READ, GH_WRITE, &
-                                ANY_SPACE_9,                 &
+                                GH_REAL, ANY_SPACE_9,        &
+                                ANY_DISCONTINUOUS_SPACE_3,   &
                                 GH_BASIS, GH_DIFF_BASIS,     &
-                                CELLS, GH_QUADRATURE_XYoZ,   &
-                                ANY_DISCONTINUOUS_SPACE_3
+                                CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2, W3
   use kernel_mod,        only : kernel_type
   use planet_config_mod, only : scaled_omega, scaled_radius
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -35,19 +37,19 @@ module compute_total_aam_kernel_mod
   !>
   type, public, extends(kernel_type) :: compute_total_aam_kernel_type
     private
-    type(arg_type) :: meta_args(5) = (/                           &
-        arg_type(GH_FIELD,   GH_WRITE, W3),                       &
-        arg_type(GH_FIELD,   GH_READ,  W2),                       &
-        arg_type(GH_FIELD,   GH_READ,  W3),                       &
-        arg_type(GH_FIELD*3, GH_READ,  ANY_SPACE_9),              &
-        arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
-        /)
-    type(func_type) :: meta_funcs(3) = (/                         &
-        func_type(W2, GH_BASIS),                                  &
-        func_type(W3, GH_BASIS),                                  &
-        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)           &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(5) = (/                                     &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                       &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W2),                       &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                       &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),              &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
+         /)
+    type(func_type) :: meta_funcs(3) = (/                                   &
+         func_type(W2,          GH_BASIS),                                  &
+         func_type(W3,          GH_BASIS),                                  &
+         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                    &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
     procedure, nopass :: compute_total_aam_code
@@ -56,19 +58,19 @@ module compute_total_aam_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public compute_total_aam_code
+  public :: compute_total_aam_code
 
 contains
 
 !> @brief The subroutine to compute the total axial angular momentum
 !! @param[in] nlayers Number of layers
-!! @param[inout] aam Cell integrated axial angular momentum
+!! @param[in,out] aam Cell integrated axial angular momentum
 !! @param[in] u Velocity array
 !! @param[in] rho density
 !! @param[in] chi_sph_1 1st coordinate in spherical Wchi
 !! @param[in] chi_sph_2 2nd coordinate in spherical Wchi
 !! @param[in] chi_sph_3 3rd coordinate in spherical Wchi
-!! @param[in] panel_id Field giving the ID for mesh panels.
+!! @param[in] panel_id Field giving the ID for mesh panels
 !! @param[in] ndf_w2 Number of degrees of freedom per cell for w2
 !! @param[in] undf_w2 Number of unique degrees of freedom  for w2
 !! @param[in] map_w2 Dofmap for the cell at the base of the column for w2

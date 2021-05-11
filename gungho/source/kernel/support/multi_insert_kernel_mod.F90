@@ -11,8 +11,9 @@
 
 module multi_insert_kernel_mod
 
-  use argument_mod,  only: arg_type, CELLS,           &
-                           GH_FIELD, GH_INTEGER,      &
+  use argument_mod,  only: arg_type, CELL_COLUMN,     &
+                           GH_FIELD, GH_SCALAR,       &
+                           GH_REAL, GH_INTEGER,       &
                            GH_READ, GH_WRITE,         &
                            ANY_DISCONTINUOUS_SPACE_1, &
                            ANY_DISCONTINUOUS_SPACE_2
@@ -26,23 +27,23 @@ module multi_insert_kernel_mod
   !> Kernel metadata for PSyclone
   type, public, extends(kernel_type) :: multi_insert_kernel_type
       private
-      type(arg_type) :: meta_args(4) = (/                             &
-          arg_type(GH_FIELD,   GH_WRITE, ANY_DISCONTINUOUS_SPACE_1),  &
-          arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_2),  &
-          arg_type(GH_INTEGER, GH_READ                            ),  &
-          arg_type(GH_INTEGER, GH_READ                            )   &
-          /)
-      integer :: iterates_over = CELLS
+      type(arg_type) :: meta_args(4) = (/                                        &
+           arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+           arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2), &
+           arg_type(GH_SCALAR, GH_INTEGER, GH_READ                            ), &
+           arg_type(GH_SCALAR, GH_INTEGER, GH_READ                            )  &
+           /)
+      integer :: operates_on = CELL_COLUMN
   contains
       procedure, nopass :: multi_insert_code
   end type
 
-  public multi_insert_code
+  public :: multi_insert_code
 
 contains
 
   !> @param[in]     nlayers      The number of layers
-  !> @param[out]    output_field Output field to write to
+  !> @param[in,out] output_field Output field to write to
   !> @param[in]     input_field  Input field to write from
   !> @param[in]     start_ind    First index of output field to update
   !> @param[in]     ndata        Number of multi-data elements to update
@@ -69,8 +70,8 @@ contains
     integer(kind=i_def), intent(in) :: ndf_out, undf_out
     integer(kind=i_def), intent(in) :: map_out(ndf_out)
 
-    real(kind=r_def), intent(in) :: input_field(undf_in)
-    real(kind=r_def), intent(out) :: output_field(undf_out)
+    real(kind=r_def), intent(in)    :: input_field(undf_in)
+    real(kind=r_def), intent(inout) :: output_field(undf_out)
 
     integer(kind=i_def) :: i
 

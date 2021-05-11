@@ -15,12 +15,13 @@
 module project_advective_update_kernel_mod
 
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,                     &
-                                    GH_FIELD, GH_READ, GH_INC,               &
-                                    ANY_SPACE_3, ANY_SPACE_9,                &
-                                    GH_BASIS, GH_DIFF_BASIS,                 &
-                                    ANY_DISCONTINUOUS_SPACE_3,               &
-                                    CELLS, GH_EVALUATOR, GH_QUADRATURE_XYoZ
+use argument_mod,            only : arg_type, func_type,       &
+                                    GH_FIELD, GH_REAL,         &
+                                    GH_READ, GH_INC,           &
+                                    ANY_SPACE_3, ANY_SPACE_9,  &
+                                    ANY_DISCONTINUOUS_SPACE_3, &
+                                    GH_BASIS, GH_DIFF_BASIS,   &
+                                    CELL_COLUMN, GH_QUADRATURE_XYoZ
 use constants_mod,           only : r_def, i_def
 use fs_continuity_mod,       only : W2
 
@@ -33,18 +34,18 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the PSy layer
 type, public, extends(kernel_type) :: project_advective_update_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_FIELD,   GH_INC,  W2),                              &
-       arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_3),                     &
-       arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_9),                     &
-       arg_type(GH_FIELD,   GH_READ, ANY_DISCONTINUOUS_SPACE_3)        &
+  type(arg_type) :: meta_args(4) = (/                                    &
+       arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),                       &
+       arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_3),              &
+       arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),              &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3) &
        /)
-  type(func_type) :: meta_funcs(3) = (/                                &
-       func_type(W2,          GH_BASIS),                               &
-       func_type(ANY_SPACE_3, GH_BASIS),                               &
-       func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                 &
+  type(func_type) :: meta_funcs(3) = (/                                  &
+       func_type(W2,          GH_BASIS),                                 &
+       func_type(ANY_SPACE_3, GH_BASIS),                                 &
+       func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                   &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_QUADRATURE_XYoZ
 contains
   procedure, nopass :: project_advective_update_code
@@ -53,7 +54,7 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public project_advective_update_code
+public :: project_advective_update_code
 
 contains
 

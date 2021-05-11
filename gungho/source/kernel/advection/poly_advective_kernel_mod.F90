@@ -14,10 +14,10 @@
 !>          This method is only valid for lowest order elements
 module poly_advective_kernel_mod
 
-use argument_mod,      only : arg_type, func_type, &
-                              GH_FIELD,            &
-                              GH_WRITE, GH_READ,   &
-                              CELLS
+use argument_mod,      only : arg_type,          &
+                              GH_FIELD, GH_REAL, &
+                              GH_WRITE, GH_READ, &
+                              CELL_COLUMN
 use constants_mod,     only : r_def, i_def
 use fs_continuity_mod, only : W1, W2, Wtheta
 use kernel_mod,        only : kernel_type
@@ -31,12 +31,12 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: poly_advective_kernel_type
   private
-  type(arg_type) :: meta_args(3) = (/                                  &
-       arg_type(GH_FIELD,   GH_WRITE, Wtheta),                         &
-       arg_type(GH_FIELD,   GH_READ,  W2),                             &
-       arg_type(GH_FIELD,   GH_READ,  W1)                              &
+  type(arg_type) :: meta_args(3) = (/                 &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, Wtheta), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W2),     &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W1)      &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: poly_advective_code
 end type
@@ -44,12 +44,12 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public poly_advective_code
+public :: poly_advective_code
 contains
 
 !> @brief Computes the horizontal advective update for a tracer
 !! @param[in]  nlayers Number of layers
-!! @param[out] advective Advective update field to compute
+!! @param[in,out] advective Advective update field to compute
 !! @param[in]  wind Wind field
 !! @param[in]  tracer Pointwise tracer field to advect stored on edge centres
 !! @param[in]  ndf_wt Number of degrees of freedom per cell
@@ -90,9 +90,9 @@ subroutine poly_advective_code( nlayers,              &
   integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
   integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
 
-  real(kind=r_def), dimension(undf_wt), intent(out) :: advective
-  real(kind=r_def), dimension(undf_w2), intent(in)  :: wind
-  real(kind=r_def), dimension(undf_w1), intent(in)  :: tracer
+  real(kind=r_def), dimension(undf_wt), intent(inout) :: advective
+  real(kind=r_def), dimension(undf_w2), intent(in)    :: wind
+  real(kind=r_def), dimension(undf_w1), intent(in)    :: tracer
 
   ! Internal variables
   integer(kind=i_def) :: k

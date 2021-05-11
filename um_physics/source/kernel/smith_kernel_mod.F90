@@ -7,9 +7,11 @@
 !>
 module smith_kernel_mod
 
-  use argument_mod,       only : arg_type,                        &
-                                 GH_FIELD, GH_READ, GH_READWRITE, &
-                                 CELLS, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1
+  use argument_mod,       only : arg_type,              &
+                                 GH_FIELD, GH_REAL,     &
+                                 GH_READ, GH_READWRITE, &
+                                 GH_WRITE, CELL_COLUMN, &
+                                 ANY_DISCONTINUOUS_SPACE_1
   use constants_mod,      only : r_def, r_double, i_def, i_um, r_um
   use fs_continuity_mod,  only : W3, Wtheta
   use kernel_mod,         only : kernel_type
@@ -22,86 +24,86 @@ module smith_kernel_mod
   !>
   type, public, extends(kernel_type) :: smith_kernel_type
     private
-    type(arg_type) :: meta_args(14) = (/                                &
-        arg_type(GH_FIELD,   GH_READ,       WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READ,       W3),                        &
-        arg_type(GH_FIELD,   GH_READ,       WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READ,       WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READ,       ANY_DISCONTINUOUS_SPACE_1), &
-        arg_type(GH_FIELD,   GH_READ,       ANY_DISCONTINUOUS_SPACE_1), &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA),                    &
-        arg_type(GH_FIELD,   GH_WRITE,      WTHETA)                     &
+    type(arg_type) :: meta_args(14) = (/                                       &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA),                    & ! theta_in_wth
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      W3),                        & ! exner_in_w3
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA),                    & ! exner_in_wth
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA),                    & ! rh_crit_wth
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! ntml_2d
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! cumulus_2d
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA),                    & ! m_v
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA),                    & ! m_cl
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA),                    & ! m_ci
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA),                    & ! cf_area
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA),                    & ! cf_ice
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA),                    & ! cf_liq
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA),                    & ! cf_bulk
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE,     WTHETA)                     & ! theta_inc
         /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: smith_code
   end type
 
-  public smith_code
+  public :: smith_code
 
 contains
 
-!> @brief Interface to the cloud scheme
-!> @details The UM large-scale cloud scheme:
-!>          determines the fraction of the grid-box that is covered by cloud
-!>          and the amount of liquid and ice condensate present in those clouds.
-!>          Here there is an interface to the Smith cloud scheme. Which is the
-!>          scheme described in UMDP 29.
-!> @param[in]     nlayers       Number of layers
-!> @param[in]     theta_in_wth  Predicted theta in its native space
-!> @param[in]     exner_in_w3   Pressure in the w3 space
-!> @param[in]     exner_in_wth  Exner Pressure in the theta space
-!> @param[in]     rh_crit_wth   Critical Relative Humidity
-!> @param[in]     ntml_2d       Boundary layer top level
-!> @param[in]     cumulus_2d    Cumulus flag
-!> @param[in,out] m_v           Vapour mixing ratio in wth
-!> @param[in,out] m_cl          Cloud liquid mixing ratio in wth
-!> @param[in,out] m_ci          Ice liquid mixing ratio in wth
-!> @param[in,out] cf_area       Area cloud fraction
-!> @param[in,out] cf_ice        Ice cloud fraction
-!> @param[in,out] cf_liq        Liquid cloud fraction
-!> @param[in,out] cf_bulk       Bulk cloud fraction
-!> @param[in,out] theta_inc     Increment to theta
-!> @param[in]     ndf_wth       Number of degrees of freedom per cell for potential temperature space
-!> @param[in]     undf_wth      Number unique of degrees of freedom  for potential temperature space
-!> @param[in]     map_wth       Dofmap for the cell at the base of the column for potential temperature space
-!> @param[in]     ndf_w3        Number of degrees of freedom per cell for density space
-!> @param[in]     undf_w3       Number unique of degrees of freedom  for density space
-!> @param[in]     map_w3        Dofmap for the cell at the base of the column for density space
-!> @param[in]     ndf_2d        Number of degrees of freedom per cell for 2D fields
-!> @param[in]     undf_2d       Number unique of degrees of freedom  for 2D fields
-!> @param[in]     map_2d        Dofmap for the cell at the base of the column for 2D  ields
+  !> @brief Interface to the cloud scheme
+  !> @details The UM large-scale cloud scheme:
+  !>          determines the fraction of the grid-box that is covered by cloud
+  !>          and the amount of liquid and ice condensate present in those clouds.
+  !>          Here there is an interface to the Smith cloud scheme. Which is the
+  !>          scheme described in UMDP 29.
+  !> @param[in]     nlayers       Number of layers
+  !> @param[in]     theta_in_wth  Predicted theta in its native space
+  !> @param[in]     exner_in_w3   Pressure in the w3 space
+  !> @param[in]     exner_in_wth  Exner Pressure in the theta space
+  !> @param[in]     rh_crit_wth   Critical Relative Humidity
+  !> @param[in]     ntml_2d       Boundary layer top level
+  !> @param[in]     cumulus_2d    Cumulus flag
+  !> @param[in,out] m_v           Vapour mixing ratio in wth
+  !> @param[in,out] m_cl          Cloud liquid mixing ratio in wth
+  !> @param[in,out] m_ci          Ice liquid mixing ratio in wth
+  !> @param[in,out] cf_area       Area cloud fraction
+  !> @param[in,out] cf_ice        Ice cloud fraction
+  !> @param[in,out] cf_liq        Liquid cloud fraction
+  !> @param[in,out] cf_bulk       Bulk cloud fraction
+  !> @param[in,out] theta_inc     Increment to theta
+  !> @param[in]     ndf_wth       Number of degrees of freedom per cell for potential temperature space
+  !> @param[in]     undf_wth      Number unique of degrees of freedom  for potential temperature space
+  !> @param[in]     map_wth       Dofmap for the cell at the base of the column for potential temperature space
+  !> @param[in]     ndf_w3        Number of degrees of freedom per cell for density space
+  !> @param[in]     undf_w3       Number unique of degrees of freedom  for density space
+  !> @param[in]     map_w3        Dofmap for the cell at the base of the column for density space
+  !> @param[in]     ndf_2d        Number of degrees of freedom per cell for 2D fields
+  !> @param[in]     undf_2d       Number unique of degrees of freedom  for 2D fields
+  !> @param[in]     map_2d        Dofmap for the cell at the base of the column for 2D fields
 
-subroutine smith_code(nlayers,      &
-                    theta_in_wth, &
-                    exner_in_w3,  &
-                    exner_in_wth, &
-                    rh_crit_wth,  &
-                    ntml_2d,      &
-                    cumulus_2d,   &
-                    m_v,          &
-                    m_cl,         &
-                    m_ci,         &
-                    cf_area,      &
-                    cf_ice,       &
-                    cf_liq,       &
-                    cf_bulk,      &
-                    theta_inc,    &
-                    ndf_wth,      &
-                    undf_wth,     &
-                    map_wth,      &
-                    ndf_w3,       &
-                    undf_w3,      &
-                    map_w3,       &
-                    ndf_2d,       &
-                    undf_2d,      &
-                    map_2d)
+  subroutine smith_code(nlayers,      &
+                        theta_in_wth, &
+                        exner_in_w3,  &
+                        exner_in_wth, &
+                        rh_crit_wth,  &
+                        ntml_2d,      &
+                        cumulus_2d,   &
+                        m_v,          &
+                        m_cl,         &
+                        m_ci,         &
+                        cf_area,      &
+                        cf_ice,       &
+                        cf_liq,       &
+                        cf_bulk,      &
+                        theta_inc,    &
+                        ndf_wth,      &
+                        undf_wth,     &
+                        map_wth,      &
+                        ndf_w3,       &
+                        undf_w3,      &
+                        map_w3,       &
+                        ndf_2d,       &
+                        undf_2d,      &
+                        map_2d)
 
     !---------------------------------------
     ! UM modules
@@ -111,8 +113,8 @@ subroutine smith_code(nlayers,      &
     ! Other modules containing stuff passed to CLD
     use nlsizes_namelist_mod, only: row_length, rows, bl_levels, model_levels
     use planet_constants_mod, only: p_zero, kappa, cp
-    use water_constants_mod, ONLY: lc
-    use ls_arcld_mod, ONLY: ls_arcld
+    use water_constants_mod,  only: lc
+    use ls_arcld_mod,         only: ls_arcld
 
     implicit none
 
@@ -141,18 +143,18 @@ subroutine smith_code(nlayers,      &
     real(kind=r_def),    intent(inout), dimension(undf_wth) :: theta_inc
 
     ! Local variables for the kernel
-    integer (i_um):: k
+    integer(i_um) :: k
 
     real(r_def) :: dmv1
 
-    integer (i_um):: rhc_row_length, rhc_rows
+    integer(i_um) :: rhc_row_length, rhc_rows
     ! profile fields from level 1 upwards
-    real(r_um), dimension(row_length,rows,nlayers) ::        &
-         cf_inout, cfl_inout, cff_inout, area_cloud_fraction, rhcpt,       &
+    real(r_um), dimension(row_length,rows,nlayers) ::                &
+         cf_inout, cfl_inout, cff_inout, area_cloud_fraction, rhcpt, &
          qt, qcl_out, qcf_in,tl
 
     ! profile fields from level 0 upwards
-    real(r_um), dimension(row_length,rows,0:nlayers) ::      &
+    real(r_um), dimension(row_length,rows,0:nlayers) :: &
          p_rho_minus_one, p_theta_levels
 
     ! single level fields
@@ -160,13 +162,13 @@ subroutine smith_code(nlayers,      &
 
     logical, dimension(row_length,rows) :: cumulus
     ! single level fields
-    integer (i_um), dimension(row_length,rows) :: ntml
-    integer (i_um):: errorstatus, large_levels, levels_per_level
+    integer(i_um), dimension(row_length,rows) :: ntml
+    integer(i_um) :: errorstatus, large_levels, levels_per_level
 
     logical :: l_mcr_qcf2,l_mixing_ratio
 
-    rhc_row_length=1
-    rhc_rows=1
+    rhc_row_length = 1
+    rhc_rows = 1
 
     ! Determine number of sublevels for vertical gradient area cloud
     ! Want an odd number of sublevels per level: 3 is hardwired in do loops
@@ -178,7 +180,7 @@ subroutine smith_code(nlayers,      &
 
     cumulus(1,1) = (cumulus_2d(map_2d(1)) > 0.5_r_def)
 
-    ntml(1,1) = INT(ntml_2d(map_2d(1)))
+    ntml(1,1) = int(ntml_2d(map_2d(1)))
     errorstatus=0
 
     do k = 1, nlayers
@@ -216,7 +218,7 @@ subroutine smith_code(nlayers,      &
     p_rho_minus_one(1,1,nlayers) = 0.0_r_def
 
 
-    CALL ls_arcld( p_theta_levels, rhcpt, p_rho_minus_one,            &
+    call ls_arcld( p_theta_levels, rhcpt, p_rho_minus_one,            &
                  rhc_row_length, rhc_rows, bl_levels,                 &
                  levels_per_level, large_levels,                      &
                  fv_cos_theta_latitude,                               &
@@ -252,6 +254,6 @@ subroutine smith_code(nlayers,      &
     cf_ice(map_wth(1) + 0) = cf_ice(map_wth(1) + 1)
     cf_area(map_wth(1) + 0) = cf_area(map_wth(1) + 1)
 
-end subroutine smith_code
+  end subroutine smith_code
 
 end module smith_kernel_mod

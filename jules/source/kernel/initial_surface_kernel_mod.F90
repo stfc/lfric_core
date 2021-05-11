@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
-!(c) Crown copyright 2020 Met Office. All rights reserved.
-!The file LICENCE, distributed with this code, contains details of the terms
-!under which the code may be used.
+! (c) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
 !-------------------------------------------------------------------------------
 !> @brief Initialise Jules surface fields on tiles
 !> @details Non-standard Surface fields (pseudo-levels) aren't as yet not
@@ -11,8 +11,11 @@
 !>  suitable infrastructure is available (Ticket #2081)
 module initial_surface_kernel_mod
 
-  use argument_mod,  only: arg_type, GH_FIELD, GH_WRITE, CELLS, &
-       ANY_DISCONTINUOUS_SPACE_1, ANY_DISCONTINUOUS_SPACE_2
+  use argument_mod,  only: arg_type,                  &
+                           GH_FIELD, GH_REAL,         &
+                           GH_WRITE, CELL_COLUMN,     &
+                           ANY_DISCONTINUOUS_SPACE_1, &
+                           ANY_DISCONTINUOUS_SPACE_2
   use constants_mod, only: r_def, i_def
   use kernel_mod,    only: kernel_type
 
@@ -28,32 +31,32 @@ module initial_surface_kernel_mod
   !> Kernel metadata for Psyclone
   type, public, extends(kernel_type) :: initial_surface_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                           &
-         arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
-         arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
-         arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)  &
+    type(arg_type) :: meta_args(4) = (/                                    &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)  &
          /)
-    integer :: iterates_over = CELLS
-
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: initial_surface_code
   end type initial_surface_kernel_type
 
-  public initial_surface_code
+  public :: initial_surface_code
+
 contains
 
-  !> @param[in]  nlayers            The number of layers
-  !> @param[out] tile_fraction      Surface tile fractions
-  !> @param[out] leaf_area_index    Leaf Area Index
-  !> @param[out] canopy_height      Canopy height (m)
-  !> @param[out] tile_temperature   Surface tile temperatures (K)
-  !> @param[in]  ndf_tile           Number of DOFs per cell for tiles
-  !> @param[in]  undf_tile          Number of total DOFs for tiles
-  !> @param[in]  map_tile           Dofmap for cell for surface tiles
-  !> @param[in]  ndf_pft            Number of DOFs per cell for PFTs
-  !> @param[in]  undf_pft           Number of total DOFs for PFTs
-  !> @param[in]  map_pft            Dofmap for cell for PFTs
+  !> @param[in]     nlayers          The number of layers
+  !> @param[in,out] tile_fraction    Surface tile fractions
+  !> @param[in,out] leaf_area_index  Leaf Area Index
+  !> @param[in,out] canopy_height    Canopy height (m)
+  !> @param[in,out] tile_temperature Surface tile temperatures (K)
+  !> @param[in]     ndf_tile         Number of DOFs per cell for tiles
+  !> @param[in]     undf_tile        Number of total DOFs for tiles
+  !> @param[in]     map_tile         Dofmap for cell for surface tiles
+  !> @param[in]     ndf_pft          Number of DOFs per cell for PFTs
+  !> @param[in]     undf_pft         Number of total DOFs for PFTs
+  !> @param[in]     map_pft          Dofmap for cell for PFTs
   subroutine initial_surface_code(nlayers,                       &
                                   tile_fraction,                 &
                                   leaf_area_index,               &
@@ -77,7 +80,7 @@ contains
     real(kind=r_def), intent(inout) :: leaf_area_index(undf_pft)
     real(kind=r_def), intent(inout) :: canopy_height(undf_pft)
 
-    !Internal variables
+    ! Internal variables
     integer(kind=i_def) :: i
 
     ! Set from a namelist variable for SCM or when no ancil read

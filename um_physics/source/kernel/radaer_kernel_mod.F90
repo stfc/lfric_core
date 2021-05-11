@@ -9,10 +9,13 @@
 
 module radaer_kernel_mod
 
-use argument_mod,      only: arg_type, GH_FIELD, GH_READ, CELLS, GH_WRITE,     &
-                             ANY_DISCONTINUOUS_SPACE_1,                        &
-                             ANY_DISCONTINUOUS_SPACE_2,                        &
-                             ANY_DISCONTINUOUS_SPACE_3,                        &
+use argument_mod,      only: arg_type,                  &
+                             GH_FIELD, GH_REAL,         &
+                             GH_READ, GH_WRITE,         &
+                             CELL_COLUMN,               &
+                             ANY_DISCONTINUOUS_SPACE_1, &
+                             ANY_DISCONTINUOUS_SPACE_2, &
+                             ANY_DISCONTINUOUS_SPACE_3, &
                              ANY_DISCONTINUOUS_SPACE_4
 
 use fs_continuity_mod, only: WTHETA
@@ -29,98 +32,99 @@ implicit none
 
 type, public, extends(kernel_type) :: radaer_kernel_type
   private
-  type(arg_type) :: meta_args(74) = (/       &
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! theta_in_wth
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! exner_in_wth
-       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & !trop_level
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! n_ait_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! ait_sol_su
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! ait_sol_bc
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! ait_sol_om
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! n_acc_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! acc_sol_su
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! acc_sol_bc
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! acc_sol_om
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! acc_sol_ss
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! acc_sol_du
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! n_cor_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! cor_sol_su
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! cor_sol_bc
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! cor_sol_om
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! cor_sol_ss
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! cor_sol_du
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! n_ait_ins
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! ait_ins_bc
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! ait_ins_om
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! n_acc_ins
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! acc_ins_du
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! n_cor_ins
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! cor_ins_du
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! drydp_ait_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! drydp_acc_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! drydp_cor_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! drydp_ait_ins
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! drydp_acc_ins
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! drydp_cor_ins
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! wetdp_ait_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! wetdp_acc_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! wetdp_cor_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! wetdp_ait_ins
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! wetdp_acc_ins
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! wetdp_cor_ins
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! rhopar_ait_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! rhopar_acc_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! rhopar_cor_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! rhopar_ait_ins
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! rhopar_acc_ins
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! rhopar_cor_ins
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! pvol_wat_ait_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! pvol_wat_acc_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! pvol_wat_cor_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! pvol_wat_ait_ins
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! pvol_wat_acc_ins
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! pvol_wat_cor_ins
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! pvol_su_ait_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! pvol_bc_ait_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! pvol_om_ait_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! pvol_su_acc_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! pvol_bc_acc_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! pvol_om_acc_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! pvol_ss_acc_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! pvol_du_acc_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! pvol_su_cor_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! pvol_bc_cor_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! pvol_om_cor_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! pvol_ss_cor_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! pvol_du_cor_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! pvol_bc_ait_ins
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! pvol_om_ait_ins
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! pvol_du_acc_ins
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! pvol_du_cor_ins
+  type(arg_type) :: meta_args(74) = (/                &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! theta_in_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! exner_in_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & !trop_level
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! n_ait_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! ait_sol_su
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! ait_sol_bc
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! ait_sol_om
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! n_acc_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! acc_sol_su
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! acc_sol_bc
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! acc_sol_om
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! acc_sol_ss
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! acc_sol_du
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! n_cor_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! cor_sol_su
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! cor_sol_bc
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! cor_sol_om
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! cor_sol_ss
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! cor_sol_du
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! n_ait_ins
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! ait_ins_bc
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! ait_ins_om
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! n_acc_ins
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! acc_ins_du
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! n_cor_ins
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! cor_ins_du
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! drydp_ait_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! drydp_acc_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! drydp_cor_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! drydp_ait_ins
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! drydp_acc_ins
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! drydp_cor_ins
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! wetdp_ait_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! wetdp_acc_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! wetdp_cor_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! wetdp_ait_ins
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! wetdp_acc_ins
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! wetdp_cor_ins
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! rhopar_ait_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! rhopar_acc_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! rhopar_cor_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! rhopar_ait_ins
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! rhopar_acc_ins
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! rhopar_cor_ins
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_wat_ait_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_wat_acc_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_wat_cor_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_wat_ait_ins
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_wat_acc_ins
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_wat_cor_ins
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_su_ait_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_bc_ait_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_om_ait_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_su_acc_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_bc_acc_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_om_acc_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_ss_acc_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_du_acc_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_su_cor_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_bc_cor_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_om_cor_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_ss_cor_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_du_cor_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_bc_ait_ins
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_om_ait_ins
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_du_acc_ins
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_du_cor_ins
        ! aer_mix_ratio
-       arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
        ! aer_sw_absorption
-       arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_3), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_3), &
        ! aer_sw_scattering
-       arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_3), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_3), &
        ! aer_sw_asymmetry
-       arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_3), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_3), &
        ! aer_lw_absorption
-       arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_4), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_4), &
        ! aer_lw_scattering
-       arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_4), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_4), &
        ! aer_lw_asymmetry
-       arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_4)  &
-  /)
-  integer :: iterates_over = CELLS
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_4)  &
+       /)
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: radaer_code
 end type
 
-public radaer_code
+public :: radaer_code
+
 contains
 
-!> @brief Interface to glomap aersol climatology scheme.
+!> @brief Interface to glomap aerosol climatology scheme.
 !> @param[in]     nlayers            The number of layers
 !> @param[in]     theta_in_wth       Potential temperature field
 !> @param[in]     exner_in_wth       Exner pressure
@@ -329,6 +333,8 @@ subroutine radaer_code( nlayers,                                               &
   use ukca_radaer_band_average_mod,      only: ukca_radaer_band_average
 
   use ukca_radaer_prepare_mod,           only: ukca_radaer_prepare
+
+  implicit none
 
   ! Arguments
 

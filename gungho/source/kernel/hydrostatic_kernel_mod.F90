@@ -28,12 +28,12 @@
 !>
 module hydrostatic_kernel_mod
 
-  use argument_mod,      only : arg_type, func_type,       &
-                                GH_FIELD, GH_READ, GH_INC, &
-                                GH_BASIS, GH_DIFF_BASIS,   &
-                                CELLS, GH_QUADRATURE_XYoZ, &
-                                ANY_W2
-  use constants_mod,     only : r_def
+  use argument_mod,      only : arg_type, func_type,     &
+                                GH_FIELD, GH_REAL,       &
+                                GH_READ, GH_INC, ANY_W2, &
+                                GH_BASIS, GH_DIFF_BASIS, &
+                                CELL_COLUMN, GH_QUADRATURE_XYoZ
+  use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W3, Wtheta
   use kernel_mod,        only : kernel_type
   use planet_config_mod, only : cp
@@ -48,28 +48,28 @@ module hydrostatic_kernel_mod
   !>
   type, public, extends(kernel_type) :: hydrostatic_kernel_type
     private
-    type(arg_type) :: meta_args(5) = (/             &
-        arg_type(GH_FIELD,   GH_INC,  ANY_W2),      &
-        arg_type(GH_FIELD,   GH_READ, W3),          &
-        arg_type(GH_FIELD,   GH_READ, Wtheta),      &
-        arg_type(GH_FIELD*3, GH_READ, Wtheta),      &
-        arg_type(GH_FIELD,   GH_READ, W3)           &
-        /)
+    type(arg_type) :: meta_args(5) = (/                  &
+         arg_type(GH_FIELD,   GH_REAL, GH_INC,  ANY_W2), &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, W3),     &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, Wtheta), &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ, Wtheta), &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, W3)      &
+         /)
     type(func_type) :: meta_funcs(3) = (/                &
-        func_type(ANY_W2,      GH_BASIS, GH_DIFF_BASIS), &
-        func_type(W3,          GH_BASIS),                &
-        func_type(Wtheta,      GH_BASIS, GH_DIFF_BASIS)  &
-        /)
-    integer :: iterates_over = CELLS
+         func_type(ANY_W2, GH_BASIS, GH_DIFF_BASIS),     &
+         func_type(W3,     GH_BASIS),                    &
+         func_type(Wtheta, GH_BASIS, GH_DIFF_BASIS)      &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
-    procedure, nopass ::hydrostatic_code
+    procedure, nopass :: hydrostatic_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public hydrostatic_code
+  public :: hydrostatic_code
 
 contains
 
@@ -111,12 +111,12 @@ subroutine hydrostatic_code(nlayers,                                          &
   implicit none
 
   ! Arguments
-  integer, intent(in) :: nlayers,nqp_h, nqp_v
-  integer, intent(in) :: ndf_wt, ndf_w2, ndf_w3
-  integer, intent(in) :: undf_wt, undf_w2, undf_w3
-  integer, dimension(ndf_wt), intent(in) :: map_wt
-  integer, dimension(ndf_w2), intent(in) :: map_w2
-  integer, dimension(ndf_w3), intent(in) :: map_w3
+  integer(kind=i_def), intent(in) :: nlayers,nqp_h, nqp_v
+  integer(kind=i_def), intent(in) :: ndf_wt, ndf_w2, ndf_w3
+  integer(kind=i_def), intent(in) :: undf_wt, undf_w2, undf_w3
+  integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
+  integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
+  integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
 
   real(kind=r_def), dimension(1,ndf_w3,nqp_h,nqp_v), intent(in) :: w3_basis
   real(kind=r_def), dimension(3,ndf_w2,nqp_h,nqp_v), intent(in) :: w2_basis
@@ -136,8 +136,8 @@ subroutine hydrostatic_code(nlayers,                                          &
   real(kind=r_def), dimension(nqp_v), intent(in)      ::  wqp_v
 
   ! Internal variables
-  integer               :: df, k
-  integer               :: qp1, qp2
+  integer(kind=i_def) :: df, k
+  integer(kind=i_def) :: qp1, qp2
 
   real(kind=r_def), dimension(ndf_w3)          :: exner_e
   real(kind=r_def), dimension(ndf_wt)          :: theta_v_e

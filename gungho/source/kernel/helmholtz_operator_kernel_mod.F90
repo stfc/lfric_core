@@ -6,16 +6,17 @@
 
 module helmholtz_operator_kernel_mod
 
-  use argument_mod,      only : arg_type,                       &
-                                GH_FIELD, GH_OPERATOR, GH_REAL, &
-                                GH_READ, GH_WRITE,              &
-                                STENCIL, CROSS,                 &
-                                CELLS
+  use argument_mod,      only : arg_type,                   &
+                                GH_FIELD, GH_OPERATOR,      &
+                                GH_REAL, GH_READ, GH_WRITE, &
+                                STENCIL, CROSS, CELL_COLUMN
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2, W3, Wtheta, W2v
   use kernel_mod,        only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -23,20 +24,20 @@ module helmholtz_operator_kernel_mod
 
   type, public, extends(kernel_type) :: helmholtz_operator_kernel_type
     private
-    type(arg_type) :: meta_args(11) = (/                     &
-        arg_type(GH_FIELD*9,  GH_WRITE, W3),                 & ! Helmholtz operator
-        arg_type(GH_FIELD,    GH_READ,  W2, STENCIL(CROSS)), & ! hb_lumped_inv
-        arg_type(GH_FIELD,    GH_READ,  W2),                 & ! u_normalisation
-        arg_type(GH_OPERATOR, GH_READ,  W2,     W3),         & ! div_star
-        arg_type(GH_FIELD,    GH_READ,  Wtheta),             & ! Mt_lumped_inv
-        arg_type(GH_OPERATOR, GH_READ,  Wtheta, W2),         & ! ptheta2v
-        arg_type(GH_OPERATOR, GH_READ,  W3,     W2),         & ! compound_div
-        arg_type(GH_OPERATOR, GH_READ,  W3,     W3),         & ! M3_exner
-        arg_type(GH_OPERATOR, GH_READ,  W3,     Wtheta),     & ! p3theta
-        arg_type(GH_OPERATOR, GH_READ,  W3,     W3),         & ! M3^-1
-        arg_type(GH_FIELD,    GH_READ,  W2)                  & ! W2 mask
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(11) = (/                               &
+         arg_type(GH_FIELD*9,  GH_REAL, GH_WRITE, W3),                 & ! Helmholtz operator
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2, STENCIL(CROSS)), & ! hb_lumped_inv
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2),                 & ! u_normalisation
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W2,     W3),         & ! div_star
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta),             & ! Mt_lumped_inv
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  Wtheta, W2),         & ! ptheta2v
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3,     W2),         & ! compound_div
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3,     W3),         & ! M3_exner
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3,     Wtheta),     & ! p3theta
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3,     W3),         & ! M3^-1
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2)                  & ! W2 mask
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: helmholtz_operator_code
   end type
@@ -44,7 +45,7 @@ module helmholtz_operator_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public helmholtz_operator_code
+  public :: helmholtz_operator_code
 
 contains
 
@@ -118,6 +119,7 @@ contains
                                      ndf_wt, undf_wt, map_wt)
 
   implicit none
+
   ! Arguments
   integer(kind=i_def),                                  intent(in) :: nlayers
   integer(kind=i_def),                                  intent(in) :: stencil_size

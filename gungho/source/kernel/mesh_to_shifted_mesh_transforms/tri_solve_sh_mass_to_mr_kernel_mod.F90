@@ -14,27 +14,29 @@
 !>
 module tri_solve_sh_mass_to_mr_kernel_mod
 
-  use argument_mod,      only: arg_type, func_type,         &
-                               GH_FIELD, GH_READ, GH_WRITE, &
-                               CELLS
+  use argument_mod,      only: arg_type,          &
+                               GH_FIELD, GH_REAL, &
+                               GH_READ, GH_WRITE, &
+                               CELL_COLUMN
   use constants_mod,     only: r_def, i_def
   use fs_continuity_mod, only: W3, Wtheta
   use kernel_mod,        only: kernel_type
 
   implicit none
 
+  private
+
   !---------------------------------------------------------------------------
   ! Public types
   !---------------------------------------------------------------------------
   type, public, extends(kernel_type) :: tri_solve_sh_mass_to_mr_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/          &
-        arg_type(GH_FIELD,   GH_WRITE,  Wtheta), &
-        arg_type(GH_FIELD,    GH_READ,  W3),     &
-        arg_type(GH_FIELD*3,  GH_READ,  W3)      &
-        /)
-    integer :: iterates_over = CELLS
-
+    type(arg_type) :: meta_args(3) = (/                   &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, Wtheta), & ! field_wt
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),     & ! field_sh_w3
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  W3)      & ! tri_below/diag/above
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: tri_solve_sh_mass_to_mr_code
   end type tri_solve_sh_mass_to_mr_kernel_type
@@ -42,7 +44,7 @@ module tri_solve_sh_mass_to_mr_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public tri_solve_sh_mass_to_mr_code
+  public :: tri_solve_sh_mass_to_mr_code
 
 contains
 

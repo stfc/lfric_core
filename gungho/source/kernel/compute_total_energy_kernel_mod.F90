@@ -10,12 +10,12 @@
 !>
 module compute_total_energy_kernel_mod
 
-  use argument_mod,      only : arg_type, func_type,                  &
-                                GH_FIELD, GH_WRITE, GH_READ,          &
-                                ANY_SPACE_9,                          &
-                                ANY_DISCONTINUOUS_SPACE_3,            &
-                                GH_BASIS, GH_DIFF_BASIS,              &
-                                CELLS, GH_QUADRATURE_XYoZ
+  use argument_mod,      only : arg_type, func_type,         &
+                                GH_FIELD, GH_WRITE, GH_READ, &
+                                GH_REAL, ANY_SPACE_9,        &
+                                ANY_DISCONTINUOUS_SPACE_3,   &
+                                GH_BASIS, GH_DIFF_BASIS,     &
+                                CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2, W3, Wtheta
   use kernel_mod,        only : kernel_type
@@ -33,23 +33,23 @@ module compute_total_energy_kernel_mod
 !>
 type, public, extends(kernel_type) :: compute_total_energy_kernel_type
   private
-  type(arg_type) :: meta_args(8) = (/                                  &
-       arg_type(GH_FIELD,   GH_WRITE, W3),                             &
-       arg_type(GH_FIELD,   GH_READ,  W2),                             &
-       arg_type(GH_FIELD,   GH_READ,  W3),                             &
-       arg_type(GH_FIELD,   GH_READ,  W3),                             &
-       arg_type(GH_FIELD,   GH_READ,  Wtheta),                         &
-       arg_type(GH_FIELD,   GH_READ,  W3),                             &
-       arg_type(GH_FIELD*3, GH_READ,  ANY_SPACE_9),                    &
-       arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_3)       &
+  type(arg_type) :: meta_args(8) = (/                                     &
+       arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                       &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  W2),                       &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                       &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                       &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                   &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                       &
+       arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),              &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
        /)
-  type(func_type) :: meta_funcs(4) = (/                                &
-       func_type(W2,          GH_BASIS),                               &
-       func_type(W3,          GH_BASIS),                               &
-       func_type(Wtheta,      GH_BASIS),                               &
-       func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                 &
+  type(func_type) :: meta_funcs(4) = (/                                   &
+       func_type(W2,          GH_BASIS),                                  &
+       func_type(W3,          GH_BASIS),                                  &
+       func_type(Wtheta,      GH_BASIS),                                  &
+       func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                    &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_QUADRATURE_XYoZ
 contains
   procedure, nopass :: compute_total_energy_code
@@ -58,7 +58,7 @@ end type
 !---------------------------------------------------------------------------
 ! Contained functions/subroutines
 !---------------------------------------------------------------------------
-public compute_total_energy_code
+public :: compute_total_energy_code
 contains
 
 !> @brief Compute the cell integrated total energy
@@ -72,7 +72,7 @@ contains
 !! @param[in] chi_1 1st spherical coordinate field in Wchi
 !! @param[in] chi_2 2nd spherical coordinate field in Wchi
 !! @param[in] chi_3 3rd spherical coordinate field in Wchi
-!! @param[in] panel_id A field giving the ID for mesh panels.
+!! @param[in] panel_id A field giving the ID for mesh panels
 !! @param[in] ndf_w3 The number of degrees of freedom per cell for w3
 !! @param[in] undf_w3 The number of unique degrees of freedom  for w3
 !! @param[in] map_w3 Dofmap for the cell at the base of the column for w3
@@ -112,6 +112,7 @@ subroutine compute_total_energy_code(                                           
                                      nqp_h, nqp_v, wqp_h, wqp_v                  &
                                      )
   use coordinate_jacobian_mod,  only: coordinate_jacobian
+
   implicit none
 
   ! Arguments

@@ -6,8 +6,9 @@
 !> @brief Set the 3D rh_crit field from its namelist value
 module initial_cloud_kernel_mod
 
-  use argument_mod,      only: arg_type,  &
-       GH_FIELD, GH_WRITE, CELLS
+  use argument_mod,      only: arg_type,          &
+                               GH_FIELD, GH_REAL, &
+                               GH_WRITE, CELL_COLUMN
   use fs_continuity_mod, only: Wtheta
   use constants_mod,     only: r_def, i_def
   use kernel_mod,        only: kernel_type
@@ -16,27 +17,29 @@ module initial_cloud_kernel_mod
 
   implicit none
 
-  !> Kernel metadata for Psyclone
+  private
+
+  !> Kernel metadata for PSyclone
   type, public, extends(kernel_type) :: initial_cloud_kernel_type
     private
-    type(arg_type) :: meta_args(1) = (/       &
-         arg_type(GH_FIELD, GH_WRITE, WTHETA) &
+    type(arg_type) :: meta_args(1) = (/                &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA) &
          /)
-    integer :: iterates_over = CELLS
-
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: initial_cloud_code
   end type initial_cloud_kernel_type
 
-  public initial_cloud_code
+  public :: initial_cloud_code
+
 contains
 
   !> @brief Set the 3D rh_crit field from the namelist value
-  !> @param[in]  nlayers     The number of layers
-  !> @param[out] rh_crit_wth Critical relative humidity
-  !> @param[in]  ndf_wth     Number of degrees of freedom per cell for wtheta
-  !> @param[in]  undf_wth    Number of total degrees of freedom for wtheta
-  !> @param[in]  map_wth     Dofmap for the cell at the base of the column
+  !> @param[in]     nlayers     The number of layers
+  !> @param[in,out] rh_crit_wth Critical relative humidity
+  !> @param[in]     ndf_wth     Number of degrees of freedom per cell for wtheta
+  !> @param[in]     undf_wth    Number of total degrees of freedom for wtheta
+  !> @param[in]     map_wth     Dofmap for the cell at the base of the column
   subroutine initial_cloud_code(nlayers,       &
                                 rh_crit_wth,   &
                                 ndf_wth,       &
@@ -45,14 +48,14 @@ contains
 
     implicit none
 
-    !Arguments
+    ! Arguments
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ndf_wth
     integer(kind=i_def), intent(in) :: undf_wth
     integer(kind=i_def), intent(in),    dimension(ndf_wth)  :: map_wth
     real(kind=r_def),    intent(inout), dimension(undf_wth) :: rh_crit_wth
 
-    !Internal variables
+    ! Internal variables
     integer(kind=i_def) :: k
 
     ! Namelist is only specified from level 1 upwards

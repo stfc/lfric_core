@@ -13,12 +13,11 @@
 module initial_rho_sample_kernel_mod
 
   use argument_mod,         only : arg_type, func_type,        &
-                                   GH_FIELD, GH_REAL,          &
-                                   GH_READ, GH_WRITE,          &
-                                   ANY_SPACE_9, CELLS,         &
+                                   GH_FIELD, GH_SCALAR,        &
+                                   GH_REAL, GH_READ, GH_WRITE, &
+                                   ANY_SPACE_9, GH_BASIS,      &
                                    ANY_DISCONTINUOUS_SPACE_1,  &
-                                   GH_BASIS,                   &
-                                   GH_EVALUATOR
+                                   CELL_COLUMN, GH_EVALUATOR
   use fs_continuity_mod,    only : Wchi
   use constants_mod,        only : r_def, i_def
   use idealised_config_mod, only : test
@@ -33,15 +32,15 @@ module initial_rho_sample_kernel_mod
   !>
   type, public, extends(kernel_type) :: initial_rho_sample_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                            &
-        arg_type(GH_FIELD,   GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-        arg_type(GH_FIELD*3, GH_READ, Wchi),                       &
-        arg_type(GH_REAL,    GH_READ)                              &
-        /)
-    type(func_type) :: meta_funcs(1) = (/                          &
-         func_type(Wchi, GH_BASIS)                                 &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(3) = (/                                      &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  Wchi),                      &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ)                              &
+         /)
+    type(func_type) :: meta_funcs(1) = (/                                    &
+         func_type(Wchi, GH_BASIS)                                           &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_EVALUATOR
   contains
     procedure, nopass :: initial_rho_sample_kernel_code
@@ -50,7 +49,7 @@ module initial_rho_sample_kernel_mod
   !-------------------------------------------------------------------------
   ! Contained functions/subroutines
   !-------------------------------------------------------------------------
-  public initial_rho_sample_kernel_code
+  public :: initial_rho_sample_kernel_code
 
 contains
 

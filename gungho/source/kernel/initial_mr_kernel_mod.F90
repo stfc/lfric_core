@@ -8,14 +8,15 @@
 
 !> @brief Kernel computes the initial mr field
 
-!> @detail The kernel computes initial mixing ratio fields for mr in the same
-!>         space as that of theta
+!> @details The kernel computes initial mixing ratio fields for mr in the same
+!>          space as that of theta
 
 module initial_mr_kernel_mod
 
-    use argument_mod,                  only: arg_type,       &
-        GH_FIELD, GH_WRITE, GH_READ, ANY_SPACE_9, GH_BASIS,  &
-        CELLS
+    use argument_mod,                  only: arg_type,          &
+                                             GH_FIELD, GH_REAL, &
+                                             GH_WRITE, GH_READ, &
+                                             ANY_SPACE_9, CELL_COLUMN
     use fs_continuity_mod,             only: W3, Wtheta
     use constants_mod,                 only: r_def, i_def
     use kernel_mod,                    only: kernel_type
@@ -23,9 +24,11 @@ module initial_mr_kernel_mod
     use section_choice_config_mod,     only: cloud, cloud_um
     use initial_pressure_config_mod,   only: method, method_balanced
 
-    !physics routines
+    ! Physics routines
     use physics_common_mod, only: qsaturation
+
     implicit none
+    private
 
     !-------------------------------------------------------------------------------
     ! Public types
@@ -33,15 +36,14 @@ module initial_mr_kernel_mod
     !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
     type, public, extends(kernel_type) :: initial_mr_kernel_type
         private
-        type(arg_type) :: meta_args(5) = (/              &
-            arg_type(GH_FIELD, GH_READ, WTHETA),         &
-            arg_type(GH_FIELD, GH_READ, W3),             &
-            arg_type(GH_FIELD, GH_READ, W3),             &
-            arg_type(GH_FIELD*6, GH_WRITE, WTHETA),      &
-            arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_9)   &
-            /)
-        integer :: iterates_over = CELLS
-
+        type(arg_type) :: meta_args(5) = (/                       &
+             arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),     &
+             arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),         &
+             arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),         &
+             arg_type(GH_FIELD*6, GH_REAL, GH_WRITE, Wtheta),     &
+             arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9) &
+             /)
+        integer :: operates_on = CELL_COLUMN
     contains
         procedure, nopass :: initial_mr_code
     end type
@@ -49,7 +51,7 @@ module initial_mr_kernel_mod
     !-------------------------------------------------------------------------------
     ! Contained functions/subroutines
     !-------------------------------------------------------------------------------
-    public initial_mr_code
+    public :: initial_mr_code
 contains
 
     !> @brief The subroutine which is called directly by the Psy layer
@@ -83,7 +85,7 @@ contains
 
         implicit none
 
-        !Arguments
+        ! Arguments
         integer(kind=i_def), intent(in) :: nlayers, ndf_wtheta, ndf_chi, undf_wtheta, undf_chi
         integer(kind=i_def), intent(in) :: ndf_w3, undf_w3
         integer(kind=i_def), dimension(ndf_wtheta), intent(in)  :: map_wtheta
@@ -96,7 +98,7 @@ contains
         real(kind=r_def), dimension(undf_w3), intent(in)        :: rho
         real(kind=r_def), dimension(undf_chi), intent(in)       :: chi_1, chi_2, chi_3
 
-        !Internal variables
+        ! Internal variables
         integer(kind=i_def)                 :: k, df, kp1
 
         real(kind=r_def)                    :: theta_at_dof, rho_at_dof, pressure_at_dof, &
@@ -145,7 +147,7 @@ contains
         else
           do k = 0, nlayers-1
             kp1 = min(k+1,nlayers-1)
-            !only visit top dof
+            ! Only visit top dof
             df=2
             theta_at_dof = theta(map_wtheta(df) + k)
             rho_at_dof = 0.5*(rho(map_w3(1) + k) + rho(map_w3(1) + kp1))

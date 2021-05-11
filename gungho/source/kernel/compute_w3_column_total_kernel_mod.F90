@@ -12,9 +12,10 @@
 !>
 module compute_w3_column_total_kernel_mod
 
-  use argument_mod,      only : arg_type,                     &
-                                GH_FIELD, GH_WRITE, GH_READ,  &
-                                CELLS
+  use argument_mod,      only : arg_type,          &
+                                GH_FIELD, GH_REAL, &
+                                GH_WRITE, GH_READ, &
+                                CELL_COLUMN
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W3
   use kernel_mod,        only : kernel_type
@@ -31,11 +32,11 @@ module compute_w3_column_total_kernel_mod
   !>
   type, public, extends(kernel_type) :: compute_w3_column_total_kernel_type
     private
-    type(arg_type) :: meta_args(2) = (/         &
-         arg_type(GH_FIELD,   GH_WRITE, W3),    &
-         arg_type(GH_FIELD,   GH_READ,  W3)     &
+    type(arg_type) :: meta_args(2) = (/             &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  W3)  &
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: compute_w3_column_total_code
   end type
@@ -43,13 +44,14 @@ module compute_w3_column_total_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public compute_w3_column_total_code
+  public :: compute_w3_column_total_code
+
 contains
 
 !> @brief Compute the sum of values in a column
 !! @param[in] nlayers The number of layers
 !! @param[in,out] column_total A field in W3 whose values in the bottom layer
-!!                          will be the column totals
+!!                             will be the column totals
 !! @param[in] mass A field in W3 space to be summed up
 !! @param[in] ndf_w3 The number of degrees of freedom per cell for w3
 !! @param[in] undf_w3 The number of unique degrees of freedom  for w3

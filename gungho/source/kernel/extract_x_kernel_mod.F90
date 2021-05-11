@@ -13,14 +13,18 @@
 !>
 module extract_x_kernel_mod
 
-  use argument_mod,      only : arg_type, func_type,       &
-                                GH_FIELD, GH_READ, GH_INC, &
-                                GH_BASIS, CELLS, GH_INTEGER
+  use argument_mod,      only : arg_type,            &
+                                GH_FIELD, GH_SCALAR, &
+                                GH_REAL, GH_INTEGER, &
+                                GH_READ, GH_INC,     &
+                                CELL_COLUMN
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2, W3
   use kernel_mod,        only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -30,18 +34,18 @@ module extract_x_kernel_mod
   !>
   type, public, extends(kernel_type) :: extract_x_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/     &
-        arg_type(GH_FIELD,   GH_READ,  W3), &
-        arg_type(GH_FIELD,   GH_READ,  W2), &
-        arg_type(GH_FIELD,   GH_INC,   W2), &
-        arg_type(GH_INTEGER, GH_READ     )  &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(4) = (/                &
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ, W3), &
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ, W2), &
+         arg_type(GH_FIELD,  GH_REAL,    GH_INC,  W2), &
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ    )  &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: extract_x_code
   end type
 
-  public extract_x_code
+  public :: extract_x_code
 
 contains
 

@@ -19,12 +19,13 @@
 !>          This method is only valid for lowest order elements
 module poly1d_vert_flux_coeffs_kernel_mod
 
-use argument_mod,      only : arg_type, func_type,  &
-                              GH_FIELD, GH_INTEGER, &
-                              GH_WRITE, GH_READ,    &
-                              ANY_SPACE_1,          &
-                              GH_BASIS, CELLS,      &
-                              GH_QUADRATURE_XYoZ,   &
+use argument_mod,      only : arg_type, func_type,   &
+                              GH_FIELD, GH_SCALAR,   &
+                              GH_REAL, GH_INTEGER,   &
+                              GH_WRITE, GH_READ,     &
+                              ANY_SPACE_1,           &
+                              GH_BASIS, CELL_COLUMN, &
+                              GH_QUADRATURE_XYoZ,    &
                               GH_QUADRATURE_face
 use constants_mod,     only : r_def, i_def, EPS
 use fs_continuity_mod, only : W3
@@ -39,17 +40,17 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the PSy layer
 type, public, extends(kernel_type) :: poly1d_vert_flux_coeffs_kernel_type
   private
-  type(arg_type) :: meta_args(5) = (/                                  &
-       arg_type(GH_FIELD,   GH_WRITE, W3),                             &
-       arg_type(GH_FIELD,   GH_READ,  W3),                             &
-       arg_type(GH_FIELD*3, GH_READ,  ANY_SPACE_1),                    &
-       arg_type(GH_INTEGER, GH_READ),                                  &
-       arg_type(GH_INTEGER, GH_READ)                                   &
+  type(arg_type) :: meta_args(5) = (/                           &
+       arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, W3),          &
+       arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W3),          &
+       arg_type(GH_FIELD*3, GH_REAL,    GH_READ,  ANY_SPACE_1), &
+       arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),               &
+       arg_type(GH_SCALAR,  GH_INTEGER, GH_READ)                &
        /)
-  type(func_type) :: meta_funcs(1) = (/                                &
-       func_type(ANY_SPACE_1, GH_BASIS)                                &
+  type(func_type) :: meta_funcs(1) = (/                         &
+       func_type(ANY_SPACE_1, GH_BASIS)                         &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape(2) = (/ GH_QUADRATURE_XYoZ, GH_QUADRATURE_face /)
 contains
   procedure, nopass :: poly1d_vert_flux_coeffs_code
@@ -58,39 +59,39 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public poly1d_vert_flux_coeffs_code
+public :: poly1d_vert_flux_coeffs_code
 contains
 
-!>@brief Compute the coefficients needed for a 1D vertical reconstruction
-!>       of a tracer field on vertical faces
-!>@param[in] nlayers Number of vertical layers
-!>@param[out] coeff Array of fields to store the coefficients for the polynomial
-!!                  reconstruction
-!>@param[in]  mdw3 Mass matrix diagonal for the W3 space, this is used to give
-!!                 the cell volume
-!>@param[in] chi1 1st component of the physical coordinate field
-!>@param[in] chi2 2nd component of the physical coordinate field
-!>@param[in] chi3 3rd component of the physical coordinate field
-!>@param[in] ndf_w3 Number of degrees of freedom per cell for W3
-!>@param[in] undf_w3 Total number of degrees of freedom for W3
-!>@param[in] map_w3 Dofmap of the tracer field
-!>@param[in] ndf_wx Number of degrees of freedom per cell for the coordinate space
-!>@param[in] undf_wx Total number of degrees of freedom for the coordinate space
-!>@param[in] map_wx Dofmap of the coordinate space stencil
-!>@param[in] basis_wx Basis function of the coordinate space evaluated on
-!!                    quadrature points
-!>@param[in] face_basis_wx Basis function of the coordinate space evaluated on
-!!                         quadrature points on the vertical faces
-!>@param[in] global_order Desired polynomial order for flux computations
-!>@param[in] nfaces_re_v Number of vertical faces( used by PSyclone to size
-!!                       coeff array)
-!>@param[in] nqp_h Number of horizontal quadrature points
-!>@param[in] nqp_v Number of vertical quadrature points
-!>@param[in] wqp_h Weights of horizontal quadrature points
-!>@param[in] wqp_v Weights of vertical quadrature points
-!>@param[in] nfaces_qr Number of faces in the quadrature rule
-!>@param[in] nqp_f Number of face quadrature points
-!>@param[in] wqp_f Weights of face quadrature points
+!> @brief Compute the coefficients needed for a 1D vertical reconstruction
+!>        of a tracer field on vertical faces
+!> @param[in] nlayers Number of vertical layers
+!> @param[in,out] coeff Array of fields to store the coefficients for the polynomial
+!!                      reconstruction
+!> @param[in]  mdw3 Mass matrix diagonal for the W3 space, this is used to give
+!!                  the cell volume
+!> @param[in] chi1 1st component of the physical coordinate field
+!> @param[in] chi2 2nd component of the physical coordinate field
+!> @param[in] chi3 3rd component of the physical coordinate field
+!> @param[in] ndf_w3 Number of degrees of freedom per cell for W3
+!> @param[in] undf_w3 Total number of degrees of freedom for W3
+!> @param[in] map_w3 Dofmap of the tracer field
+!> @param[in] ndf_wx Number of degrees of freedom per cell for the coordinate space
+!> @param[in] undf_wx Total number of degrees of freedom for the coordinate space
+!> @param[in] map_wx Dofmap of the coordinate space stencil
+!> @param[in] basis_wx Basis function of the coordinate space evaluated on
+!!                     quadrature points
+!> @param[in] face_basis_wx Basis function of the coordinate space evaluated on
+!!                          quadrature points on the vertical faces
+!> @param[in] global_order Desired polynomial order for flux computations
+!> @param[in] nfaces_re_v Number of vertical faces( used by PSyclone to size
+!!                        coeff array)
+!> @param[in] nqp_h Number of horizontal quadrature points
+!> @param[in] nqp_v Number of vertical quadrature points
+!> @param[in] wqp_h Weights of horizontal quadrature points
+!> @param[in] wqp_v Weights of vertical quadrature points
+!> @param[in] nfaces_qr Number of faces in the quadrature rule
+!> @param[in] nqp_f Number of face quadrature points
+!> @param[in] wqp_f Weights of face quadrature points
 subroutine poly1d_vert_flux_coeffs_code(nlayers,                    &
                                         coeff,                      &
                                         mdw3,                       &
@@ -129,7 +130,7 @@ subroutine poly1d_vert_flux_coeffs_code(nlayers,                    &
   real(kind=r_def), dimension(undf_w3), intent(in)  :: mdw3
   real(kind=r_def), dimension(undf_wx), intent(in)  :: chi1, chi2, chi3
 
-  real(kind=r_def), dimension(global_order+1, nfaces_re_v, undf_w3), intent(out) :: coeff
+  real(kind=r_def), dimension(global_order+1, nfaces_re_v, undf_w3), intent(inout) :: coeff
 
   real(kind=r_def), dimension(1,ndf_wx,nqp_h,nqp_v),     intent(in) :: basis_wx
   real(kind=r_def), dimension(1,ndf_wx,nqp_f,nfaces_qr), intent(in) :: face_basis_wx

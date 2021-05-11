@@ -11,10 +11,11 @@
 !>
 module tri_matrix_vector_kernel_mod
 
-  use argument_mod,      only : arg_type, func_type,                 &
-                                GH_FIELD, GH_WRITE, GH_READ,         &
-                                ANY_DISCONTINUOUS_SPACE_3,           &
-                                CELLS
+  use argument_mod,      only : arg_type,                  &
+                                GH_FIELD, GH_REAL,         &
+                                GH_WRITE, GH_READ,         &
+                                ANY_DISCONTINUOUS_SPACE_3, &
+                                CELL_COLUMN
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : Wtheta
   use kernel_mod,        only : kernel_type
@@ -31,12 +32,12 @@ module tri_matrix_vector_kernel_mod
   !>
   type, public, extends(kernel_type) :: tri_matrix_vector_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                             &
-         arg_type(GH_FIELD,   GH_WRITE, ANY_DISCONTINUOUS_SPACE_3), &
-         arg_type(GH_FIELD*3,  GH_READ, ANY_DISCONTINUOUS_SPACE_3), &
-         arg_type(GH_FIELD,    GH_READ,  Wtheta)                    &
+    type(arg_type) :: meta_args(3) = (/                                      &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_3), &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta)                     &
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: tri_matrix_vector_code
   end type
@@ -44,13 +45,14 @@ module tri_matrix_vector_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public tri_matrix_vector_code
+  public :: tri_matrix_vector_code
+
 contains
 
 !> @brief Compute the terms of the tridiagonal matrix for transforming from
 !> mixing ratio in Wtheta to density in shifted W3.
 !! @param[in] nlayers_shifted Number of layers in the shifted mesh
-!! @param[in,out] field_sh_w3 The output field in W3 shifted.
+!! @param[in,out] field_sh_w3 The output field in W3 shifted
 !! @param[in] tri_below The below-diagonal elements of the tridiagonal matrix.
 !! It is a field in shifted W3.
 !! @param[in] tri_diag The central diagonal elements of the tridiagonal matrix.
@@ -58,12 +60,12 @@ contains
 !! @param[in] tri_above The above-diagonal elements of the tridiagonal matrix.
 !! It is a field in shifted W3.
 !! @param[in] field_wt The input field in Wtheta
-!! @param[in] ndf_sh_w3 The number of degrees of freedom per cell for shifted w3
-!! @param[in] undf_sh_w3 The number of unique degrees of freedom for shifted w3
-!! @param[in] map_sh_w3 Dofmap for the cell at the base of the column for shifted w3
-!! @param[in] ndf_wt The number of degrees of freedom per cell for wtheta
-!! @param[in] undf_wt The number of unique degrees of freedom for wtheta
-!! @param[in] map_wt Dofmap for the cell at the base of the column for wtheta
+!! @param[in] ndf_sh_w3 The number of degrees of freedom per cell for shifted W3
+!! @param[in] undf_sh_w3 The number of unique degrees of freedom for shifted W3
+!! @param[in] map_sh_w3 Dofmap for the cell at the base of the column for shifted W3
+!! @param[in] ndf_wt The number of degrees of freedom per cell for Wtheta
+!! @param[in] undf_wt The number of unique degrees of freedom for Wtheta
+!! @param[in] map_wt Dofmap for the cell at the base of the column for Wtheta
 
 subroutine tri_matrix_vector_code(                                   &
                                    nlayers_shifted,                  &

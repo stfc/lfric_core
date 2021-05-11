@@ -12,11 +12,12 @@
 module initial_u_kernel_mod
 
   use argument_mod,            only : arg_type, func_type,       &
-                                      GH_FIELD, GH_INC, GH_READ, &
-                                      ANY_SPACE_9, GH_REAL,      &
+                                      GH_FIELD, GH_SCALAR,       &
+                                      GH_INC, GH_READ,           &
+                                      GH_REAL, ANY_SPACE_9,      &
+                                      ANY_DISCONTINUOUS_SPACE_3, &
                                       GH_BASIS, GH_DIFF_BASIS,   &
-                                      CELLS, GH_QUADRATURE_XYoZ, &
-                                      ANY_DISCONTINUOUS_SPACE_3
+                                      CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,           only : r_def, i_def, PI
   use fs_continuity_mod,       only : W2
   use initial_wind_config_mod, only : profile_sin_uv,                        &
@@ -27,6 +28,8 @@ module initial_u_kernel_mod
 
   implicit none
 
+  private
+
   !---------------------------------------------------------------------------
   ! Public types
   !---------------------------------------------------------------------------
@@ -35,25 +38,27 @@ module initial_u_kernel_mod
   !>
   type, public, extends(kernel_type) :: initial_u_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                           &
-        arg_type(GH_FIELD,   GH_INC,  W2),                        &
-        arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_9),               &
-        arg_type(GH_FIELD,   GH_READ, ANY_DISCONTINUOUS_SPACE_3), &
-        arg_type(GH_REAL,    GH_READ)                             &
-        /)
-    type(func_type) :: meta_funcs(2) = (/                         &
-        func_type(W2, GH_BASIS),                                  &
-        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)           &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(4) = (/                                     &
+         arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),                        &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),               &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3), &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ)                             &
+         /)
+    type(func_type) :: meta_funcs(2) = (/                                   &
+         func_type(W2,          GH_BASIS),                                  &
+         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                    &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
-    procedure, public, nopass :: initial_u_code
+    procedure, nopass :: initial_u_code
   end type
 
 !-----------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-----------------------------------------------------------------------------
+public :: initial_u_code
+
 contains
 
   !> @brief Compute the right hand side to initialise the wind field.

@@ -7,7 +7,10 @@
 
 module strat_aerosol_kernel_mod
 
-use argument_mod,      only : arg_type, GH_FIELD, GH_READ, GH_WRITE, CELLS, &
+use argument_mod,      only : arg_type,          &
+                              GH_FIELD, GH_REAL, &
+                              GH_READ, GH_WRITE, &
+                              CELL_COLUMN,       &
                               ANY_DISCONTINUOUS_SPACE_1
 use fs_continuity_mod, only:  Wtheta, W3
 use constants_mod,     only : r_def, i_def
@@ -16,22 +19,20 @@ use kernel_mod,        only : kernel_type
 implicit none
 
 private
-public :: strat_aerosol_kernel_type
-public :: strat_aerosol_code
 
 !-------------------------------------------------------------------------------
 ! Public types
 !-------------------------------------------------------------------------------
 ! The type declaration for the kernel.
 ! Contains the metadata needed by the PSy layer.
-type, extends(kernel_type) :: strat_aerosol_kernel_type
+type, public, extends(kernel_type) :: strat_aerosol_kernel_type
   private
-  type(arg_type) :: meta_args(3) = (/                        &
-    arg_type(GH_FIELD, GH_WRITE, Wtheta),                    & ! sulphuric
-    arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & ! trop_level
-    arg_type(GH_FIELD, GH_READ,  W3)                         & ! exner
-    /)
-  integer :: iterates_over = CELLS
+  type(arg_type) :: meta_args(3) = (/                                    &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, Wtheta),                    & ! sulphuric
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & ! trop_level
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W3)                         & ! exner
+       /)
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: strat_aerosol_code
 end type
@@ -39,21 +40,23 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
+public :: strat_aerosol_code
+
 contains
 
-! @param[in]    nlayers                 Number of layers
-! @param[inout] sulphuric               Sulphuric acid aerosol MMR
-! @param[in]    trop_level              Level of tropopause
-! @param[in]    exner                   Exner pressure on w3 space
-! @param[in]    ndf_wth                 No. DOFs per cell for wth space
-! @param[in]    undf_wth                No. unique DOFs for wth space
-! @param[in]    map_wth                 Dofmap for wth space column base cell
-! @param[in]    ndf_2d                  No. DOFs per cell for 2D space
-! @param[in]    undf_2d                 No. unique DOFs for 2D space
-! @param[in]    map_2d                  Dofmap for 2D space column base cell
-! @param[in]    ndf_w3                  No. DOFs per cell for w3 space
-! @param[in]    undf_w3                 No. unique DOFs for w3 space
-! @param[in]    map_w3                  Dofmap for w3 space column base cell
+!> @param[in]     nlayers               Number of layers
+!> @param[in,out] sulphuric             Sulphuric acid aerosol MMR
+!> @param[in]     trop_level            Level of tropopause
+!> @param[in]     exner                 Exner pressure on w3 space
+!> @param[in]     ndf_wth               No. DOFs per cell for wth space
+!> @param[in]     undf_wth              No. unique DOFs for wth space
+!> @param[in]     map_wth               Dofmap for wth space column base cell
+!> @param[in]     ndf_2d                No. DOFs per cell for 2D space
+!> @param[in]     undf_2d               No. unique DOFs for 2D space
+!> @param[in]     map_2d                Dofmap for 2D space column base cell
+!> @param[in]     ndf_w3                No. DOFs per cell for w3 space
+!> @param[in]     undf_w3               No. unique DOFs for w3 space
+!> @param[in]     map_w3                Dofmap for w3 space column base cell
 subroutine strat_aerosol_code(nlayers,                    &
                               sulphuric,                  &
                               trop_level,                 &
@@ -90,7 +93,7 @@ subroutine strat_aerosol_code(nlayers,                    &
 
   ! Sulphuric mass mixing ratio (kg/kg) above tropopause using the ratio of
   ! the stratospheric column amount of sulphuric acid aerosol (kg m-2) to
-  ! the hydrostatic mass of the atmosphere above the tropopause: 
+  ! the hydrostatic mass of the atmosphere above the tropopause:
   sulphuric_mmr = sulphuric_strat_column * gravity &
                 / ( p_zero * exner(map_w3(1)+i_trop-1)**(1.0_r_def/kappa) )
 
@@ -100,4 +103,5 @@ subroutine strat_aerosol_code(nlayers,                    &
   sulphuric(map_wth(1)+i_trop:map_wth(1)+nlayers) = sulphuric_mmr
 
 end subroutine strat_aerosol_code
+
 end module strat_aerosol_kernel_mod

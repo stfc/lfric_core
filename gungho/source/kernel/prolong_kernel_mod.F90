@@ -15,11 +15,11 @@ module prolong_kernel_mod
 use constants_mod,           only: i_def, r_def
 use kernel_mod,              only: kernel_type
 use argument_mod,            only: arg_type,                  &
-                                   GH_FIELD, CELLS,           &
+                                   GH_FIELD, GH_REAL,         &
                                    GH_READ, GH_READWRITE,     &
                                    ANY_DISCONTINUOUS_SPACE_1, &
                                    ANY_DISCONTINUOUS_SPACE_2, &
-                                   GH_COARSE, GH_FINE
+                                   GH_COARSE, GH_FINE, CELL_COLUMN
 
 implicit none
 
@@ -27,11 +27,13 @@ private
 
 type, public, extends(kernel_type) :: prolong_kernel_type
    private
-   type(arg_type) :: meta_args(2) = (/                                                  &
-       arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1, mesh_arg=GH_FINE),   &
-       arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2, mesh_arg=GH_COARSE ) &
-       /)
-  integer :: iterates_over = CELLS
+   type(arg_type) :: meta_args(2) = (/                                       &
+        arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1, &
+                                                  mesh_arg=GH_FINE),         &
+        arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_2, &
+                                                  mesh_arg=GH_COARSE )       &
+        /)
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: prolong_kernel_code
 end type prolong_kernel_type

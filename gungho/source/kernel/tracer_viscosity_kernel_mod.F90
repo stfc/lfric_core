@@ -8,16 +8,19 @@
 !>
 module tracer_viscosity_kernel_mod
 
-  use argument_mod,      only : arg_type, func_type,         &
-                                GH_FIELD, GH_READ, GH_WRITE, &
-                                ANY_SPACE_9,                 &
-                                CELLS, STENCIL, CROSS
-  use constants_mod,     only : r_def
+  use argument_mod,      only : arg_type,          &
+                                GH_FIELD, GH_REAL, &
+                                GH_READ, GH_WRITE, &
+                                ANY_SPACE_9,       &
+                                CELL_COLUMN, STENCIL, CROSS
+  use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : Wtheta
   use kernel_mod,        only : kernel_type
   use mixing_config_mod, only : viscosity_mu
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -27,38 +30,41 @@ module tracer_viscosity_kernel_mod
   !>
   type, public, extends(kernel_type) :: tracer_viscosity_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                         &
-        arg_type(GH_FIELD,   GH_WRITE, Wtheta),                 &
-        arg_type(GH_FIELD,   GH_READ,  Wtheta, STENCIL(CROSS)), &
-        arg_type(GH_FIELD*3, GH_READ,  ANY_SPACE_9)             &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(3) = (/                                   &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, Wtheta),                 &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta, STENCIL(CROSS)), &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9)             &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
-    procedure, nopass ::tracer_viscosity_code
+    procedure, nopass :: tracer_viscosity_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public tracer_viscosity_code
+  public :: tracer_viscosity_code
 
 contains
 
-!> @brief The subroutine which is called directly by the Psy layer
+!> @brief Computes tracer viscosity
 !! @param[in] nlayers Number of layers in the mesh
 !! @param[in,out] theta_inc Diffusion increment for temperature field
 !! @param[in] theta_n Input temperature field
-!! @param[in] map_wt_size Number of cells in the stencil at the base of the column for wt
-!! @param[in] map_wt Array holding the dofmap for the stencil at the base of the column for wt
+!! @param[in] map_wt_size Number of cells in the stencil at the base of the
+!!                        column for Wtheta
+!! @param[in] map_wt Array holding the dofmap for the stencil at the base
+!!                   of the column for Wtheta
 !! @param[in] chi1 First coordinate field
 !! @param[in] chi2 Second coordinate field
 !! @param[in] chi3 Third coordinate field
 !! @param[in] ndf_wt Number of degrees of freedom per cell for theta space
-!! @param[in] undf_wt  Number of unique degrees of freedom  for theta_space
-!! @param[in] cell_map_wt Cell dofmap for the wtheta space
+!! @param[in] undf_wt  Number of unique degrees of freedom for theta space
+!! @param[in] cell_map_wt Cell dofmap for the theta space
 !! @param[in] ndf_chi Number of degrees of freedom per cell for chi space
-!! @param[in] undf_chi Number of unique degrees of freedom  for chi space
-!! @param[in] map_chi Array holding the dofmap for the cell at the base of the column for chi
+!! @param[in] undf_chi Number of unique degrees of freedom for chi space
+!! @param[in] map_chi Array holding the dofmap for the cell at the base of
+!!                    the column for chi
 
 subroutine tracer_viscosity_code(nlayers,                               &
                                  theta_inc, theta_n,                    &
@@ -68,20 +74,21 @@ subroutine tracer_viscosity_code(nlayers,                               &
                                  ndf_chi, undf_chi, map_chi)
 
   implicit none
+
   ! Arguments
-  integer, intent(in) :: nlayers
-  integer, intent(in) :: ndf_wt, undf_wt, ndf_chi, undf_chi
-  integer, intent(in) :: map_wt_size
-  integer, dimension(ndf_wt,map_wt_size), intent(in)  :: map_wt
-  integer, dimension(ndf_chi),            intent(in)  :: map_chi
-  integer, dimension(ndf_wt),             intent(in)  :: cell_map_wt
+  integer(kind=i_def), intent(in) :: nlayers
+  integer(kind=i_def), intent(in) :: ndf_wt, undf_wt, ndf_chi, undf_chi
+  integer(kind=i_def), intent(in) :: map_wt_size
+  integer(kind=i_def), dimension(ndf_wt,map_wt_size), intent(in)  :: map_wt
+  integer(kind=i_def), dimension(ndf_chi),            intent(in)  :: map_chi
+  integer(kind=i_def), dimension(ndf_wt),             intent(in)  :: cell_map_wt
 
   real(kind=r_def), dimension(undf_wt),  intent(inout) :: theta_inc
   real(kind=r_def), dimension(undf_wt),  intent(in)    :: theta_n
   real(kind=r_def), dimension(undf_chi), intent(in)    :: chi1, chi2, chi3
 
   ! Internal variables
-  integer                                  :: k, km, kp, df
+  integer(kind=i_def)                      :: k, km, kp, df
   real(kind=r_def)                         :: d2dx, d2dy, d2dz
   real(kind=r_def), dimension(0:nlayers-1) :: idx2, idy2, idz2
   real(kind=r_def), dimension(ndf_chi)     :: chi1_e, chi2_e, chi3_e

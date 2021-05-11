@@ -8,20 +8,21 @@
 
 !> @brief Kernel computes the initial theta field
 
-!> @detail The kernel computes initial theta perturbation field for theta in the space
-!>         of horizontally discontinuous, vertically continuous polynomials
+!> @details The kernel computes initial theta perturbation field for theta in the space
+!>          of horizontally discontinuous, vertically continuous polynomials
 
 module initial_buoyancy_kernel_mod
 
     use argument_mod, only: arg_type, func_type,        &
-        GH_FIELD, GH_INC, GH_READ,                      &
+        GH_FIELD, GH_REAL, GH_INC, GH_READ,             &
         ANY_SPACE_9, ANY_SPACE_1, GH_BASIS,             &
-        GH_DIFF_BASIS,                                  &
-        CELLS, GH_EVALUATOR
+        CELL_COLUMN, GH_EVALUATOR
     use constants_mod,                 only: r_def, i_def
     use kernel_mod,                    only: kernel_type
 
     implicit none
+
+    private
 
     !-------------------------------------------------------------------------------
     ! Public types
@@ -29,14 +30,14 @@ module initial_buoyancy_kernel_mod
     !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
     type, public, extends(kernel_type) :: initial_buoyancy_kernel_type
         private
-        type(arg_type) :: meta_args(2) = (/                               &
-            arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1),                   &
-            arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_9)                    &
-            /)
-        type(func_type) :: meta_funcs(1) = (/                             &
-            func_type(ANY_SPACE_9, GH_BASIS)                              &
-            /)
-        integer :: iterates_over = CELLS
+        type(arg_type) :: meta_args(2) = (/                       &
+             arg_type(GH_FIELD,   GH_REAL, GH_INC,  ANY_SPACE_1), &
+             arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9)  &
+             /)
+        type(func_type) :: meta_funcs(1) = (/                     &
+             func_type(ANY_SPACE_9, GH_BASIS)                     &
+             /)
+        integer :: operates_on = CELL_COLUMN
         integer :: gh_shape = GH_EVALUATOR
     contains
         procedure, nopass :: initial_buoyancy_code
@@ -45,23 +46,22 @@ module initial_buoyancy_kernel_mod
     !-------------------------------------------------------------------------------
     ! Contained functions/subroutines
     !-------------------------------------------------------------------------------
-    public initial_buoyancy_code
+    public :: initial_buoyancy_code
 contains
 
       !> @brief The subroutine which is called directly by the Psy layer
       !! @param[in] nlayers Integer the number of layers
+      !! @param[in,out] buoyancy Real array the data
+      !! @param[in] chi_1 Real array, the x component of the w0 coordinate field
+      !! @param[in] chi_2 Real array, the y component of the w0 coordinate field
+      !! @param[in] chi_3 Real array, the z component of the w0 coordinate field
       !! @param[in] ndf_wt The number of degrees of freedom per cell for wt
       !! @param[in] udf_wt The number of total degrees of freedom for wt
       !! @param[in] map_wt Integer array holding the dofmap for the cell at the base of the column
-      !! @param[inout] theta Real array the data
-      !! @param[in] wt_basis Real 5-dim array holding basis functions evaluated at gaussian quadrature points
       !! @param[in] ndf_w0 The number of degrees of freedom per cell
       !! @param[in] ndf_w0 The total number of degrees of freedom
       !! @param[in] map_w0 Integer array holding the dofmap for the cell at the base of the column
       !! @param[in] w0_basis Real 5-dim array holding basis functions evaluated at gaussian quadrature points
-      !! @param[inout] chi_1 Real array, the x component of the w0 coordinate field
-      !! @param[inout] chi_2 Real array, the y component of the w0 coordinate field
-      !! @param[inout] chi_3 Real array, the z component of the w0 coordinate field
 
       ! In Psyclone
 
@@ -75,7 +75,7 @@ contains
 
         implicit none
 
-        !Arguments
+        ! Arguments
         integer(kind=i_def), intent(in) :: nlayers, ndf_wt, ndf_w0, undf_wt, undf_w0
         integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
         integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
@@ -83,7 +83,7 @@ contains
         real(kind=r_def), dimension(undf_w0),          intent(in)    :: chi_1, chi_2, chi_3
         real(kind=r_def), dimension(1,ndf_w0,ndf_wt),  intent(in)    :: w0_basis
 
-        !Internal variables
+        ! Internal variables
         integer(kind=i_def)                 :: df, df0, k
         real(kind=r_def), dimension(ndf_w0) :: chi_1_e, chi_2_e, chi_3_e
         real(kind=r_def)                    :: x(3)

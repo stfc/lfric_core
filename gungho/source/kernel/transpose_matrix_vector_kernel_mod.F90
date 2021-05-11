@@ -7,14 +7,18 @@
 !-------------------------------------------------------------------------------
 
 module transpose_matrix_vector_kernel_mod
-use argument_mod,            only : arg_type,                               &
-                                    GH_FIELD, GH_OPERATOR, GH_READ, GH_INC, &
-                                    ANY_SPACE_1, ANY_SPACE_2,               &
-                                    CELLS
+
+use argument_mod,            only : arg_type,                 &
+                                    GH_FIELD, GH_OPERATOR,    &
+                                    GH_REAL, GH_READ, GH_INC, &
+                                    ANY_SPACE_1, ANY_SPACE_2, &
+                                    CELL_COLUMN
 use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -22,27 +26,27 @@ implicit none
 
 type, public, extends(kernel_type) :: transpose_matrix_vector_kernel_type
   private
-  type(arg_type) :: meta_args(3) = (/                                  &
-       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &
-       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                    &
-       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_2, ANY_SPACE_1)        &
+  type(arg_type) :: meta_args(3) = (/                                    &
+       arg_type(GH_FIELD,    GH_REAL, GH_INC,  ANY_SPACE_1),             &
+       arg_type(GH_FIELD,    GH_REAL, GH_READ, ANY_SPACE_2),             &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ, ANY_SPACE_2, ANY_SPACE_1) &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
-  procedure, nopass ::transpose_matrix_vector_code
+  procedure, nopass :: transpose_matrix_vector_code
 end type
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public transpose_matrix_vector_code
+public :: transpose_matrix_vector_code
 
 contains
 
 !> @brief Computes lhs = matrix^T*x where matrix^T is the transpose of the matrix
 !! @param[in] cell Horizontal cell index
 !! @param[in] nlayers Number of layers
-!! @param[inout] lhs Output lhs (A^T*x)
+!! @param[in,out] lhs Output lhs (A^T*x)
 !! @param[in] x Input data
 !! @param[in] ncell_3d Total number of cells
 !! @param[in] matrix Matrix values

@@ -9,14 +9,18 @@
 !> @brief Applies boundary conditions to a lma operator
 !> @details Wrapper code for applying boundary conditions to a operator
 module enforce_operator_bc_kernel_mod
+
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,                     &
-                                    GH_OPERATOR, GH_READWRITE,               &
-                                    ANY_SPACE_1, ANY_SPACE_2,                &
-                                    CELLS
+use argument_mod,            only : arg_type,                 &
+                                    GH_OPERATOR, GH_REAL,     &
+                                    GH_READWRITE,             &
+                                    ANY_SPACE_1, ANY_SPACE_2, &
+                                    CELL_COLUMN
 use constants_mod,           only : r_def, i_def
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -24,10 +28,10 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: enforce_operator_bc_kernel_type
   private
-  type(arg_type) :: meta_args(1) = (/                                &
-       arg_type(GH_OPERATOR, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_2) &
+  type(arg_type) :: meta_args(1) = (/                                         &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_2) &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: enforce_operator_bc_code
 end type
@@ -39,14 +43,14 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public enforce_operator_bc_code
+public :: enforce_operator_bc_code
 
 contains
 
 !> @brief Applies boundary conditions to an operator
 !! @param[in] cell Horizontal cell index
 !! @param[in] nlayers Number of layers
-!! @param[inout] op Operator data array to map from space 1 to space 2
+!! @param[in,out] op Operator data array to map from space 1 to space 2
 !! @param[in] ncell_3d Total number of cells
 !! @param[in] ndf1 Number of degrees of freedom per cell for to space
 !! @param[in] ndf2 Number of degrees of freedom per cell for from space

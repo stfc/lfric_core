@@ -9,15 +9,18 @@
 
 module correct_cosmic_wind_kernel_mod
 
-  use argument_mod,      only : arg_type, func_type,       &
-                                GH_FIELD, GH_READ, GH_INC, &
-                                CELLS
+  use argument_mod,      only : arg_type,          &
+                                GH_FIELD, GH_REAL, &
+                                GH_READ, GH_INC,   &
+                                CELL_COLUMN
   use constants_mod,     only : i_def, r_def
   use cosmic_flux_mod,   only : dof_to_update
   use fs_continuity_mod, only : W3, W2
   use kernel_mod,        only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -27,20 +30,20 @@ module correct_cosmic_wind_kernel_mod
   !>
   type, public, extends(kernel_type) :: correct_cosmic_wind_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                    &
-        arg_type(GH_FIELD,  GH_INC,   W2),                 &
-        arg_type(GH_FIELD,  GH_READ,  W2),                 &
-        arg_type(GH_FIELD,  GH_READ,  W3)                  &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(3) = (/            &
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  W2), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, W2), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, W3)  &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
-    procedure, nopass ::correct_cosmic_wind_code
+    procedure, nopass :: correct_cosmic_wind_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public correct_cosmic_wind_code
+  public :: correct_cosmic_wind_code
 
 contains
 
@@ -55,10 +58,12 @@ contains
   !> @param[in] orientation The orientation of the cells, in particular in the halo
   !> @param[in] undf_w2 The number of unique degrees of freedom for the wind fields
   !> @param[in] ndf_w2 The number of degrees of freedom per cell for the wind fields
-  !> @param[in] map_w2 Integer array holding the dofmap for the cell at the base of the column for the wind fields
+  !> @param[in] map_w2 Integer array holding the dofmap for the cell at the base
+  !!                   of the column for the wind fields
   !> @param[in] undf_w3 The number of unique degrees of freedom for the cell orientation field
   !> @param[in] ndf_w3 The number of degrees of freedom per cell for the cell orientation field
-  !> @param[in] map_w3 Integer array holding the dofmap for the cell at the base of the column for the cell orientation field
+  !> @param[in] map_w3 Integer array holding the dofmap for the cell at the base
+  !!                   of the column for the cell orientation field
   !> @param[in] direction The direction in which the winds are corrected
   subroutine correct_cosmic_wind_code(nlayers,                                 &
                                       wind_out,                                &

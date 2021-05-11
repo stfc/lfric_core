@@ -23,15 +23,18 @@
 !>
 module geopotential_gradient_kernel_mod
 
-  use argument_mod,      only : arg_type, func_type,       &
-                                GH_FIELD, GH_READ, GH_INC, &
-                                GH_BASIS, GH_DIFF_BASIS,   &
-                                CELLS, GH_QUADRATURE_XYoZ
-  use constants_mod,     only : r_def
+  use argument_mod,      only : arg_type, func_type,     &
+                                GH_FIELD, GH_REAL,       &
+                                GH_READ, GH_INC,         &
+                                GH_BASIS, GH_DIFF_BASIS, &
+                                CELL_COLUMN, GH_QUADRATURE_XYoZ
+  use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W0, W2
   use kernel_mod,        only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -41,39 +44,40 @@ module geopotential_gradient_kernel_mod
   !>
   type, public, extends(kernel_type) :: geopotential_gradient_kernel_type
     private
-    type(arg_type) :: meta_args(2) = (/    &
-        arg_type(GH_FIELD,   GH_INC,  W2), &
-        arg_type(GH_FIELD,   GH_READ, W0)  &
-        /)
-    type(func_type) :: meta_funcs(2) = (/ &
-        func_type(W2, GH_BASIS),          &
-        func_type(W0, GH_DIFF_BASIS)      &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(2) = (/            &
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  W2), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, W0)  &
+         /)
+    type(func_type) :: meta_funcs(2) = (/          &
+         func_type(W2, GH_BASIS),                  &
+         func_type(W0, GH_DIFF_BASIS)              &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
-    procedure, nopass ::geopotential_gradient_code
+    procedure, nopass :: geopotential_gradient_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public geopotential_gradient_code
+  public :: geopotential_gradient_code
 
 contains
 
-!> @brief Kernel which computes rhs of the momentum equation for the nonlinear equations,
-!>         written in the vector invariant form
+!> @brief Kernel which computes rhs of the momentum equation for the nonlinear
+!>        equations, written in the vector invariant form
 !! @param[in] nlayers Number of layers
 !! @param[in] ndf_w2 Number of degrees of freedom per cell for w2
 !! @param[in] undf_w2 Number of unique degrees of freedom  for w2
 !! @param[in] map_w2 Dofmap for the cell at the base of the column for w2
 !! @param[in] w2_basis Basis functions evaluated at quadrature points
-!! @param[inout] r_u Right hand side of the momentum equation
+!! @param[in,out] r_u Right hand side of the momentum equation
 !! @param[in] ndf_w0 Number of degrees of freedom per cell for w0
 !! @param[in] undf_w0 Number of unique degrees of freedom  for w0
 !! @param[in] map_w0 Dofmap for the cell at the base of the column for w0
-!! @param[in] w0_diff_basis Differntial of the basis functions evaluated at gaussian quadrature point
+!! @param[in] w0_diff_basis Differntial of the basis functions evaluated at
+!!                          gaussian quadrature point
 !! @param[in] phi Geopotential
 !! @param[in] nqp_h Number of quadrature points in the horizontal
 !! @param[in] nqp_v Number of quadrature points in the vertical
@@ -88,12 +92,12 @@ subroutine geopotential_gradient_code(nlayers,                                 &
 
   implicit none
 
-  !Arguments
-  integer, intent(in) :: nlayers,nqp_h, nqp_v
-  integer, intent(in) :: ndf_w0, ndf_w2
-  integer, intent(in) :: undf_w0, undf_w2
-  integer, dimension(ndf_w0), intent(in) :: map_w0
-  integer, dimension(ndf_w2), intent(in) :: map_w2
+  ! Arguments
+  integer(kind=i_def), intent(in) :: nlayers, nqp_h, nqp_v
+  integer(kind=i_def), intent(in) :: ndf_w0, ndf_w2
+  integer(kind=i_def), intent(in) :: undf_w0, undf_w2
+  integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
+  integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
 
   real(kind=r_def), dimension(3,ndf_w2,nqp_h,nqp_v), intent(in) :: w2_basis
   real(kind=r_def), dimension(3,ndf_w0,nqp_h,nqp_v), intent(in) :: w0_diff_basis
@@ -104,9 +108,9 @@ subroutine geopotential_gradient_code(nlayers,                                 &
   real(kind=r_def), dimension(nqp_h), intent(in)      ::  wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in)      ::  wqp_v
 
-  !Internal variables
-  integer               :: df, k
-  integer               :: qp1, qp2
+  ! Internal variables
+  integer(kind=i_def) :: df, k
+  integer(kind=i_def) :: qp1, qp2
 
   real(kind=r_def), dimension(ndf_w2)          :: ru_e
   real(kind=r_def), dimension(ndf_w0)          :: phi_e

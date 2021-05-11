@@ -9,10 +9,11 @@
 !>
 module compute_geopotential_kernel_mod
 
-  use argument_mod,              only : arg_type, func_type,         &
-                                        GH_FIELD, GH_READ, GH_WRITE, &
-                                        ANY_SPACE_9, GH_BASIS,       &
-                                        CELLS, GH_EVALUATOR
+  use argument_mod,              only : arg_type, func_type,   &
+                                        GH_FIELD, GH_REAL,     &
+                                        GH_READ, GH_WRITE,     &
+                                        ANY_SPACE_9, GH_BASIS, &
+                                        CELL_COLUMN, GH_EVALUATOR
   use base_mesh_config_mod,      only : geometry, &
                                         geometry_spherical
   use constants_mod,             only : r_def, i_def
@@ -26,20 +27,22 @@ module compute_geopotential_kernel_mod
 
   implicit none
 
+  private
+
   !---------------------------------------------------------------------------
   ! Public types
   !---------------------------------------------------------------------------
   !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
   type, public, extends(kernel_type) :: compute_geopotential_kernel_type
     private
-    type(arg_type) :: meta_args(2) = (/             &
-        arg_type(GH_FIELD,   GH_WRITE, W3),         &
-        arg_type(GH_FIELD*3, GH_READ,  ANY_SPACE_9) &
-        /)
-    type(func_type) :: meta_funcs(1) = (/ &
-        func_type(ANY_SPACE_9, GH_BASIS)  &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(2) = (/                       &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),         &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9) &
+         /)
+    type(func_type) :: meta_funcs(1) = (/                     &
+         func_type(ANY_SPACE_9, GH_BASIS)                     &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_EVALUATOR
   contains
     procedure, nopass :: compute_geopotential_code
@@ -48,12 +51,12 @@ module compute_geopotential_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public compute_geopotential_code
+  public :: compute_geopotential_code
 
 contains
 
 !! @param[in] nlayers Number of layers
-!! @param[inout] phi Geopotential array
+!! @param[in,out] phi Geopotential array
 !! @param[in] chi_1 1st physical coordinate field
 !! @param[in] chi_2 2nd physical coordinate field
 !! @param[in] chi_3 3rd physical coordinate field

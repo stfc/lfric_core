@@ -8,9 +8,10 @@
 !>
 module orographic_drag_kernel_mod
 
-  use argument_mod,               only: arg_type,                   &
-                                        GH_FIELD, GH_READ, GH_READ, &
-                                        GH_WRITE, CELLS,            &
+  use argument_mod,               only: arg_type,          &
+                                        GH_FIELD, GH_REAL, &
+                                        GH_READ, GH_WRITE, &
+                                        CELL_COLUMN,       &
                                         ANY_DISCONTINUOUS_SPACE_1
 
   use planet_constants_mod,       only: p_zero, kappa
@@ -37,37 +38,37 @@ module orographic_drag_kernel_mod
   !>
   type, public, extends(kernel_type) :: orographic_drag_kernel_type
     private
-    type(arg_type) :: meta_args(20) = (/                           &
-        arg_type(GH_FIELD,   GH_WRITE, W3),                        & ! du_blk, u wind increment blocking
-        arg_type(GH_FIELD,   GH_WRITE, W3),                        & ! dv_blk, v wind increment blocking
-        arg_type(GH_FIELD,   GH_WRITE, W3),                        & ! du_orog_gwd, u wind increment gwd
-        arg_type(GH_FIELD,   GH_WRITE, W3),                        & ! dv_orog_gwd, v wind increment gwd
-        arg_type(GH_FIELD,   GH_WRITE, Wtheta),                    & ! dtemp_blk, temperature increment blocking
-        arg_type(GH_FIELD,   GH_WRITE, Wtheta),                    & ! dtemp_orog_gwd, temperature increment gwd
-        arg_type(GH_FIELD,   GH_READ,  W3),                        & ! u1_in_w3, zonal wind
-        arg_type(GH_FIELD,   GH_READ,  W3),                        & ! u2_in_w3, meridional wind
-        arg_type(GH_FIELD,   GH_READ,  W3),                        & ! wetrho_in_w3, wet density in w3
-        arg_type(GH_FIELD,   GH_READ,  Wtheta),                    & ! theta, theta in wtheta
-        arg_type(GH_FIELD,   GH_READ,  Wtheta),                    & ! exner_in_wth
-        arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & ! sd_orog
-        arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & ! grad_xx_orog
-        arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & ! grad_xy_orog
-        arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & ! grad_yy_orog
-        arg_type(GH_FIELD,   GH_READ,  Wtheta),                    & ! mr_v
-        arg_type(GH_FIELD,   GH_READ,  Wtheta),                    & ! mr_cl
-        arg_type(GH_FIELD,   GH_READ,  Wtheta),                    & ! mr_ci
-        arg_type(GH_FIELD,   GH_READ,  W3),                        & ! height_w3
-        arg_type(GH_FIELD,   GH_READ,  Wtheta)                     & ! height_wtheta
-        /)
-    integer :: iterates_over = CELLS
-    contains
+    type(arg_type) :: meta_args(20) = (/                                   &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3),                        & ! du_blk, u wind increment blocking
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3),                        & ! dv_blk, v wind increment blocking
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3),                        & ! du_orog_gwd, u wind increment gwd
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3),                        & ! dv_orog_gwd, v wind increment gwd
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, Wtheta),                    & ! dtemp_blk, temperature increment blocking
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, Wtheta),                    & ! dtemp_orog_gwd, temperature increment gwd
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                        & ! u1_in_w3, zonal wind
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                        & ! u2_in_w3, meridional wind
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                        & ! wetrho_in_w3, wet density in w3
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! theta, theta in wtheta
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! exner_in_wth
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & ! sd_orog
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & ! grad_xx_orog
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & ! grad_xy_orog
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & ! grad_yy_orog
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! mr_v
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! mr_cl
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! mr_ci
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                        & ! height_w3
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta)                     & ! height_wtheta
+         /)
+    integer :: operates_on = CELL_COLUMN
+  contains
     procedure, nopass :: orographic_drag_kernel_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public orographic_drag_kernel_code
+  public :: orographic_drag_kernel_code
 
 contains
 
@@ -75,36 +76,36 @@ contains
   !> @details This code calls the UM orographic gravity wave and blocking
   !>          drag scheme, which calculates the zonal and meridional winds and
   !>          temperature increments from parametrized orographic drag.
-  !! @param[in]  nlayers        Integer the number of layers
-  !! @param[out] du_blk         u increment from blocking
-  !! @param[out] dv_blk         v increment from blocking
-  !! @param[out] du_orog_gwd    u increment from gravity wave drag
-  !! @param[out] dv_orog_gwd    v increment from gravity wave drag
-  !! @param[out] dtemp_blk      T increment from blocking
-  !! @param[out] dtemp_orog_gwd T increment from gravity wave drag
-  !! @param[in]  u1_in_w3       Zonal wind
-  !! @param[in]  u2_in_w3       Meridional wind
-  !! @param[in]  wetrho_in_w3   Moist density
-  !! @param[in]  theta_in_wth   Potential temperature
-  !! @param[in]  exner_in_wth   Exner pressure
-  !! @param[in]  sd_orog        Standard deviation of sub-grid orog
-  !! @param[in]  grad_xx_orog   (dh/dx)**2
-  !! @param[in]  grad_xy_orog   (dh/dx)*(dh/dy)
-  !! @param[in]  grad_yy_orog   (dh/dy)**2
-  !! @param[in]  mr_v           water vapour mixing ratio
-  !! @param[in]  mr_cl          cloud liquid mixing ratio
-  !! @param[in]  mr_ci          cloud ice mixing ratio
-  !! @param[in]  height_w3      height at rho levels
-  !! @param[in]  height_wth     height at theta levels
-  !! @param[in]  ndf_w3         Number of degrees of freedom per cell for wth
-  !! @param[in]  undf_w3        Number of unique degrees of freedom for wth
-  !! @param[in]  map_w3         dofmap for the cell at w3
-  !! @param[in]  ndf_wth        Number of degrees of freedom per cell for wth
-  !! @param[in]  undf_wth       Number of unique degrees of freedom for wth
-  !! @param[in]  map_wth        dofmap for the cell at wth
-  !! @param[in]  ndf_2d         Number of degrees of freedom per cell for 2d
-  !! @param[in]  undf_2d        Number of unique degrees of freedom for 2d
-  !! @param[in]  map_2d         dofmap for the 2d cell
+  !! @param[in]     nlayers        Integer the number of layers
+  !! @param[in,out] du_blk         u increment from blocking
+  !! @param[in,out] dv_blk         v increment from blocking
+  !! @param[in,out] du_orog_gwd    u increment from gravity wave drag
+  !! @param[in,out] dv_orog_gwd    v increment from gravity wave drag
+  !! @param[in,out] dtemp_blk      T increment from blocking
+  !! @param[in,out] dtemp_orog_gwd T increment from gravity wave drag
+  !! @param[in]     u1_in_w3       Zonal wind
+  !! @param[in]     u2_in_w3       Meridional wind
+  !! @param[in]     wetrho_in_w3   Moist density
+  !! @param[in]     theta_in_wth   Potential temperature
+  !! @param[in]     exner_in_wth   Exner pressure
+  !! @param[in]     sd_orog        Standard deviation of sub-grid orog
+  !! @param[in]     grad_xx_orog   (dh/dx)**2
+  !! @param[in]     grad_xy_orog   (dh/dx)*(dh/dy)
+  !! @param[in]     grad_yy_orog   (dh/dy)**2
+  !! @param[in]     mr_v           Water vapour mixing ratio
+  !! @param[in]     mr_cl          Cloud liquid mixing ratio
+  !! @param[in]     mr_ci          Cloud ice mixing ratio
+  !! @param[in]     height_w3      Height at rho levels
+  !! @param[in]     height_wth     Height at theta levels
+  !! @param[in]     ndf_w3         Number of degrees of freedom per cell for wth
+  !! @param[in]     undf_w3        Number of unique degrees of freedom for wth
+  !! @param[in]     map_w3         Dofmap for the cell at w3
+  !! @param[in]     ndf_wth        Number of degrees of freedom per cell for wth
+  !! @param[in]     undf_wth       Number of unique degrees of freedom for wth
+  !! @param[in]     map_wth        Dofmap for the cell at wth
+  !! @param[in]     ndf_2d         Number of degrees of freedom per cell for 2d
+  !! @param[in]     undf_2d        Number of unique degrees of freedom for 2d
+  !! @param[in]     map_2d         Dofmap for the 2d cell
   !>
   subroutine orographic_drag_kernel_code(                                  &
                         nlayers, du_blk, dv_blk, du_orog_gwd, dv_orog_gwd, &

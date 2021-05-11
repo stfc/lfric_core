@@ -11,15 +11,18 @@
 !>
 module sample_initial_u_kernel_mod
 
-  use argument_mod,            only : arg_type, func_type,       &
-                                      GH_FIELD, GH_INC, GH_READ, &
-                                      ANY_SPACE_9, CELLS
+  use argument_mod,            only : arg_type,          &
+                                      GH_FIELD, GH_REAL, &
+                                      GH_INC, GH_READ,   &
+                                      ANY_SPACE_9, CELL_COLUMN
   use constants_mod,           only : r_def, i_def
   use fs_continuity_mod,       only : W2
   use initial_wind_config_mod, only : u0, v0
   use kernel_mod,              only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -29,18 +32,20 @@ module sample_initial_u_kernel_mod
   !>
   type, public, extends(kernel_type) :: sample_initial_u_kernel_type
     private
-    type(arg_type) :: meta_args(2) = (/            &
-        arg_type(GH_FIELD,   GH_INC,  W2),         &
-        arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_9) &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(2) = (/                      &
+         arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),         &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9) &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
-    procedure, public, nopass :: sample_initial_u_code
+    procedure, nopass :: sample_initial_u_code
   end type
 
 !-----------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-----------------------------------------------------------------------------
+public :: sample_initial_u_code
+
 contains
 
 !> @brief Compute the right hand side to initialise the wind field.
@@ -65,18 +70,18 @@ subroutine sample_initial_u_code(nlayers,                   &
   implicit none
 
   ! Arguments
-  integer(i_def), intent(in) :: nlayers, ndf, ndf_chi
-  integer(i_def), intent(in) :: undf, undf_chi
+  integer(kind=i_def), intent(in) :: nlayers, ndf, ndf_chi
+  integer(kind=i_def), intent(in) :: undf, undf_chi
 
-  integer(i_def), dimension(ndf),     intent(in) :: map
-  integer(i_def), dimension(ndf_chi), intent(in) :: map_chi
+  integer(kind=i_def), dimension(ndf),     intent(in) :: map
+  integer(kind=i_def), dimension(ndf_chi), intent(in) :: map_chi
 
-  real(r_def), dimension(undf),     intent(inout) :: wind
-  real(r_def), dimension(undf_chi), intent(in)    :: chi_1, chi_2, chi_3
+  real(kind=r_def), dimension(undf),     intent(inout) :: wind
+  real(kind=r_def), dimension(undf_chi), intent(in)    :: chi_1, chi_2, chi_3
 
   ! Internal variables
-  integer(i_def) :: k
-  real(r_def)    :: dx, dy, dz
+  integer(kind=i_def) :: k
+  real(kind=r_def)    :: dx, dy, dz
 
   do k = 0, nlayers-1
     ! Assumes a linear DG coordinate field and constant horizontal wind: u=U0,v=V0.

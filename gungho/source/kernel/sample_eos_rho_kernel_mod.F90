@@ -10,17 +10,20 @@
 
 module sample_eos_rho_kernel_mod
 
-use argument_mod,               only : arg_type, func_type,            &
-                                       GH_FIELD, GH_READ, GH_WRITE,    &
-                                       ANY_SPACE_9, ANY_SPACE_1,       &
-                                       GH_BASIS, CELLS, GH_EVALUATOR
+use argument_mod,               only : arg_type, func_type,   &
+                                       GH_FIELD, GH_REAL,     &
+                                       GH_READ, GH_WRITE,     &
+                                       ANY_SPACE_1, GH_BASIS, &
+                                       CELL_COLUMN, GH_EVALUATOR
 use constants_mod,              only : r_def, i_def
 use planet_config_mod,          only : gravity, cp, rd, p_zero
 use idealised_config_mod,       only : test
-use fs_continuity_mod,          only : WTHETA, W3
+use fs_continuity_mod,          only : Wtheta, W3
 use kernel_mod,                 only : kernel_type
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -28,26 +31,26 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: sample_eos_rho_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                                 &
-       arg_type(GH_FIELD,   GH_WRITE, W3),                            &
-       arg_type(GH_FIELD,   GH_READ,  W3),                            &
-       arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1),                   &
-       arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1)                    &
+  type(arg_type) :: meta_args(4) = (/                      &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3),          &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),          &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1)  &
        /)
-  type(func_type) :: meta_funcs(2) = (/                     &
-       func_type(W3, GH_BASIS),                             &
-       func_type(ANY_SPACE_1, GH_BASIS)                     &
+  type(func_type) :: meta_funcs(2) = (/                    &
+       func_type(W3,          GH_BASIS),                   &
+       func_type(ANY_SPACE_1, GH_BASIS)                    &
        /)
-       integer :: iterates_over = CELLS
-       integer :: gh_shape = GH_EVALUATOR
+  integer :: operates_on = CELL_COLUMN
+  integer :: gh_shape = GH_EVALUATOR
 contains
-  procedure, nopass ::sample_eos_rho_code
+  procedure, nopass :: sample_eos_rho_code
 end type
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public sample_eos_rho_code
+public :: sample_eos_rho_code
 contains
 
 !> @brief Computes density from equation of state
@@ -56,26 +59,27 @@ contains
 !! @param[in] exner Exner pressure field
 !! @param[in] theta Potential temperature field
 !! @param[in] moist_dyn_gas Moist dynamics factor
-!! @param[in] height_wt Height coordinate in wtheta
-!! @param[in] height_w3 Height coordinate in w3
-!! @param[in] ndf_w3 Number of degrees of freedom per cell for w3
-!! @param[in] undf_w3 Number of unique degrees of freedom  for w3
-!! @param[in] map_w3 Dofmap for the cell at the base of the column for w3
-!! @param[in] ndf_wt Number of degrees of freedom per cell for wtheta
-!! @param[in] undf_wt Number of unique degrees of freedom  for wtheta
-!! @param[in] map_wt Dofmap for the cell at the base of the column for wt
-subroutine sample_eos_rho_code(nlayers, rho, exner, theta, moist_dyn_gas, &
-                               ndf_w3, undf_w3, map_w3, basis_3, ndf_wt,  &
-                               undf_wt, map_wt, basis_t)
+!! @param[in] ndf_w3 Number of degrees of freedom per cell for W3
+!! @param[in] undf_w3 Number of unique degrees of freedom for W3
+!! @param[in] map_w3 Dofmap for the cell at the base of the column for W3
+!! @param[in] basis_3 Basis functions evaluated at Gaussian quadrature points for W3
+!! @param[in] ndf_wt Number of degrees of freedom per cell for Wtheta
+!! @param[in] undf_wt Number of unique degrees of freedom for Wtheta
+!! @param[in] map_wt Dofmap for the cell at the base of the column for Wtheta
+!! @param[in] basis_t Basis functions evaluated at Gaussian quadrature points for Wtheta
+subroutine sample_eos_rho_code(nlayers, rho, exner,              &
+                               theta, moist_dyn_gas,             &
+                               ndf_w3, undf_w3, map_w3, basis_3, &
+                               ndf_wt, undf_wt, map_wt, basis_t)
 
   use analytic_temperature_profiles_mod, only : analytic_temperature
 
   implicit none
 
-  !Arguments
-  integer, intent(in) :: nlayers, ndf_w3, undf_w3,  ndf_wt, undf_wt
-  integer, dimension(ndf_w3), intent(in)  :: map_w3
-  integer, dimension(ndf_wt), intent(in) :: map_wt
+  ! Arguments
+  integer(kind=i_def), intent(in) :: nlayers, ndf_w3, undf_w3, ndf_wt, undf_wt
+  integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
+  integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
 
   real(kind=r_def), dimension(undf_w3),  intent(inout)       :: rho
   real(kind=r_def), dimension(undf_w3),  intent(in)          :: exner
@@ -84,14 +88,13 @@ subroutine sample_eos_rho_code(nlayers, rho, exner, theta, moist_dyn_gas, &
   real(kind=r_def), dimension(1,ndf_w3,ndf_w3),  intent(in)  :: basis_3
   real(kind=r_def), dimension(1,ndf_wt,ndf_w3),  intent(in)  :: basis_t
 
-
-  !Internal variables
+  ! Internal variables
   integer(kind=i_def)                  :: k, df, dft, df3
   real(kind=r_def), dimension(ndf_w3)  :: exner_e
   real(kind=r_def), dimension(ndf_wt)  :: theta_vd_e
   real(kind=r_def)                     :: exner_cell, theta_vd_cell
 
-  !Compute density from eqn of state
+  ! Compute density from eqn of state
   do k = 0, nlayers-1
 
     do df3 = 1, ndf_w3
@@ -118,6 +121,7 @@ subroutine sample_eos_rho_code(nlayers, rho, exner, theta, moist_dyn_gas, &
     end do
 
   end do
+
 end subroutine sample_eos_rho_code
 
 end module sample_eos_rho_kernel_mod

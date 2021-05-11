@@ -11,9 +11,11 @@
 
 module vertical_sl_rho_kernel_mod
 
-use argument_mod,         only : arg_type,                           &
-                                 GH_FIELD, GH_READWRITE, GH_READ,    &
-                                 CELLS, GH_REAL, GH_INTEGER
+use argument_mod,          only : arg_type,              &
+                                  GH_FIELD, GH_SCALAR,   &
+                                  GH_REAL, GH_INTEGER,   &
+                                  GH_READWRITE, GH_READ, &
+                                  CELL_COLUMN
 use fs_continuity_mod,     only : W2, W3
 use constants_mod,         only : r_def, i_def, tiny_eps
 use kernel_mod,            only : kernel_type
@@ -32,15 +34,15 @@ private
 !>                                      by the PSy layer.
 type, public, extends(kernel_type) :: vertical_sl_rho_kernel_type
   private
-  type(arg_type) :: meta_args(6) = (/                           &
-       arg_type(GH_FIELD,   GH_READ,  W2),                      &
-       arg_type(GH_FIELD,   GH_READ,  W2),                      &
-       arg_type(GH_FIELD,   GH_READWRITE,  W3),                 &
-       arg_type(GH_REAL,    GH_READ),                           &
-       arg_type(GH_INTEGER, GH_READ),                           &
-       arg_type(GH_INTEGER, GH_READ)                            &
+  type(arg_type) :: meta_args(6) = (/                     &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W2), &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W2), &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3), &
+       arg_type(GH_SCALAR, GH_REAL,    GH_READ),          &
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ),          &
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ)           &
        /)
-  integer(kind=i_def) :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: vertical_sl_rho_code
 end type
@@ -48,7 +50,8 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public vertical_sl_rho_code
+public :: vertical_sl_rho_code
+
 contains
 
 !-------------------------------------------------------------------------------

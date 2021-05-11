@@ -7,9 +7,11 @@
 !>
 module conv_ll_kernel_mod
 
-  use argument_mod,           only : arg_type,                       &
-                                     GH_FIELD, GH_READ, GH_WRITE,    &
-                                     CELLS, ANY_DISCONTINUOUS_SPACE_1
+  use argument_mod,           only : arg_type,          &
+                                     GH_FIELD, GH_REAL, &
+                                     GH_READ, GH_WRITE, &
+                                     CELL_COLUMN,       &
+                                     ANY_DISCONTINUOUS_SPACE_1
   use constants_mod,          only : i_def, i_um, r_def, r_um
   use fs_continuity_mod,      only : W3, Wtheta
   use kernel_mod,             only : kernel_type
@@ -25,24 +27,24 @@ module conv_ll_kernel_mod
   !>
   type, public, extends(kernel_type) :: conv_ll_kernel_type
     private
-    type(arg_type) :: meta_args(10) = (/                             &
-         arg_type(GH_FIELD, GH_WRITE, WTHETA),                       & ! dt_conv
-         arg_type(GH_FIELD, GH_WRITE, WTHETA),                       & ! dmv_conv
-         arg_type(GH_FIELD, GH_WRITE, WTHETA),                       & ! dmcl_conv
-         arg_type(GH_FIELD, GH_WRITE, WTHETA),                       & ! dcfl_conv
-         arg_type(GH_FIELD, GH_READ,  WTHETA),                       & ! theta_star
-         arg_type(GH_FIELD, GH_READ,  WTHETA),                       & ! m_v
-         arg_type(GH_FIELD, GH_READ,  WTHETA),                       & ! m_cl
-         arg_type(GH_FIELD, GH_READ,  WTHETA),                       & ! exner_in_wth
-         arg_type(GH_FIELD, GH_READ,  W3),                           & ! exner_in_w3
-         arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)     & ! conv_rain
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(10) = (/                                  &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                   & ! dt_conv
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                   & ! dmv_conv
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                   & ! dmcl_conv
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                   & ! dcfl_conv
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                   & ! theta_star
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                   & ! m_v
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                   & ! m_cl
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                   & ! exner_in_wth
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                       & ! exner_in_w3
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1) & ! conv_rain
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
-    procedure, nopass ::conv_ll_code
+    procedure, nopass :: conv_ll_code
   end type conv_ll_kernel_type
 
-  public conv_ll_code
+  public :: conv_ll_code
 
 contains
 
@@ -50,46 +52,46 @@ contains
   !> @details The Lambert-Lewis convection scheme is a simple
   !>           convection parametrization that mixes theta and moisture
   !>           as documented in UMDP41
-  !> @param[in]  nlayers      Number of layers
-  !> @param[out] dt_conv      Convection temperature increment
-  !> @param[out] dmv_conv     Convection vapour increment
-  !> @param[out] dmcl_conv    Convection liquid increment
-  !> @param[out] dcfl_conv    Convection liquid cloud fraction increment
-  !> @param[in]  theta_star   Potential temperature predictor after advection
-  !> @param[in]  m_v          Vapour mixing ratio after advection
-  !> @param[in]  m_cl         Cloud liquid mixing ratio after advection
-  !> @param[in]  exner_in_wth Exner pressure field in wth space
-  !> @param[in]  exner_in_w3  Exner pressure field in density space
-  !> @param[out] conv_rain_2d Convective rain from twod fields
-  !> @param[in]  ndf_wth      Number of DOFs per cell for potential temperature space
-  !> @param[in]  undf_wth     Number of unique DOFs for potential temperature space
-  !> @param[in]  map_wth      Dofmap for the cell at the base of the column for potential temperature space
-  !> @param[in]  ndf_w3       Number of DOFs per cell for density space
-  !> @param[in]  undf_w3      Number of unique DOFs for density space
-  !> @param[in]  map_w3       Dofmap for the cell at the base of the column for density space
-  !> @param[in]  ndf_2d       Number of DOFs per cell for 2D fields
-  !> @param[in]  undf_2d      Number of unique DOFs for 2D fields
-  !> @param[in]  map_2d       Dofmap for the cell at the base of the column for 2D fields
-subroutine conv_ll_code(nlayers,      &
-                        dt_conv,      &
-                        dmv_conv,     &
-                        dmcl_conv,    &
-                        dcfl_conv,    &
-                        theta_star,   &
-                        m_v,          &
-                        m_cl,         &
-                        exner_in_wth, &
-                        exner_in_w3,  &
-                        conv_rain_2d, &
-                        ndf_wth,      &
-                        undf_wth,     &
-                        map_wth,      &
-                        ndf_w3,       &
-                        undf_w3,      &
-                        map_w3,       &
-                        ndf_2d,       &
-                        undf_2d,      &
-                        map_2d)
+  !> @param[in]     nlayers      Number of layers
+  !> @param[in,out] dt_conv      Convection temperature increment
+  !> @param[in,out] dmv_conv     Convection vapour increment
+  !> @param[in,out] dmcl_conv    Convection liquid increment
+  !> @param[in,out] dcfl_conv    Convection liquid cloud fraction increment
+  !> @param[in]     theta_star   Potential temperature predictor after advection
+  !> @param[in]     m_v          Vapour mixing ratio after advection
+  !> @param[in]     m_cl         Cloud liquid mixing ratio after advection
+  !> @param[in]     exner_in_wth Exner pressure field in wth space
+  !> @param[in]     exner_in_w3  Exner pressure field in density space
+  !> @param[in,out] conv_rain_2d Convective rain from twod fields
+  !> @param[in]     ndf_wth      Number of DOFs per cell for potential temperature space
+  !> @param[in]     undf_wth     Number of unique DOFs for potential temperature space
+  !> @param[in]     map_wth      Dofmap for the cell at the base of the column for potential temperature space
+  !> @param[in]     ndf_w3       Number of DOFs per cell for density space
+  !> @param[in]     undf_w3      Number of unique DOFs for density space
+  !> @param[in]     map_w3       Dofmap for the cell at the base of the column for density space
+  !> @param[in]     ndf_2d       Number of DOFs per cell for 2D fields
+  !> @param[in]     undf_2d      Number of unique DOFs for 2D fields
+  !> @param[in]     map_2d       Dofmap for the cell at the base of the column for 2D fields
+  subroutine conv_ll_code(nlayers,      &
+                          dt_conv,      &
+                          dmv_conv,     &
+                          dmcl_conv,    &
+                          dcfl_conv,    &
+                          theta_star,   &
+                          m_v,          &
+                          m_cl,         &
+                          exner_in_wth, &
+                          exner_in_w3,  &
+                          conv_rain_2d, &
+                          ndf_wth,      &
+                          undf_wth,     &
+                          map_wth,      &
+                          ndf_w3,       &
+                          undf_w3,      &
+                          map_w3,       &
+                          ndf_2d,       &
+                          undf_2d,      &
+                          map_2d)
 
     !---------------------------------------
     ! UM modules
@@ -99,6 +101,7 @@ subroutine conv_ll_code(nlayers,      &
     use planet_constants_mod, only: p_zero, kappa
 
     implicit none
+
     ! Arguments
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ndf_wth, ndf_w3, ndf_2d

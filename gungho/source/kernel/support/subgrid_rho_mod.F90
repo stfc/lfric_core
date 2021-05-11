@@ -1,13 +1,13 @@
-!-----------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
-!-----------------------------------------------------------------------------
-!>  @brief   Routines for calculating coefficients for subgrid rho representation.
+!------------------------------------------------------------------------------
+!> @brief   Routines for calculating coefficients for subgrid rho representation.
 !!
-!!  @details This module contains functions and subroutines which allow both
-!!           linear and quadratic (PPM) representation of rho to be computed.
-!-------------------------------------------------------------------------------
+!! @details This module contains functions and subroutines which allow both
+!!          linear and quadratic (PPM) representation of rho to be computed.
+!------------------------------------------------------------------------------
 module subgrid_rho_mod
 
 use constants_mod, only: r_def, EPS
@@ -20,16 +20,18 @@ public :: second_order_coeffs
 
 contains
 
-  !--------------------------------------------------------------------------------
-  !>  @brief  Minmod function which is a slope limiter for linear subgrid
-  !!          representation of rho.
+  !----------------------------------------------------------------------------
+  !> @brief  Minmod function which is a slope limiter for linear subgrid
+  !!         representation of rho.
   !!
-  !!  @param[in]   a       Estimate of slope
-  !!  @param[in]   b       Estimate of slope
-  !!  @result      f       Output slope
-  !--------------------------------------------------------------------------------
+  !! @param[in]   a       Estimate of slope
+  !! @param[in]   b       Estimate of slope
+  !! @return      f       Output slope
+  !----------------------------------------------------------------------------
   function minmod_function(a,b) result(f)
+
     implicit none
+
     real(kind=r_def), intent(in)    :: a
     real(kind=r_def), intent(in)    :: b
     real(kind=r_def)                :: f
@@ -42,18 +44,21 @@ contains
         f = b
       end if
     end if
+
   end function minmod_function
 
-  !--------------------------------------------------------------------------------
-  !>  @brief  Maxmod function which is a slope limiter for linear subgrid
-  !!          representation of rho.
+  !----------------------------------------------------------------------------
+  !> @brief  Maxmod function which is a slope limiter for linear subgrid
+  !!         representation of rho.
   !!
-  !!  @param[in]   a       Estimate of slope
-  !!  @param[in]   b       Estimate of slope
-  !!  @result      f       Output slope
-  !--------------------------------------------------------------------------------
+  !! @param[in]   a       Estimate of slope
+  !! @param[in]   b       Estimate of slope
+  !! @return      f       Output slope
+  !----------------------------------------------------------------------------
   function maxmod_function(a,b) result(f)
+
     implicit none
+
     real(kind=r_def), intent(in)    :: a
     real(kind=r_def), intent(in)    :: b
     real(kind=r_def)                :: f
@@ -66,24 +71,30 @@ contains
         f = a
       end if
     end if
+
   end function maxmod_function
 
 
-  !--------------------------------------------------------------------------------
-  !>  @brief  Returns the coefficients,a0,a1,a2 which are a quadratic representation
-  !!          of rho within the cell, rho(x)=a0 + a1*x + a2*x^2 for 0<=x<=1
-  !!          The dofmap for the density values is of the form | 1 | 2 | 3 | 4 | 5 |
-  !!          where the subgrid coefficients are  being estimated for cell 3.
+  !----------------------------------------------------------------------------
+  !> @brief  Returns the coefficients,a0,a1,a2 which are a quadratic
+  !!         representation of rho within the cell, rho(x)=a0 + a1*x + a2*x^2
+  !!         for 0<=x<=1. The dofmap for the density values is of the form
+  !!         | 1 | 2 | 3 | 4 | 5 | where the subgrid coefficients are being
+  !!         estimated for cell 3.
   !!
-  !!  @param[in]   density        Density values of five cells which have the ordering
-  !!                              | 1 | 2 | 3 | 4 | 5 |
-  !!  @param[out]  coeffs         Coefficients for cell 3 with coeffs(1)=a0,
-  !!                              coeffs(2)=a1, coeffs(3)=a2
-  !!  @param[in]   positive       Ensures returned estimate of rho at the cell edge is positive
-  !!  @param[in]   monotone       Ensures no over or undershoots are produced
-  !--------------------------------------------------------------------------------
+  !! @param[in]   density        Density values of five cells which have the
+  !!                             ordering
+  !!                             | 1 | 2 | 3 | 4 | 5 |
+  !! @param[out]  coeffs         Coefficients for cell 3 with coeffs(1)=a0,
+  !!                             coeffs(2)=a1, coeffs(3)=a2
+  !! @param[in]   positive       Ensures returned estimate of rho at the cell
+  !!                             edge is positive
+  !! @param[in]   monotone       Ensures no over or undershoots are produced
+  !----------------------------------------------------------------------------
   subroutine second_order_coeffs(density,coeffs,positive,monotone)
+
     implicit none
+
     real(kind=r_def), intent(in)    :: density(1:5)
     real(kind=r_def), intent(out)   :: coeffs(1:3)
     logical, intent(in)             :: positive
@@ -102,23 +113,26 @@ contains
 
   end subroutine second_order_coeffs
 
-  !--------------------------------------------------------------------------------
-  !>  @brief  Calculates the estimated density at the edge of a cell required for
-  !!          using PPM to estimate the quadratic subgrid representation of rho.
-  !!          The function is passed four density values from consecutive cells (which
-  !!          all lie in the same direction) with the dofmap | 1 | 2 | 3 | 4 | and returns
-  !!          the estimated density value between cells 2 and 3.
-  !!          Positivity and monotonicity options are provided.
+  !----------------------------------------------------------------------------
+  !> @brief  Calculates the estimated density at the edge of a cell required for
+  !!         using PPM to estimate the quadratic subgrid representation of rho.
+  !!         The function is passed four density values from consecutive cells
+  !!         (which all lie in the same direction) with the dofmap
+  !!         | 1 | 2 | 3 | 4 | and returns the estimated density value between
+  !!         cells 2 and 3.
+  !!         Positivity and monotonicity options are provided.
   !!
-  !!  @param[in]   cell_widths        All are assumed to be equal to 1.0 (computational domain)
-  !!  @param[in]   density            Has dof map of the form | 1 | 2 | 3 | 4 |
-  !!  @param[in]   positive           Ensures returned estimate of rho at the cell edge is positive
-  !!  @param[in]   monotone           Ensures no over or undershoots are produced
-  !!  @result      density_at_edge    Coefficients for cell 3 with coeffs(1)=a0,
-  !!                                  coeffs(2)=a1, coeffs(3)=a2
-  !--------------------------------------------------------------------------------
+  !! @param[in]   cell_widths        All are assumed to be equal to 1.0 (computational domain)
+  !! @param[in]   density            Has dof map of the form | 1 | 2 | 3 | 4 |
+  !! @param[in]   positive           Ensures returned estimate of rho at the cell edge is positive
+  !! @param[in]   monotone           Ensures no over or undershoots are produced
+  !! @return      density_at_edge    Coefficients for cell 3 with coeffs(1)=a0,
+  !!                                 coeffs(2)=a1, coeffs(3)=a2
+  !----------------------------------------------------------------------------
   function calc_density_at_cell_edge(cell_widths,density,positive,monotone) result(density_at_edge)
+
     implicit none
+
     real(kind=r_def), intent(in)  :: cell_widths(1:4)
     real(kind=r_def), intent(in)  :: density(1:4)
     logical, intent(in)           :: positive
@@ -181,21 +195,23 @@ contains
 
   end function calc_density_at_cell_edge
 
-  !--------------------------------------------------------------------------------
-  !>  @brief  Outputs the coefficients (a0,a1,a2) for the subgrid representation
-  !!          rho(x) = a0 + a1*x + a2*x^2. Inputs are the density value for the cell,
-  !!          and the left hand and right hand estimates of the density for the cell.
-  !!          Given these three values a quadratic subgrid approximation of rho
-  !!          can be made.
+  !----------------------------------------------------------------------------
+  !> @brief  Outputs the coefficients (a0,a1,a2) for the subgrid representation
+  !!         rho(x) = a0 + a1*x + a2*x^2. Inputs are the density value for the
+  !!         cell, and the left hand and right hand estimates of the density
+  !!         for the cell. Given these three values a quadratic subgrid
+  !!         approximation of rho can be made.
   !!
-  !!  @param[in]   density_cell_edge_left   Estimate of the density at x=0
-  !!  @param[in]   density_cell_edge_right  Estimate of the density at x=1
-  !!  @param[in]   density_of_cell          Average density of the cell
-  !!  @param[in]   monotone                 Ensures no over or undershoots
-  !!  @param[out]  coeffs                   coeffs(1)=a0, coeffs(2)=a1, coeffs(3)=a2
-  !--------------------------------------------------------------------------------
+  !! @param[in]   density_cell_edge_left   Estimate of the density at x=0
+  !! @param[in]   density_cell_edge_right  Estimate of the density at x=1
+  !! @param[in]   density_of_cell          Average density of the cell
+  !! @param[in]   monotone                 Ensures no over or undershoots
+  !! @param[out]  coeffs                   coeffs(1)=a0, coeffs(2)=a1, coeffs(3)=a2
+  !----------------------------------------------------------------------------
   subroutine ppm_output(density_cell_edge_left,density_cell_edge_right,density_of_cell,monotone,coeffs)
+
     implicit none
+
     real(kind=r_def), intent(in)    :: density_cell_edge_left
     real(kind=r_def), intent(in)    :: density_cell_edge_right
     real(kind=r_def), intent(in)    :: density_of_cell

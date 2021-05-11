@@ -3,22 +3,25 @@
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
-!> @brief Computes rhs of the continuity equation for the nonlinear equations.
+!> @brief Computes RHS of the continuity equation for the nonlinear equations.
 !>
-!> The kernel computes the rhs of the continuity equation for the nonlinear
+!> The kernel computes the RHS of the continuity equation for the nonlinear
 !> equations, that is: rrho = -div(F) where F is the mass flux.
 !>
 module rrho_kernel_mod
 
-  use argument_mod,      only : arg_type, func_type,         &
-                                GH_FIELD, GH_READ, GH_WRITE, &
-                                GH_BASIS, GH_DIFF_BASIS,     &
-                                CELLS, GH_QUADRATURE_XYoZ
-  use constants_mod,     only : r_def
+  use argument_mod,      only : arg_type, func_type,     &
+                                GH_FIELD, GH_REAL,       &
+                                GH_READ, GH_WRITE,       &
+                                GH_BASIS, GH_DIFF_BASIS, &
+                                CELL_COLUMN, GH_QUADRATURE_XYoZ
+  use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W0, W2, W3
   use kernel_mod,        only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -28,57 +31,57 @@ module rrho_kernel_mod
   !>
   type, public, extends(kernel_type) :: rrho_kernel_type
     private
-    type(arg_type) :: meta_args(2) = (/     &
-        arg_type(GH_FIELD,   GH_WRITE, W3), &
-        arg_type(GH_FIELD,   GH_READ,  W2)  &
-        /)
-    type(func_type) :: meta_funcs(2) = (/ &
-        func_type(W3, GH_BASIS),          &
-        func_type(W2, GH_DIFF_BASIS)      &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(2) = (/             &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  W2)  &
+         /)
+    type(func_type) :: meta_funcs(2) = (/           &
+         func_type(W3, GH_BASIS),                   &
+         func_type(W2, GH_DIFF_BASIS)               &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
-    procedure, nopass ::rrho_code
+    procedure, nopass :: rrho_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public rrho_code
+  public :: rrho_code
 
 contains
 
 !> @brief Compute the right hand side of the continuity equation
 !! @param[in] nlayers Number of layers
-!! @param[in] ndf_w3 Number of degrees of freedom per cell for w3
-!! @param[in] undf_w3 Number of (local) unique degrees of freedom
-!! @param[in] map_w3 Dofmap for the cell at the base of the column for w3
-!! @param[in] w3_basis Basis functions evaluated at quadrature points
-!! @param[inout] r_rho Right hand side of the continuity equation
-!! @param[in] ndf_w2 Number of degrees of freedom per cell for w2
-!! @param[in] undf_w2 Number of (local) unique degrees of freedom
-!! @param[in] map_w2 Dofmap for the cell at the base of the column for w2
-!! @param[in] w2_diff_basis Differential basis functions evaluated at quadrature points
+!! @param[in,out] r_rho Right hand side of the continuity equation
 !! @param[in] u Velocity
+!! @param[in] ndf_w3 Number of degrees of freedom per cell for W3
+!! @param[in] undf_w3 Number of (local) unique degrees of freedom
+!! @param[in] map_w3 Dofmap for the cell at the base of the column for W3
+!! @param[in] w3_basis Basis functions evaluated at quadrature points
+!! @param[in] ndf_w2 Number of degrees of freedom per cell for W2
+!! @param[in] undf_w2 Number of (local) unique degrees of freedom
+!! @param[in] map_w2 Dofmap for the cell at the base of the column for W2
+!! @param[in] w2_diff_basis Differential basis functions evaluated at quadrature points
 !! @param[in] nqp_h Number of quadrature points in the horizontal
 !! @param[in] nqp_v Number of quadrature points in the vertical
 !! @param[in] wqp_h Horizontal quadrature weights
 !! @param[in] wqp_v Vertical quadrature weights
-subroutine rrho_code(nlayers,                                                 &
-                     r_rho, u,                                                &
-                     ndf_w3, undf_w3, map_w3, w3_basis,                       &
-                     ndf_w2, undf_w2, map_w2, w2_diff_basis,                  &
+subroutine rrho_code(nlayers,                                &
+                     r_rho, u,                               &
+                     ndf_w3, undf_w3, map_w3, w3_basis,      &
+                     ndf_w2, undf_w2, map_w2, w2_diff_basis, &
                      nqp_h, nqp_v, wqp_h, wqp_v )
 
   implicit none
 
-  !Arguments
-  integer, intent(in) :: nlayers, nqp_h, nqp_v
-  integer, intent(in) :: ndf_w2, ndf_w3
-  integer, intent(in) :: undf_w2, undf_w3
-  integer, dimension(ndf_w3), intent(in) :: map_w3
-  integer, dimension(ndf_w2), intent(in) :: map_w2
+  ! Arguments
+  integer(kind=i_def), intent(in) :: nlayers, nqp_h, nqp_v
+  integer(kind=i_def), intent(in) :: ndf_w2, ndf_w3
+  integer(kind=i_def), intent(in) :: undf_w2, undf_w3
+  integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
+  integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
 
   real(kind=r_def), dimension(1,ndf_w3,nqp_h,nqp_v), intent(in) :: w3_basis
   real(kind=r_def), dimension(1,ndf_w2,nqp_h,nqp_v), intent(in) :: w2_diff_basis
@@ -89,9 +92,9 @@ subroutine rrho_code(nlayers,                                                 &
   real(kind=r_def), dimension(nqp_h), intent(in)      ::  wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in)      ::  wqp_v
 
-  !Internal variables
-  integer               :: df, k
-  integer               :: qp1, qp2
+  ! Internal variables
+  integer(kind=i_def) :: df, k
+  integer(kind=i_def) :: qp1, qp2
 
   real(kind=r_def), dimension(ndf_w2) :: u_e
   real(kind=r_def), dimension(ndf_w3) :: rrho_e

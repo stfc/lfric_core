@@ -8,15 +8,20 @@
 !>
 module w2_to_sh_w2_kernel_mod
 
-  use argument_mod,          only : arg_type, GH_READ, GH_INC, GH_FIELD, &
-                                    CELLS, ANY_SPACE_2, ANY_SPACE_5,     &
-                                    ANY_DISCONTINUOUS_SPACE_7
+  use argument_mod,          only : arg_type,                  &
+                                    GH_FIELD, GH_REAL,         &
+                                    GH_READ, GH_INC,           &
+                                    ANY_SPACE_2, ANY_SPACE_5,  &
+                                    ANY_DISCONTINUOUS_SPACE_7, &
+                                    CELL_COLUMN
   use constants_mod,         only : r_def, i_def
-  use fs_continuity_mod,     only : W2, WTHETA, W3
+  use fs_continuity_mod,     only : W2, Wtheta, W3
   use kernel_mod,            only : kernel_type
   use reference_element_mod, only : N, E, S, W, T, B
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -26,16 +31,16 @@ module w2_to_sh_w2_kernel_mod
   !>
   type, public, extends(kernel_type) :: w2_to_sh_w2_kernel_type
     private
-    type(arg_type) :: meta_args(7) = (/                         &
-        arg_type(GH_FIELD, GH_INC,  ANY_SPACE_2),               &
-        arg_type(GH_FIELD, GH_READ, W2),                        &
-        arg_type(GH_FIELD, GH_READ, ANY_SPACE_2),               &
-        arg_type(GH_FIELD, GH_READ, W2),                        &
-        arg_type(GH_FIELD, GH_READ, ANY_SPACE_5),               &
-        arg_type(GH_FIELD, GH_READ, ANY_DISCONTINUOUS_SPACE_7), &
-        arg_type(GH_FIELD, GH_READ, WTHETA)                     &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(7) = (/                                   &
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  ANY_SPACE_2),               & ! field_w2_sh
+         arg_type(GH_FIELD, GH_REAL, GH_READ, W2),                        & ! field_w2
+         arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2),               & ! area_w2_sh
+         arg_type(GH_FIELD, GH_REAL, GH_READ, W2),                        & ! area_w2
+         arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_5),               & ! area_w2_dl
+         arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_7), & ! height_wt_sh
+         arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta)                     & ! height_wt
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: w2_to_sh_w2_code
   end type
@@ -43,7 +48,7 @@ module w2_to_sh_w2_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public w2_to_sh_w2_code
+  public :: w2_to_sh_w2_code
 
 contains
 
@@ -63,15 +68,15 @@ contains
 !> @param[in] ndf_w2 Number of degrees of freedom per cell for W2
 !> @param[in] undf_w2 Number of (local) unique degrees of freedom for W2
 !> @param[in] map_w2 Dofmap for the cell at the base of the column for W2
-!> @param[in] ndf_wt_sh Number of degrees of freedom per cell for WTHETA shifted
-!> @param[in] undf_wt_sh Number of (local) unique degrees of freedom for WTHETA shifted
-!> @param[in] map_wt_sh Dofmap for the cell at the base of the column for WTHETA shifted
+!> @param[in] ndf_wt_sh Number of degrees of freedom per cell for Wtheta shifted
+!> @param[in] undf_wt_sh Number of (local) unique degrees of freedom for Wtheta shifted
+!> @param[in] map_wt_sh Dofmap for the cell at the base of the column for Wtheta shifted
 !> @param[in] ndf_w3 Number of degrees of freedom per cell for W3
 !> @param[in] undf_w3 Number of (local) unique degrees of freedom for W3
 !> @param[in] map_w3 Dofmap for the cell at the base of the column for W3
-!> @param[in] ndf_wt Number of degrees of freedom per cell for WTHETA
-!> @param[in] undf_wt Number of (local) unique degrees of freedom for WTHETA
-!> @param[in] map_wt Dofmap for the cell at the base of the column for WTHETA
+!> @param[in] ndf_wt Number of degrees of freedom per cell for Wtheta
+!> @param[in] undf_wt Number of (local) unique degrees of freedom for Wtheta
+!> @param[in] map_wt Dofmap for the cell at the base of the column for Wtheta
 subroutine w2_to_sh_w2_code(  nlayers_sh,       &
                               field_w2_sh,      &
                               field_w2,         &

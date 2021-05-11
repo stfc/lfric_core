@@ -13,16 +13,19 @@
 !>
 module rhs_w3_to_sh_w3_kernel_mod
 
-  use argument_mod,            only : arg_type, func_type,         &
-                                      GH_FIELD, GH_READ, GH_WRITE, &
-                                      ANY_DISCONTINUOUS_SPACE_3,   &
-                                      CELLS
+  use argument_mod,            only : arg_type,                  &
+                                      GH_FIELD, GH_REAL,         &
+                                      GH_READ, GH_WRITE,         &
+                                      ANY_DISCONTINUOUS_SPACE_3, &
+                                      CELL_COLUMN
   use constants_mod,           only : r_def, i_def
   use fs_continuity_mod,       only : W3
 
   use kernel_mod,              only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -32,19 +35,21 @@ module rhs_w3_to_sh_w3_kernel_mod
   !>
   type, public, extends(kernel_type) :: rhs_w3_to_sh_w3_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                            &
-        arg_type(GH_FIELD,   GH_WRITE, ANY_DISCONTINUOUS_SPACE_3), &
-        arg_type(GH_FIELD,   GH_READ,  W3),                        &
-        arg_type(GH_FIELD*2, GH_READ,  W3)                         &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(3) = (/                                      &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_3), & ! rhs_w3_sh
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                        & ! field_w3
+         arg_type(GH_FIELD*2, GH_REAL, GH_READ,  W3)                         & ! T_ip1, T_i
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
-    procedure, public, nopass :: rhs_w3_to_sh_w3_code
+    procedure, nopass :: rhs_w3_to_sh_w3_code
   end type
 
 !-----------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-----------------------------------------------------------------------------
+public :: rhs_w3_to_sh_w3_code
+
 contains
 
 !> @brief Compute the right hand side to initialise the wind field.

@@ -23,10 +23,9 @@
 !>
 module subgrid_coeffs_kernel_mod
 
-  use argument_mod,       only : arg_type, func_type,        &
-                                 GH_FIELD, GH_INC, GH_WRITE, &
-                                 GH_BASIS,                   &
-                                 CELLS
+  use argument_mod,       only : arg_type,          &
+                                 GH_FIELD, GH_REAL, &
+                                 GH_WRITE, CELL_COLUMN
   use constants_mod,      only : r_def, i_def
   use fs_continuity_mod,  only : W3
   use kernel_mod,         only : kernel_type
@@ -39,33 +38,36 @@ module subgrid_coeffs_kernel_mod
 
   implicit none
 
+  private
+
   !-------------------------------------------------------------------------------
   ! Public types
   !-------------------------------------------------------------------------------
   !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
   type, public, extends(kernel_type) :: subgrid_coeffs_kernel_type
     private
-    type(arg_type) :: meta_args(1) = (/                                  &
-        arg_type(GH_FIELD, GH_WRITE, W3)                                &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(1) = (/            &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3) &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
-    procedure, public, nopass :: subgrid_coeffs_code
+    procedure, nopass :: subgrid_coeffs_code
   end type
 
   !-------------------------------------------------------------------------------
   ! Contained functions/subroutines
   !-------------------------------------------------------------------------------
   public :: subgrid_coeffs_code
+
 contains
 
 !> @brief Compute the subgrid reconstruction coeffiecients for a density field
 !! @param[in] nlayers Number of layers
 !! @param[in] subgridrho_option Option for which approximation to use
-!! @param[in] ndf_w3 Number of degrees of freedom for W3 per cell
 !! @param[in] undf_w3 Number of unique degrees of freedom for W3
 !! @param[in] rho Density
-!! @param[in] rho Orientation of cell
+!! @param[in] cell_orientation Orientation of cell
+!! @param[in] ndf_w3 Number of degrees of freedom for W3 per cell
 !! @param[in] stencil_length Local length of a stencil (5 for PPM)
 !! @param[in] stencil_map Dofmap for the stencil
 !! @param[in] direction Direction of cosmic update
@@ -94,25 +96,25 @@ subroutine subgrid_coeffs_code(                                               &
   implicit none
 
   ! Arguments
-  integer, intent(in)               :: nlayers
-  integer, intent(in)               :: subgridrho_option
-  integer, intent(in)               :: undf_w3
+  integer(kind=i_def), intent(in)   :: nlayers
+  integer(kind=i_def), intent(in)   :: subgridrho_option
+  integer(kind=i_def), intent(in)   :: undf_w3
   real(kind=r_def), intent(in)      :: rho(undf_w3)
   real(kind=r_def), intent(in)      :: cell_orientation(undf_w3)
-  integer, intent(in)               :: ndf_w3
-  integer, intent(in)               :: stencil_length
-  integer, intent(in)               :: stencil_map(1:ndf_w3,1:stencil_length)
+  integer(kind=i_def), intent(in)   :: ndf_w3
+  integer(kind=i_def), intent(in)   :: stencil_length
+  integer(kind=i_def), intent(in)   :: stencil_map(1:ndf_w3,1:stencil_length)
   real(kind=r_def), intent(inout)   :: a0(undf_w3)
   real(kind=r_def), intent(inout)   :: a1(undf_w3)
   real(kind=r_def), intent(inout)   :: a2(undf_w3)
-  integer, intent(in)               :: direction
+  integer(kind=i_def), intent(in)   :: direction
 
   real(kind=r_def)               :: coeffs(1:3)
   real(kind=r_def)               :: rho_local(1:stencil_length)
 
-  integer(i_def) :: k, ii
-  integer(i_def) :: stencil_ordering(1:stencil_length)
-  integer(i_def) :: int_cell_orientation
+  integer(kind=i_def) :: k, ii
+  integer(kind=i_def) :: stencil_ordering(1:stencil_length)
+  integer(kind=i_def) :: int_cell_orientation
 
   logical :: positive,monotone
 

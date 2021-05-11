@@ -13,15 +13,17 @@
 !>
 module sample_wtheta_to_w3_kernel_mod
 
-  use argument_mod,            only : arg_type, func_type,          &
-                                      GH_FIELD, GH_WRITE, GH_READ,  &
-                                      CELLS
+  use argument_mod,            only : arg_type,          &
+                                      GH_FIELD, GH_REAL, &
+                                      GH_WRITE, GH_READ, &
+                                      CELL_COLUMN
   use constants_mod,           only : r_def, i_def
-  use fs_continuity_mod,       only : WTHETA, W3
-
+  use fs_continuity_mod,       only : Wtheta, W3
   use kernel_mod,              only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -31,18 +33,20 @@ module sample_wtheta_to_w3_kernel_mod
   !>
   type, public, extends(kernel_type) :: sample_wtheta_to_w3_kernel_type
     private
-    type(arg_type) :: meta_args(2) = (/       &
-        arg_type(GH_FIELD, GH_WRITE, W3),     &
-        arg_type(GH_FIELD, GH_READ,  WTHETA)  &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(2) = (/                &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3),    &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta) &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
-    procedure, public, nopass :: sample_wtheta_to_w3_code
+    procedure, nopass :: sample_wtheta_to_w3_code
   end type
 
 !-----------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-----------------------------------------------------------------------------
+public :: sample_wtheta_to_w3_code
+
 contains
 
 !> @brief Obtains a W3 field from a Wtheta field by sampling at W3 DoFs.

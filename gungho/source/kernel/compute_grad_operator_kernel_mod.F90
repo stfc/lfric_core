@@ -8,10 +8,10 @@ module compute_grad_operator_kernel_mod
   use argument_mod,            only: arg_type, func_type,       &
                                      GH_OPERATOR, GH_FIELD,     &
                                      GH_READ, GH_WRITE,         &
-                                     ANY_SPACE_1,               &
+                                     GH_REAL, ANY_SPACE_1,      &
                                      ANY_DISCONTINUOUS_SPACE_3, &
-                                     GH_BASIS,GH_DIFF_BASIS,    &
-                                     CELLS, GH_QUADRATURE_XYoZ
+                                     GH_BASIS, GH_DIFF_BASIS,   &
+                                     CELL_COLUMN, GH_QUADRATURE_XYoZ
 
   use constants_mod,           only: r_def, i_def
   use coordinate_jacobian_mod, only: coordinate_jacobian, &
@@ -21,23 +21,25 @@ module compute_grad_operator_kernel_mod
 
   implicit none
 
+  private
+
   !-------------------------------------------------------------------------------
   ! Public types
   !-------------------------------------------------------------------------------
 
   type, public, extends(kernel_type) :: compute_grad_operator_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                            &
-        arg_type(GH_OPERATOR, GH_WRITE, W1, W0),                   &
-        arg_type(GH_FIELD*3,  GH_READ,  ANY_SPACE_1),              &
-        arg_type(GH_FIELD,    GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
-        /)
-    type(func_type) :: meta_funcs(3) = (/                          &
-        func_type(W1, GH_BASIS),                                   &
-        func_type(W0, GH_DIFF_BASIS),                              &
-        func_type(ANY_SPACE_1, GH_BASIS, GH_DIFF_BASIS)            &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(3) = (/                                      &
+         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W1, W0),                   &
+         arg_type(GH_FIELD*3,  GH_REAL, GH_READ,  ANY_SPACE_1),              &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
+         /)
+    type(func_type) :: meta_funcs(3) = (/                                    &
+         func_type(W1,          GH_BASIS),                                   &
+         func_type(W0,          GH_DIFF_BASIS),                              &
+         func_type(ANY_SPACE_1, GH_BASIS, GH_DIFF_BASIS)                     &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
     procedure, nopass :: compute_grad_operator_code
@@ -46,32 +48,32 @@ module compute_grad_operator_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public compute_grad_operator_code
+  public :: compute_grad_operator_code
 
 contains
 
-!> @brief Computes the grad operator
+!> @brief Computes the grad operator.
 !! @param[in] cell     Cell number
-!! @param[in] nlayers  Number of layers.
+!! @param[in] nlayers  Number of layers
 !! @param[in] ncell_3d ncell*ndf
 !! @param[in,out] grad Local stencil of the grad operator
 !! @param[in] chi1     1st (spherical) coordinate field in Wchi
 !! @param[in] chi2     2nd (spherical) coordinate field in Wchi
 !! @param[in] chi3     3rd (spherical) coordinate field in Wchi
-!! @param[in] panel_id Field giving the ID for mesh panels.
-!! @param[in] ndf_w1   Number of degrees of freedom per cell.
+!! @param[in] panel_id Field giving the ID for mesh panels
+!! @param[in] ndf_w1   Number of degrees of freedom per cell
 !! @param[in] basis_w1 Vector basis functions
-!!                     evaluated at quadrature points.
-!! @param[in] ndf_w0   Number of degrees of freedom per cell.
+!!                     evaluated at quadrature points
+!! @param[in] ndf_w0   Number of degrees of freedom per cell
 !! @param[in] diff_basis_w0 Differential of scalar
-!!                     basis functions evaluated at quadrature points.
+!!                     basis functions evaluated at quadrature points
 !! @param[in] ndf_chi  Number of degrees of freedom per cell for chi field
 !! @param[in] undf_chi Number of unique degrees of freedom  for chi field
 !! @param[in] map_chi  Array holding the dofmap for the cell at the base of
 !!                     the column, for the space on which the chi field lives
-!! @param[in] basis_chi Wchi basis functions evaluated at quadrature points.
+!! @param[in] basis_chi Wchi basis functions evaluated at quadrature points
 !! @param[in] diff_basis_chi Wchi vector differential
-!!                     basis functions evaluated at quadrature points.
+!!                     basis functions evaluated at quadrature points
 !! @param[in] ndf_pid  Number of degrees of freedom per cell for panel_id
 !! @param[in] undf_pid Number of unique degrees of freedom for panel_id
 !! @param[in] map_pid  Dofmap for the cell at the base of the column for panel_id

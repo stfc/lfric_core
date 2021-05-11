@@ -16,10 +16,10 @@
 !>
 module held_suarez_fv_kernel_mod
 
-  use argument_mod,             only: arg_type, func_type,             &
-                                      GH_FIELD, GH_READ, GH_READWRITE, &
-                                      ANY_SPACE_9,                     &
-                                      CELLS
+  use argument_mod,             only: arg_type,              &
+                                      GH_FIELD, GH_REAL,     &
+                                      GH_READ, GH_READWRITE, &
+                                      ANY_SPACE_9, CELL_COLUMN
   use constants_mod,            only: r_def, i_def
   use coord_transform_mod,      only: xyz2ll
   use calc_exner_pointwise_mod, only: calc_exner_pointwise
@@ -33,6 +33,8 @@ module held_suarez_fv_kernel_mod
 
   implicit none
 
+  private
+
   !---------------------------------------------------------------------------
   ! Public types
   !---------------------------------------------------------------------------
@@ -41,13 +43,13 @@ module held_suarez_fv_kernel_mod
   !>
   type, public, extends(kernel_type) :: held_suarez_fv_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                 &
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &
-        arg_type(GH_FIELD*3, GH_READ,      ANY_SPACE_9) &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(4) = (/                           &
+         arg_type(GH_FIELD,   GH_REAL, GH_READWRITE, Wtheta),     &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,      Wtheta),     &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,      Wtheta),     &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,      ANY_SPACE_9) &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: held_suarez_fv_code
   end type
@@ -55,13 +57,13 @@ module held_suarez_fv_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public held_suarez_fv_code
+  public :: held_suarez_fv_code
 
 contains
 
 !> @brief The subroutine which is called directly by the psy layer
 !! @param[in] nlayers Integer the number of layers
-!! @param[inout] dtheta Real array, theta increment data
+!! @param[in,out] dtheta Real array, theta increment data
 !! @param[in] theta Real array, theta data
 !! @param[in] exner_in_wth_in_wth Real array. The exner pressure in wth
 !! @param[in] chi_1 The physical x coordinate in chi
@@ -142,7 +144,6 @@ subroutine held_suarez_fv_code(nlayers,                     &
        * (theta(map_wth(1) + k) - theta_eq)*dt
 
   end do
-
 
   if (hs_random)then
     call random_number(pert)

@@ -16,10 +16,11 @@
 !>
 module tri_mat_mr_to_sh_mass_kernel_mod
 
-  use argument_mod,      only : arg_type, func_type,                 &
-                                GH_FIELD, GH_WRITE, GH_READ,         &
-                                ANY_DISCONTINUOUS_SPACE_3,           &
-                                CELLS
+  use argument_mod,      only : arg_type,                  &
+                                GH_FIELD, GH_REAL,         &
+                                GH_WRITE, GH_READ,         &
+                                ANY_DISCONTINUOUS_SPACE_3, &
+                                CELL_COLUMN
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W3
   use kernel_mod,        only : kernel_type
@@ -36,12 +37,12 @@ module tri_mat_mr_to_sh_mass_kernel_mod
   !>
   type, public, extends(kernel_type) :: tri_mat_mr_to_sh_mass_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                             &
-         arg_type(GH_FIELD*3, GH_WRITE, ANY_DISCONTINUOUS_SPACE_3), &
-         arg_type(GH_FIELD,   GH_READ,  W3),                        &
-         arg_type(GH_FIELD*4, GH_READ,  W3)                         &
+    type(arg_type) :: meta_args(3) = (/                                      &
+         arg_type(GH_FIELD*3, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_3), & ! tri_below/diag/above
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                        & ! rho_d
+         arg_type(GH_FIELD*4, GH_REAL, GH_READ,  W3)                         & ! I_lower/upper
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: tri_mat_mr_to_sh_mass_code
   end type
@@ -49,7 +50,7 @@ module tri_mat_mr_to_sh_mass_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public tri_mat_mr_to_sh_mass_code
+  public :: tri_mat_mr_to_sh_mass_code
 contains
 
 !> @brief Compute the terms of the tridiagonal matrix for transforming from

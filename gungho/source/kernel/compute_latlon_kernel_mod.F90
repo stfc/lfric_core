@@ -7,11 +7,12 @@
 !>
 module compute_latlon_kernel_mod
 
-  use argument_mod,         only: arg_type, func_type,         &
-                                  GH_FIELD, GH_WRITE, GH_READ, &
-                                  ANY_DISCONTINUOUS_SPACE_1,   &
-                                  ANY_SPACE_9, CELLS,          &
-                                  GH_BASIS, GH_EVALUATOR
+  use argument_mod,         only: arg_type, func_type,       &
+                                  GH_FIELD, GH_REAL,         &
+                                  GH_WRITE, GH_READ,         &
+                                  ANY_DISCONTINUOUS_SPACE_1, &
+                                  ANY_SPACE_9, GH_BASIS,     &
+                                  CELL_COLUMN, GH_EVALUATOR
   use constants_mod,        only: r_def, i_def
   use kernel_mod,           only: kernel_type
   use coord_transform_mod,  only: xyz2ll
@@ -27,15 +28,15 @@ module compute_latlon_kernel_mod
   !>
   type, public, extends(kernel_type) :: compute_latlon_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                            &
-        arg_type(GH_FIELD,   GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-        arg_type(GH_FIELD,   GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-        arg_type(GH_FIELD*3, GH_READ,  ANY_SPACE_9)                &
-        /)
-    type(func_type) :: meta_funcs(1) = (/ &
-        func_type(ANY_SPACE_9, GH_BASIS)  &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(3) = (/                                      &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9)                &
+         /)
+    type(func_type) :: meta_funcs(1) = (/                                    &
+         func_type(ANY_SPACE_9, GH_BASIS)                                    &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_EVALUATOR
   contains
     procedure, nopass :: compute_latlon_code
@@ -45,7 +46,7 @@ module compute_latlon_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public compute_latlon_code
+  public :: compute_latlon_code
 
 contains
 

@@ -17,15 +17,15 @@
 module create_w2bmask_kernel_mod
 
   use argument_mod,         only : arg_type, func_type, &
-                                   GH_FIELD, GH_REAL,   &
-                                   GH_INTEGER,          &
+                                   GH_SCALAR, GH_FIELD, &
+                                   GH_REAL, GH_INTEGER, &
                                    GH_READ, GH_INC,     &
                                    GH_BASIS,            &
-                                   CELLS, GH_EVALUATOR
+                                   CELL_COLUMN, GH_EVALUATOR
   use constants_mod,        only : r_def, i_def
   use fs_continuity_mod,    only : W2, Wchi
   use kernel_mod,           only : kernel_type
-  use base_mesh_config_mod, only : geometry,            &
+  use base_mesh_config_mod, only : geometry,              &
                                    geometry_spherical
 
   implicit none
@@ -38,20 +38,20 @@ module create_w2bmask_kernel_mod
 
   type, public, extends(kernel_type) :: create_w2bmask_kernel_type
     private
-    type(arg_type) :: meta_args(8) = (/           &
-      arg_type(GH_REAL,    GH_READ),              &
-      arg_type(GH_REAL,    GH_READ),              &
-      arg_type(GH_REAL,    GH_READ),              &
-      arg_type(GH_REAL,    GH_READ),              &
-      arg_type(GH_INTEGER, GH_READ),              &
-      arg_type(GH_INTEGER, GH_READ),              &
-      arg_type(GH_FIELD,   GH_INC,  W2),          &
-      arg_type(GH_FIELD*3, GH_READ, Wchi)         &
-      /)
-    type(func_type) :: meta_funcs(1) = (/         &
-      func_type(Wchi, GH_BASIS )                  &
-      /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(8) = (/                  &
+         arg_type(GH_SCALAR,  GH_REAL,    GH_READ),      &
+         arg_type(GH_SCALAR,  GH_REAL,    GH_READ),      &
+         arg_type(GH_SCALAR,  GH_REAL,    GH_READ),      &
+         arg_type(GH_SCALAR,  GH_REAL,    GH_READ),      &
+         arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),      &
+         arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),      &
+         arg_type(GH_FIELD,   GH_REAL,    GH_INC,  W2),  &
+         arg_type(GH_FIELD*3, GH_REAL,    GH_READ, Wchi) &
+         /)
+    type(func_type) :: meta_funcs(1) = (/                &
+         func_type(Wchi, GH_BASIS)                       &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_EVALUATOR
   contains
     procedure, nopass :: create_w2bmask_code
@@ -60,7 +60,7 @@ module create_w2bmask_kernel_mod
   !-------------------------------------------------------------------------
   ! Contained functions/subroutines
   !-------------------------------------------------------------------------
-  public create_w2bmask_code
+  public :: create_w2bmask_code
 
 contains
 

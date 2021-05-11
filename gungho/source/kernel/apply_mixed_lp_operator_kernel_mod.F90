@@ -8,10 +8,10 @@
 
 module apply_mixed_lp_operator_kernel_mod
 
-use argument_mod,            only : arg_type,               &
-                                    GH_FIELD, GH_OPERATOR,  &
-                                    GH_READ, GH_WRITE,      &
-                                    CELLS
+use argument_mod,            only : arg_type,              &
+                                    GH_FIELD, GH_OPERATOR, &
+                                    GH_READ, GH_WRITE,     &
+                                    GH_REAL, CELL_COLUMN
 use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
 use fs_continuity_mod,       only : W3, Wtheta
@@ -25,17 +25,17 @@ private
 
 type, public, extends(kernel_type) :: apply_mixed_lp_operator_kernel_type
   private
-  type(arg_type) :: meta_args(8) = (/              &
-       arg_type(GH_FIELD,    GH_WRITE, W3),        & ! lhs_exner
-       arg_type(GH_FIELD,    GH_READ,  Wtheta),    & ! theta'
-       arg_type(GH_FIELD,    GH_READ,  W3),        & ! rho'
-       arg_type(GH_FIELD,    GH_READ,  W3),        & ! exner'
-       arg_type(GH_OPERATOR, GH_READ,  W3, W3),    & ! M3^-1
-       arg_type(GH_OPERATOR, GH_READ,  W3, W3),    & ! M3^exner
-       arg_type(GH_OPERATOR, GH_READ,  W3, W3),    & ! M3^rho
-       arg_type(GH_OPERATOR, GH_READ,  W3, Wtheta) & ! P3t
+  type(arg_type) :: meta_args(8) = (/                       &
+       arg_type(GH_FIELD,    GH_REAL, GH_WRITE, W3),        & ! lhs_exner
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta),    & ! theta'
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W3),        & ! rho'
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W3),        & ! exner'
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, W3),    & ! M3^-1
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, W3),    & ! M3^exner
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, W3),    & ! M3^rho
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, Wtheta) & ! P3t
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: apply_mixed_lp_operator_code
 end type
@@ -43,7 +43,7 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public apply_mixed_lp_operator_code
+public :: apply_mixed_lp_operator_code
 
 contains
 !> @brief Compute the LHS of the equation of state:

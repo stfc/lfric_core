@@ -8,16 +8,19 @@
 
 module hydrostatic_eos_exner_kernel_mod
 
-use argument_mod,               only : arg_type, func_type,            &
-                                       GH_FIELD, GH_READ, GH_WRITE,    &
-                                       ANY_SPACE_9, ANY_SPACE_1,       &
-                                       GH_BASIS, CELLS, GH_EVALUATOR
+use argument_mod,               only : arg_type, func_type,      &
+                                       GH_FIELD, GH_REAL,        &
+                                       GH_READ, GH_WRITE,        &
+                                       ANY_SPACE_9, ANY_SPACE_1, &
+                                       GH_BASIS, CELL_COLUMN, GH_EVALUATOR
 use constants_mod,              only : r_def, i_def
 use planet_config_mod,          only : gravity, p_zero, kappa, rd, cp
-use fs_continuity_mod,          only : WTHETA, W3
+use fs_continuity_mod,          only : Wtheta, W3
 use kernel_mod,                 only : kernel_type
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -25,27 +28,28 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: hydrostatic_eos_exner_kernel_type
   private
-  type(arg_type) :: meta_args(5) = (/                       &
-       arg_type(GH_FIELD,   GH_WRITE, W3),                  &
-       arg_type(GH_FIELD,   GH_READ,  W3),                  &
-       arg_type(GH_FIELD,   GH_READ,  WTHETA),              &
-       arg_type(GH_FIELD*3, GH_READ,  WTHETA),              &
-       arg_type(GH_FIELD,   GH_READ,  W3)                   &
+  type(arg_type) :: meta_args(5) = (/                   &
+       arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),     &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),     &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta), &
+       arg_type(GH_FIELD*3, GH_REAL, GH_READ,  Wtheta), &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3)      &
        /)
-  type(func_type) :: meta_funcs(2) = (/                     &
-       func_type(W3, GH_BASIS),                             &
-       func_type(WTHETA, GH_BASIS)                          &
+  type(func_type) :: meta_funcs(2) = (/                 &
+       func_type(W3,     GH_BASIS),                     &
+       func_type(Wtheta, GH_BASIS)                      &
        /)
-       integer :: iterates_over = CELLS
-       integer :: gh_shape = GH_EVALUATOR
+  integer :: operates_on = CELL_COLUMN
+  integer :: gh_shape = GH_EVALUATOR
 contains
-  procedure, nopass ::hydrostatic_eos_exner_code
+  procedure, nopass :: hydrostatic_eos_exner_code
 end type
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public hydrostatic_eos_exner_code
+public :: hydrostatic_eos_exner_code
+
 contains
 
 !> @brief Computes density from equation of state
@@ -70,10 +74,10 @@ subroutine hydrostatic_eos_exner_code(nlayers, exner, rho, theta, &
 
   implicit none
 
-  !Arguments
-  integer, intent(in) :: nlayers, ndf_w3, undf_w3,  ndf_wt, undf_wt
-  integer, dimension(ndf_w3), intent(in)  :: map_w3
-  integer, dimension(ndf_wt), intent(in) :: map_wt
+  ! Arguments
+  integer(kind=i_def), intent(in) :: nlayers, ndf_w3, undf_w3,  ndf_wt, undf_wt
+  integer(kind=i_def), dimension(ndf_w3), intent(in)  :: map_w3
+  integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
 
   real(kind=r_def), dimension(undf_w3),  intent(inout)       :: exner
   real(kind=r_def), dimension(undf_w3),  intent(in)          :: rho, height_w3
@@ -82,13 +86,13 @@ subroutine hydrostatic_eos_exner_code(nlayers, exner, rho, theta, &
   real(kind=r_def), dimension(1,ndf_w3,ndf_w3),  intent(in)  :: basis_w3
   real(kind=r_def), dimension(1,ndf_wt,ndf_w3),  intent(in)  :: basis_wt
 
-  !Internal variables
+  ! Internal variables
   integer(kind=i_def)                  :: k, df, dft, df3
   real(kind=r_def), dimension(ndf_w3)  :: rho_e
   real(kind=r_def), dimension(ndf_wt)  :: theta_moist_e
   real(kind=r_def)                     :: rho_cell, theta_moist, dz
 
-  !Compute exner from eqn of state in lowest level
+  ! Compute exner from eqn of state in lowest level
   k = 0
 
   do df3 = 1, ndf_w3

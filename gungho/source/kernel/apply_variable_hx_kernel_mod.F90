@@ -6,15 +6,18 @@
 
 module apply_variable_hx_kernel_mod
 
-  use argument_mod,      only : arg_type,                       &
-                                GH_FIELD, GH_OPERATOR, GH_REAL, &
-                                GH_READ, GH_WRITE,              &
-                                CELLS
-  use constants_mod,     only : r_def
+  use argument_mod,      only : arg_type,             &
+                                GH_FIELD, GH_SCALAR,  &
+                                GH_OPERATOR, GH_REAL, &
+                                GH_READ, GH_WRITE,    &
+                                CELL_COLUMN
+  use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2, W3, Wtheta
   use kernel_mod,        only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -22,36 +25,36 @@ module apply_variable_hx_kernel_mod
 
   type, public, extends(kernel_type) :: apply_variable_hx_kernel_type
     private
-    type(arg_type) :: meta_args(9) = (/                   &
-        arg_type(GH_FIELD,    GH_WRITE, W3),              &
-        arg_type(GH_FIELD,    GH_READ,  W2),              &
-        arg_type(GH_FIELD,    GH_READ,  Wtheta),          &
-        arg_type(GH_FIELD,    GH_READ,  W3),              &
-        arg_type(GH_OPERATOR, GH_READ,  W3,     W2),      &
-        arg_type(GH_OPERATOR, GH_READ,  W3,     Wtheta),  &
-        arg_type(GH_OPERATOR, GH_READ,  Wtheta, W2),      &
-        arg_type(GH_OPERATOR, GH_READ,  W3,     W3),      &
-        arg_type(GH_REAL,     GH_READ)                    &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(9) = (/                            &
+         arg_type(GH_FIELD,    GH_REAL, GH_WRITE, W3),             &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2),             &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta),         &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  W3),             &
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3,     W2),     &
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3,     Wtheta), &
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  Wtheta, W2),     &
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3,     W3),     &
+         arg_type(GH_SCALAR,   GH_REAL, GH_READ)                   &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
-    procedure, nopass ::apply_variable_hx_code
+    procedure, nopass :: apply_variable_hx_code
   end type
 
   type, public, extends(kernel_type) :: opt_apply_variable_hx_kernel_type
     private
-    type(arg_type) :: meta_args(9) = (/                   &
-        arg_type(GH_FIELD,    GH_WRITE, W3),              &
-        arg_type(GH_FIELD,    GH_READ,  W2),              &
-        arg_type(GH_FIELD,    GH_READ,  Wtheta),          &
-        arg_type(GH_FIELD,    GH_READ,  W3),              &
-        arg_type(GH_OPERATOR, GH_READ,  W3,     W2),      &
-        arg_type(GH_OPERATOR, GH_READ,  W3,     Wtheta),  &
-        arg_type(GH_OPERATOR, GH_READ,  Wtheta, W2),      &
-        arg_type(GH_OPERATOR, GH_READ,  W3,     W3),      &
-        arg_type(GH_REAL,     GH_READ)                    &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(9) = (/                            &
+         arg_type(GH_FIELD,    GH_REAL, GH_WRITE, W3),             &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2),             &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta),         &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  W3),             &
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3,     W2),     &
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3,     Wtheta), &
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  Wtheta, W2),     &
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3,     W3),     &
+         arg_type(GH_SCALAR,   GH_REAL, GH_READ)                   &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: opt_apply_variable_hx_code
   end type
@@ -59,8 +62,8 @@ module apply_variable_hx_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public apply_variable_hx_code
-  public opt_apply_variable_hx_code
+  public :: apply_variable_hx_code
+  public :: opt_apply_variable_hx_code
 
 contains
 
@@ -75,7 +78,7 @@ contains
 !>        operators as well as the application of the mass matrix M
 !> @param[in] cell Horizontal cell index
 !> @param[in] nlayers Number of layers
-!> @param[inout] lhs Pressure field with helmholtz operator applied to it
+!> @param[in,out] lhs Pressure field with helmholtz operator applied to it
 !> @param[in] x Gradient of the pressure field in the velocity space
 !> @param[in] mt_inv Lumped inverse mass matrix for the temperature space
 !> @param[in] pressure Field that helmholtz operator is being applied to
@@ -97,34 +100,36 @@ contains
 !> @param[in] ndf_wt Number of degrees of freedom per cell for the temperature space
 !> @param[in] undf_wt Unique number of degrees of freedom  for the temperature space
 !> @param[in] map_wt Dofmap for the cell at the base of the column for the temperature space
-subroutine apply_variable_hx_code(cell,        &
-                                  nlayers,     &
-                                  lhs, x,      &
-                                  mt_inv,      &
-                                  pressure,    &
-                                  ncell_3d_1,  &
-                                  div,         &
-                                  ncell_3d_2,  &
-                                  p3t,         &
-                                  ncell_3d_3,  &
-                                  pt2,         &
-                                  ncell_3d_4,  &
-                                  m3,          &
-                                  sgn,         &
+subroutine apply_variable_hx_code(cell,                    &
+                                  nlayers,                 &
+                                  lhs, x,                  &
+                                  mt_inv,                  &
+                                  pressure,                &
+                                  ncell_3d_1,              &
+                                  div,                     &
+                                  ncell_3d_2,              &
+                                  p3t,                     &
+                                  ncell_3d_3,              &
+                                  pt2,                     &
+                                  ncell_3d_4,              &
+                                  m3,                      &
+                                  sgn,                     &
                                   ndf_w3, undf_w3, map_w3, &
                                   ndf_w2, undf_w2, map_w2, &
                                   ndf_wt, undf_wt, map_wt)
 
   implicit none
+
   ! Arguments
-  integer,                    intent(in) :: cell, nlayers
-  integer,                    intent(in) :: ncell_3d_1, ncell_3d_2, ncell_3d_3, ncell_3d_4
-  integer,                    intent(in) :: undf_w2, ndf_w2
-  integer,                    intent(in) :: undf_w3, ndf_w3
-  integer,                    intent(in) :: undf_wt, ndf_wt
-  integer, dimension(ndf_w3), intent(in) :: map_w3
-  integer, dimension(ndf_w2), intent(in) :: map_w2
-  integer, dimension(ndf_wt), intent(in) :: map_wt
+  integer(kind=i_def),                    intent(in) :: cell, nlayers
+  integer(kind=i_def),                    intent(in) :: ncell_3d_1, ncell_3d_2
+  integer(kind=i_def),                    intent(in) :: ncell_3d_3, ncell_3d_4
+  integer(kind=i_def),                    intent(in) :: undf_w2, ndf_w2
+  integer(kind=i_def),                    intent(in) :: undf_w3, ndf_w3
+  integer(kind=i_def),                    intent(in) :: undf_wt, ndf_wt
+  integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
+  integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
+  integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
 
   real(kind=r_def), dimension(undf_w2), intent(in)    :: x
   real(kind=r_def), dimension(undf_wt), intent(in)    :: mt_inv
@@ -138,7 +143,7 @@ subroutine apply_variable_hx_code(cell,        &
   real(kind=r_def), dimension(ndf_w3,ndf_w3,ncell_3d_4), intent(in) :: m3
 
   ! Internal variables
-  integer                             :: df, k, ik, is, ie
+  integer(kind=i_def)                 :: df, k, ik, is, ie
   real(kind=r_def), dimension(ndf_w2) :: x_e
   real(kind=r_def), dimension(ndf_w3) :: lhs_e, p_e
   real(kind=r_def), dimension(ndf_wt) :: t_e
@@ -201,7 +206,7 @@ end subroutine apply_variable_hx_code
 !>        operators as well as the application of the mass matrix M
 !> @param[in] cell Horizontal cell index
 !> @param[in] nlayers Number of layers
-!> @param[inout] lhs Pressure field with helmholtz operator applied to it
+!> @param[in,out] lhs Pressure field with helmholtz operator applied to it
 !> @param[in] x Gradient of the pressure field in the velocity space
 !> @param[in] mt_inv Lumped inverse mass matrix for the temperature space
 !> @param[in] pressure Field that helmholtz operator is being applied to
@@ -223,34 +228,36 @@ end subroutine apply_variable_hx_code
 !> @param[in] ndf_wt Number of degrees of freedom per cell for the temperature space
 !> @param[in] undf_wt Unique number of degrees of freedom  for the temperature space
 !> @param[in] map_wt Dofmap for the cell at the base of the column for the temperature space
-subroutine opt_apply_variable_hx_code(cell,        &
-                                  nlayers,     &
-                                  lhs, x,      &
-                                  mt_inv,      &
-                                  pressure,    &
-                                  ncell_3d_1,  &
-                                  div,         &
-                                  ncell_3d_2,  &
-                                  p3t,         &
-                                  ncell_3d_3,  &
-                                  pt2,         &
-                                  ncell_3d_4,  &
-                                  m3,          &
-                                  sgn,         &
-                                  ndf_w3, undf_w3, map_w3, &
-                                  ndf_w2, undf_w2, map_w2, &
-                                  ndf_wt, undf_wt, map_wt)
+subroutine opt_apply_variable_hx_code(cell,                    &
+                                      nlayers,                 &
+                                      lhs, x,                  &
+                                      mt_inv,                  &
+                                      pressure,                &
+                                      ncell_3d_1,              &
+                                      div,                     &
+                                      ncell_3d_2,              &
+                                      p3t,                     &
+                                      ncell_3d_3,              &
+                                      pt2,                     &
+                                      ncell_3d_4,              &
+                                      m3,                      &
+                                      sgn,                     &
+                                      ndf_w3, undf_w3, map_w3, &
+                                      ndf_w2, undf_w2, map_w2, &
+                                      ndf_wt, undf_wt, map_wt)
 
   implicit none
+
   ! Arguments
-  integer,                    intent(in) :: cell, nlayers
-  integer,                    intent(in) :: ncell_3d_1, ncell_3d_2, ncell_3d_3, ncell_3d_4
-  integer,                    intent(in) :: undf_w2, ndf_w2
-  integer,                    intent(in) :: undf_w3, ndf_w3
-  integer,                    intent(in) :: undf_wt, ndf_wt
-  integer, dimension(ndf_w3), intent(in) :: map_w3
-  integer, dimension(ndf_w2), intent(in) :: map_w2
-  integer, dimension(ndf_wt), intent(in) :: map_wt
+  integer(kind=i_def),                    intent(in) :: cell, nlayers
+  integer(kind=i_def),                    intent(in) :: ncell_3d_1, ncell_3d_2
+  integer(kind=i_def),                    intent(in) :: ncell_3d_3, ncell_3d_4
+  integer(kind=i_def),                    intent(in) :: undf_w2, ndf_w2
+  integer(kind=i_def),                    intent(in) :: undf_w3, ndf_w3
+  integer(kind=i_def),                    intent(in) :: undf_wt, ndf_wt
+  integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
+  integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
+  integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
 
   real(kind=r_def), dimension(undf_w2), intent(in)    :: x
   real(kind=r_def), dimension(undf_wt), intent(in)    :: mt_inv
@@ -264,7 +271,7 @@ subroutine opt_apply_variable_hx_code(cell,        &
   real(kind=r_def), dimension(1,1,ncell_3d_4), intent(in) :: m3
 
   ! Internal variables
-  integer                        :: k, ik
+  integer(kind=i_def)            :: k, ik
   real(kind=r_def), dimension(2) :: t_e
   real(kind=r_def)               :: div_u
 

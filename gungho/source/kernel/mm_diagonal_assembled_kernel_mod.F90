@@ -1,9 +1,8 @@
-!-------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2014.
-! However, it has been created with the help of the GungHo Consortium,
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
 !
 !-------------------------------------------------------------------------------
 
@@ -21,14 +20,18 @@
 
 
 module mm_diagonal_assembled_kernel_mod
-use argument_mod,            only : arg_type,                                 &
-                                    GH_FIELD, GH_OPERATOR, GH_READ, GH_WRITE, &
-                                    ANY_SPACE_1,                              &
-                                    CELLS
+
+use argument_mod,            only : arg_type,              &
+                                    GH_FIELD, GH_OPERATOR, &
+                                    GH_READ, GH_WRITE,     &
+                                    GH_REAL, ANY_SPACE_1,  &
+                                    CELL_COLUMN
 use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -36,19 +39,19 @@ implicit none
 
 type, public, extends(kernel_type) :: mm_diagonal_assembled_kernel_type
   private
-  type(arg_type) :: meta_args(2) = (/                                  &
-       arg_type(GH_FIELD,    GH_READ,  ANY_SPACE_1),                   &
-       arg_type(GH_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_1)       &
+  type(arg_type) :: meta_args(2) = (/                                     &
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,  ANY_SPACE_1),             &
+       arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, ANY_SPACE_1, ANY_SPACE_1) &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
-  procedure, nopass ::mm_diagonal_assembled_kernel_code
+  procedure, nopass :: mm_diagonal_assembled_kernel_code
 end type
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public mm_diagonal_assembled_kernel_code
+public :: mm_diagonal_assembled_kernel_code
 contains
 
 !> @brief Given a field, stores the assembled diagonal of a mass matrix in a LMA
@@ -67,11 +70,11 @@ subroutine mm_diagonal_assembled_kernel_code(cell,        &
                                              mm_diag,     &
                                              ncell_3d,    &
                                              mass_matrix, &
-                                             ndf,undf,map)
+                                             ndf, undf, map)
 
   implicit none
 
-  !Arguments
+  ! Arguments
   integer(kind=i_def),                              intent(in)    :: cell, nlayers
   integer(kind=i_def),                              intent(in)    :: ncell_3d
   integer(kind=i_def),                              intent(in)    :: ndf, undf
@@ -79,8 +82,8 @@ subroutine mm_diagonal_assembled_kernel_code(cell,        &
   real   (kind=r_def), dimension(ndf,ndf,ncell_3d), intent(inout) :: mass_matrix
   integer(kind=i_def), dimension(ndf),              intent(in)    :: map
 
-  !Internal variables
-  integer :: df, k, ik
+  ! Internal variables
+  integer(kind=i_def) :: df, k, ik
 
   do k = 0, nlayers-1
     ik = (cell-1)*nlayers + k + 1

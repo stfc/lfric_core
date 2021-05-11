@@ -1,9 +1,8 @@
-!-------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2014.
-! However, it has been created with the help of the GungHo Consortium,
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
 !> @brief Computes rhs of the equation of state for the nonlinear equations.
 !>
 !> The kernel computes the lhs of the equation of state for the nonlinear
@@ -14,15 +13,17 @@ module rhs_eos_kernel_mod
 
   use argument_mod,      only : arg_type, func_type,         &
                                 GH_FIELD, GH_READ, GH_WRITE, &
-                                ANY_SPACE_9,                 &
+                                GH_REAL, ANY_SPACE_9,        &
                                 ANY_DISCONTINUOUS_SPACE_3,   &
                                 GH_BASIS, GH_DIFF_BASIS,     &
-                                CELLS, GH_QUADRATURE_XYoZ
+                                CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W3, Wtheta
   use kernel_mod,        only : kernel_type
 
   implicit none
+
+  private
 
   !-------------------------------------------------------------------------------
   ! Public types
@@ -32,47 +33,47 @@ module rhs_eos_kernel_mod
   !>
   type, public, extends(kernel_type) :: rhs_eos_kernel_type
     private
-    type(arg_type) :: meta_args(7) = (/                           &
-        arg_type(GH_FIELD,   GH_WRITE, W3),                       &
-        arg_type(GH_FIELD,   GH_READ,  W3),                       &
-        arg_type(GH_FIELD,   GH_READ,  W3),                       &
-        arg_type(GH_FIELD,   GH_READ,  Wtheta),                   &
-        arg_type(GH_FIELD,   GH_READ,  Wtheta),                   &
-        arg_type(GH_FIELD*3, GH_READ,  ANY_SPACE_9),              &
-        arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
-        /)
-    type(func_type) :: meta_funcs(3) = (/                         &
-        func_type(W3,          GH_BASIS),                         &
-        func_type(Wtheta,      GH_BASIS),                         &
-        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)           &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(7) = (/                                     &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                       &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                       &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                       &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                   &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                   &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),              &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
+         /)
+    type(func_type) :: meta_funcs(3) = (/                                   &
+         func_type(W3,          GH_BASIS),                                  &
+         func_type(Wtheta,      GH_BASIS),                                  &
+         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                    &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
-    procedure, nopass ::rhs_eos_code
+    procedure, nopass :: rhs_eos_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public rhs_eos_code
+  public :: rhs_eos_code
 
 contains
 
 !> @brief Computes lhs of the equation of state for the nonlinear equations
 !! @param[in] nlayers Number of layers
-!! @param[inout] rhs_eos rhs array for the equation of state
-!! @param[in] exner pressure
+!! @param[in,out] rhs_eos RHS array for the equation of state
+!! @param[in] exner Pressure
 !! @param[in] rho Density
 !! @param[in] theta Potential temperature
 !! @param[in] moist_dyn_gas Moist dynamics factor in gas law
 !! @param[in] chi_1 1st (spherical) coordinate field in Wchi
 !! @param[in] chi_2 2nd (spherical) coordinate field in Wchi
 !! @param[in] chi_3 3rd (spherical) coordinate field in Wchi
-!! @param[in] panel_id Field giving the ID for mesh panels.
-!! @param[in] ndf_w3 Number of degrees of freedom per cell for w3
+!! @param[in] panel_id Field giving the ID for mesh panels
+!! @param[in] ndf_w3 Number of degrees of freedom per cell for W3
 !! @param[in] undf_w3 Number of (local) unique degrees of freedom
-!! @param[in] map_w3 Dofmap for the cell at the base of the column for w3
+!! @param[in] map_w3 Dofmap for the cell at the base of the column for W3
 !! @param[in] w3_basis Basis functions evaluated at quadrature points
 !! @param[in] ndf_wt Number of degrees of freedom per cell for wt
 !! @param[in] undf_wt Number of (local) unique degrees of freedom
@@ -81,7 +82,7 @@ contains
 !! @param[in] ndf_chi Number of degrees of freedom per cell for chi
 !! @param[in] undf_chi Number of (local) unique degrees of freedom for chi
 !! @param[in] map_chi Dofmap for the cell at the base of the column for chi
-!! @param[in] chi_basis Wchi basis functions evaluated at quadrature points.
+!! @param[in] chi_basis Wchi basis functions evaluated at quadrature points
 !! @param[in] chi_diff_basis Wchi derivatives of basis functions
 !!                                evaluated at quadrature points
 !! @param[in] ndf_pid  Number of degrees of freedom per cell for panel_id

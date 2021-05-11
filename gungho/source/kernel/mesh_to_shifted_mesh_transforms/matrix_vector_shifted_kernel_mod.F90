@@ -16,14 +16,18 @@
 !>
 
 module matrix_vector_shifted_kernel_mod
-use argument_mod,            only : arg_type,                               &
-                                    GH_FIELD, GH_OPERATOR, GH_READ, GH_INC, &
-                                    ANY_SPACE_1, ANY_SPACE_2,               &
-                                    CELLS
+
+use argument_mod,            only : arg_type,                 &
+                                    GH_FIELD, GH_OPERATOR,    &
+                                    GH_REAL, GH_READ, GH_INC, &
+                                    ANY_SPACE_1, ANY_SPACE_2, &
+                                    CELL_COLUMN
 use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -31,13 +35,13 @@ implicit none
 
 type, public, extends(kernel_type) :: matrix_vector_shifted_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                            &
-       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),              &
-       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),              &
-       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2), &
-       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2)  &
+  type(arg_type) :: meta_args(4) = (/                                     &
+       arg_type(GH_FIELD,    GH_REAL, GH_INC,  ANY_SPACE_1),              & ! y_sh
+       arg_type(GH_FIELD,    GH_REAL, GH_READ, ANY_SPACE_2),              & ! x
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ, ANY_SPACE_1, ANY_SPACE_2), & ! T_L
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ, ANY_SPACE_1, ANY_SPACE_2)  & ! T_U
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: matrix_vector_shifted_code
 end type
@@ -45,7 +49,7 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public matrix_vector_shifted_code
+public :: matrix_vector_shifted_code
 
 contains
 
@@ -53,7 +57,7 @@ contains
 !> @param[in] cell Horizontal cell index
 !> @param[in] nlayers Number of layers
 !> @param[in] x Input data from original space
-!> @param[inout] y_sh Output lhs in shifted space
+!> @param[in,out] y_sh Output lhs in shifted space
 !> @param[in] ncell_3d_L Total number of cells in original mesh
 !> @param[in] T_L Local matrix assembly of operator T_L which goes over lower half cells.
 !> @param[in] ncell_3d_U Total number of cells in original mesh

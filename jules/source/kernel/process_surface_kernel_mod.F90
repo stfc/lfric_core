@@ -1,17 +1,21 @@
 !-------------------------------------------------------------------------------
-!(c) Crown copyright 2020 Met Office. All rights reserved.
-!The file LICENCE, distributed with this code, contains details of the terms
-!under which the code may be used.
+! (c) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
 !-------------------------------------------------------------------------------
 !> @brief Process Jules surface ancillaries
-!> @details Kerenel used without propoer psyclone support of multi-data fields
+!> @details Kernel used without proper PSyclone support of multi-data fields
 !>          see https://github.com/stfc/PSyclone/issues/868
 module process_surface_kernel_mod
 
-  use argument_mod,  only: arg_type, GH_FIELD, GH_WRITE, CELLS, &
-       ANY_DISCONTINUOUS_SPACE_1, ANY_DISCONTINUOUS_SPACE_2,    &
-       ANY_DISCONTINUOUS_SPACE_3, ANY_DISCONTINUOUS_SPACE_4,    &
-       GH_READ, GH_READWRITE
+  use argument_mod,  only: arg_type,                  &
+                           GH_FIELD, GH_REAL,         &
+                           GH_READ, GH_READWRITE,     &
+                           GH_WRITE, CELL_COLUMN,     &
+                           ANY_DISCONTINUOUS_SPACE_1, &
+                           ANY_DISCONTINUOUS_SPACE_2, &
+                           ANY_DISCONTINUOUS_SPACE_3, &
+                           ANY_DISCONTINUOUS_SPACE_4
   use constants_mod, only: r_def, i_def
   use kernel_mod,    only: kernel_type
 
@@ -25,26 +29,26 @@ module process_surface_kernel_mod
   !> Kernel metadata for Psyclone
   type, public, extends(kernel_type) :: process_surface_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                               &
-         arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2), &
-         arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_3), &
-         arg_type(GH_FIELD, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_4)  &
+    type(arg_type) :: meta_args(4) = (/                                        &
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_2), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_3), &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_4)  &
          /)
-    integer :: iterates_over = CELLS
-
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: process_surface_code
   end type process_surface_kernel_type
 
-  public process_surface_code
+  public :: process_surface_code
+
 contains
 
   !> @param[in]     nlayers            The number of layers
   !> @param[in,out] land_area_fraction Fraction of land in grid-box
   !> @param[in]     land_tile_fraction Land tile fractions from ancil
   !> @param[in]     sea_ice_fraction   Fraction of sea-ice in grid-box
-  !> @param[out]    tile_fraction      Surface tile fractions
+  !> @param[in,out] tile_fraction      Surface tile fractions
   !> @param[in]     ndf_2d             Number of DOFs per cell for 2d fields
   !> @param[in]     undf_2d            Number of total DOFs for 2d fields
   !> @param[in]     map_2d             Dofmap for cell for surface 2d fields
@@ -85,7 +89,7 @@ contains
     real(kind=r_def), intent(in)     :: sea_ice_fraction(undf_sice)
     real(kind=r_def), intent(inout)  :: tile_fraction(undf_tile)
 
-    !Internal variables
+    ! Internal variables
     integer(kind=i_def) :: i, i_sice
     real(kind=r_def) :: tot_ice, tot_land
 

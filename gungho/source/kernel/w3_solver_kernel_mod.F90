@@ -9,15 +9,17 @@ module w3_solver_kernel_mod
 
   use argument_mod,      only : arg_type, func_type,         &
                                 GH_FIELD, GH_READ, GH_WRITE, &
-                                ANY_SPACE_9,                 &
+                                GH_REAL, ANY_SPACE_9,        &
+                                ANY_DISCONTINUOUS_SPACE_3,   &
                                 GH_BASIS, GH_DIFF_BASIS,     &
-                                CELLS, GH_QUADRATURE_XYoZ,   &
-                                ANY_DISCONTINUOUS_SPACE_3
+                                CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W3
   use kernel_mod,        only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -27,17 +29,17 @@ module w3_solver_kernel_mod
   !>
   type, public, extends(kernel_type) :: w3_solver_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                           &
-        arg_type(GH_FIELD,   GH_WRITE, W3),                       &
-        arg_type(GH_FIELD,   GH_READ,  W3),                       &
-        arg_type(GH_FIELD*3, GH_READ,  ANY_SPACE_9),              &
-        arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
-        /)
-    type(func_type) :: meta_funcs(2) = (/                         &
-        func_type(W3, GH_BASIS),                                  &
-        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)           &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(4) = (/                                     &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                       &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                       &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),              &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
+         /)
+    type(func_type) :: meta_funcs(2) = (/                                   &
+         func_type(W3,          GH_BASIS),                                  &
+         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                    &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
     procedure, nopass :: solver_w3_code
@@ -46,28 +48,28 @@ module w3_solver_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public solver_w3_code
+  public :: solver_w3_code
 
 contains
 
 !> @brief Invert and apply the W3 mass matrix
 !! @param[in] nlayers Number of layers
-!! @param[inout] x Output vector
+!! @param[in,out] x Output vector
 !! @param[in] rhs Input vector
 !! @param[in] chi_1 1st (spherical) coordinate field in Wchi
 !! @param[in] chi_2 2nd (spherical) coordinate field in Wchi
 !! @param[in] chi_3 3rd (spherical) coordinate field in Wchi
-!! @param[in] panel_id Field giving the ID for mesh panels.
+!! @param[in] panel_id Field giving the ID for mesh panels
 !! @param[in] ndf_w3 Number of degrees of freedom per cell
-!! @param[in] undf_w3 Total number of degrees of freedom for w3
-!! @param[in] map_w3 Dofmap for the cell at the base of the column for w3
+!! @param[in] undf_w3 Total number of degrees of freedom for W3
+!! @param[in] map_w3 Dofmap for the cell at the base of the column for W3
 !! @param[in] w3_basis Basis functions evaluated at gaussian quadrature points
 !! @param[in] ndf_chi Number of degrees of freedom per cell for chi
 !! @param[in] undf_chi Total number of degrees of freedom for chi
 !! @param[in] map_chi Dofmap for the cell at the base of the column
-!! @param[in] chi_basis Wchi basis functions evaluated at gaussian quadrature points.
+!! @param[in] chi_basis Wchi basis functions evaluated at Gaussian quadrature points
 !! @param[in] chi_diff_basis Derivatives of Wchi basis functions
-!!                           evaluated at gaussian quadrature points
+!!                           evaluated at Gaussian quadrature points
 !! @param[in] ndf_pid  Number of degrees of freedom per cell for panel_id
 !! @param[in] undf_pid Number of unique degrees of freedom for panel_id
 !! @param[in] map_pid  Dofmap for the cell at the base of the column for panel_id

@@ -16,12 +16,13 @@
 !>          This method is only valid for lowest order elements.
 module poly2d_adv_recon_kernel_mod
 
-use argument_mod,      only : arg_type, func_type,           &
-                              reference_element_data_type,   &
-                              GH_FIELD, GH_INTEGER,          &
-                              GH_INC, GH_READ,               &
-                              GH_BASIS, CELLS, GH_EVALUATOR, &
-                              STENCIL, REGION,               &
+use argument_mod,      only : arg_type, func_type,         &
+                              reference_element_data_type, &
+                              GH_FIELD, GH_SCALAR,         &
+                              GH_REAL, GH_INTEGER,         &
+                              GH_INC, GH_READ,             &
+                              STENCIL, REGION, GH_BASIS,   &
+                              CELL_COLUMN, GH_EVALUATOR,   &
                               outward_normals_to_horizontal_faces
 use constants_mod,     only : r_def, i_def
 use fs_continuity_mod, only : W1, W2, Wtheta
@@ -38,12 +39,12 @@ private
 type, public, extends(kernel_type) :: poly2d_adv_recon_kernel_type
   private
   type(arg_type) :: meta_args(6) = (/                                     &
-       arg_type(GH_FIELD,   GH_INC,   W1),                                &
-       arg_type(GH_FIELD,   GH_READ,  W2),                                &
-       arg_type(GH_FIELD,   GH_READ,  Wtheta, STENCIL(REGION)),           &
-       arg_type(GH_FIELD,   GH_READ,  Wtheta),                            &
-       arg_type(GH_INTEGER, GH_READ),                                     &
-       arg_type(GH_INTEGER, GH_READ)                                      &
+       arg_type(GH_FIELD,  GH_REAL,    GH_INC,  W1),                      &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ, W2),                      &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ, Wtheta, STENCIL(REGION)), &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ, Wtheta),                  &
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                          &
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ)                           &
        /)
   type(func_type) :: meta_funcs(1) = (/                                   &
        func_type(W2, GH_BASIS)                                            &
@@ -51,7 +52,7 @@ type, public, extends(kernel_type) :: poly2d_adv_recon_kernel_type
   type(reference_element_data_type) :: meta_reference_element(1) = (/     &
        reference_element_data_type( outward_normals_to_horizontal_faces ) &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_EVALUATOR
 contains
   procedure, nopass :: poly2d_adv_recon_code
@@ -60,7 +61,7 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public poly2d_adv_recon_code
+public :: poly2d_adv_recon_code
 
 contains
 

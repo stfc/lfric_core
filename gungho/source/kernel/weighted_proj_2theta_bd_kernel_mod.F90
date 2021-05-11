@@ -14,14 +14,15 @@
 !>
 module weighted_proj_2theta_bd_kernel_mod
 
-  use argument_mod,      only: arg_type, func_type,            &
-                               mesh_data_type,                 &
-                               reference_element_data_type,    &
-                               GH_OPERATOR, GH_FIELD, GH_REAL, &
-                               GH_READ, GH_READWRITE,          &
-                               STENCIL, CROSS, GH_BASIS,       &
-                               CELLS, GH_QUADRATURE_face,      &
-                               adjacent_face,                  &
+  use argument_mod,      only: arg_type, func_type,         &
+                               mesh_data_type,              &
+                               reference_element_data_type, &
+                               GH_OPERATOR, GH_FIELD,       &
+                               GH_SCALAR, GH_REAL,          &
+                               GH_READ, GH_READWRITE,       &
+                               STENCIL, CROSS, GH_BASIS,    &
+                               GH_QUADRATURE_face,          &
+                               CELL_COLUMN, adjacent_face,  &
                                outward_normals_to_horizontal_faces
   use constants_mod,     only: r_def, i_def
   use fs_continuity_mod, only: W2, W3, Wtheta
@@ -39,9 +40,9 @@ module weighted_proj_2theta_bd_kernel_mod
   type, public, extends(kernel_type) :: weighted_proj_2theta_bd_kernel_type
     private
     type(arg_type) :: meta_args(3) = (/                                     &
-         arg_type(GH_OPERATOR, GH_READWRITE, W2, Wtheta),                   &
-         arg_type(GH_FIELD,    GH_READ,      W3, STENCIL(CROSS)),           &
-         arg_type(GH_REAL,     GH_READ)                                     &
+         arg_type(GH_OPERATOR, GH_REAL, GH_READWRITE, W2, Wtheta),          &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,      W3, STENCIL(CROSS)),  &
+         arg_type(GH_SCALAR,   GH_REAL, GH_READ)                            &
          /)
     type(func_type) :: meta_funcs(3) = (/                                   &
          func_type(W2,     GH_BASIS),                                       &
@@ -54,7 +55,7 @@ module weighted_proj_2theta_bd_kernel_mod
     type(reference_element_data_type) :: meta_reference_element(1) = (/     &
          reference_element_data_type( outward_normals_to_horizontal_faces ) &
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_face
   contains
     procedure, nopass :: weighted_proj_2theta_bd_code
@@ -63,7 +64,7 @@ module weighted_proj_2theta_bd_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public weighted_proj_2theta_bd_code
+  public :: weighted_proj_2theta_bd_code
 
 contains
 

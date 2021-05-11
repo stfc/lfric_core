@@ -7,13 +7,14 @@
 
 module mphys_kernel_mod
 
-use argument_mod, only: arg_type,                           &
-                        GH_FIELD, GH_READ, GH_WRITE, CELLS, &
-                        ANY_DISCONTINUOUS_SPACE_1,          &
-                        ANY_DISCONTINUOUS_SPACE_2
+use argument_mod,      only: arg_type,                  &
+                             GH_FIELD, GH_REAL,         &
+                             GH_READ, GH_WRITE,         &
+                             ANY_DISCONTINUOUS_SPACE_1, &
+                             ANY_DISCONTINUOUS_SPACE_2, &
+                             CELL_COLUMN
 use fs_continuity_mod, only: WTHETA, W3
-
-use kernel_mod,   only: kernel_type
+use kernel_mod,        only: kernel_type
 
 implicit none
 
@@ -28,101 +29,103 @@ private
 type, public, extends(kernel_type) :: mphys_kernel_type
   private
   type(arg_type) :: meta_args(31) = (/                                 &
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! mv_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! ml_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! mi_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! mr_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! mg_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! cf_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! cfl_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! cff_wth
-       arg_type(GH_FIELD,   GH_READ,    W3),                           & ! u1_in_w3
-       arg_type(GH_FIELD,   GH_READ,    W3),                           & ! u2_in_w3,
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! w_phys
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! theta_in_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! exner_in_wth
-       arg_type(GH_FIELD,   GH_READ,    W3),                           & ! wetrho_in_w3
-       arg_type(GH_FIELD,   GH_READ,    W3),                           & ! dry_rho_in_w3
-       arg_type(GH_FIELD,   GH_READ,    W3),                           & ! height_w3
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! height_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! cloud_drop_no_conc
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                       & ! dmv_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                       & ! dml_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                       & ! dmi_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                       & ! dmr_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                       & ! dmg_wth
-       arg_type(GH_FIELD,   GH_WRITE,   ANY_DISCONTINUOUS_SPACE_1),    & ! ls_rain
-       arg_type(GH_FIELD,   GH_WRITE,   ANY_DISCONTINUOUS_SPACE_1),    & ! ls_snow
-       arg_type(GH_FIELD,   GH_WRITE,   ANY_DISCONTINUOUS_SPACE_1),    & ! lsca_2d
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                       & ! theta_inc
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! dcfl_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! dcff_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! dbcf_wth
-       arg_type(GH_FIELD,   GH_READ,    ANY_DISCONTINUOUS_SPACE_2)     & ! f_arr_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! mv_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! ml_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! mi_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! mr_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! mg_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! cf_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! cfl_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! cff_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                           & ! u1_in_w3
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                           & ! u2_in_w3,
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! w_phys
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! theta_in_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! exner_in_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                           & ! wetrho_in_w3
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                           & ! dry_rho_in_w3
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                           & ! height_w3
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! height_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! cloud_drop_no_conc
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! dmv_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! dml_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! dmi_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! dmr_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! dmg_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1),    & ! ls_rain
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1),    & ! ls_snow
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1),    & ! lsca_2d
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! theta_inc
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! dcfl_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! dcff_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! dbcf_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_2)     & ! f_arr_wth
        /)
-   integer :: iterates_over = CELLS
+   integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: mphys_code
 end type
 
-public mphys_code
+public :: mphys_code
+
 contains
 
 !> @brief Interface to the microphysics scheme
-!> @param[in]  nlayers             Number of layers
-!> @param[in]  mv_wth              Vapour mass mixing ratio
-!> @param[in]  ml_wth              Liquid cloud mass mixing ratio
-!> @param[in]  mi_wth              Ice cloud mass mixing ratio
-!> @param[in]  mr_wth              Rain mass mixing ratio
-!> @param[in]  mg_wth              Graupel mass mixing ratio
-!> @param[in]  cf_wth              Bulk cloud fraction
-!> @param[in]  cfl_wth             Liquid cloud fraction
-!> @param[in]  cff_wth             Ice cloud fraction
-!> @param[in]  u1_in_w3            'Zonal' wind in density space
-!> @param[in]  u2_in_w3            'Meridional' wind in density space
-!> @param[in]  w_phys              'Vertical' wind in theta space
-!> @param[in]  theta_in_wth        Potential temperature field
-!> @param[in]  exner_in_wth        Exner pressure in potential temperature space
-!> @param[in]  wetrho_in_w3        Wet density in density space
-!> @param[in]  dry_rho_in_w3       Dry density in density space
-!> @param[in]  height_w3           Height of density space levels above surface
-!> @param[in]  height_wth          Height of potential temperature space levels
-!>                                  above surface
-!> @param[in]  cloud_drop_no_conc  Cloud Droplet Number Concentration
-!> @param[out] dmv_wth             Increment to vapour mass mixing ratio
-!> @param[out] dml_wth             Increment to liquid cloud mass mixing ratio
-!> @param[out] dmi_wth             Increment to ice cloud mass mixing ratio
-!> @param[out] dmr_wth             Increment to rain mass mixing ratio
-!> @param[out] dmg_wth             Increment to graupel mass mixing ratio
-!> @param[out] ls_rain_2d          Large scale rain from twod_fields
-!> @param[out] ls_snow_2d          Large scale snow from twod_fields
-!> @param[in,out] lsca_2d          Large scale cloud amount (2d)
-!> @param[out] theta_inc           Increment to theta
-!> @param[out] dcfl_wth            Increment to liquid cloud fraction
-!> @param[out] dcff_wth            Increment to ice cloud fraction
-!> @param[out] dbcf_wth            Increment to bulk cloud fraction
-!> @param[in]  f_arr_wth           Parameters related to fractional standard deviation of condensate
-!> @param[in]  ndf_wth             Number of degrees of freedom per cell for
-!>                                  potential temperature space
-!> @param[in]  undf_wth            Number unique of degrees of freedom for
-!>                                  potential temperature space
-!> @param[in]  map_wth             Dofmap for the cell at the base of the
-!>                                  column for potential temperature space
-!> @param[in]  ndf_w3              Number of degrees of freedom per cell for
-!>                                  density space
-!> @param[in]  undf_w3             Number unique of degrees of freedom for
-!>                                  density space
-!> @param[in]  map_w3              Dofmap for the cell at the base of the
-!>                                  column for density space
-!> @param[in]  ndf_2d              Number of degrees of freedom per cell for
-!>                                  2D fields
-!> @param[in]  undf_2d             Number unique of degrees of freedom for
-!>                                  2D fields
-!> @param[in]  map_2d              Dofmap for the cell at the base of the
-!>                                  column for 2D fields
-!> @param[in]  ndf_farr            Number of degrees of freedom per cell for fsd array
-!> @param[in]  undf_farr           Number unique of degrees of freedom for fsd array
-!> @param[in]  map_farr            Dofmap for the cell at the base of the column for fsd array
+!> @param[in]     nlayers             Number of layers
+!> @param[in]     mv_wth              Vapour mass mixing ratio
+!> @param[in]     ml_wth              Liquid cloud mass mixing ratio
+!> @param[in]     mi_wth              Ice cloud mass mixing ratio
+!> @param[in]     mr_wth              Rain mass mixing ratio
+!> @param[in]     mg_wth              Graupel mass mixing ratio
+!> @param[in]     cf_wth              Bulk cloud fraction
+!> @param[in]     cfl_wth             Liquid cloud fraction
+!> @param[in]     cff_wth             Ice cloud fraction
+!> @param[in]     u1_in_w3            'Zonal' wind in density space
+!> @param[in]     u2_in_w3            'Meridional' wind in density space
+!> @param[in]     w_phys              'Vertical' wind in theta space
+!> @param[in]     theta_in_wth        Potential temperature field
+!> @param[in]     exner_in_wth        Exner pressure in potential temperature space
+!> @param[in]     wetrho_in_w3        Wet density in density space
+!> @param[in]     dry_rho_in_w3       Dry density in density space
+!> @param[in]     height_w3           Height of density space levels above surface
+!> @param[in]     height_wth          Height of potential temperature space levels
+!!                                     above surface
+!> @param[in]     cloud_drop_no_conc  Cloud Droplet Number Concentration
+!> @param[in,out] dmv_wth             Increment to vapour mass mixing ratio
+!> @param[in,out] dml_wth             Increment to liquid cloud mass mixing ratio
+!> @param[in,out] dmi_wth             Increment to ice cloud mass mixing ratio
+!> @param[in,out] dmr_wth             Increment to rain mass mixing ratio
+!> @param[in,out] dmg_wth             Increment to graupel mass mixing ratio
+!> @param[in,out] ls_rain_2d          Large scale rain from twod_fields
+!> @param[in,out] ls_snow_2d          Large scale snow from twod_fields
+!> @param[in,out] lsca_2d             Large scale cloud amount (2d)
+!> @param[in,out] theta_inc           Increment to theta
+!> @param[in,out] dcfl_wth            Increment to liquid cloud fraction
+!> @param[in,out] dcff_wth            Increment to ice cloud fraction
+!> @param[in,out] dbcf_wth            Increment to bulk cloud fraction
+!> @param[in]     f_arr_wth           Parameters related to fractional standard
+!!                                     deviation of condensate
+!> @param[in]     ndf_wth             Number of degrees of freedom per cell for
+!!                                     potential temperature space
+!> @param[in]     undf_wth            Number unique of degrees of freedom for
+!!                                     potential temperature space
+!> @param[in]     map_wth             Dofmap for the cell at the base of the
+!!                                     column for potential temperature space
+!> @param[in]     ndf_w3              Number of degrees of freedom per cell for
+!!                                     density space
+!> @param[in]     undf_w3             Number unique of degrees of freedom for
+!!                                     density space
+!> @param[in]     map_w3              Dofmap for the cell at the base of the
+!!                                     column for density space
+!> @param[in]     ndf_2d              Number of degrees of freedom per cell for
+!!                                     2D fields
+!> @param[in]     undf_2d             Number unique of degrees of freedom for
+!!                                     2D fields
+!> @param[in]     map_2d              Dofmap for the cell at the base of the
+!!                                     column for 2D fields
+!> @param[in]     ndf_farr            Number of degrees of freedom per cell for fsd array
+!> @param[in]     undf_farr           Number unique of degrees of freedom for fsd array
+!> @param[in]     map_farr            Dofmap for the cell at the base of the column for fsd array
 
 subroutine mphys_code( nlayers,                     &
                        mv_wth,   ml_wth,   mi_wth,  &
@@ -205,18 +208,18 @@ subroutine mphys_code( nlayers,                     &
     real(kind=r_def), intent(in),  dimension(undf_wth) :: cloud_drop_no_conc
     real(kind=r_def), intent(in),  dimension(undf_farr):: f_arr_wth
 
-    real(kind=r_def), intent(out), dimension(undf_wth) :: dmv_wth
-    real(kind=r_def), intent(out), dimension(undf_wth) :: dml_wth
-    real(kind=r_def), intent(out), dimension(undf_wth) :: dmi_wth
-    real(kind=r_def), intent(out), dimension(undf_wth) :: dmr_wth
-    real(kind=r_def), intent(out), dimension(undf_wth) :: dmg_wth
-    real(kind=r_def), intent(out), dimension(undf_2d)  :: ls_rain_2d
-    real(kind=r_def), intent(out), dimension(undf_2d)  :: ls_snow_2d
-    real(kind=r_def), intent(inout), dimension(undf_2d):: lsca_2d
-    real(kind=r_def), intent(out), dimension(undf_wth) :: theta_inc
-    real(kind=r_def), intent(out), dimension(undf_wth) :: dcfl_wth
-    real(kind=r_def), intent(out), dimension(undf_wth) :: dcff_wth
-    real(kind=r_def), intent(out), dimension(undf_wth) :: dbcf_wth
+    real(kind=r_def), intent(inout), dimension(undf_wth) :: dmv_wth
+    real(kind=r_def), intent(inout), dimension(undf_wth) :: dml_wth
+    real(kind=r_def), intent(inout), dimension(undf_wth) :: dmi_wth
+    real(kind=r_def), intent(inout), dimension(undf_wth) :: dmr_wth
+    real(kind=r_def), intent(inout), dimension(undf_wth) :: dmg_wth
+    real(kind=r_def), intent(inout), dimension(undf_2d)  :: ls_rain_2d
+    real(kind=r_def), intent(inout), dimension(undf_2d)  :: ls_snow_2d
+    real(kind=r_def), intent(inout), dimension(undf_2d)  :: lsca_2d
+    real(kind=r_def), intent(inout), dimension(undf_wth) :: theta_inc
+    real(kind=r_def), intent(inout), dimension(undf_wth) :: dcfl_wth
+    real(kind=r_def), intent(inout), dimension(undf_wth) :: dcff_wth
+    real(kind=r_def), intent(inout), dimension(undf_wth) :: dbcf_wth
 
     integer(kind=i_def), intent(in), dimension(ndf_wth) :: map_wth
     integer(kind=i_def), intent(in), dimension(ndf_w3)  :: map_w3

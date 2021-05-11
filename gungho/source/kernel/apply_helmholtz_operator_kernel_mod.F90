@@ -15,28 +15,30 @@
 !>          (k+1, k+2, k-1, k-2) respectively.
 module apply_helmholtz_operator_kernel_mod
 
-  use argument_mod,      only: arg_type, func_type,         &
-                               GH_FIELD, GH_READ, GH_WRITE, &
-                               STENCIL, CROSS,              &
-                               CELLS
+  use argument_mod,      only: arg_type,          &
+                               GH_FIELD, GH_REAL, &
+                               GH_READ, GH_WRITE, &
+                               STENCIL, CROSS,    &
+                               CELL_COLUMN
   use constants_mod,     only: r_def, i_def
   use fs_continuity_mod, only: W3
   use kernel_mod,        only: kernel_type
 
   implicit none
 
+  private
+
   !---------------------------------------------------------------------------
   ! Public types
   !---------------------------------------------------------------------------
   type, public, extends(kernel_type) :: apply_helmholtz_operator_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                     &
-        arg_type(GH_FIELD,   GH_WRITE, W3),                 &
-        arg_type(GH_FIELD,   GH_READ,  W3, STENCIL(CROSS)), &
-        arg_type(GH_FIELD*9, GH_READ,  W3)                  &
-        /)
-    integer :: iterates_over = CELLS
-
+    type(arg_type) :: meta_args(3) = (/                               &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                 &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3, STENCIL(CROSS)), &
+         arg_type(GH_FIELD*9, GH_REAL, GH_READ,  W3)                  &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: apply_helmholtz_operator_code
   end type apply_helmholtz_operator_kernel_type
@@ -44,7 +46,7 @@ module apply_helmholtz_operator_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public apply_helmholtz_operator_code
+  public :: apply_helmholtz_operator_code
 
 contains
 
@@ -118,4 +120,3 @@ subroutine apply_helmholtz_operator_code(nlayers, &
 end subroutine apply_helmholtz_operator_code
 
 end module apply_helmholtz_operator_kernel_mod
-

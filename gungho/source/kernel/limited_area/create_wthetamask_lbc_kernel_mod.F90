@@ -13,10 +13,10 @@
 module create_wthetamask_lbc_kernel_mod
 
   use argument_mod,         only : arg_type, func_type, &
-                                   GH_FIELD, GH_REAL,   &
+                                   GH_SCALAR, GH_FIELD, &
                                    GH_READ, GH_WRITE,   &
-                                   GH_BASIS,            &
-                                   CELLS, GH_EVALUATOR
+                                   GH_REAL, GH_BASIS,   &
+                                   CELL_COLUMN, GH_EVALUATOR
   use constants_mod,        only : r_def, i_def, l_def
   use fs_continuity_mod,    only : Wtheta, Wchi
   use kernel_mod,           only : kernel_type
@@ -33,22 +33,22 @@ module create_wthetamask_lbc_kernel_mod
 
   type, public, extends(kernel_type) :: create_wthetamask_lbc_kernel_type
     private
-    type(arg_type) :: meta_args(10) = (/          &
-      arg_type(GH_REAL,    GH_READ),              &
-      arg_type(GH_REAL,    GH_READ),              &
-      arg_type(GH_REAL,    GH_READ),              &
-      arg_type(GH_REAL,    GH_READ),              &
-      arg_type(GH_REAL,    GH_READ),              &
-      arg_type(GH_REAL,    GH_READ),              &
-      arg_type(GH_REAL,    GH_READ),              &
-      arg_type(GH_REAL,    GH_READ),              &
-      arg_type(GH_FIELD,   GH_WRITE, Wtheta),     &
-      arg_type(GH_FIELD*3, GH_READ,  Wchi)        &
-      /)
-    type(func_type) :: meta_funcs(1) = (/         &
-      func_type(Wchi, GH_BASIS )                  &
-      /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(10) = (/                  &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, Wtheta), &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  Wchi)    &
+         /)
+    type(func_type) :: meta_funcs(1) = (/                 &
+         func_type(Wchi, GH_BASIS)                        &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_EVALUATOR
   contains
     procedure, nopass :: create_wthetamask_lbc_code
@@ -57,7 +57,7 @@ module create_wthetamask_lbc_kernel_mod
     !-------------------------------------------------------------------------
     ! Contained functions/subroutines
     !-------------------------------------------------------------------------
-    public create_wthetamask_lbc_code
+    public :: create_wthetamask_lbc_code
 
 contains
 
@@ -147,7 +147,7 @@ subroutine create_wthetamask_lbc_code( nlayers,     &
   end do
 
   ! Get the x values (x,y,z) for each cell centre, by summing
-  ! over W0 to WTHETA basis functions
+  ! over W0 to Wtheta basis functions
   ! x(v) = sum_u chi_e(u) * g(u,v)
   do df1 = 1, ndf_wtheta
     x(:) = 0.0_r_def

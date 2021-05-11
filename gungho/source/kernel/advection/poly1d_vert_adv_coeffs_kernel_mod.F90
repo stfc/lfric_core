@@ -19,11 +19,12 @@
 !>          This method is only valid for lowest order elements
 module poly1d_vert_adv_coeffs_kernel_mod
 
-use argument_mod,      only : arg_type, func_type,  &
-                              GH_FIELD, GH_INTEGER, &
-                              GH_WRITE, GH_READ,    &
-                              ANY_SPACE_1,          &
-                              GH_BASIS, CELLS, GH_EVALUATOR
+use argument_mod,      only : arg_type, func_type,   &
+                              GH_FIELD, GH_SCALAR,   &
+                              GH_REAL, GH_INTEGER,   &
+                              GH_WRITE, GH_READ,     &
+                              ANY_SPACE_1, GH_BASIS, &
+                              CELL_COLUMN, GH_EVALUATOR
 use constants_mod,     only : r_def, i_def, EPS
 use fs_continuity_mod, only : Wtheta
 use kernel_mod,        only : kernel_type
@@ -37,16 +38,16 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the PSy layer
 type, public, extends(kernel_type) :: poly1d_vert_adv_coeffs_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_FIELD,   GH_WRITE, Wtheta),                         &
-       arg_type(GH_FIELD*3, GH_READ,  ANY_SPACE_1),                    &
-       arg_type(GH_INTEGER, GH_READ),                                  &
-       arg_type(GH_INTEGER, GH_READ)                                   &
+  type(arg_type) :: meta_args(4) = (/                           &
+       arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, Wtheta),      &
+       arg_type(GH_FIELD*3, GH_REAL,    GH_READ,  ANY_SPACE_1), &
+       arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),               &
+       arg_type(GH_SCALAR,  GH_INTEGER, GH_READ)                &
        /)
-  type(func_type) :: meta_funcs(1) = (/                                &
-       func_type(ANY_SPACE_1, GH_BASIS)                                &
+  type(func_type) :: meta_funcs(1) = (/                         &
+       func_type(ANY_SPACE_1, GH_BASIS)                         &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_EVALUATOR
 contains
   procedure, nopass :: poly1d_vert_adv_coeffs_code
@@ -55,28 +56,28 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public poly1d_vert_adv_coeffs_code
+public :: poly1d_vert_adv_coeffs_code
 contains
 
-!>@brief Compute the coefficients needed for a 1D vertical reconstruction
-!>       of a tracer field on vertical faces
-!>@param[in] nlayers Number of vertical layers
-!>@param[out] coeff Array of fields to store the coefficients for the polynomial
-!!                  reconstruction
-!>@param[in] chi1 1st component of the physical coordinate field
-!>@param[in] chi2 2nd component of the physical coordinate field
-!>@param[in] chi3 3rd component of the physical coordinate field
-!>@param[in] ndf_wt Number of degrees of freedom per cell for Wtheta
-!>@param[in] undf_wt Total number of degrees of freedom for Wtheta
-!>@param[in] map_wt Dofmap of the tracer field
-!>@param[in] ndf_wx Number of degrees of freedom per cell for the coordinate space
-!>@param[in] undf_wx Total number of degrees of freedom for the coordinate space
-!>@param[in] map_wx Dofmap of the coordinate space
-!>@param[in] basis_wx Basis function of the coordinate space evaluated on
-!!                    Wtheta nodal points
-!>@param[in] global_order Desired polynomial order for advective computations
-!>@param[in] nfaces_v Number of vertical faces (used by PSyclone to size coeff
-!!                    array)
+!> @brief Compute the coefficients needed for a 1D vertical reconstruction
+!>        of a tracer field on vertical faces
+!> @param[in] nlayers Number of vertical layers
+!> @param[in,out] coeff Array of fields to store the coefficients for the
+!!                      polynomial reconstruction
+!> @param[in] chi1 1st component of the physical coordinate field
+!> @param[in] chi2 2nd component of the physical coordinate field
+!> @param[in] chi3 3rd component of the physical coordinate field
+!> @param[in] ndf_wt Number of degrees of freedom per cell for Wtheta
+!> @param[in] undf_wt Total number of degrees of freedom for Wtheta
+!> @param[in] map_wt Dofmap of the tracer field
+!> @param[in] ndf_wx Number of degrees of freedom per cell for the coordinate space
+!> @param[in] undf_wx Total number of degrees of freedom for the coordinate space
+!> @param[in] map_wx Dofmap of the coordinate space
+!> @param[in] basis_wx Basis function of the coordinate space evaluated on
+!!                     Wtheta nodal points
+!> @param[in] global_order Desired polynomial order for advective computations
+!> @param[in] nfaces_v Number of vertical faces (used by PSyclone to size coeff
+!!                     array)
 subroutine poly1d_vert_adv_coeffs_code(nlayers,                   &
                                        coeff,                     &
                                        chi1, chi2, chi3,          &
@@ -94,7 +95,7 @@ subroutine poly1d_vert_adv_coeffs_code(nlayers,                   &
   use matrix_invert_mod,         only: matrix_invert
   use base_mesh_config_mod,      only: geometry, &
                                        geometry_spherical
-  use finite_element_config_mod, only: spherical_coord_system,     &
+  use finite_element_config_mod, only: spherical_coord_system, &
                                        spherical_coord_system_xyz
   implicit none
 
@@ -109,7 +110,7 @@ subroutine poly1d_vert_adv_coeffs_code(nlayers,                   &
 
   real(kind=r_def), dimension(undf_wx), intent(in) :: chi1, chi2, chi3
 
-  real(kind=r_def), dimension(global_order+1, nfaces_v, undf_wt), intent(out) :: coeff
+  real(kind=r_def), dimension(global_order+1, nfaces_v, undf_wt), intent(inout) :: coeff
 
   real(kind=r_def), dimension(1,ndf_wx,ndf_wt), intent(in) :: basis_wx
 

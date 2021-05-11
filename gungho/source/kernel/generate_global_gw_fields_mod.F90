@@ -105,7 +105,7 @@ end subroutine generate_global_gw_fields
 !> @param[in] lon Longtitude (radians) of the point to compute the field at
 !> @param[in] lat Latitude (radians) of the point to compute the field at
 !> @param[in] z Height (m) above the mean surface of the point to compute the fields at
-!> @result theta Potential temperature perturbation at the desired point
+!> @return theta Potential temperature perturbation at the desired point
 !>
 pure function generate_global_gw_pert(lon, lat, z) result(theta)
 

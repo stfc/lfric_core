@@ -14,10 +14,11 @@
 !>
 module momentum_smagorinsky_kernel_mod
 
-  use argument_mod,      only : arg_type, func_type,       &
-                                GH_FIELD, GH_READ, GH_INC, &
-                                ANY_SPACE_9,               &
-                                CELLS, STENCIL, CROSS
+  use argument_mod,      only : arg_type,          &
+                                GH_FIELD, GH_REAL, &
+                                GH_READ, GH_INC,   &
+                                ANY_SPACE_9,       &
+                                STENCIL, CROSS, CELL_COLUMN
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2, W3, Wtheta
   use kernel_mod,        only : kernel_type
@@ -33,15 +34,15 @@ module momentum_smagorinsky_kernel_mod
   !>
   type, public, extends(kernel_type) :: momentum_smagorinsky_kernel_type
     private
-    type(arg_type) :: meta_args(6) = (/                                &
-        arg_type(GH_FIELD,   GH_INC,  W2),                             &
-        arg_type(GH_FIELD,   GH_READ, W2,     STENCIL(CROSS)),         &
-        arg_type(GH_FIELD,   GH_READ, W3,     STENCIL(CROSS)),         &
-        arg_type(GH_FIELD,   GH_READ, Wtheta, STENCIL(CROSS)),         &
-        arg_type(GH_FIELD,   GH_READ, Wtheta),                         &
-        arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_9)                     &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(6) = (/                                  &
+         arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),                     &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, W2,     STENCIL(CROSS)), &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, W3,     STENCIL(CROSS)), &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, Wtheta, STENCIL(CROSS)), &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, Wtheta),                 &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9)             &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: momentum_smagorinsky_code
   end type
@@ -49,7 +50,7 @@ module momentum_smagorinsky_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public momentum_smagorinsky_code
+  public :: momentum_smagorinsky_code
 
 contains
 

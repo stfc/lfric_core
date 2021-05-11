@@ -10,14 +10,17 @@
 !> in the range [0,1].
 
 module assign_field_random_kernel_mod
-use argument_mod,            only : arg_type,             &
-                                    GH_FIELD, GH_INC,     &
-                                    ANY_SPACE_1,          &
-                                    CELLS
+
+use argument_mod,            only : arg_type,            &
+                                    GH_FIELD, GH_REAL,   &
+                                    GH_INC, ANY_SPACE_1, &
+                                    CELL_COLUMN
 use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -25,18 +28,18 @@ implicit none
 
 type, public, extends(kernel_type) :: assign_field_random_kernel_type
   private
-  type(arg_type) :: meta_args(1) = (/               &
-       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1)  &
+  type(arg_type) :: meta_args(1) = (/                   &
+       arg_type(GH_FIELD, GH_REAL, GH_INC, ANY_SPACE_1) &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
-  procedure, nopass ::assign_field_random_code
+  procedure, nopass :: assign_field_random_code
 end type
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public assign_field_random_code
+public :: assign_field_random_code
 contains
 
 !> @brief Sets all field entries to random values
@@ -49,14 +52,15 @@ subroutine assign_field_random_code(nlayers,     &
                                     x,           &
                                     ndf, undf, map)
   implicit none
-  !Arguments
+
+  ! Arguments
   integer(kind=i_def),                   intent(in)    :: nlayers
   integer(kind=i_def),                   intent(in)    :: undf, ndf
   integer(kind=i_def), dimension(ndf),   intent(in)    :: map
   real   (kind=r_def), dimension(undf),  intent(inout) :: x
 
-  !Internal variables
-  integer                           :: df, k
+  ! Internal variables
+  integer(kind=i_def)              :: df, k
   real(kind=r_def), dimension(ndf) :: random_values
 
   do k = 0, nlayers-1

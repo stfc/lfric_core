@@ -6,18 +6,20 @@
 !
 !-------------------------------------------------------------------------------
 
-!> @brief The kernel computes the rhs of the thermodynamic equation for the nonlinear equations
-!>        for horizontally discontinuous temperature basis functions,
-!>        this consists of the term theta*gamma*div(u) + theta u*grad(gamma)
-!> @details Kernel to compute the rhs of thermodynamic equation for the nonlinear equations, in
-!>          the absense of source terms this is
+!> @brief The kernel computes the rhs of the thermodynamic equation for the
+!>        nonlinear equations for horizontally discontinuous temperature basis
+!>        functions, this consists of the term
+!>        theta*gamma*div(u) + theta u*grad(gamma)
+!> @details Kernel to compute the rhs of thermodynamic equation for the
+!>          nonlinear equations, in the absence of source terms this is
 !>          rtheta = -(theta*gamma*div(u) + theta u*grad(gamma))
 module rtheta_kernel_mod
 
-use argument_mod,            only : arg_type, func_type,              &
-                                    GH_FIELD, GH_READ, GH_READWRITE,  &
-                                    GH_BASIS, GH_DIFF_BASIS,          &
-                                    CELLS, GH_QUADRATURE_XYoZ
+use argument_mod,            only : arg_type, func_type,     &
+                                    GH_FIELD, GH_REAL,       &
+                                    GH_READ, GH_READWRITE,   &
+                                    GH_BASIS, GH_DIFF_BASIS, &
+                                    CELL_COLUMN, GH_QUADRATURE_XYoZ
 use constants_mod,           only : r_def, i_def
 use fs_continuity_mod,       only : W2, Wtheta
 use kernel_mod,              only : kernel_type
@@ -25,31 +27,33 @@ use kernel_mod,              only : kernel_type
 
 implicit none
 
+private
+
 !-------------------------------------------------------------------------------
 ! Public types
 !-------------------------------------------------------------------------------
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: rtheta_kernel_type
   private
-  type(arg_type) :: meta_args(3) = (/                                  &
-       arg_type(GH_FIELD,   GH_READWRITE,  Wtheta),                    &
-       arg_type(GH_FIELD,   GH_READ,       Wtheta),                    &
-       arg_type(GH_FIELD,   GH_READ,       W2)                         &
+  type(arg_type) :: meta_args(3) = (/                     &
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,      Wtheta), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,      W2)      &
        /)
-  type(func_type) :: meta_funcs(2) = (/                                &
-       func_type(Wtheta, GH_BASIS, GH_DIFF_BASIS),                     &
-       func_type(W2,     GH_BASIS, GH_DIFF_BASIS)                      &
+  type(func_type) :: meta_funcs(2) = (/                   &
+       func_type(Wtheta, GH_BASIS, GH_DIFF_BASIS),        &
+       func_type(W2,     GH_BASIS, GH_DIFF_BASIS)         &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_QUADRATURE_XYoZ
 contains
-  procedure, nopass ::rtheta_code
+  procedure, nopass :: rtheta_code
 end type
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public rtheta_code
+public :: rtheta_code
 
 contains
 
@@ -58,24 +62,28 @@ contains
 !! @param[in,out] r_theta Right hand side of the thermodynamic equation
 !! @param[in] theta Potential temperature
 !! @param[in] u Velocity
-!! @param[in] ndf_wtheta Number of degrees of freedom per cell for wtheta
-!! @param[in] undf_wtheta  Number of unique degrees of freedom  for wtheta
-!! @param[in] map_wtheta Dofmap for the cell at the base of the column for wtheta
-!! @param[in] wtheta_basis Basis functions evaluated at gaussian quadrature points
-!! @param[in] wtheta_diff_basis Differential basis functions evaluated at gaussian quadrature points
-!! @param[in] ndf_w2 Number of degrees of freedom per cell for w2
-!! @param[in] undf_w2 Number of unique degrees of freedom for w2
-!! @param[in] map_w2 Dofmap for the cell at the base of the column for w2
-!! @param[in] w2_basis Basis functions evaluated at gaussian quadrature points
-!! @param[in] w2_diff_basis Differential basis functions evaluated at gaussian quadrature points
+!! @param[in] ndf_wtheta Number of degrees of freedom per cell for Wtheta
+!! @param[in] undf_wtheta  Number of unique degrees of freedom for Wtheta
+!! @param[in] map_wtheta Dofmap for the cell at the base of the column for Wtheta
+!! @param[in] wtheta_basis Basis functions evaluated at Gaussian quadrature points
+!! @param[in] wtheta_diff_basis Differential basis functions evaluated at
+!!                              Gaussian quadrature points
+!! @param[in] ndf_w2 Number of degrees of freedom per cell for W2
+!! @param[in] undf_w2 Number of unique degrees of freedom for W2
+!! @param[in] map_w2 Dofmap for the cell at the base of the column for W2
+!! @param[in] w2_basis Basis functions evaluated at Gaussian quadrature points
+!! @param[in] w2_diff_basis Differential basis functions evaluated at Gaussian
+!!                          quadrature points
 !! @param[in] nqp_h Number of horizontal quadrature points
 !! @param[in] nqp_v Number of vertical quadrature points
 !! @param[in] wqp_h Weights of the horizontal quadrature points
 !! @param[in] wqp_v Weights of the vertical quadrature points
-subroutine rtheta_code(nlayers,                                                               &
-                       r_theta, theta, u,                                                     &
-                       ndf_wtheta, undf_wtheta, map_wtheta, wtheta_basis, wtheta_diff_basis,  &
-                       ndf_w2, undf_w2, map_w2, w2_basis, w2_diff_basis,                      &
+subroutine rtheta_code(nlayers,                             &
+                       r_theta, theta, u,                   &
+                       ndf_wtheta, undf_wtheta, map_wtheta, &
+                       wtheta_basis, wtheta_diff_basis,     &
+                       ndf_w2, undf_w2, map_w2,             &
+                       w2_basis, w2_diff_basis,             &
                        nqp_h, nqp_v, wqp_h, wqp_v)
 
   implicit none

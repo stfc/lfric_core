@@ -7,9 +7,10 @@
 !>
 module cfl_kernel_mod
 
-  use argument_mod,            only : arg_type,                  &
-                                      GH_FIELD, GH_READ, GH_INC, &
-                                      CELLS
+  use argument_mod,            only : arg_type,          &
+                                      GH_FIELD, GH_REAL, &
+                                      GH_READ, GH_INC,   &
+                                      CELL_COLUMN
   use constants_mod,           only : i_def, r_def
   use fs_continuity_mod,       only : W2
   use kernel_mod,              only : kernel_type
@@ -27,12 +28,12 @@ module cfl_kernel_mod
   !>
   type, public, extends(kernel_type) :: cfl_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/    &
-        arg_type(GH_FIELD*3, GH_INC,  W2), &
-        arg_type(GH_FIELD,   GH_READ, W2), &
-        arg_type(GH_FIELD,   GH_READ, W2)  &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(3) = (/              &
+         arg_type(GH_FIELD*3, GH_REAL, GH_INC,  W2), &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, W2), &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, W2)  &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: cfl_code
   end type
@@ -40,21 +41,21 @@ module cfl_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public cfl_code
+  public :: cfl_code
 
 contains
 
 !> @brief Calculates components of the advective Courant number on
 !>        W2 dofs
-!! @param[in]  nlayers Number of layers
-!! @param[in,out] cflx    CFL calculated on 'x' dofs in 'x' direction
-!! @param[in,out] cfly    CFL calculated on 'y' dofs in 'y' direction
-!! @param[in,out] cflz    CFL calculated on 'z' dofs in 'z' direction
-!! @param[in]  wind    Wind
-!! @param[in]  dJ_on_w2 detJ evaluated on w2 points
-!! @param[in]  ndf_w2 Number of degrees of freedom per cell
-!! @param[in]  undf_w2 Total number of degrees of freedom
-!! @param[in]  map_w2 Dofmap for the cell at the base of the column
+!! @param[in]     nlayers Number of layers
+!! @param[in,out] cflx CFL calculated on 'x' dofs in 'x' direction
+!! @param[in,out] cfly CFL calculated on 'y' dofs in 'y' direction
+!! @param[in,out] cflz CFL calculated on 'z' dofs in 'z' direction
+!! @param[in]     wind Wind
+!! @param[in]     dJ_on_w2 detJ evaluated on w2 points
+!! @param[in]     ndf_w2 Number of degrees of freedom per cell
+!! @param[in]     undf_w2 Total number of degrees of freedom
+!! @param[in]     map_w2 Dofmap for the cell at the base of the column
 subroutine cfl_code(nlayers, cflx, cfly, cflz, wind, dJ_on_w2, &
                     ndf_w2, undf_w2, map_w2)
 
@@ -63,8 +64,8 @@ subroutine cfl_code(nlayers, cflx, cfly, cflz, wind, dJ_on_w2, &
   implicit none
 
   ! Arguments
-  integer(i_def), intent(in) :: nlayers, ndf_w2, undf_w2
-  integer(i_def), dimension(ndf_w2), intent(in) :: map_w2
+  integer(kind=i_def), intent(in) :: nlayers, ndf_w2, undf_w2
+  integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
 
   real(kind=r_def), dimension(undf_w2), intent(inout) :: cflx, cfly, cflz
   real(kind=r_def), dimension(undf_w2), intent(in)    :: wind

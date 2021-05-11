@@ -15,11 +15,11 @@
 !>          to compute theta.
 module monotonic_update_kernel_mod
 
-use argument_mod,      only : arg_type, func_type,           &
-                              GH_FIELD, GH_REAL, GH_INTEGER, &
-                              GH_READWRITE, GH_READ,         &
-                              GH_BASIS, CELLS, GH_EVALUATOR, &
-                              STENCIL, CROSS
+use argument_mod,      only : arg_type,              &
+                              GH_FIELD, GH_SCALAR,   &
+                              GH_REAL, GH_INTEGER,   &
+                              GH_READWRITE, GH_READ, &
+                              STENCIL, CROSS, CELL_COLUMN
 use constants_mod,     only : r_def, i_def
 use fs_continuity_mod, only : Wtheta
 use kernel_mod,        only : kernel_type
@@ -34,14 +34,14 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the PSy layer
 type, public, extends(kernel_type) :: monotonic_update_kernel_type
   private
-  type(arg_type) :: meta_args(5) = (/                                  &
-       arg_type(GH_FIELD,   GH_READWRITE, Wtheta),                     &
-       arg_type(GH_FIELD,   GH_READ,      Wtheta, STENCIL(CROSS)),     &
-       arg_type(GH_FIELD,   GH_READ,      Wtheta),                     &
-       arg_type(GH_REAL,    GH_READ),                                  &
-       arg_type(GH_INTEGER, GH_READ)                                   &
+  type(arg_type) :: meta_args(5) = (/                                         &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, Wtheta),                 &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta, STENCIL(CROSS)), &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta),                 &
+       arg_type(GH_SCALAR, GH_REAL,    GH_READ),                              &
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ)                               &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: monotonic_update_code
 end type
@@ -49,7 +49,7 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public monotonic_update_code
+public :: monotonic_update_code
 
 contains
 

@@ -17,12 +17,12 @@ module rtheta_bd_kernel_mod
   use argument_mod,          only : arg_type, func_type,         &
                                     mesh_data_type,              &
                                     reference_element_data_type, &
-                                    GH_FIELD, GH_READ,           &
-                                    GH_READWRITE,                &
+                                    GH_FIELD, GH_REAL,           &
+                                    GH_READ, GH_READWRITE,       &
                                     STENCIL, CROSS,              &
                                     GH_BASIS, GH_DIFF_BASIS,     &
-                                    CELLS, GH_QUADRATURE_face,   &
-                                    adjacent_face,               &
+                                    GH_QUADRATURE_face,          &
+                                    CELL_COLUMN, adjacent_face,  &
                                     normals_to_horizontal_faces, &
                                     outward_normals_to_horizontal_faces
   use constants_mod,         only : r_def, i_def, l_def
@@ -43,9 +43,9 @@ module rtheta_bd_kernel_mod
   type, public, extends(kernel_type) :: rtheta_bd_kernel_type
     private
     type(arg_type) :: meta_args(3) = (/                                     &
-         arg_type(GH_FIELD, GH_READWRITE, Wtheta),                          &
-         arg_type(GH_FIELD, GH_READ,      Wtheta, STENCIL(CROSS)),          &
-         arg_type(GH_FIELD, GH_READ,      W2,     STENCIL(CROSS))           &
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta),                 &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      Wtheta, STENCIL(CROSS)), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      W2,     STENCIL(CROSS))  &
          /)
     type(func_type) :: meta_funcs(2) = (/                                   &
          func_type(W2,     GH_BASIS),                                       &
@@ -58,7 +58,7 @@ module rtheta_bd_kernel_mod
          reference_element_data_type( normals_to_horizontal_faces ),        &
          reference_element_data_type( outward_normals_to_horizontal_faces ) &
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_face
   contains
     procedure, nopass :: rtheta_bd_code
@@ -67,7 +67,7 @@ module rtheta_bd_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public rtheta_bd_code
+  public :: rtheta_bd_code
 
 contains
 

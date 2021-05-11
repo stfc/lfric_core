@@ -17,13 +17,13 @@ module compute_coriolis_matrix_kernel_mod
 
 use constants_mod,           only: i_def, r_def
 use kernel_mod,              only: kernel_type
-use argument_mod,            only: arg_type, func_type,             &
-                                   GH_OPERATOR, GH_FIELD,           &
-                                   GH_READ, GH_WRITE,               &
-                                   ANY_SPACE_9,                     &
-                                   GH_BASIS, GH_DIFF_BASIS,         &
-                                   CELLS, GH_QUADRATURE_XYoZ,       &
-                                   ANY_DISCONTINUOUS_SPACE_3
+use argument_mod,            only: arg_type, func_type,       &
+                                   GH_OPERATOR, GH_FIELD,     &
+                                   GH_READ, GH_WRITE,         &
+                                   GH_REAL, ANY_SPACE_9,      &
+                                   ANY_DISCONTINUOUS_SPACE_3, &
+                                   GH_BASIS, GH_DIFF_BASIS,   &
+                                   CELL_COLUMN, GH_QUADRATURE_XYoZ
 use fs_continuity_mod,       only: W2
 
 use coordinate_jacobian_mod, only: coordinate_jacobian
@@ -37,22 +37,23 @@ use cross_product_mod,       only: cross_product
 
 implicit none
 private
+
 !-------------------------------------------------------------------------------
 ! Public types
 !-------------------------------------------------------------------------------
 
 type, public, extends(kernel_type) :: compute_coriolis_matrix_kernel_type
   private
-  type(arg_type) :: meta_args(3) = (/                                &
-      arg_type(GH_OPERATOR, GH_WRITE, W2, W2),                       &
-      arg_type(GH_FIELD*3,  GH_READ,  ANY_SPACE_9),                  &
-      arg_type(GH_FIELD,    GH_READ,  ANY_DISCONTINUOUS_SPACE_3)     &
+  type(arg_type) :: meta_args(3) = (/                                      &
+       arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W2, W2),                   &
+       arg_type(GH_FIELD*3,  GH_REAL, GH_READ,  ANY_SPACE_9),              &
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
        /)
-  type(func_type) :: meta_funcs(2) = (/                              &
-      func_type(W2, GH_BASIS),                                       &
-      func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                &
+  type(func_type) :: meta_funcs(2) = (/                                    &
+       func_type(W2,          GH_BASIS),                                   &
+       func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                     &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_QUADRATURE_XYoZ
 contains
   procedure, nopass :: compute_coriolis_matrix_code
@@ -61,7 +62,7 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public compute_coriolis_matrix_code
+public :: compute_coriolis_matrix_code
 contains
 
 !> @brief Compute the Coriolis operator to apply the rotation vector Omega to
@@ -70,7 +71,7 @@ contains
 !! @param[in] cell     Identifying number of cell.
 !! @param[in] nlayers  Number of layers.
 !! @param[in] ncell_3d ncell*ndf
-!! @param[inout] mm    Local stencil or Coriolis operator.
+!! @param[in,out] mm   Local stencil or Coriolis operator.
 !! @param[in] chi_sph_1 1st coordinate in spherical Wchi
 !! @param[in] chi_sph_2 2nd coordinate in spherical Wchi
 !! @param[in] chi_sph_3 3rd coordinate in spherical Wchi

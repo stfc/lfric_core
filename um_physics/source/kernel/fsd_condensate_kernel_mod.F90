@@ -7,9 +7,10 @@
 
 module fsd_condensate_kernel_mod
 
-use argument_mod,         only: arg_type,                     &
-                                GH_FIELD, GH_READ, GH_WRITE,  &
-                                GH_READWRITE, CELLS,          &
+use argument_mod,         only: arg_type,              &
+                                GH_FIELD, GH_REAL,     &
+                                GH_READ, GH_READWRITE, &
+                                GH_WRITE, CELL_COLUMN, &
                                 ANY_DISCONTINUOUS_SPACE_1
 use fs_continuity_mod,    only: WTHETA, W3
 use kernel_mod,           only: kernel_type
@@ -29,20 +30,21 @@ private
 
 type, public, extends(kernel_type) :: fsd_condensate_kernel_type
   private
-  type(arg_type) :: meta_args(6) = (/                              &
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                   & ! sigma_qcw
-       arg_type(GH_FIELD,   GH_WRITE,   ANY_DISCONTINUOUS_SPACE_1),& ! f_arr_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                   & ! acf_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                   & ! cca_wth
-       arg_type(GH_FIELD,   GH_READ,    W3),                       & ! height_w3
-       arg_type(GH_FIELD,   GH_READ,    WTHETA)                    & ! delta
+  type(arg_type) :: meta_args(6) = (/                                   &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                   & ! sigma_qcw
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1),& ! f_arr_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                   & ! acf_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                   & ! cca_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                       & ! height_w3
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA)                    & ! delta
        /)
-   integer :: iterates_over = CELLS
+   integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: fsd_condensate_code
 end type
 
-public fsd_condensate_code
+public :: fsd_condensate_code
+
 contains
 
 !> @brief Calculates fractional standard deviation (FSD) of condensate
@@ -87,8 +89,8 @@ subroutine fsd_condensate_code( nlayers,                    &
     ! UM modules
     !---------------------------------------
 
-    use rad_input_mod, only: two_d_fsd_factor ! Condensate variability is 
-    ! parametrized using an empirical function fitting it to one-dimensional 
+    use rad_input_mod, only: two_d_fsd_factor ! Condensate variability is
+    ! parametrized using an empirical function fitting it to one-dimensional
     ! data. The two_d_fsd_factor rescales this value to make it representative
     ! of two-dimensional varibility. See Hill et al (2015) DOI: 10.1002/qj.2506
 
@@ -123,13 +125,13 @@ subroutine fsd_condensate_code( nlayers,                    &
     if (use_fsd_eff_res) then
       ! Use a fixed effective resolution in FSD parametrization.
       do k = 1, nlayers
-        x_in_km(k) = fsd_eff_lam * radius * m_to_km 
+        x_in_km(k) = fsd_eff_lam * radius * m_to_km
       end do
     else
       ! Use edge length as measure of horizontal distance in FSD parametrization
       ! (and convert from m to km).
       do k = 1, nlayers
-        x_in_km(k) = delta(map_wth(1) + k) * m_to_km 
+        x_in_km(k) = delta(map_wth(1) + k) * m_to_km
       end do
     end if
 

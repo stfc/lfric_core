@@ -7,9 +7,11 @@
 
 module spectral_gwd_kernel_mod
 
-  use argument_mod,             only: arg_type,                    &
-                                      GH_FIELD, GH_READ, GH_WRITE, &
-                                      CELLS, ANY_DISCONTINUOUS_SPACE_1
+  use argument_mod,             only: arg_type,          &
+                                      GH_FIELD, GH_REAL, &
+                                      GH_READ, GH_WRITE, &
+                                      CELL_COLUMN,       &
+                                      ANY_DISCONTINUOUS_SPACE_1
   use constants_mod,            only: r_def, i_def, r_um, i_um
   use fs_continuity_mod,        only: W3, Wtheta
   use kernel_mod,               only: kernel_type
@@ -26,21 +28,21 @@ module spectral_gwd_kernel_mod
   !>
   type, public, extends(kernel_type) :: spectral_gwd_kernel_type
     private
-    type(arg_type) :: meta_args(12) = (/                           &
-        arg_type(GH_FIELD,   GH_WRITE, W3),                        & ! du_spectral_gwd, u wind increment
-        arg_type(GH_FIELD,   GH_WRITE, W3),                        & ! dv_spectral_gwd, v wind increment
-        arg_type(GH_FIELD,   GH_WRITE, Wtheta),                    & ! dtemp_spectral_gwd, temperature increment
-        arg_type(GH_FIELD,   GH_READ,  W3),                        & ! u1_in_w3
-        arg_type(GH_FIELD,   GH_READ,  W3),                        & ! u2_in_w3
-        arg_type(GH_FIELD,   GH_READ,  W3),                        & ! wetrho_in_w3, wet density in w3
-        arg_type(GH_FIELD,   GH_READ,  Wtheta),                    & ! exner_in_wth
-        arg_type(GH_FIELD,   GH_READ,  Wtheta),                    & ! theta, theta in wtheta
-        arg_type(GH_FIELD,   GH_READ,  W3),                        & ! height_w3
-        arg_type(GH_FIELD,   GH_READ,  Wtheta),                    & ! height_wtheta
-        arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & ! totalppn
-        arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_1)  & ! latitude
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(12) = (/                                   &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3),                        & ! du_spectral_gwd, u wind increment
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3),                        & ! dv_spectral_gwd, v wind increment
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, Wtheta),                    & ! dtemp_spectral_gwd, temperature increment
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                        & ! u1_in_w3
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                        & ! u2_in_w3
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                        & ! wetrho_in_w3, wet density in w3
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! exner_in_wth
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! theta, theta in wtheta
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                        & ! height_w3
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! height_wtheta
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & ! totalppn
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1)  & ! latitude
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: spectral_gwd_code
   end type
@@ -48,37 +50,37 @@ module spectral_gwd_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public spectral_gwd_code
+  public :: spectral_gwd_code
 
 contains
 
-!> @brief Call the UM spectral gravity wave drag scheme
-!> @details This code calls the UM USSP spectral gravity wave drag scheme, which
-!>          calculates the zonal and meridional winds and temperature increments
-!>          from parametrized non-orographic gravity wave drag.
-!> @param[in]  nlayers            Integer the number of layers
-!> @param[out] du_spectral_gwd    'Zonal' wind increment from spectral gravity wave drag
-!> @param[out] dv_spectral_gwd    'Meridional' wind increment from spectral gravity wave drag
-!> @param[out] dtemp_spectral_gwd Theta increment from spectral gravity wave drag
-!> @param[in]  u1_in_w3           'Zonal' wind in density space
-!> @param[in]  u2_in_w3           'Meridional' wind in density space
-!> @param[in]  wetrho_in_w3       Wet density in density space
-!> @param[in]  exner              Exner pressure in density space
-!> @param[in]  theta_in_wth       Theta in density space
-!> @param[in]  height_w3          Height of theta space levels above surface
-!> @param[in]  height_wtheta      Height of density space levels above surface
-!> @param[in]  totalppn_2d        Total precipitation from twod fields
-!> @param[in]  latitude           Latitude field
-!> @param[in]  ndf_w3             Number of degrees of freedom per cell for density space
-!> @param[in]  undf_w3            Number unique of degrees of freedom  for density space
-!> @param[in]  map_w3             Dofmap for the cell at the base of the column for density space
-!> @param[in]  ndf_wth            Number of degrees of freedom per cell for potential temperature space
-!> @param[in]  undf_wth           Number unique of degrees of freedom  for potential temperature space
-!> @param[in]  map_wth            Dofmap for the cell at the base of the column for potential temperature space
-!> @param[in]  ndf_2d             Number of degrees of freedom per cell for 2D fields
-!> @param[in]  undf_2d            Number unique of degrees of freedom  for 2D fields
-!> @param[in]  map_2d             Dofmap for the cell at the base of the column for 2D fields
-!>
+  !> @brief Call the UM spectral gravity wave drag scheme
+  !> @details This code calls the UM USSP spectral gravity wave drag scheme, which
+  !>          calculates the zonal and meridional winds and temperature increments
+  !>          from parametrized non-orographic gravity wave drag.
+  !> @param[in]     nlayers            Integer the number of layers
+  !> @param[in,out] du_spectral_gwd    'Zonal' wind increment from spectral gravity wave drag
+  !> @param[in,out] dv_spectral_gwd    'Meridional' wind increment from spectral gravity wave drag
+  !> @param[in,out] dtemp_spectral_gwd Theta increment from spectral gravity wave drag
+  !> @param[in]     u1_in_w3           'Zonal' wind in density space
+  !> @param[in]     u2_in_w3           'Meridional' wind in density space
+  !> @param[in]     wetrho_in_w3       Wet density in density space
+  !> @param[in]     exner              Exner pressure in density space
+  !> @param[in]     theta_in_wth       Theta in density space
+  !> @param[in]     height_w3          Height of theta space levels above surface
+  !> @param[in]     height_wtheta      Height of density space levels above surface
+  !> @param[in]     totalppn_2d        Total precipitation from twod fields
+  !> @param[in]     latitude           Latitude field
+  !> @param[in]     ndf_w3             Number of degrees of freedom per cell for density space
+  !> @param[in]     undf_w3            Number unique of degrees of freedom  for density space
+  !> @param[in]     map_w3             Dofmap for the cell at the base of the column for density space
+  !> @param[in]     ndf_wth            Number of degrees of freedom per cell for potential temperature space
+  !> @param[in]     undf_wth           Number unique of degrees of freedom  for potential temperature space
+  !> @param[in]     map_wth            Dofmap for the cell at the base of the column for potential temperature space
+  !> @param[in]     ndf_2d             Number of degrees of freedom per cell for 2D fields
+  !> @param[in]     undf_2d            Number unique of degrees of freedom  for 2D fields
+  !> @param[in]     map_2d             Dofmap for the cell at the base of the column for 2D fields
+  !>
   subroutine spectral_gwd_code(nlayers, du_spectral_gwd, dv_spectral_gwd,    &
                                dtemp_spectral_gwd, u1_in_w3, u2_in_w3,       &
                                wetrho_in_w3, exner_in_wth, theta_in_wth,     &
@@ -100,12 +102,12 @@ contains
 
     ! Arguments
 
-    integer, intent(in) :: nlayers
-    integer, intent(in) :: ndf_w3, ndf_wth, ndf_2d
-    integer, intent(in) :: undf_w3, undf_wth, undf_2d
-    integer, intent(in), dimension(ndf_w3)  :: map_w3
-    integer, intent(in), dimension(ndf_wth) :: map_wth
-    integer, intent(in), dimension(ndf_2d)  :: map_2d
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w3, ndf_wth, ndf_2d
+    integer(kind=i_def), intent(in) :: undf_w3, undf_wth, undf_2d
+    integer(kind=i_def), intent(in), dimension(ndf_w3)  :: map_w3
+    integer(kind=i_def), intent(in), dimension(ndf_wth) :: map_wth
+    integer(kind=i_def), intent(in), dimension(ndf_2d)  :: map_2d
 
     real(kind=r_def), intent(inout), dimension(undf_w3)  :: du_spectral_gwd
     real(kind=r_def), intent(inout), dimension(undf_w3)  :: dv_spectral_gwd

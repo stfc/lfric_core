@@ -10,9 +10,9 @@ module dg_matrix_vector_kernel_mod
   use argument_mod,  only : arg_type,                  &
                             GH_FIELD, GH_OPERATOR,     &
                             GH_READ, GH_WRITE,         &
-                            ANY_SPACE_1,               &
+                            GH_REAL, ANY_SPACE_1,      &
                             ANY_DISCONTINUOUS_SPACE_1, &
-                            CELLS
+                            CELL_COLUMN
 
   implicit none
 
@@ -24,12 +24,13 @@ module dg_matrix_vector_kernel_mod
 
   type, public, extends(kernel_type) :: dg_matrix_vector_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                                         &
-        arg_type(GH_FIELD,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_1),             &
-        arg_type(GH_FIELD,    GH_READ,  ANY_SPACE_1),                           &
-        arg_type(GH_OPERATOR, GH_READ,  ANY_DISCONTINUOUS_SPACE_1, ANY_SPACE_1) &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(3) = (/                                       &
+         arg_type(GH_FIELD,    GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  ANY_SPACE_1),               &
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1,  &
+                                                  ANY_SPACE_1)                &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: dg_matrix_vector_code
   end type
@@ -37,7 +38,7 @@ module dg_matrix_vector_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public dg_matrix_vector_code
+  public :: dg_matrix_vector_code
 
 contains
 

@@ -12,16 +12,19 @@
 !>
 module exner_gradient_kernel_mod
 
-  use argument_mod,      only : arg_type, func_type,            &
-                                GH_FIELD, GH_READ, GH_INC,      &
-                                GH_BASIS, GH_DIFF_BASIS, CELLS, &
-                                GH_QUADRATURE_XYoZ
+  use argument_mod,      only : arg_type, func_type,     &
+                                GH_FIELD, GH_REAL,       &
+                                GH_READ, GH_INC,         &
+                                GH_BASIS, GH_DIFF_BASIS, &
+                                CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2, W3, Wtheta
   use kernel_mod,        only : kernel_type
   use planet_config_mod, only : cp
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -31,26 +34,26 @@ module exner_gradient_kernel_mod
   !>
   type, public, extends(kernel_type) :: exner_gradient_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/            &
-        arg_type(GH_FIELD,   GH_INC,  W2),         &
-        arg_type(GH_FIELD,   GH_READ, W3),         &
-        arg_type(GH_FIELD,   GH_READ, Wtheta) &
-        /)
-    type(func_type) :: meta_funcs(3) = (/               &
-        func_type(W2,     GH_BASIS, GH_DIFF_BASIS),     &
-        func_type(W3,     GH_BASIS),                    &
-        func_type(Wtheta, GH_BASIS, GH_DIFF_BASIS)      &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(3) = (/               &
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  W2),    &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, W3),    &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta) &
+         /)
+    type(func_type) :: meta_funcs(3) = (/             &
+         func_type(W2,     GH_BASIS, GH_DIFF_BASIS),  &
+         func_type(W3,     GH_BASIS),                 &
+         func_type(Wtheta, GH_BASIS, GH_DIFF_BASIS)   &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
-    procedure, nopass ::exner_gradient_code
+    procedure, nopass :: exner_gradient_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public exner_gradient_code
+  public :: exner_gradient_code
 
 contains
 
@@ -60,8 +63,9 @@ contains
 !! @param[in] undf_w2 Number of unique degrees of freedom  for w2
 !! @param[in] map_w2 Dofmap for the cell at the base of the column for w2
 !! @param[in] w2_basis Basis functions evaluated at quadrature points
-!! @param[in] w2_diff_basis Differntial of the basis functions evaluated at  quadrature points
-!! @param[inout] r_u Right hand side of the momentum equation
+!! @param[in] w2_diff_basis Differential of the basis functions evaluated
+!!                          at quadrature points
+!! @param[in,out] r_u Right hand side of the momentum equation
 !! @param[in] ndf_w3 Number of degrees of freedom per cell for w3
 !! @param[in] undf_w3 Number of unique degrees of freedom  for w3
 !! @param[in] map_w3 Dofmap for the cell at the base of the column for w3
@@ -71,7 +75,8 @@ contains
 !! @param[in] undf_wtheta Number of unique degrees of freedom  for wtheta
 !! @param[in] map_wtheta Integer Dofmap for the cell at the base of the column for wtheta
 !! @param[in] wtheta_basis Basis functions evaluated at gaussian quadrature points
-!! @param[in] wtheta_diff_basis Differntial of the basis functions evaluated at gaussian quadrature point
+!! @param[in] wtheta_diff_basis Differential of the basis functions evaluated
+!!                              at gaussian quadrature point
 !! @param[in] theta Potential temperature
 !! @param[in] nqp_h Number of quadrature points in the horizontal
 !! @param[in] nqp_v Number of quadrature points in the vertical
@@ -87,6 +92,7 @@ subroutine exner_gradient_code(nlayers,                                         
                                )
 
   implicit none
+
   ! Arguments
   integer(kind=i_def), intent(in) :: nlayers,nqp_h, nqp_v
   integer(kind=i_def), intent(in) :: ndf_wtheta, ndf_w2, ndf_w3
@@ -109,7 +115,7 @@ subroutine exner_gradient_code(nlayers,                                         
   real(kind=r_def), dimension(nqp_h), intent(in) ::  wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in) ::  wqp_v
 
-  !Internal variables
+  ! Internal variables
   integer(kind=i_def) :: df, k
   integer(kind=i_def) :: qp1, qp2
 
@@ -151,7 +157,7 @@ subroutine exner_gradient_code(nlayers,                                         
           v  = w2_basis(:,df,qp1,qp2)
           dv = w2_diff_basis(1,df,qp1,qp2)
 
-!exner gradient term
+! Exner gradient term
           grad_term = cp*exner_at_quad * (                           &
                       theta_at_quad * dv                             &
                     + dot_product( grad_theta_at_quad(:),v)          &

@@ -17,15 +17,17 @@
 module columnwise_op_asm_m2v_lumped_inv_kernel_mod
 
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,                    &
-                                    GH_OPERATOR, GH_COLUMNWISE_OPERATOR,    &
-                                    GH_READ, GH_WRITE,                      &
-                                    ANY_SPACE_1,                            &
-                                    CELLS
+use argument_mod,            only : arg_type,                            &
+                                    GH_OPERATOR, GH_COLUMNWISE_OPERATOR, &
+                                    GH_REAL, GH_READ, GH_WRITE,          &
+                                    ANY_SPACE_1,                         &
+                                    CELL_COLUMN
 
 use constants_mod,           only : r_def, i_def
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -33,12 +35,12 @@ implicit none
 
 type, public, extends(kernel_type) :: columnwise_op_asm_m2v_lumped_inv_kernel_type
   private
-  type(arg_type) :: meta_args(2) = (/                                       &
-       arg_type(GH_OPERATOR,           GH_READ,  ANY_SPACE_1, ANY_SPACE_1), &
+  type(arg_type) :: meta_args(2) = (/                                                 &
+       arg_type(GH_OPERATOR,            GH_REAL, GH_READ,  ANY_SPACE_1, ANY_SPACE_1), &
        ! NOT CURRENTLY SUPPORTED BY PSY
-       arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_1) &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_WRITE, ANY_SPACE_1, ANY_SPACE_1)  &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: columnwise_op_asm_m2v_lumped_inv_kernel_code
 end type
@@ -46,7 +48,8 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public columnwise_op_asm_m2v_lumped_inv_kernel_code
+public :: columnwise_op_asm_m2v_lumped_inv_kernel_code
+
 contains
 
 !> @brief The subroutine which is called directly from the PSY layer and
@@ -55,20 +58,20 @@ contains
 !> vertical velocity mass matrix, assemble the columnwise matrix
 !> which represents the inverse lumped mass matrix
 !>
-!> @param [in]  cell Horizontal cell index
-!> @param [in]  nlayers Number of vertical layers
-!> @param [in]  ncell_2d Number of cells in 2d grid
-!> @param [in]  ncell_3d Total number of cells
-!> @param [in]  local_stencil Locally assembled matrix
-!> @param [in,out] columnwise_matrix Banded matrix to assemble into
-!> @param [in]  nrow Number of rows (and columns) in the banded matrix
-!> @param [in]  bandwidth Bandwidth of the banded matrix
-!> @param [in]  alpha Banded matrix parameter \f$\alpha=1\f$
-!> @param [in]  beta Banded matrix parameter \f$\beta=1\f$
-!> @param [in]  gamma_m Banded matrix parameter \f$\gamma_-=0\f$
-!> @param [in]  gamma_p Banded matrix parameter \f$\gamma_+=0\f$
-!> @param [in]  ndf Number of degrees of freedom per cell for the function space
-!> @param [in]  column_banded_dofmap List of offsets for function space
+!> @param[in]  cell Horizontal cell index
+!> @param[in]  nlayers Number of vertical layers
+!> @param[in]  ncell_2d Number of cells in 2d grid
+!> @param[in]  ncell_3d Total number of cells
+!> @param[in]  local_stencil Locally assembled matrix
+!> @param[in,out] columnwise_matrix Banded matrix to assemble into
+!> @param[in]  nrow Number of rows (and columns) in the banded matrix
+!> @param[in]  bandwidth Bandwidth of the banded matrix
+!> @param[in]  alpha Banded matrix parameter \f$\alpha=1\f$
+!> @param[in]  beta Banded matrix parameter \f$\beta=1\f$
+!> @param[in]  gamma_m Banded matrix parameter \f$\gamma_-=0\f$
+!> @param[in]  gamma_p Banded matrix parameter \f$\gamma_+=0\f$
+!> @param[in]  ndf Number of degrees of freedom per cell for the function space
+!> @param[in]  column_banded_dofmap List of offsets for function space
 subroutine columnwise_op_asm_m2v_lumped_inv_kernel_code(cell,                    &
                                                         nlayers,                 &
                                                         ncell_2d,                &

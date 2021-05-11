@@ -6,14 +6,17 @@
 
 module scaled_matrix_vector_kernel_mod
 
-  use argument_mod,      only : arg_type,                               &
-                                GH_FIELD, GH_OPERATOR, GH_READ, GH_INC, &
-                                CELLS
+  use argument_mod,      only : arg_type,              &
+                                GH_FIELD, GH_OPERATOR, &
+                                GH_READ, GH_INC,       &
+                                GH_REAL, CELL_COLUMN
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2, W3
   use kernel_mod,        only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -21,14 +24,14 @@ module scaled_matrix_vector_kernel_mod
 
   type, public, extends(kernel_type) :: scaled_matrix_vector_kernel_type
     private
-    type(arg_type) :: meta_args(5) = (/         &
-        arg_type(GH_FIELD,    GH_INC,  W2),     &
-        arg_type(GH_FIELD,    GH_READ, W3),     &
-        arg_type(GH_OPERATOR, GH_READ, W2, W3), &
-        arg_type(GH_FIELD,    GH_READ, W2),     &
-        arg_type(GH_FIELD,    GH_READ, W2)      &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(5) = (/                   &
+         arg_type(GH_FIELD,    GH_REAL, GH_INC,  W2),     &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ, W3),     &
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ, W2, W3), &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ, W2),     &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ, W2)      &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: scaled_matrix_vector_code
   end type
@@ -36,7 +39,7 @@ module scaled_matrix_vector_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public scaled_matrix_vector_code
+  public :: scaled_matrix_vector_code
 
 contains
 
@@ -44,7 +47,7 @@ contains
 !>        and y is a field in the same space as lhs
 !> @param[in] cell Horizontal cell index
 !! @param[in] nlayers Number of layers
-!> @param[inout] lhs Output lhs (A*x)
+!> @param[in,out] lhs Output lhs (A*x)
 !! @param[in] x Input data
 !! @param[in] ncell_3d Total number of cells
 !! @param[in] matrix Local matrix assembly form of the operator A

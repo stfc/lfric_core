@@ -17,9 +17,10 @@
 module poly1d_vert_adv_kernel_mod
 
 use argument_mod,         only : arg_type, func_type,   &
-                                 GH_FIELD, GH_INTEGER,  &
+                                 GH_FIELD, GH_SCALAR,   &
+                                 GH_REAL, GH_INTEGER,   &
                                  GH_READWRITE, GH_READ, &
-                                 GH_BASIS, CELLS, GH_EVALUATOR
+                                 GH_BASIS, CELL_COLUMN, GH_EVALUATOR
 use constants_mod,        only : r_def, i_def
 use fs_continuity_mod,    only : W2, Wtheta
 use kernel_mod,           only : kernel_type
@@ -34,36 +35,36 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the PSy layer
 type, public, extends(kernel_type) :: poly1d_vert_adv_kernel_type
   private
-  type(arg_type) :: meta_args(6) = (/                                  &
-       arg_type(GH_FIELD,   GH_READWRITE, Wtheta),                     &
-       arg_type(GH_FIELD,   GH_READ,      W2),                         &
-       arg_type(GH_FIELD,   GH_READ,      Wtheta),                     &
-       arg_type(GH_FIELD,   GH_READ,      Wtheta),                     &
-       arg_type(GH_INTEGER, GH_READ),                                  &
-       arg_type(GH_INTEGER, GH_READ)                                   &
+  type(arg_type) :: meta_args(6) = (/                         &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, Wtheta), &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W2),     &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta), &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta), &
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ),              &
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ)               &
        /)
-  type(func_type) :: meta_funcs(1) = (/                                &
-       func_type(W2, GH_BASIS)                                         &
+  type(func_type) :: meta_funcs(1) = (/                       &
+       func_type(W2, GH_BASIS)                                &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: poly1d_vert_adv_code
 end type
 
 type, public, extends(kernel_type) :: poly1d_vert_adv_old_kernel_type
   private
-  type(arg_type) :: meta_args(6) = (/                                  &
-       arg_type(GH_FIELD,   GH_READWRITE, Wtheta),                     &
-       arg_type(GH_FIELD,   GH_READ,      W2),                         &
-       arg_type(GH_FIELD,   GH_READ,      Wtheta),                     &
-       arg_type(GH_FIELD,   GH_READ,      Wtheta),                     &
-       arg_type(GH_INTEGER, GH_READ),                                  &
-       arg_type(GH_INTEGER, GH_READ)                                   &
+  type(arg_type) :: meta_args(6) = (/                         &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, Wtheta), &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W2),     &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta), &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta), &
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ),              &
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ)               &
        /)
-  type(func_type) :: meta_funcs(1) = (/                                &
-       func_type(W2, GH_BASIS)                                         &
+  type(func_type) :: meta_funcs(1) = (/                       &
+       func_type(W2, GH_BASIS)                                &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: poly1d_vert_adv_old_code
 end type
@@ -71,8 +72,8 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public poly1d_vert_adv_code
-public poly1d_vert_adv_old_code
+public :: poly1d_vert_adv_code
+public :: poly1d_vert_adv_old_code
 
 contains
 

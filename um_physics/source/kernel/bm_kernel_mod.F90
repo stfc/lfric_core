@@ -7,9 +7,10 @@
 !>
 module bm_kernel_mod
 
-  use argument_mod,       only : arg_type,                        &
-                                 GH_FIELD, GH_READ, GH_READWRITE, &
-                                 CELLS, GH_WRITE
+  use argument_mod,       only : arg_type,              &
+                                 GH_FIELD, GH_REAL,     &
+                                 GH_READ, GH_READWRITE, &
+                                 GH_WRITE, CELL_COLUMN
   use constants_mod,      only : r_def, r_double, i_def, i_um, r_um
   use fs_continuity_mod,  only : W3, Wtheta
   use kernel_mod,         only : kernel_type
@@ -22,98 +23,98 @@ module bm_kernel_mod
   !>
   type, public, extends(kernel_type) :: bm_kernel_type
     private
-    type(arg_type) :: meta_args(20) = (/                                &
-        arg_type(GH_FIELD,   GH_READ,       WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READ,       W3),                        &
-        arg_type(GH_FIELD,   GH_READ,       WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READ,       WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READ,       WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READ,       WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READ,       WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READ,       WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READ,       WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA),                    &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA),                    &
-        arg_type(GH_FIELD,   GH_WRITE,      WTHETA),                    &
-        arg_type(GH_FIELD,   GH_WRITE,      WTHETA),                    &
-        arg_type(GH_FIELD,   GH_WRITE,      WTHETA),                    &
-        arg_type(GH_FIELD,   GH_WRITE,      WTHETA)                     &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(20) = (/                    &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA), & ! theta_in_wth
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      W3),     & ! exner_in_w3
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA), & ! exner_in_wth
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA), & ! dsldzm
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA), & ! wvar
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA), & ! tau_dec_bm
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA), & ! tau_hom_bm
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA), & ! tau_mph_bm
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA), & ! height_wth
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA), & ! m_v
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA), & ! m_cl
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA), & ! m_ci
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA), & ! cf_area
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA), & ! cf_ice
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA), & ! cf_liq
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA), & ! cf_bulk
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE,     WTHETA), & ! sskew_bm
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE,     WTHETA), & ! svar_bm
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE,     WTHETA), & ! svar_tb
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE,     WTHETA)  & ! theta_inc
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: bm_code
   end type
 
-  public bm_code
+  public :: bm_code
 
 contains
 
-!> @brief Interface to the bimodal cloud scheme
-!> @details The UM large-scale cloud scheme:
-!>          determines the fraction of the grid-box that is covered by ice and
-!>          liquid cloud and the amount of liquid condensate present in those clouds.
-!>          Here there is an interface to the bimodal cloud scheme. Which is the
-!>          scheme described in UMDP 39.
-!> @param[in]     nlayers       Number of layers
-!> @param[in]     theta_in_wth  Predicted theta in its native space
-!> @param[in]     exner_in_w3   Pressure in the w3 space
-!> @param[in]     exner_in_wth  Exner Pressure in the theta space
-!> @param[in]     dsldzm        Liquid potential temperature gradient in wth 
-!> @param[in]     wvar          Vertical velocity variance in wth
-!> @param[in]     tau_dec_bm    Decorrelation time scale in wth
-!> @param[in]     tau_hom_bm    Homogenisation time scale in wth
-!> @param[in]     tau_mph_bm    Phase-relaxation time scale in wth
-!> @param[in]     height_wth    Theta-level height in wth
-!> @param[in,out] m_v           Vapour mixing ratio in wth
-!> @param[in,out] m_cl          Cloud liquid mixing ratio in wth
-!> @param[in,out] m_ci          Ice liquid mixing ratio in wth
-!> @param[in,out] cf_area       Area cloud fraction
-!> @param[in,out] cf_ice        Ice cloud fraction
-!> @param[in,out] cf_liq        Liquid cloud fraction
-!> @param[in,out] cf_bulk       Bulk cloud fraction
-!> @param[in,out] sskew_bm      Bimodal skewness of SD PDF
-!> @param[in,out] svar_bm       Bimodal variance of SD PDF
-!> @param[in,out] svar_tb       Unimodal variance of SD PDF
-!> @param[in,out] theta_inc     Increment to theta
-!> @param[in]     ndf_wth       Number of degrees of freedom per cell for potential temperature space
-!> @param[in]     undf_wth      Number unique of degrees of freedom  for potential temperature space
-!> @param[in]     map_wth       Dofmap for the cell at the base of the column for potential temperature space
-!> @param[in]     ndf_w3        Number of degrees of freedom per cell for density space
-!> @param[in]     undf_w3       Number unique of degrees of freedom  for density space
-!> @param[in]     map_w3        Dofmap for the cell at the base of the column for density space
+  !> @brief Interface to the bimodal cloud scheme
+  !> @details The UM large-scale cloud scheme:
+  !>          determines the fraction of the grid-box that is covered by ice and
+  !>          liquid cloud and the amount of liquid condensate present in those clouds.
+  !>          Here there is an interface to the bimodal cloud scheme. Which is the
+  !>          scheme described in UMDP 39.
+  !> @param[in]     nlayers       Number of layers
+  !> @param[in]     theta_in_wth  Predicted theta in its native space
+  !> @param[in]     exner_in_w3   Pressure in the w3 space
+  !> @param[in]     exner_in_wth  Exner Pressure in the theta space
+  !> @param[in]     dsldzm        Liquid potential temperature gradient in wth
+  !> @param[in]     wvar          Vertical velocity variance in wth
+  !> @param[in]     tau_dec_bm    Decorrelation time scale in wth
+  !> @param[in]     tau_hom_bm    Homogenisation time scale in wth
+  !> @param[in]     tau_mph_bm    Phase-relaxation time scale in wth
+  !> @param[in]     height_wth    Theta-level height in wth
+  !> @param[in,out] m_v           Vapour mixing ratio in wth
+  !> @param[in,out] m_cl          Cloud liquid mixing ratio in wth
+  !> @param[in,out] m_ci          Ice liquid mixing ratio in wth
+  !> @param[in,out] cf_area       Area cloud fraction
+  !> @param[in,out] cf_ice        Ice cloud fraction
+  !> @param[in,out] cf_liq        Liquid cloud fraction
+  !> @param[in,out] cf_bulk       Bulk cloud fraction
+  !> @param[in,out] sskew_bm      Bimodal skewness of SD PDF
+  !> @param[in,out] svar_bm       Bimodal variance of SD PDF
+  !> @param[in,out] svar_tb       Unimodal variance of SD PDF
+  !> @param[in,out] theta_inc     Increment to theta
+  !> @param[in]     ndf_wth       Number of degrees of freedom per cell for potential temperature space
+  !> @param[in]     undf_wth      Number unique of degrees of freedom  for potential temperature space
+  !> @param[in]     map_wth       Dofmap for the cell at the base of the column for potential temperature space
+  !> @param[in]     ndf_w3        Number of degrees of freedom per cell for density space
+  !> @param[in]     undf_w3       Number unique of degrees of freedom  for density space
+  !> @param[in]     map_w3        Dofmap for the cell at the base of the column for density space
 
-subroutine bm_code(nlayers,      &
-                    theta_in_wth, &
-                    exner_in_w3,  &
-                    exner_in_wth, &
-                    dsldzm,       &
-                    wvar,         &
-                    tau_dec_bm,   &
-                    tau_hom_bm,   &
-                    tau_mph_bm,   &
-                    height_wth,   &
-                    m_v,          &
-                    m_cl,         &
-                    m_ci,         &
-                    cf_area,      &
-                    cf_ice,       &
-                    cf_liq,       &
-                    cf_bulk,      &
-                    theta_inc,    &
-                    sskew_bm,     &
-                    svar_bm,      &
-                    svar_tb,      &
-                    ndf_wth,      &
-                    undf_wth,     &
-                    map_wth,      &
-                    ndf_w3,       &
-                    undf_w3,      &
-                    map_w3)
+  subroutine bm_code(nlayers,      &
+                     theta_in_wth, &
+                     exner_in_w3,  &
+                     exner_in_wth, &
+                     dsldzm,       &
+                     wvar,         &
+                     tau_dec_bm,   &
+                     tau_hom_bm,   &
+                     tau_mph_bm,   &
+                     height_wth,   &
+                     m_v,          &
+                     m_cl,         &
+                     m_ci,         &
+                     cf_area,      &
+                     cf_ice,       &
+                     cf_liq,       &
+                     cf_bulk,      &
+                     theta_inc,    &
+                     sskew_bm,     &
+                     svar_bm,      &
+                     svar_tb,      &
+                     ndf_wth,      &
+                     undf_wth,     &
+                     map_wth,      &
+                     ndf_w3,       &
+                     undf_w3,      &
+                     map_w3)
 
     !---------------------------------------
     ! UM modules
@@ -123,9 +124,9 @@ subroutine bm_code(nlayers,      &
     ! Other modules containing stuff passed to CLD
     use nlsizes_namelist_mod, only: row_length, rows, bl_levels
     use planet_constants_mod, only: p_zero, kappa, cp
-    use water_constants_mod, ONLY: lc
-    use bm_ctl_mod, ONLY: bm_ctl 
-    use gen_phys_inputs_mod, only: l_mr_physics
+    use water_constants_mod,  only: lc
+    use bm_ctl_mod,           only: bm_ctl
+    use gen_phys_inputs_mod,  only: l_mr_physics
 
     implicit none
 
@@ -159,29 +160,29 @@ subroutine bm_code(nlayers,      &
     real(kind=r_def),    intent(inout), dimension(undf_wth) :: svar_tb
 
     ! Local variables for the kernel
-    integer (i_um):: k
+    integer(i_um) :: k
 
     real(r_def) :: dmv1
 
     ! profile fields from level 1 upwards
-    real(r_um), dimension(row_length,rows,nlayers) ::        &
-         cf_inout, cfl_inout, cff_inout, area_cloud_fraction,       &
-         qt, qcl_out, qcf_in, tl, tgrad_in,                  &
+    real(r_um), dimension(row_length,rows,nlayers) ::         &
+         cf_inout, cfl_inout, cff_inout, area_cloud_fraction, &
+         qt, qcl_out, qcf_in, tl, tgrad_in,                   &
          tau_dec_in, tau_hom_in, tau_mph_in, z_theta
 
     real(r_um), dimension(row_length,rows,nlayers) :: wvar_in
 
-    real(r_um), dimension(row_length,rows,nlayers) ::        &
+    real(r_um), dimension(row_length,rows,nlayers) ::         &
       sskew_out, svar_turb_out, svar_bm_out
 
     ! profile fields from level 0 upwards
-    real(r_um), dimension(row_length,rows,0:nlayers) ::      &
+    real(r_um), dimension(row_length,rows,0:nlayers) ::       &
          p_theta_levels
 
     ! error status
-    integer (i_um):: errorstatus
+    integer(i_um) :: errorstatus
 
-    errorstatus=0
+    errorstatus = 0
 
     do k = 1, nlayers
       ! liquid temperature on theta levels
@@ -214,7 +215,7 @@ subroutine bm_code(nlayers,      &
     p_theta_levels(1,1,nlayers) = p_zero*(exner_in_wth(map_wth(1) + nlayers))** &
                     (1.0_r_def/kappa)
 
-    CALL bm_ctl( p_theta_levels, tgrad_in, wvar_in,                   &
+    call bm_ctl( p_theta_levels, tgrad_in, wvar_in,                   &
                  tau_dec_in, tau_hom_in, tau_mph_in, z_theta,         &
                  nlayers, bl_levels, l_mr_physics,                    &
                  tl, cf_inout, qt, qcf_in, qcl_out,                   &
@@ -251,6 +252,6 @@ subroutine bm_code(nlayers,      &
     cf_ice(map_wth(1) + 0)    = cf_ice(map_wth(1) + 1)
     cf_area(map_wth(1) + 0)   = cf_area(map_wth(1) + 1)
 
-end subroutine bm_code
+  end subroutine bm_code
 
 end module bm_kernel_mod

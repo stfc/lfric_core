@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
-!(c) Crown copyright 2020 Met Office. All rights reserved.
-!The file LICENCE, distributed with this code, contains details of the terms
-!under which the code may be used.
+! (c) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
 !-------------------------------------------------------------------------------
 !> @brief Initialise Jules snow fields on snow levels
 !> @details Non-standard Surface fields (pseudo-levels) aren't as yet not
@@ -11,8 +11,10 @@
 !>  suitable infrastructure is available (Ticket #2081)
 module initial_snow_kernel_mod
 
-  use argument_mod,  only: arg_type, GH_FIELD, GH_WRITE, CELLS, &
-       ANY_DISCONTINUOUS_SPACE_1
+  use argument_mod,  only: arg_type,              &
+                           GH_FIELD, GH_REAL,     &
+                           GH_WRITE, CELL_COLUMN, &
+                           ANY_DISCONTINUOUS_SPACE_1
   use constants_mod, only: r_def, i_def
   use kernel_mod,    only: kernel_type
 
@@ -26,27 +28,27 @@ module initial_snow_kernel_mod
   !> Kernel metadata for Psyclone
   type, public, extends(kernel_type) :: initial_snow_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                           &
-         arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)  &
+    type(arg_type) :: meta_args(3) = (/                                    &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)  &
          /)
-    integer :: iterates_over = CELLS
-
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: initial_snow_code
   end type initial_snow_kernel_type
 
-  public initial_snow_code
+  public :: initial_snow_code
+
 contains
 
-  !> @param[in]  nlayers            The number of layers
-  !> @param[out] snow_layer_thickness   Thickness of snow layers (m)
-  !> @param[out] snow_layer_ice_mass    Mass of ice in snow layers (kg m-2)
-  !> @param[out] snow_layer_temp        Temperature of snow layer (K)
-  !> @param[in]  ndf_snow           Number of DOFs per cell for snow
-  !> @param[in]  undf_snow          Number of total DOFs for snow
-  !> @param[in]  map_snow           Dofmap for cell for snow fields
+  !> @param[in]     nlayers              The number of layers
+  !> @param[in,out] snow_layer_thickness Thickness of snow layers (m)
+  !> @param[in,out] snow_layer_ice_mass  Mass of ice in snow layers (kg m-2)
+  !> @param[in,out] snow_layer_temp      Temperature of snow layer (K)
+  !> @param[in]     ndf_snow             Number of DOFs per cell for snow
+  !> @param[in]     undf_snow            Number of total DOFs for snow
+  !> @param[in]     map_snow             Dofmap for cell for snow fields
   subroutine initial_snow_code(nlayers,                       &
                                snow_layer_thickness,          &
                                snow_layer_ice_mass,           &
@@ -64,7 +66,7 @@ contains
     real(kind=r_def), intent(inout) :: snow_layer_ice_mass(undf_snow)
     real(kind=r_def), intent(inout) :: snow_layer_temp(undf_snow)
 
-    !Internal variables
+    ! Internal variables
     integer(kind=i_def) :: i, j, i_snow, indexes(nsmax)
 
     ! Initialise snow prognostics for SCM testing or when no values are

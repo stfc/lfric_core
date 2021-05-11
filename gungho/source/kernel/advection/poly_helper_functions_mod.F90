@@ -16,15 +16,16 @@ implicit none
 
 private
 
-public buildadvcoeff
-public local_distance_2d
-public local_distance_1d
+public :: buildadvcoeff
+public :: local_distance_2d
+public :: local_distance_1d
 
 contains
 
 !=============================================================================!
-!>@brief Build the coefficients used to construct polynomial fits for the advection scheme
-!>@details Build the coefficients used to construct polynomial fits for
+!> @brief Build the coefficients used to construct polynomial fits for the
+!!        advection scheme
+!> @details Build the coefficients used to construct polynomial fits for
 !! advection scheme. The polynomial fit should be exact for
 !! the central cell in the stencil, and the mean square
 !! residual over the other cells should be minimized. This leads to
@@ -32,10 +33,10 @@ contains
 !! and some Lagrange multipliers. Finding the inverse of the matrix
 !! involved allows us to save the matrix that gives the polynomial
 !! coefficients in terms of the cell integrals of the advected quantity./
-!>@param[in,out] int_monomial Matrix containing the integrals of monomials over
-!!               the stencil
-!>@param[in] ns Number of cells in the stencil
-!>@param[in] nmonomial Number of monomials in the polynomial fit
+!> @param[in,out] int_monomial Matrix containing the integrals of monomials
+!!                             over the stencil
+!> @param[in] ns Number of cells in the stencil
+!> @param[in] nmonomial Number of monomials in the polynomial fit
 subroutine buildadvcoeff(int_monomial, ns, nmonomial)
 
   use matrix_invert_mod, only: matrix_invert
@@ -91,13 +92,13 @@ end subroutine buildadvcoeff
 
 !=============================================================================!
 
-  !>@brief Compute the distance between two points x0 & x1
-  !>       in terms of a local coordinate
-  !>@param[in] x0 First point (x,y,z)
-  !>@param[in] x1 Second point (x,y,z)
-  !>@param[in] xn Normal vector used to define local coordinate direction
-  !>@param[in] spherical Switch for spherical or cartesian computation
-  !>@return s Distance between x0 and x1
+  !> @brief Compute the distance between two points x0 & x1
+  !>        in terms of a local coordinate
+  !> @param[in] x0 First point (x,y,z)
+  !> @param[in] x1 Second point (x,y,z)
+  !> @param[in] xn Normal vector used to define local coordinate direction
+  !> @param[in] spherical Switch for spherical or cartesian computation
+  !> @return s Distance between x0 and x1
   function local_distance_2d(x0, x1, xn, spherical) result(s)
     use cross_product_mod,      only: cross_product
     use domain_size_config_mod, only: planar_domain_max_x, &
@@ -149,13 +150,13 @@ end subroutine buildadvcoeff
 
   end function local_distance_2d
 
-  !>@brief Compute the distance between two points x0 & x1
-  !>       in terms of a local coordinate
-  !>@param[in] x0 First point (x,y,z)
-  !>@param[in] x1 Second point (x,y,z)
-  !>@param[in] xn Normal vector used to define local coordinate direction
-  !>@param[in] spherical Switch for spherical or cartesian computation
-  !>@return s Distance between x0 and x1
+  !> @brief Compute the distance between two points x0 & x1
+  !>        in terms of a local coordinate
+  !> @param[in] x0 First point (x,y,z)
+  !> @param[in] x1 Second point (x,y,z)
+  !> @param[in] xn Normal vector used to define local coordinate direction
+  !> @param[in] spherical Switch for spherical or cartesian computation
+  !> @return s Distance between x0 and x1
   function local_distance_1d(x0, x1, xn, spherical) result(s)
     use cross_product_mod,      only: cross_product
     use domain_size_config_mod, only: planar_domain_max_x, &
@@ -205,4 +206,3 @@ end subroutine buildadvcoeff
   end function local_distance_1d
 
 end module poly_helper_functions_mod
-

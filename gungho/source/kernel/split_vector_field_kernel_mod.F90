@@ -10,31 +10,33 @@
 module split_vector_field_kernel_mod
 
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,           &
-                                    GH_FIELD, GH_READ, GH_INC,     &
-                                    GH_BASIS,                      &
-                                    CELLS, GH_EVALUATOR
+use argument_mod,            only : arg_type, func_type, &
+                                    GH_FIELD, GH_REAL,   &
+                                    GH_READ, GH_INC,     &
+                                    GH_BASIS,            &
+                                    CELL_COLUMN, GH_EVALUATOR
 use constants_mod,           only : r_def, i_def, EPS
 use fs_continuity_mod,       only : W2
 
 implicit none
 
 private
+
 !-------------------------------------------------------------------------------
 ! Public types
 !-------------------------------------------------------------------------------
 !> The type declaration for the kernel. Contains the metadata needed by the PSy layer.
 type, public, extends(kernel_type) :: split_vector_field_kernel_type
   private
-  type(arg_type) :: meta_args(3) = (/           &
-       arg_type(GH_FIELD,   GH_INC,  W2),       &
-       arg_type(GH_FIELD,   GH_INC,  W2),       &
-       arg_type(GH_FIELD,   GH_READ, W2)        &
+  type(arg_type) :: meta_args(3) = (/            &
+       arg_type(GH_FIELD, GH_REAL, GH_INC,  W2), &
+       arg_type(GH_FIELD, GH_REAL, GH_INC,  W2), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, W2)  &
        /)
-  type(func_type) :: meta_funcs(1) = (/         &
-       func_type(W2, GH_BASIS)                  &
+  type(func_type) :: meta_funcs(1) = (/          &
+       func_type(W2, GH_BASIS)                   &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_EVALUATOR
 contains
   procedure, nopass :: split_vector_field_code
@@ -43,7 +45,7 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public split_vector_field_code
+public :: split_vector_field_code
 contains
 
 !> @details Split a wind field (uvw) into horizontal (uv) and

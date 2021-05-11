@@ -7,11 +7,12 @@
 
 module pc2_conv_coupling_kernel_mod
 
-use argument_mod, only: arg_type, &
-                        GH_FIELD, GH_READ, GH_READWRITE, CELLS
+use argument_mod,      only: arg_type,              &
+                             GH_FIELD, GH_REAL,     &
+                             GH_READ, GH_READWRITE, &
+                             CELL_COLUMN
 use fs_continuity_mod, only: WTHETA
-
-use kernel_mod,   only: kernel_type
+use kernel_mod,        only: kernel_type
 
 implicit none
 
@@ -24,29 +25,30 @@ private
 
 type, public, extends(kernel_type) :: pc2_conv_coupling_kernel_type
   private
-  type(arg_type) :: meta_args(15) = (/                    &
-       arg_type(GH_FIELD,   GH_READ,        WTHETA),      & ! theta_wth
-       arg_type(GH_FIELD,   GH_READ,        WTHETA),      & ! mv_wth
-       arg_type(GH_FIELD,   GH_READ,        WTHETA),      & ! ml_wth
-       arg_type(GH_FIELD,   GH_READ,        WTHETA),      & ! mi_wth
-       arg_type(GH_FIELD,   GH_READ,        WTHETA),      & ! cfl_wth
-       arg_type(GH_FIELD,   GH_READ,        WTHETA),      & ! cff_wth
-       arg_type(GH_FIELD,   GH_READ,        WTHETA),      & ! bcf_wth
-       arg_type(GH_FIELD,   GH_READ,        WTHETA),      & ! exner_wth
-       arg_type(GH_FIELD,   GH_READWRITE,   WTHETA),      & ! dt_conv_wth
-       arg_type(GH_FIELD,   GH_READWRITE,   WTHETA),      & ! dmv_conv_wth
-       arg_type(GH_FIELD,   GH_READWRITE,   WTHETA),      & ! dmcl_conv_wth
-       arg_type(GH_FIELD,   GH_READWRITE,   WTHETA),      & ! dmcf_conv_wth
-       arg_type(GH_FIELD,   GH_READWRITE,   WTHETA),      & ! dcfl_conv_wth
-       arg_type(GH_FIELD,   GH_READWRITE,   WTHETA),      & ! dcff_conv_wth
-       arg_type(GH_FIELD,   GH_READWRITE,   WTHETA)       & ! dbcf_conv_wth
+  type(arg_type) :: meta_args(15) = (/                         &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA),      & ! theta_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA),      & ! mv_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA),      & ! ml_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA),      & ! mi_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA),      & ! cfl_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA),      & ! cff_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA),      & ! bcf_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA),      & ! exner_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA),      & ! dt_conv_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA),      & ! dmv_conv_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA),      & ! dmcl_conv_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA),      & ! dmcf_conv_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA),      & ! dcfl_conv_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA),      & ! dcff_conv_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA)       & ! dbcf_conv_wth
        /)
-   integer :: iterates_over = CELLS
+   integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: pc2_conv_coupling_code
 end type
 
-public pc2_conv_coupling_code
+public :: pc2_conv_coupling_code
+
 contains
 
 !> @brief Interface to pc2 conv_coupling

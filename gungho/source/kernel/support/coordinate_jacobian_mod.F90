@@ -360,7 +360,7 @@ contains
   !> and the determinant det(J)
   !! @param[in] jac        Jacobian on quadrature points
   !! @param[in] dj         Determinant of the Jacobian
-  !! @result    jac_inv    Inverse of the Jacobian on quadrature points
+  !! @return    jac_inv    Inverse of the Jacobian on quadrature points
   function pointwise_coordinate_jacobian_inverse(jac, dj) result(jac_inv)
     implicit none
 

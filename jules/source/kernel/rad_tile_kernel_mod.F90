@@ -7,16 +7,17 @@
 
 module rad_tile_kernel_mod
 
-use argument_mod,      only : arg_type, func_type,       &
-                              GH_FIELD, GH_READ,         &
-                              GH_WRITE, GH_INC, CELLS,   &
+use argument_mod,      only : arg_type,                  &
+                              GH_FIELD, GH_REAL,         &
+                              GH_READ, GH_WRITE,         &
                               ANY_DISCONTINUOUS_SPACE_1, &
                               ANY_DISCONTINUOUS_SPACE_2, &
                               ANY_DISCONTINUOUS_SPACE_3, &
                               ANY_DISCONTINUOUS_SPACE_4, &
                               ANY_DISCONTINUOUS_SPACE_5, &
                               ANY_DISCONTINUOUS_SPACE_6, &
-                              ANY_DISCONTINUOUS_SPACE_7
+                              ANY_DISCONTINUOUS_SPACE_7, &
+                              CELL_COLUMN
 use fs_continuity_mod, only:  W3, WTheta
 use constants_mod,     only : r_def, i_def, r_um, i_um
 use kernel_mod,        only : kernel_type
@@ -35,35 +36,35 @@ public :: rad_tile_code
 ! Contains the metadata needed by the PSy layer.
 type, extends(kernel_type) :: rad_tile_kernel_type
   private
-  type(arg_type) :: meta_args(26) = (/                          &
-       arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! tile_sw_direct_albedo
-       arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! tile_sw_diffuse_albedo
-       arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), & ! tile_lw_albedo
-       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), & ! tile_fraction
-       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! leaf_area_index
-       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! canopy_height
-       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_5), & ! sd_orog
-       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_5), & ! soil_albedo
-       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_5), & ! soil_roughness
-       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_5), & ! albedo_obs_vis
-       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_5), & ! albedo_obs_nir
-       arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_6), & ! albedo_obs_scaling
-       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), & ! tile_temperature
-       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), & ! tile_snow_mass
-       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), & ! tile_snow_rgrain
-       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), & ! snow_depth
-       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), & ! snowpack_density
-       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_5), & ! snow_soot
-       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_5), & ! chloro_sea
-       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_7), & ! sea_ice_thickness
-       arg_type(GH_FIELD, GH_READ,  W3),                        & ! u1_in_w3
-       arg_type(GH_FIELD, GH_READ,  W3),                        & ! u2_in_w3
-       arg_type(GH_FIELD, GH_READ,  W3),                        & ! height_w3
-       arg_type(GH_FIELD, GH_READ,  WTHETA),                    & ! height_wth
-       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_5), & ! z0msea
-       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_5)  & ! cos_zenith_angle
+  type(arg_type) :: meta_args(26) = (/                                   &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! tile_sw_direct_albedo
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! tile_sw_diffuse_albedo
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), & ! tile_lw_albedo
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), & ! tile_fraction
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! leaf_area_index
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! canopy_height
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_5), & ! sd_orog
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_5), & ! soil_albedo
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_5), & ! soil_roughness
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_5), & ! albedo_obs_vis
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_5), & ! albedo_obs_nir
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_6), & ! albedo_obs_scaling
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), & ! tile_temperature
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), & ! tile_snow_mass
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), & ! tile_snow_rgrain
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), & ! snow_depth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), & ! snowpack_density
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_5), & ! snow_soot
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_5), & ! chloro_sea
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_7), & ! sea_ice_thickness
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                        & ! u1_in_w3
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                        & ! u2_in_w3
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                        & ! height_w3
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! height_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_5), & ! z0msea
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_5)  & ! cos_zenith_angle
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: rad_tile_code
 end type
@@ -73,60 +74,60 @@ end type
 !------------------------------------------------------------------------------
 contains
 
-! @param[in]  nlayers                Number of layers
-! @param[out] tile_sw_direct_albedo  SW direct tile albedos
-! @param[out] tile_sw_diffuse_albedo SW diffuse tile albedos
-! @param[out] tile_lw_albedo         LW tile albedos
-! @param[in]  tile_fraction          Surface tile fractions
-! @param[in]  leaf_area_index        Leaf Area Index
-! @param[in]  canopy_height          Canopy height
-! @param[in]  sd_orog                Standard deviation of orography
-! @param[in]  soil_albedo            Snow-free soil albedo
-! @param[in]  soil_roughness         Bare soil surface roughness length
-! @param[in]  albedo_obs_vis         Observed snow-free visible albedo
-! @param[in]  albedo_obs_nir         Observed snow-free near-IR albedo
-! @param[out] albedo_obs_scaling     Scaling factor to adjust albedos by
-! @param[in]  tile_temperature       Surface tile temperatures
-! @param[in]  tile_snow_mass         Snow mass on tiles (kg/m2)
-! @param[in]  tile_snow_rgrain       Snow grain size on tiles (microns)
-! @param[in]  snow_depth             Snow depth on tiles (m)
-! @param[in]  snowpack_density       Density of snow on ground (kg m-3)
-! @param[in]  snow_soot              Snow soot content (kg/kg)
-! @param[in]  chloro_sea             Chlorophyll content of the sea
-! @param[in]  sea_ice_thickness      Sea ice thickness (m)
-! @param[in]  u1_in_w3               'Zonal' wind in density space
-! @param[in]  u2_in_w3               'Meridional' wind in density space
-! @param[in]  height_w3              Height of w3 levels above mean sea level
-! @param[in]  height_wth             Height of wth levels above mean sea level
-! @param[in]  z0msea                 Roughness length of sea
-! @param[in]  cos_zenith_angle       Cosine of the stellar zenith angle
-! @param[in]  ndf_sw_tile            DOFs per cell for tiles and sw bands
-! @param[in]  undf_sw_tile           total DOFs for tiles and sw bands
-! @param[in]  map_sw_tile            Dofmap for cell at the base of the column
-! @param[in]  ndf_lw_tile            DOFs per cell for tiles and lw bands
-! @param[in]  undf_lw_tile           total DOFs for tiles and lw bands
-! @param[in]  map_lw_tile            Dofmap for cell at the base of the column
-! @param[in]  ndf_tile               Number of DOFs per cell for tiles
-! @param[in]  undf_tile              Number of total DOFs for tiles
-! @param[in]  map_tile               Dofmap for cell at the base of the column
-! @param[in]  ndf_pft                Number of DOFs per cell for PFTs
-! @param[in]  undf_pft               Number of total DOFs for PFTs
-! @param[in]  map_pft                Dofmap for cell at the base of the column
-! @param[in]  ndf_2d                 Number of DOFs per cell for 2D fields
-! @param[in]  undf_2d                Number of total DOFs for 2D fields
-! @param[in]  map_2d                 Dofmap for cell at the base of the column
-! @param[in]  ndf_scal               Number of DOFs per cell for albedo scaling
-! @param[in]  undf_scal              Number of total DOFs for albedo scaling
-! @param[in]  map_scal               Dofmap for cell at the base of the column
-! @param[in]  ndf_sice               Number of DOFs per cell for sea ice tiles
-! @param[in]  undf_sice              Number of total DOFs for sea ice tiles
-! @param[in]  map_sice               Dofmap for cell at the base of the column
-! @param[in]  ndf_w3                 Number of DOFs per cell for density space
-! @param[in]  undf_w3                Number of unique DOFs for density space
-! @param[in]  map_w3                 Dofmap for cell at the base of the column
-! @param[in]  ndf_wth                Number of DOFs per cell for theta space
-! @param[in]  undf_wth               Number of unique DOFs for theta space
-! @param[in]  map_wth                Dofmap for cell at the base of the column
+!> @param[in]     nlayers                Number of layers
+!> @param[in,out] tile_sw_direct_albedo  SW direct tile albedos
+!> @param[in,out] tile_sw_diffuse_albedo SW diffuse tile albedos
+!> @param[in,out] tile_lw_albedo         LW tile albedos
+!> @param[in]     tile_fraction          Surface tile fractions
+!> @param[in]     leaf_area_index        Leaf Area Index
+!> @param[in]     canopy_height          Canopy height
+!> @param[in]     sd_orog                Standard deviation of orography
+!> @param[in]     soil_albedo            Snow-free soil albedo
+!> @param[in]     soil_roughness         Bare soil surface roughness length
+!> @param[in]     albedo_obs_vis         Observed snow-free visible albedo
+!> @param[in]     albedo_obs_nir         Observed snow-free near-IR albedo
+!> @param[in,out] albedo_obs_scaling     Scaling factor to adjust albedos by
+!> @param[in]     tile_temperature       Surface tile temperatures
+!> @param[in]     tile_snow_mass         Snow mass on tiles (kg/m2)
+!> @param[in]     tile_snow_rgrain       Snow grain size on tiles (microns)
+!> @param[in]     snow_depth             Snow depth on tiles (m)
+!> @param[in]     snowpack_density       Density of snow on ground (kg m-3)
+!> @param[in]     snow_soot              Snow soot content (kg/kg)
+!> @param[in]     chloro_sea             Chlorophyll content of the sea
+!> @param[in]     sea_ice_thickness      Sea ice thickness (m)
+!> @param[in]     u1_in_w3               'Zonal' wind in density space
+!> @param[in]     u2_in_w3               'Meridional' wind in density space
+!> @param[in]     height_w3              Height of w3 levels above mean sea level
+!> @param[in]     height_wth             Height of wth levels above mean sea level
+!> @param[in]     z0msea                 Roughness length of sea
+!> @param[in]     cos_zenith_angle       Cosine of the stellar zenith angle
+!> @param[in]     ndf_sw_tile            DOFs per cell for tiles and sw bands
+!> @param[in]     undf_sw_tile           Total DOFs for tiles and sw bands
+!> @param[in]     map_sw_tile            Dofmap for cell at the base of the column
+!> @param[in]     ndf_lw_tile            DOFs per cell for tiles and lw bands
+!> @param[in]     undf_lw_tile           Total DOFs for tiles and lw bands
+!> @param[in]     map_lw_tile            Dofmap for cell at the base of the column
+!> @param[in]     ndf_tile               Number of DOFs per cell for tiles
+!> @param[in]     undf_tile              Number of total DOFs for tiles
+!> @param[in]     map_tile               Dofmap for cell at the base of the column
+!> @param[in]     ndf_pft                Number of DOFs per cell for PFTs
+!> @param[in]     undf_pft               Number of total DOFs for PFTs
+!> @param[in]     map_pft                Dofmap for cell at the base of the column
+!> @param[in]     ndf_2d                 Number of DOFs per cell for 2D fields
+!> @param[in]     undf_2d                Number of total DOFs for 2D fields
+!> @param[in]     map_2d                 Dofmap for cell at the base of the column
+!> @param[in]     ndf_scal               Number of DOFs per cell for albedo scaling
+!> @param[in]     undf_scal              Number of total DOFs for albedo scaling
+!> @param[in]     map_scal               Dofmap for cell at the base of the column
+!> @param[in]     ndf_sice               Number of DOFs per cell for sea ice tiles
+!> @param[in]     undf_sice              Number of total DOFs for sea ice tiles
+!> @param[in]     map_sice               Dofmap for cell at the base of the column
+!> @param[in]     ndf_w3                 Number of DOFs per cell for density space
+!> @param[in]     undf_w3                Number of unique DOFs for density space
+!> @param[in]     map_w3                 Dofmap for cell at the base of the column
+!> @param[in]     ndf_wth                Number of DOFs per cell for theta space
+!> @param[in]     undf_wth               Number of unique DOFs for theta space
+!> @param[in]     map_wth                Dofmap for cell at the base of the column
 subroutine rad_tile_code(nlayers,                                &
                          tile_sw_direct_albedo,                  &
                          tile_sw_diffuse_albedo,                 &
@@ -221,18 +222,16 @@ subroutine rad_tile_code(nlayers,                                &
   real(r_def), intent(in) :: leaf_area_index(undf_pft)
   real(r_def), intent(in) :: canopy_height(undf_pft)
 
-  real(r_def), intent(in) :: sd_orog(undf_2d)
-  real(r_def), intent(in) :: soil_albedo(undf_2d)
-  real(r_def), intent(in) :: soil_roughness(undf_2d)
-  real(r_def), intent(in) :: albedo_obs_vis(undf_2d)
-  real(r_def), intent(in) :: albedo_obs_nir(undf_2d)
-
+  real(r_def), intent(in)    :: sd_orog(undf_2d)
+  real(r_def), intent(in)    :: soil_albedo(undf_2d)
+  real(r_def), intent(in)    :: soil_roughness(undf_2d)
+  real(r_def), intent(in)    :: albedo_obs_vis(undf_2d)
+  real(r_def), intent(in)    :: albedo_obs_nir(undf_2d)
   real(r_def), intent(inout) :: albedo_obs_scaling(undf_scal)
-
-  real(r_def), intent(in) :: snow_soot(undf_2d)
-  real(r_def), intent(in) :: chloro_sea(undf_2d)
-  real(r_def), intent(in) :: z0msea(undf_2d)
-  real(r_def), intent(in) :: cos_zenith_angle(undf_2d)
+  real(r_def), intent(in)    :: snow_soot(undf_2d)
+  real(r_def), intent(in)    :: chloro_sea(undf_2d)
+  real(r_def), intent(in)    :: z0msea(undf_2d)
+  real(r_def), intent(in)    :: cos_zenith_angle(undf_2d)
 
   real(r_def), intent(in) :: sea_ice_thickness(undf_sice)
 

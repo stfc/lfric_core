@@ -8,12 +8,13 @@
 
 module initial_streamfunc_kernel_mod
 
-use argument_mod,              only : arg_type, func_type,        &
-                                      GH_FIELD, GH_INC, GH_READ,  &
-                                      ANY_SPACE_9, GH_REAL,       &
-                                      GH_BASIS, GH_DIFF_BASIS,    &
-                                      CELLS, GH_QUADRATURE_XYoZ,  &
-                                      ANY_DISCONTINUOUS_SPACE_3
+use argument_mod,              only : arg_type, func_type,       &
+                                      GH_FIELD, GH_SCALAR,       &
+                                      GH_INC, GH_READ,           &
+                                      GH_REAL, ANY_SPACE_9,      &
+                                      ANY_DISCONTINUOUS_SPACE_3, &
+                                      GH_BASIS, GH_DIFF_BASIS,   &
+                                      CELL_COLUMN, GH_QUADRATURE_XYoZ
 use constants_mod,             only : r_def, i_def, PI
 use fs_continuity_mod,         only : W1
 use kernel_mod,                only : kernel_type
@@ -23,32 +24,33 @@ use initial_wind_config_mod,   only : profile, sbr_angle_lat, sbr_angle_lon, u0,
 implicit none
 
 private
+
 !-------------------------------------------------------------------------------
 ! Public types
 !-------------------------------------------------------------------------------
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: initial_streamfunc_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_FIELD,   GH_INC,  W1),                              &
-       arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_9),                     &
-       arg_type(GH_FIELD,   GH_READ, ANY_DISCONTINUOUS_SPACE_3),       &
-       arg_type(GH_REAL,    GH_READ)                                   &
+  type(arg_type) :: meta_args(4) = (/                                     &
+       arg_type(GH_FIELD,   GH_REAL, GH_INC,  W1),                        &
+       arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),               &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3), &
+       arg_type(GH_SCALAR,  GH_REAL, GH_READ)                             &
        /)
-  type(func_type) :: meta_funcs(2) = (/                                &
-       func_type(W1,          GH_BASIS),                               &
-       func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                 &
+  type(func_type) :: meta_funcs(2) = (/                                   &
+       func_type(W1,          GH_BASIS),                                  &
+       func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                    &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_QUADRATURE_XYoZ
 contains
-  procedure, public, nopass :: initial_streamfunc_code
+  procedure, nopass :: initial_streamfunc_code
 end type
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public initial_streamfunc_code
+public :: initial_streamfunc_code
 contains
 
 !> @brief Computes the righthand side of the galerkin projection of a
@@ -61,7 +63,7 @@ contains
 !! @param[in] chi_sph_1 1st coordinate in spherical Wchi
 !! @param[in] chi_sph_2 2nd coordinate in spherical Wchi
 !! @param[in] chi_sph_3 3rd coordinate in spherical Wchi
-!! @param[in] panel_id A field giving the ID for mesh panels.
+!! @param[in] panel_id A field giving the ID for mesh panels
 !! @param[in] time  The time to be passed to the analytic stream function
 !! @param[in] ndf Number of degrees of freedom per cell
 !! @param[in] undf Total number of degrees of freedom

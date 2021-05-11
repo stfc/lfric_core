@@ -9,14 +9,17 @@
 !>
 module cosmic_halo_correct_x_kernel_mod
 
-  use argument_mod,      only : arg_type, func_type,                 &
-                                GH_FIELD, GH_WRITE, GH_READ, GH_INC, &
-                                CELLS
-  use constants_mod,     only : r_def
+  use argument_mod,      only : arg_type,          &
+                                GH_FIELD, GH_REAL, &
+                                GH_WRITE, GH_READ, &
+                                CELL_COLUMN
+  use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W3
   use kernel_mod,        only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -26,21 +29,21 @@ module cosmic_halo_correct_x_kernel_mod
   !>
   type, public, extends(kernel_type) :: cosmic_halo_correct_x_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/      &
-        arg_type(GH_FIELD,   GH_WRITE,  W3), &
-        arg_type(GH_FIELD,   GH_READ,  W3),  &
-        arg_type(GH_FIELD,   GH_READ,  W3),  &
-        arg_type(GH_FIELD,   GH_READ,  W3)   &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(4) = (/             &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  W3), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  W3), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  W3)  &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
-    procedure, nopass ::cosmic_halo_correct_x_code
+    procedure, nopass :: cosmic_halo_correct_x_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public cosmic_halo_correct_x_code
+  public :: cosmic_halo_correct_x_code
 
 contains
 
@@ -64,17 +67,17 @@ subroutine cosmic_halo_correct_x_code( nlayers,              &
   implicit none
 
   ! Arguments
-  integer, intent(in)                                   :: nlayers
-  integer, intent(in)                                   :: ndf_w3
-  integer, intent(in)                                   :: undf_w3
-  integer, dimension(ndf_w3), intent(in)                :: map_w3
+  integer(kind=i_def), intent(in)                       :: nlayers
+  integer(kind=i_def), intent(in)                       :: ndf_w3
+  integer(kind=i_def), intent(in)                       :: undf_w3
+  integer(kind=i_def), dimension(ndf_w3), intent(in)    :: map_w3
   real(kind=r_def), dimension(undf_w3), intent(in)      :: cell_orientation
   real(kind=r_def), dimension(undf_w3), intent(in)      :: rho_x_in
   real(kind=r_def), dimension(undf_w3), intent(in)      :: rho_y_in
   real(kind=r_def), dimension(undf_w3), intent(inout)   :: rho_out
 
-  integer :: k
-  integer :: orientation
+  integer(kind=i_def) :: k
+  integer(kind=i_def) :: orientation
 
   orientation = int(cell_orientation(map_w3(1)))
 

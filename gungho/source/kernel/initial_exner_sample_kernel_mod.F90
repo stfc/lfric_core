@@ -7,16 +7,19 @@
 !>
 module initial_exner_sample_kernel_mod
 
-  use argument_mod,         only : arg_type, func_type, &
-                                   GH_FIELD, GH_REAL,   &
-                                   GH_READ, GH_WRITE,   &
-                                   ANY_SPACE_9, CELLS
+  use argument_mod,         only : arg_type,             &
+                                   GH_FIELD, GH_SCALAR,  &
+                                   GH_READ, GH_WRITE,    &
+                                   GH_REAL, ANY_SPACE_9, &
+                                   CELL_COLUMN
   use constants_mod,        only : r_def, i_def
   use fs_continuity_mod,    only : W3
   use idealised_config_mod, only : test
   use kernel_mod,           only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -26,12 +29,12 @@ module initial_exner_sample_kernel_mod
   !>
   type, public, extends(kernel_type) :: initial_exner_sample_kernel_type
       private
-      type(arg_type) :: meta_args(3) = (/                                 &
-          arg_type(GH_FIELD,   GH_WRITE, W3),                             &
-          arg_type(GH_FIELD*3, GH_READ,  ANY_SPACE_9),                    &
-          arg_type(GH_REAL,    GH_READ)                                   &
-          /)
-      integer :: iterates_over = CELLS
+      type(arg_type) :: meta_args(3) = (/                        &
+           arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),          &
+           arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9), &
+           arg_type(GH_SCALAR,  GH_REAL, GH_READ)                &
+           /)
+      integer :: operates_on = CELL_COLUMN
   contains
       procedure, nopass :: initial_exner_sample_code
   end type
@@ -39,16 +42,16 @@ module initial_exner_sample_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public initial_exner_sample_code
+  public :: initial_exner_sample_code
 
 contains
 
-  !> @brief Computes the initial exner field
+  !> @brief Computes the initial Exner field
   !! @param[in] nlayers Number of layers
   !! @param[in] ndf_w3 Number of degrees of freedom per cell
   !! @param[in] undf_w3 Total number of degrees of freedom
   !! @param[in] map_w3 Dofmap for the cell at the base of the column
-  !! @param[inout] exner Pressure field
+  !! @param[in,out] exner Pressure field
   !! @param[in] ndf_chi Number of degrees of freedom per cell for chi
   !! @param[in] undf_chi Number of degrees of freedom for chi
   !! @param[in] map_chi Dofmap for the cell at the base of the column for chi

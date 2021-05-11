@@ -10,13 +10,14 @@
 !>          by 1/volume of the cell.
 module scale_by_detj_kernel_mod
 
-  use argument_mod,      only : arg_type, func_type,         &
-                                GH_FIELD, GH_READ,           &
-                                GH_READWRITE, CELLS,         &
-                                ANY_DISCONTINUOUS_SPACE_1,   &
-                                ANY_SPACE_9, GH_BASIS,       &
-                                GH_DIFF_BASIS, GH_EVALUATOR, &
-                                ANY_DISCONTINUOUS_SPACE_3
+  use argument_mod,      only : arg_type, func_type,       &
+                                GH_FIELD, GH_REAL,         &
+                                GH_READ, GH_READWRITE,     &
+                                ANY_DISCONTINUOUS_SPACE_1, &
+                                ANY_DISCONTINUOUS_SPACE_3, &
+                                ANY_SPACE_9, GH_BASIS,     &
+                                GH_DIFF_BASIS,             &
+                                CELL_COLUMN, GH_EVALUATOR
 
   use constants_mod,     only : r_def, i_def
   use kernel_mod,        only : kernel_type
@@ -32,15 +33,15 @@ module scale_by_detj_kernel_mod
   !> PSy layer.
   type, public, extends(kernel_type) :: scale_by_detj_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                                &
-        arg_type(GH_FIELD,   GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), &
-        arg_type(GH_FIELD*3, GH_READ,      ANY_SPACE_9),               &
-        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_3)  &
-        /)
-    type(func_type) :: meta_funcs(1) = (/                              &
-        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(3) = (/                                          &
+         arg_type(GH_FIELD,   GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,      ANY_SPACE_9),               &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_3)  &
+         /)
+    type(func_type) :: meta_funcs(1) = (/                                        &
+         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                         &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_EVALUATOR
   contains
     procedure, nopass :: scale_by_detj_code
@@ -49,7 +50,7 @@ module scale_by_detj_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public scale_by_detj_code
+  public :: scale_by_detj_code
 
 contains
 
@@ -59,7 +60,7 @@ contains
 !! @param[in] chi1 1st (spherical) coordinate field in Wchi
 !! @param[in] chi2 2nd (spherical) coordinate field in Wchi
 !! @param[in] chi3 3rd (spherical) coordinate field in Wchi
-!! @param[in] panel_id Field giving the ID for mesh panels.
+!! @param[in] panel_id Field giving the ID for mesh panels
 !! @param[in] ndf_ws Number of degrees of freedom per cell for field
 !! @param[in] undf_ws Number of unique degrees of freedom for field
 !! @param[in] map_ws Dofmap for the cell at the base of the column for field

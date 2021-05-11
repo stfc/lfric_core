@@ -5,23 +5,25 @@
 !-----------------------------------------------------------------------------
 !> @brief Arbitary Kernel to spread values from neighbours
 !>
-!> @details Increase value on the target cell by the difference from highest value neighbouring cell
-!>          determined from the stencil. Percentage blend is specified
+!> @details Increase value on the target cell by the difference from highest
+!>          value neighbouring cell determined from the stencil.
+!>          Percentage blend is specified.
 !>
 
 module spread_kernel_mod
 
-    use argument_mod, only : arg_type, func_type, &
-            GH_OPERATOR, GH_FIELD, GH_REAL, &
-            GH_READ, GH_WRITE, GH_READWRITE, &
-            GH_BASIS, GH_DIFF_BASIS, &
-            CELLS, GH_QUADRATURE_XYoZ, STENCIL, CROSS
+    use argument_mod, only : arg_type,              &
+                             GH_FIELD, GH_REAL,     &
+                             GH_READ, GH_READWRITE, &
+                             STENCIL, CROSS, CELL_COLUMN
     use constants_mod, only : r_def, i_def
-    use fs_continuity_mod, only : W2, W3
+    use fs_continuity_mod, only : W3
     use kernel_mod, only : kernel_type
     use diagnostics_miniapp_config_mod, only: blending_percentage
 
     implicit none
+
+    private
 
     !---------------------------------------------------------------------------
     ! Public types
@@ -29,12 +31,11 @@ module spread_kernel_mod
 
     type, public, extends(kernel_type) :: spread_kernel_type
         private
-        type(arg_type) :: meta_args(2) = (/               &
-                arg_type(GH_FIELD, GH_READ, w3, STENCIL(CROSS)) ,&
-                arg_type(GH_FIELD,   GH_READWRITE, w3)             &
-                /)
-
-        integer :: iterates_over = CELLS
+        type(arg_type) :: meta_args(2) = (/                                 &
+             arg_type(GH_FIELD, GH_REAL, GH_READ,      W3, STENCIL(CROSS)), &
+             arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3)                  &
+             /)
+        integer :: operates_on = CELL_COLUMN
     contains
         procedure, nopass :: spread_code
     end type
@@ -42,7 +43,7 @@ module spread_kernel_mod
     !---------------------------------------------------------------------------
     ! Contained functions/subroutines
     !---------------------------------------------------------------------------
-    public spread_code
+    public :: spread_code
 
 contains
 
@@ -53,8 +54,8 @@ contains
     !> @param[in] field: target field to be worked on
     !> @param[in] stencil_size:
     !> @param[in] stencil_map:
-    !> @param[inout] field_variance: the outcome change to apply to the field later
-    !>                               on - note because of the stencil the field is read only
+    !> @param[in,out] field_variance: the outcome change to apply to the field later
+    !>                                on - note because of the stencil the field is read only
     !> @param[in] degrees_of_freedom: degrees of freededom
     !> @param[in] unique_degrees_of_freedom: total number of degrees of freedom across the column
     !> @param[in] field_dof_map: dof map for bottom cell of field
@@ -69,8 +70,7 @@ contains
             degrees_of_freedom, &
             unique_degrees_of_freedom, &
             field_dof_map, &
-            blend_percentage &
-            )
+            blend_percentage)
 
         implicit none
 
@@ -95,7 +95,7 @@ contains
 
         !> preprocessing
 
-         if(present(blend_percentage)) then
+         if (present(blend_percentage)) then
              real_blend_percentage = blend_percentage / 100.0
          else
              real_blend_percentage = blending_percentage
@@ -105,18 +105,18 @@ contains
 
         do current_layer = 0, number_of_layers - 1
             !> get the max value from the stencil
-            !get the cells beside (by starting at 1 you can include the current cell from the stencil)
+            ! get the cells beside (by starting at 1 you can include the current cell from the stencil)
             field_max = 0
 
             do df = 1, degrees_of_freedom
                 do cell = 1, stencil_size !get the cells beside
                     field_max = max(field_max, nint(field(stencil_map(df, cell) + current_layer)))
                 end do
-                !get the cells below if appropriate
+                ! get the cells below if appropriate
                 if (current_layer > 0) then
                     field_max = max(field_max, nint(field(field_dof_map(df) + current_layer - 1)))
                 end if
-                !get the cells above if appropriate
+                ! get the cells above if appropriate
                 if (current_layer < number_of_layers - 1) then
                     field_max = max(field_max, nint(field(field_dof_map(df) + current_layer + 1)))
                 end if

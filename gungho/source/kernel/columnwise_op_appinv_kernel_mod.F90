@@ -8,7 +8,7 @@
 
 !> @brief Kernel which applies the inverse of a columnwise assembled operator
 !>
-!> @detail Given a field \f$x\f$, this calculates \f$y+=A^{-1}x\f$, i.e.
+!> @details Given a field \f$x\f$, this calculates \f$y+=A^{-1}x\f$, i.e.
 !> solves \f$A\delta y=x\f$ for \f$\delta y\f$ and adds this to \f$y\f$.
 !> Only works if the assembled matrix is square and tridiagonal, and the
 !> Thomas algorithm can be used. The PSY layer should check whether the
@@ -20,15 +20,17 @@
 module columnwise_op_appinv_kernel_mod
 
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,                    &
-                                    GH_FIELD, GH_COLUMNWISE_OPERATOR,       &
-                                    GH_READ, GH_INC,                        &
-                                    ANY_SPACE_1,                            &
-                                    CELLS
+use argument_mod,            only : arg_type,                         &
+                                    GH_FIELD, GH_COLUMNWISE_OPERATOR, &
+                                    GH_REAL, GH_READ, GH_INC,         &
+                                    ANY_SPACE_1,                      &
+                                    CELL_COLUMN
 
 use constants_mod,           only : r_def, i_def
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -36,12 +38,12 @@ implicit none
 
 type, public, extends(kernel_type) :: columnwise_op_appinv_kernel_type
   private
-  type(arg_type) :: meta_args(3) = (/                                      &
-       arg_type(GH_FIELD,    GH_INC,   ANY_SPACE_1),                       &
-       arg_type(GH_FIELD,    GH_READ,  ANY_SPACE_1),                       &
-       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_1) &
+  type(arg_type) :: meta_args(3) = (/                                               &
+       arg_type(GH_FIELD,               GH_REAL, GH_INC,  ANY_SPACE_1),             &
+       arg_type(GH_FIELD,               GH_REAL, GH_READ, ANY_SPACE_1),             &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, ANY_SPACE_1, ANY_SPACE_1) &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: columnwise_op_appinv_kernel_code
 end type columnwise_op_appinv_kernel_type
@@ -49,27 +51,28 @@ end type columnwise_op_appinv_kernel_type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public columnwise_op_appinv_kernel_code
+public :: columnwise_op_appinv_kernel_code
+
 contains
 
   !> @brief The subroutine which is called directly from the PSY layer and
   !> applies the operator as lhs += A^{-1}.x
   !>
-  !> @param [in] cell the horizontal cell index
-  !> @param [in] ncell_2d number of cells in 2d grid
-  !> @param [inout] lhs Resulting field lhs += A^{-1}.x
-  !> @param [in] x input field
-  !> @param [in] columnwise_matrix banded matrix to assemble into
-  !> @param [in] nrow number of rows (and columns) in the banded matrix
-  !> @param [in] bandwidth bandwidth of the banded matrix
-  !> @param [in] alpha banded matrix parameter \f$\alpha\f$
-  !> @param [in] beta banded matrix parameter \f$\beta\f$
-  !> @param [in] gamma_m banded matrix parameter \f$\gamma_-\f$
-  !> @param [in] gamma_p banded matrix parameter \f$\gamma_+\f$
-  !> @param [in] ndf number of degrees of freedom per cell for function space
-  !> @param [in] undf unique number of degrees of freedom  for function space
-  !> @param [in] map dofmap for the function space
-  !> @param [in] indirection_dofmap_ indirection map for function space
+  !> @param[in] cell The horizontal cell index
+  !> @param[in] ncell_2d Number of cells in 2d grid
+  !> @param[in,out] lhs Resulting field lhs += A^{-1}.x
+  !> @param[in] x Input field
+  !> @param[in] columnwise_matrix Banded matrix to assemble into
+  !> @param[in] nrow Number of rows (and columns) in the banded matrix
+  !> @param[in] bandwidth Bandwidth of the banded matrix
+  !> @param[in] alpha Banded matrix parameter \f$\alpha\f$
+  !> @param[in] beta Banded matrix parameter \f$\beta\f$
+  !> @param[in] gamma_m Banded matrix parameter \f$\gamma_-\f$
+  !> @param[in] gamma_p Banded matrix parameter \f$\gamma_+\f$
+  !> @param[in] ndf Number of degrees of freedom per cell for function space
+  !> @param[in] undf Unique number of degrees of freedom  for function space
+  !> @param[in] map Dofmap for the function space
+  !> @param[in] indirection_dofmap Indirection map for function space
   subroutine columnwise_op_appinv_kernel_code(cell,                    &
                                               ncell_2d,                &
                                               lhs, x,                  &
@@ -82,6 +85,7 @@ contains
                                               gamma_p,                 &
                                               ndf, undf, map,          &
                                               indirection_dofmap)
+
     implicit none
 
     ! Arguments

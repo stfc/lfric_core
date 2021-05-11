@@ -9,14 +9,17 @@
 !> minimum edge length of the four w2 edges surrounding each theta point
 module calc_delta_at_wtheta_kernel_mod
 
-use argument_mod,            only : arg_type,              &
-                                    GH_FIELD, GH_READ, GH_WRITE,        &
-                                    CELLS
+use argument_mod,            only : arg_type,          &
+                                    GH_FIELD, GH_REAL, &
+                                    GH_READ, GH_WRITE, &
+                                    CELL_COLUMN
 use constants_mod,           only : r_def, i_def, LARGE_REAL_POSITIVE
 use fs_continuity_mod,       only : W2, Wtheta
 use kernel_mod,              only : kernel_type
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -24,24 +27,24 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: calc_delta_at_wtheta_kernel_type
   private
-  type(arg_type) :: meta_args(2) = (/                                  &
-       arg_type(GH_FIELD,   GH_WRITE,  Wtheta),                        &
-       arg_type(GH_FIELD,   GH_READ, W2)                               &
+  type(arg_type) :: meta_args(2) = (/                 &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, Wtheta), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W2)      &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
-  procedure, nopass ::calc_delta_at_wtheta_code
+  procedure, nopass :: calc_delta_at_wtheta_code
 end type
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public calc_delta_at_wtheta_code
+public :: calc_delta_at_wtheta_code
 contains
 
 !> @brief compute edge lengths based on cell volume and face area.
 !! @param[in] nlayers Number of layers
-!! @param[inout] delta_at_wtheta Minimum edge length at theta points
+!! @param[in,out] delta_at_wtheta Minimum edge length at theta points
 !! @param[in] dx_at_w2 edge length on w2 points
 !! @param[in] ndf_wtheta Number of degrees of freedom per cell for wtheta
 !! @param[in] undf_wtheta  Number of unique degrees of freedom  for wtheta
@@ -66,7 +69,7 @@ subroutine calc_delta_at_wtheta_code(nlayers,                 &
   real(kind=r_def), dimension(undf_w2), intent(in)        :: dx_at_w2
 
   ! Internal variables
-  integer(kind=i_def)               :: df, k
+  integer(kind=i_def) :: df, k
   real(kind=r_def)    :: mindx
 
   delta_at_wtheta(map_wtheta(1)) = LARGE_REAL_POSITIVE

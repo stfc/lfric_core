@@ -25,10 +25,10 @@
 module mr_to_sh_mass_ints_kernel_mod
 
   use argument_mod,      only : arg_type, func_type,                    &
-                                GH_FIELD, GH_WRITE, GH_READ,            &
+                                GH_FIELD, GH_REAL, GH_WRITE, GH_READ,   &
                                 ANY_SPACE_9, ANY_DISCONTINUOUS_SPACE_3, &
                                 GH_BASIS, GH_DIFF_BASIS,                &
-                                CELLS, GH_QUADRATURE_XYoZ
+                                CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W3, Wtheta
   use kernel_mod,        only : kernel_type
@@ -45,17 +45,17 @@ module mr_to_sh_mass_ints_kernel_mod
   !>
   type, public, extends(kernel_type) :: mr_to_sh_mass_ints_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                             &
-         arg_type(GH_FIELD*4, GH_WRITE, W3),                        &
-         arg_type(GH_FIELD*3, GH_READ,  ANY_SPACE_9),               &
-         arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
-         arg_type(GH_FIELD,   GH_READ,  Wtheta)                     &
+    type(arg_type) :: meta_args(4) = (/                                      &
+         arg_type(GH_FIELD*4, GH_REAL, GH_WRITE, W3),                        & ! I_lower/upper
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),               & ! chi_dl
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), & ! panel_id
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta)                     & ! dummy_theta
          /)
-    type(func_type) :: meta_funcs(2) = (/                           &
-         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS),           &
-         func_type(Wtheta, GH_BASIS)                                &
+    type(func_type) :: meta_funcs(2) = (/                                    &
+         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS),                    &
+         func_type(Wtheta,      GH_BASIS)                                    &
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
     procedure, nopass :: mr_to_sh_mass_ints_code
@@ -64,7 +64,7 @@ module mr_to_sh_mass_ints_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public mr_to_sh_mass_ints_code
+  public :: mr_to_sh_mass_ints_code
 contains
 
 !> @brief Compute integrals for matrix transforming from mixing ratio to density.

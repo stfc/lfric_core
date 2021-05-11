@@ -5,14 +5,16 @@
 !-----------------------------------------------------------------------------
 !
 !-------------------------------------------------------------------------------
-!> @brief Kernel to do a vertical mass remapping of tracer-mass at w3.
+!> @brief Kernel to do a vertical mass remapping of tracer-mass at W3.
 !-------------------------------------------------------------------------------
 
 module vertical_mass_remapping_kernel_mod
 
-use argument_mod,         only : arg_type,                           &
-                                 GH_FIELD, GH_READWRITE, GH_READ,    &
-                                 CELLS, GH_REAL, GH_INTEGER
+use argument_mod,         only : arg_type,              &
+                                 GH_FIELD, GH_SCALAR,   &
+                                 GH_REAL, GH_INTEGER,   &
+                                 GH_READWRITE, GH_READ, &
+                                 CELL_COLUMN
 use fs_continuity_mod,    only : W2, W3
 use constants_mod,        only : r_def, i_def
 use kernel_mod,           only : kernel_type
@@ -30,13 +32,13 @@ private
 !>                                      by the PSy layer.
 type, public, extends(kernel_type) :: vertical_mass_remapping_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                           &
-       arg_type(GH_FIELD,   GH_READ,  W2),                      &
-       arg_type(GH_FIELD,   GH_READWRITE,  W3),                 &
-       arg_type(GH_REAL,    GH_READ),                           &
-       arg_type(GH_INTEGER, GH_READ)                            &
+  type(arg_type) :: meta_args(4) = (/                     &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W2), &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3), &
+       arg_type(GH_SCALAR, GH_REAL,    GH_READ),          &
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ)           &
        /)
-  integer(kind=i_def) :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: vertical_mass_remapping_code
 end type
@@ -44,7 +46,7 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public  vertical_mass_remapping_code
+public ::  vertical_mass_remapping_code
 private piecewise_reconstruction
 private remapp_mass
 private local_point_1d_array
@@ -52,9 +54,9 @@ private local_point_1d_array
 contains
 
   !-------------------------------------------------------------------------------
-  !> @details This kernel remapp mass from one grid to another.
-  !>          only w (i.e., vertical motion only), then interpolate theta at the
-  !>          departure point using 1d-Cubic-Lagrange interpolation.
+  !> @details This kernel remaps mass from one grid to another, for
+  !>          vertical motion only, then interpolates theta at the
+  !>          departure point using 1D cubic-Lagrange interpolation.
   !> @param[in]  nlayers      The number of layers
   !> @param[in]  u_adv        The wind field used for advection
   !> @param[in,out] mass      The mass field that needs to be remapped
@@ -176,21 +178,22 @@ contains
   end subroutine vertical_mass_remapping_code
 
   !-------------------------------------------------------------------------------
-  !>@brief   This routine return the cubic coefficents (a0,a1,a2,a3) for each cell.
-  !>@details These coefficents defines a piece-wise function for each cell. This
-  !>         function is defined such that the integral of that function over the cell
-  !>         gives the mass of that cell.
-  !>@param[in]  xl     The grid-edges of the given mass (mass(i) is the mass of cell [xl(i),xl(i+1)])
-  !>@param[in]  dx     Size of the cells, dx(i)=xl(i+1)-xl(i)
-  !>@param[in]  mass   The mass of grid cells
-  !>@param[out] a0     The first coefficent of the cell reconstruction.
-  !>                   Each cell has a cubic function f(x) = a0 + a1*x + a2*x^2 + a3*x^3
-  !>@param[out] a1     The second coefficent of the cell reconstruction.
-  !>@param[out] a2     The third  coefficent of the cell reconstruction.
-  !>@param[out] a3     The fourth coefficent of the cell reconstruction.
-  !>@param[in] order   Order the piecewise function (constant, linear, quadratic, or cubic)
-  !>@param[in] ns      Index of the starting cell
-  !>@param[in] nf      Index of the end cell
+  !> @brief   This routine returns the cubic coefficents (a0,a1,a2,a3) for each cell.
+  !> @details These coefficents define a piece-wise function for each cell. This
+  !>          function is defined such that the integral of the function over the
+  !>          cell gives the mass of that cell.
+  !> @param[in]  xl     The grid-edges of the given mass (mass(i) is the mass of
+  !!                    cell [xl(i),xl(i+1)])
+  !> @param[in]  dx     Size of the cells, dx(i)=xl(i+1)-xl(i)
+  !> @param[in]  mass   The mass of grid cells
+  !> @param[out] a0     The first coefficent of the cell reconstruction.
+  !>                    Each cell has a cubic function f(x) = a0 + a1*x + a2*x^2 + a3*x^3
+  !> @param[out] a1     The second coefficent of the cell reconstruction.
+  !> @param[out] a2     The third  coefficent of the cell reconstruction.
+  !> @param[out] a3     The fourth coefficent of the cell reconstruction.
+  !> @param[in] order   Order the piecewise function (constant, linear, quadratic, or cubic)
+  !> @param[in] ns      Index of the starting cell
+  !> @param[in] nf      Index of the end cell
   !-------------------------------------------------------------------------------
   subroutine piecewise_reconstruction(xl,dx,mass,a0,a1,a2,a3,order,ns,nf)
 
@@ -199,9 +202,9 @@ contains
    integer(kind=i_def), intent(in)                  :: ns, nf, order
    real(kind=r_def), dimension(ns:nf+1), intent(in) :: xl
    real(kind=r_def), dimension(ns:nf), intent(in)   :: dx, mass
-   real(kind=r_def), dimension(ns:nf), intent(out)  :: a0,a1,a2,a3
+   real(kind=r_def), dimension(ns:nf), intent(out)  :: a0, a1, a2, a3
 
-!  locals
+   ! Local variables
    real(kind=r_def), dimension(ns:nf) :: rho_left_cv, rho_right_cv, slope_rho
    real(kind=r_def), dimension(ns:nf) :: y_centre_cv, rho_bar
    integer(kind=i_def), parameter :: min_cvs_required = 4_i_def
@@ -304,39 +307,39 @@ contains
   end subroutine piecewise_reconstruction
 
   !-------------------------------------------------------------------------------
-  !>@brief   This routine remapp conservatively the mass from a grid xl to a
-  !>         superposed grid xld.
-  !>@details The mass(i) is the mass of cell [xl(i),xl(i+1)] and
-  !>          mass_d(i) is the mass of the cell [xld(i),xld(i+1)]
-  !>          if xl and xld are bounded by the same boundaries then
-  !>          sum{mass} = sum{mass_d}
-  !>@param[in] xld  Departure points of grid xl
-  !>@param[in] xl   The grid-edges of the given mass (mass(i) is the mass of cell [xl(i),xl(i+1)])
-  !>@param[in] dx   Size of the cells, dx(i)=xl(i+1)-xl(i)
-  !>@param[in] mass The mass of grid cells
-  !>@param[in] a0   The first coefficent of the cell reconstruction.
-  !>                Each cell has a cubic function f(x) = a0 + a1*x + a2*x^2 + a3*x^3
-  !>@param[in] a1   The second coefficent of the cell reconstruction.
-  !>@param[in] a2   The third  coefficent of the cell reconstruction.
-  !>@param[in] a3   The fourth coefficent of the cell reconstruction.
-  !>@param[in] ns   Index of the starting cell
-  !>@param[in] nf   Index of the end cell
-  !>@param[out] mass_d  The remapped mass (mass_d(i) is the mass of cell [xld(i),xld(i+1)])
+  !> @brief   This routine remaps conservatively the mass from a grid xl to a
+  !>          superposed grid xld.
+  !> @details The mass(i) is the mass of cell [xl(i),xl(i+1)] and
+  !>           mass_d(i) is the mass of the cell [xld(i),xld(i+1)]
+  !>           if xl and xld are bounded by the same boundaries then
+  !>           sum{mass} = sum{mass_d}
+  !> @param[in] xld  Departure points of grid xl
+  !> @param[in] xl   The grid-edges of the given mass (mass(i) is the mass of
+  !!                 cell [xl(i),xl(i+1)])
+  !> @param[in] dx   Size of the cells, dx(i)=xl(i+1)-xl(i)
+  !> @param[in] mass The mass of grid cells
+  !> @param[in] a0   The first coefficent of the cell reconstruction.
+  !>                 Each cell has a cubic function f(x) = a0 + a1*x + a2*x^2 + a3*x^3
+  !> @param[in] a1   The second coefficent of the cell reconstruction.
+  !> @param[in] a2   The third  coefficent of the cell reconstruction.
+  !> @param[in] a3   The fourth coefficent of the cell reconstruction.
+  !> @param[in] ns   Index of the starting cell
+  !> @param[in] nf   Index of the end cell
+  !> @param[out] mass_d  The remapped mass (mass_d(i) is the mass of cell [xld(i),xld(i+1)])
   !-------------------------------------------------------------------------------
   subroutine remapp_mass( xld, xl, dx, mass, a0, a1, a2, a3, ns, nf, mass_d )
 
-   implicit none
+    implicit none
 
-   integer(kind=i_def), intent(in)                  :: ns,nf
-   real(kind=r_def), dimension(ns:nf+1), intent(in) :: xl, xld
-   real(kind=r_def), dimension(ns:nf), intent(in)   :: dx, mass, a0,a1,a2,a3
-   real(kind=r_def), dimension(ns:nf), intent(out)  :: mass_d
+    integer(kind=i_def), intent(in)                  :: ns,nf
+    real(kind=r_def), dimension(ns:nf+1), intent(in) :: xl, xld
+    real(kind=r_def), dimension(ns:nf), intent(in)   :: dx, mass, a0,a1,a2,a3
+    real(kind=r_def), dimension(ns:nf), intent(out)  :: mass_d
 
-! local variables
-   real(kind=r_def)    :: x1,x2,m1,m2,m3,h1,h2,s1,s2
-   integer(kind=i_def) :: j, i, cv1, cv2
-   real(kind=r_def)    :: c1, c2, c3, sig
-   !integer(kind=i_def), external :: local_point_1d_array
+    ! Local variables
+    real(kind=r_def)    :: x1,x2,m1,m2,m3,h1,h2,s1,s2
+    integer(kind=i_def) :: j, i, cv1, cv2
+    real(kind=r_def)    :: c1, c2, c3, sig
 
     c1 = 0.5_r_def
     c2 = 1.0_r_def/3.0_r_def
@@ -384,12 +387,12 @@ contains
   end subroutine remapp_mass
 
   !-------------------------------------------------------------------------------
-  !>@brief Compute location index of the point p in a 1d array x.
-  !>@param[in] p Coordinate of the point
-  !>@param[in] x The 1d array of grid-points
-  !>@param[in] ns Start of index of grid-points
-  !>@param[in] nf End of index of grid-points
-  !>@return location index "l" such as x(l) < p < x(l+1)
+  !> @brief Compute location index of the point p in a 1d array x.
+  !> @param[in] p Coordinate of the point
+  !> @param[in] x The 1d array of grid-points
+  !> @param[in] ns Start of index of grid-points
+  !> @param[in] nf End of index of grid-points
+  !> @return location index "l" such as x(l) < p < x(l+1)
   !-------------------------------------------------------------------------------
   function local_point_1d_array(p, x, ns, nf)
 

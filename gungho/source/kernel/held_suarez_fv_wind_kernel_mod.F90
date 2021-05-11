@@ -16,9 +16,10 @@
 !>
 module held_suarez_fv_wind_kernel_mod
 
-  use argument_mod,             only: arg_type, func_type,                 &
-                                      GH_FIELD, GH_WRITE, GH_READ, GH_INC, &
-                                      GH_BASIS, CELLS
+  use argument_mod,             only: arg_type,          &
+                                      GH_FIELD, GH_REAL, &
+                                      GH_READ, GH_INC,   &
+                                      CELL_COLUMN
   use constants_mod,            only: r_def, i_def
   use fs_continuity_mod,        only: W2, Wtheta
   use held_suarez_forcings_mod, only: held_suarez_damping
@@ -28,6 +29,8 @@ module held_suarez_fv_wind_kernel_mod
 
   implicit none
 
+  private
+
   !---------------------------------------------------------------------------
   ! Public types
   !---------------------------------------------------------------------------
@@ -36,13 +39,13 @@ module held_suarez_fv_wind_kernel_mod
   !>
   type, public, extends(kernel_type) :: held_suarez_fv_wind_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/             &
-        arg_type(GH_FIELD,   GH_INC,   W2),         &
-        arg_type(GH_FIELD,   GH_READ,  W2),         &
-        arg_type(GH_FIELD,   GH_READ,  W2),         &
-        arg_type(GH_FIELD,   GH_READ,  WTHETA)      &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(4) = (/               &
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  W2),    &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, W2),    &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, W2),    &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta) &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: held_suarez_fv_wind_code
   end type
@@ -50,13 +53,13 @@ module held_suarez_fv_wind_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public held_suarez_fv_wind_code
+  public :: held_suarez_fv_wind_code
 
 contains
 
 !> @brief The subroutine which is called directly by the psy layer
 !! @param[in] nlayers Integer the number of layers
-!! @param[inout] du Real array, u increment data
+!! @param[in,out] du Real array, u increment data
 !! @param[in] u Real array, u data
 !! @param[in] w2_rmultiplicity Real array, Reciprocal of multiplicity for w2
 !! @param[in] exner_in_wth_in_wth Real array. The exner pressure in wth
@@ -78,17 +81,17 @@ subroutine held_suarez_fv_wind_code(nlayers,                   &
   implicit none
 
   ! Arguments
-  integer, intent(in) :: nlayers
+  integer(kind=i_def), intent(in) :: nlayers
 
-  integer, intent(in) :: ndf_wth, undf_wth
-  integer, intent(in) :: ndf_w2, undf_w2
+  integer(kind=i_def), intent(in) :: ndf_wth, undf_wth
+  integer(kind=i_def), intent(in) :: ndf_w2, undf_w2
 
   real(kind=r_def), dimension(undf_w2), intent(inout) :: du
   real(kind=r_def), dimension(undf_w2), intent(in)    :: u, w2_rmultiplicity
   real(kind=r_def), dimension(undf_wth), intent(in)   :: exner_in_wth
 
-  integer, dimension(ndf_w2),  intent(in)          :: map_w2
-  integer, dimension(ndf_wth),  intent(in)         :: map_wth
+  integer(kind=i_def), dimension(ndf_w2),  intent(in)  :: map_w2
+  integer(kind=i_def), dimension(ndf_wth),  intent(in) :: map_wth
 
   ! Internal variables
   integer(kind=i_def) :: k, df
@@ -113,7 +116,6 @@ subroutine held_suarez_fv_wind_code(nlayers,                   &
     du(map_w2(6) + k) = 0.0_r_def
 
   end do
-
 
 end subroutine held_suarez_fv_wind_code
 

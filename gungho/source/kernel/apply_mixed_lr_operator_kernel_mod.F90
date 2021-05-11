@@ -8,10 +8,11 @@
 
 module apply_mixed_lr_operator_kernel_mod
 
-use argument_mod,            only : arg_type,                       &
-                                    GH_FIELD, GH_OPERATOR, GH_REAL, &
-                                    GH_READ, GH_WRITE,              &
-                                    CELLS
+use argument_mod,            only : arg_type,             &
+                                    GH_FIELD, GH_SCALAR,  &
+                                    GH_OPERATOR, GH_REAL, &
+                                    GH_READ, GH_WRITE,    &
+                                    CELL_COLUMN
 use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
 use fs_continuity_mod,       only : W2, W3
@@ -25,15 +26,15 @@ private
 
 type, public, extends(kernel_type) :: apply_mixed_lr_operator_kernel_type
   private
-  type(arg_type) :: meta_args(6) = (/           &
-       arg_type(GH_FIELD,    GH_WRITE, W3),     & ! lhs_rho
-       arg_type(GH_FIELD,    GH_READ,  W3),     & ! rho'
-       arg_type(GH_OPERATOR, GH_READ,  W3, W3), & ! M3^-1
-       arg_type(GH_OPERATOR, GH_READ,  W3, W2), & ! div
-       arg_type(GH_REAL,     GH_READ),          & ! tau_r*dt
-       arg_type(GH_FIELD,    GH_READ,  W2)      & ! u'*rho^ref
+  type(arg_type) :: meta_args(6) = (/                    &
+       arg_type(GH_FIELD,    GH_REAL, GH_WRITE, W3),     & ! lhs_rho
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W3),     & ! rho'
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, W3), & ! M3^-1
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, W2), & ! div
+       arg_type(GH_SCALAR,   GH_REAL, GH_READ),          & ! tau_r*dt
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2)      & ! u'*rho^ref
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: apply_mixed_lr_operator_code
 end type
@@ -41,7 +42,7 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public apply_mixed_lr_operator_code
+public :: apply_mixed_lr_operator_code
 
 contains
 

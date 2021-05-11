@@ -8,14 +8,16 @@
 !>
 module sort_ref_kernel_mod
 
-  use argument_mod,      only: arg_type, func_type,    &
-                               GH_FIELD, GH_READWRITE, &
-                               CELLS
+  use argument_mod,      only: arg_type,          &
+                               GH_FIELD, GH_REAL, &
+                               GH_READWRITE, CELL_COLUMN
   use constants_mod,     only: r_def, i_def
   use fs_continuity_mod, only: Wtheta
   use kernel_mod,        only: kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -25,10 +27,10 @@ module sort_ref_kernel_mod
   !>
   type, public, extends(kernel_type) :: sort_ref_kernel_type
     private
-    type(arg_type) :: meta_args(1) = (/              &
-        arg_type(GH_FIELD,   GH_READWRITE,   WTHETA) &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(1) = (/                    &
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta) &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: sort_ref_code
   end type
@@ -36,17 +38,16 @@ module sort_ref_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public sort_ref_code
+  public :: sort_ref_code
 
 contains
 
 !> @brief The subroutine which is called directly by the psy layer
-!! @param[in] nlayers Integer the number of layers
-!! @param[inout] theta_ref Real array, theta reference state
-!! @param[in] ndf_wth The number of degrees of freedom per cell for wth
-!! @param[in] undf_wth The number of unique degrees of freedom for wth
-!! @param[in] map_wth Integer array holding the dofmap for the cell at the
-!>            base of the column for wth
+!! @param[in] nlayers Number of layers
+!! @param[in,out] theta_ref Theta reference state
+!! @param[in] ndf_wth Number of degrees of freedom per cell for Wtheta
+!! @param[in] undf_wth The number of unique degrees of freedom for Wtheta
+!! @param[in] map_wth Dofmap for the cell at the base of the column for Wtheta
 subroutine sort_ref_code(nlayers,                   &
                          theta_ref,                 &
                          ndf_wth, undf_wth, map_wth &

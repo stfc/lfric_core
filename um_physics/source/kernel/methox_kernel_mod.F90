@@ -6,13 +6,16 @@
 !> @brief Holds methane oxidation code
 module methox_kernel_mod
 
-  use argument_mod,      only: arg_type,  &
-       GH_FIELD, GH_REAL, GH_READ, GH_WRITE, CELLS
+  use argument_mod,      only: arg_type,            &
+                               GH_FIELD, GH_SCALAR, &
+                               GH_READ, GH_WRITE,   &
+                               GH_REAL, CELL_COLUMN
   use fs_continuity_mod, only: Wtheta
   use constants_mod,     only: r_def, i_def
   use kernel_mod,        only: kernel_type
 
   implicit none
+
   private
 
   ! Maximum of 2CH4+H2O used to imply methane amount
@@ -25,18 +28,19 @@ module methox_kernel_mod
   !> Kernel metadata for Psyclone
   type, public, extends(kernel_type) :: methox_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/        &
-         arg_type(GH_FIELD, GH_WRITE, WTHETA), &
-         arg_type(GH_FIELD, GH_READ,  WTHETA), &
-         arg_type(GH_REAL,  GH_READ         )  &
+    type(arg_type) :: meta_args(3) = (/                  &
+         arg_type(GH_FIELD,  GH_REAL, GH_WRITE, WTHETA), &
+         arg_type(GH_FIELD,  GH_REAL, GH_READ,  WTHETA), &
+         arg_type(GH_SCALAR, GH_REAL, GH_READ         )  &
          /)
-    integer :: iterates_over = CELLS
-
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: methox_code
   end type methox_kernel_type
 
-  public methox_code, methox_coeff, photol_coeff
+  public :: methox_code
+  public :: methox_coeff, photol_coeff
+
 contains
 
   !> @brief Calculate chemical changes to water vapour due to methane oxidation
@@ -48,13 +52,13 @@ contains
   !>          The methane oxidation and hydrogen photolysis rate coefficients
   !>          vary only with pressure, which is calculated for a standard
   !>          atmosphere assuming a surface pressure of p_zero.
-  !> @param[in]  nlayers     The number of layers
-  !> @param[in,out] dmv_methox  m_v increment from methane oxiation
-  !> @param[in]  m_v         vapour mixing ratio
-  !> @param[in]  dt          Timestep length (s)
-  !> @param[in]  ndf_wth     Number of degrees of freedom per cell for wtheta
-  !> @param[in]  undf_wth    Number of total degrees of freedom for wtheta
-  !> @param[in]  map_wth     Dofmap for the cell at the base of the column
+  !> @param[in]     nlayers     The number of layers
+  !> @param[in,out] dmv_methox  m_v increment from methane oxidation
+  !> @param[in]     m_v         vapour mixing ratio
+  !> @param[in]     dt          Timestep length (s)
+  !> @param[in]     ndf_wth     Number of degrees of freedom per cell for wtheta
+  !> @param[in]     undf_wth    Number of total degrees of freedom for wtheta
+  !> @param[in]     map_wth     Dofmap for the cell at the base of the column
   subroutine methox_code(nlayers,       &
                          dmv_methox,    &
                          m_v,           &
@@ -65,7 +69,7 @@ contains
 
     implicit none
 
-    !Arguments
+    ! Arguments
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ndf_wth
     integer(kind=i_def), intent(in) :: undf_wth
@@ -74,7 +78,7 @@ contains
     real(kind=r_def),    intent(in), dimension(undf_wth) :: m_v
     real(kind=r_def),    intent(inout), dimension(undf_wth) :: dmv_methox
 
-    !Internal variables
+    ! Internal variables
     integer(kind=i_def) :: k
 
     do k = 0, nlayers

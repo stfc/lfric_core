@@ -11,14 +11,17 @@
 !>         When the Psyclone api is updated to correctly deal with
 !>         boundary dofs this can be removed
 module enforce_bc_kernel_mod
+
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,                     &
-                                    GH_FIELD, GH_INC,                        &
-                                    ANY_SPACE_1,                             &
-                                    CELLS
-use constants_mod,           only : r_def
+use argument_mod,            only : arg_type,            &
+                                    GH_FIELD, GH_REAL,   &
+                                    GH_INC, ANY_SPACE_1, &
+                                    CELL_COLUMN
+use constants_mod,           only : r_def, i_def
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -26,10 +29,10 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: enforce_bc_kernel_type
   private
-  type(arg_type) :: meta_args(1) = (/                                  &
-       arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1)                      &
+  type(arg_type) :: meta_args(1) = (/                   &
+       arg_type(GH_FIELD, GH_REAL, GH_INC, ANY_SPACE_1) &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: enforce_bc_code
 end type
@@ -37,12 +40,12 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public enforce_bc_code
+public :: enforce_bc_code
 contains
 
 !> @brief Applies boundary conditions to a field
 !! @param[in] nlayers Number of layers
-!! @param[inout] field Input/Output data
+!! @param[in,out] field Input/Output data
 !! @param[in] ndf Number of degrees of freedom per cell
 !! @param[in] undf Number of unique degrees of freedom
 !! @param[in] map Dofmap for the cell at the base of the column
@@ -56,16 +59,16 @@ subroutine enforce_bc_code(nlayers,                        &
   implicit none
 
   ! Arguments
-  integer, intent(in) :: nlayers
-  integer, intent(in) :: ndf
-  integer, intent(in) :: undf
-  integer, dimension(ndf),   intent(in) :: map
-  integer, dimension(ndf,2), intent(in) :: boundary_value
+  integer(kind=i_def), intent(in) :: nlayers
+  integer(kind=i_def), intent(in) :: ndf
+  integer(kind=i_def), intent(in) :: undf
+  integer(kind=i_def), dimension(ndf),   intent(in) :: map
+  integer(kind=i_def), dimension(ndf,2), intent(in) :: boundary_value
 
   real(kind=r_def), dimension(undf), intent(inout) :: field
 
   ! Local variables
-  integer :: df, k
+  integer(kind=i_def) :: df, k
 
   k = 0
   do df = 1,ndf

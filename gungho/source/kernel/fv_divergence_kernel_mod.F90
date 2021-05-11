@@ -14,15 +14,19 @@
 
 module fv_divergence_kernel_mod
 
-  use argument_mod,      only : arg_type, func_type,         &
-                                GH_FIELD, GH_WRITE, GH_READ, &
-                                GH_BASIS, CELLS, GH_INTEGER
+  use argument_mod,       only : arg_type,            &
+                                 GH_FIELD, GH_SCALAR, &
+                                 GH_REAL, GH_INTEGER, &
+                                 GH_WRITE, GH_READ,   &
+                                 CELL_COLUMN
   use constants_mod,      only : r_def, i_def
   use flux_direction_mod, only : z_direction
   use fs_continuity_mod,  only : W0, W2, W3
   use kernel_mod,         only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -32,21 +36,21 @@ module fv_divergence_kernel_mod
   !>
   type, public, extends(kernel_type) :: fv_divergence_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/     &
-        arg_type(GH_FIELD,   GH_WRITE, W3), &
-        arg_type(GH_FIELD,   GH_READ,  W3), &
-        arg_type(GH_FIELD,   GH_READ,  W2), &
-        arg_type(GH_INTEGER, GH_READ )      &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(4) = (/                 &
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, W3), &
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W3), &
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W2), &
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ )      &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
-    procedure, nopass ::fv_divergence_code
+    procedure, nopass :: fv_divergence_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public fv_divergence_code
+  public :: fv_divergence_code
 
 contains
 

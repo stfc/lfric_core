@@ -14,16 +14,19 @@
 module w2_normalisation_kernel_mod
 
   use argument_mod,      only : arg_type, func_type,       &
-                                GH_FIELD, GH_INC, GH_READ, &
+                                GH_FIELD, GH_REAL,         &
+                                GH_INC, GH_READ,           &
                                 ANY_SPACE_9,               &
                                 ANY_DISCONTINUOUS_SPACE_3, &
                                 GH_BASIS, GH_DIFF_BASIS,   &
-                                CELLS, GH_EVALUATOR
+                                CELL_COLUMN, GH_EVALUATOR
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2
   use kernel_mod,        only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -33,19 +36,19 @@ module w2_normalisation_kernel_mod
   !>
   type, public, extends(kernel_type) :: w2_normalisation_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                          &
-        arg_type(GH_FIELD,   GH_INC,  W2),                       &
-        ARG_TYPE(GH_FIELD*3, GH_READ, ANY_SPACE_9),              &
-        ARG_TYPE(GH_FIELD,   GH_READ, ANY_DISCONTINUOUS_SPACE_3) &
-        /)
-    type(func_type) :: meta_funcs(2) = (/                        &
-        func_type(W2,          GH_BASIS),                        &
-        func_type(ANY_SPACE_9, GH_DIFF_BASIS, GH_BASIS)          &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(3) = (/                                    &
+         arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),                       &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),              &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3) &
+         /)
+    type(func_type) :: meta_funcs(2) = (/                                  &
+         func_type(W2,          GH_BASIS),                                 &
+         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                   &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_EVALUATOR
   contains
-    procedure, public, nopass :: w2_normalisation_code
+    procedure, nopass :: w2_normalisation_code
   end type
 
   !---------------------------------------------------------------------------
@@ -57,11 +60,11 @@ contains
 
 !> @brief Compute the normalisation factor for W2 fields as vJv
 !! @param[in] nlayers Number of layers
-!! @param[inout] normalisation Normalisation field to compute
+!! @param[in,out] normalisation Normalisation field to compute
 !! @param[in] chi_1 1st (spherical) coordinate field in Wchi
 !! @param[in] chi_2 2nd (spherical) coordinate field in Wchi
 !! @param[in] chi_3 3rd (spherical) coordinate field in Wchi
-!! @param[in] panel_id Field giving the ID for mesh panels.
+!! @param[in] panel_id Field giving the ID for mesh panels
 !! @param[in] ndf Number of degrees of freedom per cell
 !! @param[in] undf Total number of degrees of freedom
 !! @param[in] map Dofmap for the cell at the base of the column

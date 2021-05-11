@@ -8,32 +8,35 @@
 
 !> @brief Kernel to sample a field at nodal points of another field
 module sample_field_kernel_mod
+
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,                     &
-                                    GH_FIELD, GH_READ, GH_INC,               &
-                                    ANY_SPACE_1, ANY_SPACE_2,                &
-                                    GH_BASIS,                                &
-                                    CELLS, GH_EVALUATOR
+use argument_mod,            only : arg_type, func_type,      &
+                                    GH_FIELD, GH_REAL,        &
+                                    GH_READ, GH_INC,          &
+                                    ANY_SPACE_1, ANY_SPACE_2, &
+                                    GH_BASIS, CELL_COLUMN,    &
+                                    GH_EVALUATOR
 use constants_mod,           only : r_def, i_def
 
 implicit none
 
 private
+
 !-------------------------------------------------------------------------------
 ! Public types
 !-------------------------------------------------------------------------------
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: sample_field_kernel_type
   private
-  type(arg_type) :: meta_args(3) = (/                                  &
-       arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1),                     &
-       arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1),                     &
-       arg_type(GH_FIELD,   GH_READ, ANY_SPACE_2)                      &
+  type(arg_type) :: meta_args(3) = (/                     &
+       arg_type(GH_FIELD, GH_REAL, GH_INC,  ANY_SPACE_1), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_1), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2)  &
        /)
-  type(func_type) :: meta_funcs(1) = (/                                &
-       func_type(ANY_SPACE_2, GH_BASIS)                                &
+  type(func_type) :: meta_funcs(1) = (/                   &
+       func_type(ANY_SPACE_2, GH_BASIS)                   &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_EVALUATOR
 contains
   procedure, nopass :: sample_field_code
@@ -42,21 +45,21 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public sample_field_code
+public :: sample_field_code
 contains
 
 !> @brief Sample a field at nodal points of another field
 !! @param[in] nlayers Number of layers
-!! @param[in,out] field_out Field to hold sampled values
+!! @param[in,out] field_1 Field to hold sampled values
 !! @param[in] multiplicity How many times the dof has been visited in total
-!! @param[in] field_in Field to take values from
+!! @param[in] field_2 Field to take values from
 !! @param[in] ndf_1 Number of degrees of freedom per cell for output field
 !! @param[in] undf_1 Number of unique degrees of freedom for output space
 !! @param[in] map_1 Dofmap for the cell at the base of the column for output space
 !! @param[in] ndf_2 Number of degrees of freedom per cell for the field to be advected
 !! @param[in] undf_2  Number of unique degrees of freedom for the advected field
 !! @param[in] map_2 Dofmap for the cell at the base of the column for the field to be advected
-!! @param[in] basis_2 Basis functions evaluated at gaussian quadrature points
+!! @param[in] basis_2 Basis functions evaluated at Gaussian quadrature points
 subroutine sample_field_code(nlayers,                                           &
                              field_1, multiplicity, field_2,                    &
                              ndf_1, undf_1, map_1,                              &

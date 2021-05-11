@@ -7,7 +7,10 @@
 
 module locate_tropopause_kernel_mod
 
-use argument_mod,      only : arg_type, GH_FIELD, GH_READ, GH_WRITE, CELLS, &
+use argument_mod,      only : arg_type,          &
+                              GH_FIELD, GH_REAL, &
+                              GH_READ, GH_WRITE, &
+                              CELL_COLUMN,       &
                               ANY_DISCONTINUOUS_SPACE_1
 use fs_continuity_mod, only:  Wtheta
 use constants_mod,     only : r_def, i_def
@@ -17,23 +20,20 @@ implicit none
 
 private
 
-public :: locate_tropopause_kernel_type
-public :: locate_tropopause_code
-
 !-------------------------------------------------------------------------------
 ! Public types
 !-------------------------------------------------------------------------------
 ! The type declaration for the kernel.
 ! Contains the metadata needed by the PSy layer.
-type, extends(kernel_type) :: locate_tropopause_kernel_type
+type, public, extends(kernel_type) :: locate_tropopause_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                        &
-    arg_type(GH_FIELD, GH_READ,  Wtheta),                    & ! theta
-    arg_type(GH_FIELD, GH_READ,  Wtheta),                    & ! exner_in_wth
-    arg_type(GH_FIELD, GH_READ,  Wtheta),                    & ! height_wth
-    arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)  & ! trop_level
+  type(arg_type) :: meta_args(4) = (/                                   &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                   & ! theta
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                   & ! exner_in_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                   & ! height_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1) & ! trop_level
     /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: locate_tropopause_code
 end type
@@ -41,19 +41,21 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
+public :: locate_tropopause_code
+
 contains
 
-! @param[in]    nlayers                 Number of layers
-! @param[in]    theta                   Potential temperature
-! @param[in]    exner_in_wth            Exner pressure in wth space
-! @param[in]    height_wth              Height of wth levels above surface
-! @param[inout] trop_level              Level of tropopause
-! @param[in]    ndf_wth                 No. DOFs per cell for wth space
-! @param[in]    undf_wth                No. unique DOFs for wth space
-! @param[in]    map_wth                 Dofmap for wth space column base cell
-! @param[in]    ndf_2d                  No. DOFs per cell for 2D space
-! @param[in]    undf_2d                 No. unique DOFs for 2D space
-! @param[in]    map_2d                  Dofmap for 2D space column base cell
+!> @param[in]     nlayers               Number of layers
+!> @param[in]     theta                 Potential temperature
+!> @param[in]     exner_in_wth          Exner pressure in wth space
+!> @param[in]     height_wth            Height of wth levels above surface
+!> @param[in,out] trop_level            Level of tropopause
+!> @param[in]     ndf_wth               No. DOFs per cell for wth space
+!> @param[in]     undf_wth              No. unique DOFs for wth space
+!> @param[in]     map_wth               Dofmap for wth space column base cell
+!> @param[in]     ndf_2d                No. DOFs per cell for 2D space
+!> @param[in]     undf_2d               No. unique DOFs for 2D space
+!> @param[in]     map_2d                Dofmap for 2D space column base cell
 subroutine locate_tropopause_code(nlayers,                    &
                                   theta,                      &
                                   exner_in_wth,               &
@@ -137,4 +139,5 @@ subroutine locate_tropopause_code(nlayers,                    &
   end if
 
 end subroutine locate_tropopause_code
+
 end module locate_tropopause_kernel_mod

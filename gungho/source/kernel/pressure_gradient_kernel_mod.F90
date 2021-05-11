@@ -5,8 +5,8 @@
 !-----------------------------------------------------------------------------
 !> @brief Computes the pressure gradient for rhs of the momentum equation.
 !>
-!! The exner pressure is computed from the equation of state using density
-!! and potential temperature
+!! The Exner pressure is computed from the equation of state using density
+!! and potential temperature.
 !>
 !> The kernel computes the pressure gradient part of the
 !> rhs of the momentum equation for the nonlinear equations,
@@ -24,16 +24,19 @@
 !>
 module pressure_gradient_kernel_mod
 
-  use argument_mod,      only : arg_type, func_type,       &
-                                GH_FIELD, GH_READ, GH_INC, &
-                                GH_BASIS, GH_DIFF_BASIS,   &
-                                CELLS, GH_QUADRATURE_XYoZ
-  use constants_mod,     only : r_def
+  use argument_mod,      only : arg_type, func_type,     &
+                                GH_FIELD, GH_REAL,       &
+                                GH_READ, GH_INC,         &
+                                GH_BASIS, GH_DIFF_BASIS, &
+                                CELL_COLUMN, GH_QUADRATURE_XYoZ
+  use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2, W3, Wtheta
   use kernel_mod,        only : kernel_type
   use planet_config_mod, only : cp
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -43,52 +46,54 @@ module pressure_gradient_kernel_mod
   !>
   type, public, extends(kernel_type) :: pressure_gradient_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/            &
-        arg_type(GH_FIELD,   GH_INC,  W2),         &
-        arg_type(GH_FIELD,   GH_READ, W3),         &
-        arg_type(GH_FIELD,   GH_READ, Wtheta)      &
-        /)
-    type(func_type) :: meta_funcs(3) = (/                &
-        func_type(W2,          GH_BASIS, GH_DIFF_BASIS), &
-        func_type(W3,          GH_BASIS),                &
-        func_type(Wtheta,      GH_BASIS, GH_DIFF_BASIS)  &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(3) = (/               &
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  W2),    &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, W3),    &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta) &
+         /)
+    type(func_type) :: meta_funcs(3) = (/             &
+         func_type(W2,     GH_BASIS, GH_DIFF_BASIS),  &
+         func_type(W3,     GH_BASIS),                 &
+         func_type(Wtheta, GH_BASIS, GH_DIFF_BASIS)   &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
-    procedure, nopass ::pressure_gradient_code
+    procedure, nopass :: pressure_gradient_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public pressure_gradient_code
+  public :: pressure_gradient_code
 
 contains
 
 !> @brief Compute the pressure gradient component of the momentum equation
 !! @param[in] nlayers Number of layers
-!! @param[in] ndf_w2 Number of degrees of freedom per cell for w2
-!! @param[in] undf_w2 Number of unique degrees of freedom  for w2
-!! @param[in] map_w2 Dofmap for the cell at the base of the column for w2
-!! @param[in] w2_basis Basis functions evaluated at quadrature points
-!! @param[in] w2_diff_basis Differential of the basis functions evaluated at  quadrature points
-!! @param[inout] r_u Momentum equation right hand side
-!! @param[in] ndf_w3 Number of degrees of freedom per cell for w3
-!! @param[in] undf_w3 Number of unique degrees of freedom  for w3
-!! @param[in] map_w3 Dofmap for the cell at the base of the column for w3
-!! @param[in] w3_basis Basis functions evaluated at gaussian quadrature points
+!! @param[in,out] r_u Momentum equation right hand side
 !! @param[in] rho Density
-!! @param[in] ndf_wt Number of degrees of freedom per cell for wt
-!! @param[in] undf_wt Number of unique degrees of freedom  for wt
-!! @param[in] map_wt Dofmap for the cell at the base of the column for wt
-!! @param[in] wt_basis Basis functions evaluated at gaussian quadrature points
-!! @param[in] wt_diff_basis Differential of the basis functions evaluated at gaussian quadrature point
 !! @param[in] theta Potential temperature
+!! @param[in] ndf_w2 Number of degrees of freedom per cell for W2
+!! @param[in] undf_w2 Number of unique degrees of freedom for W2
+!! @param[in] map_w2 Dofmap for the cell at the base of the column for W2
+!! @param[in] w2_basis Basis functions evaluated at quadrature points
+!! @param[in] w2_diff_basis Differential of the basis functions evaluated at
+!!                          Gaussian quadrature points
+!! @param[in] ndf_w3 Number of degrees of freedom per cell for W3
+!! @param[in] undf_w3 Number of unique degrees of freedom for W3
+!! @param[in] map_w3 Dofmap for the cell at the base of the column for W3
+!! @param[in] w3_basis Basis functions evaluated at Gaussian quadrature points
+!! @param[in] ndf_wt Number of degrees of freedom per cell for Wtheta
+!! @param[in] undf_wt Number of unique degrees of freedom for Wtheta
+!! @param[in] map_wt Dofmap for the cell at the base of the column for Wtheta
+!! @param[in] wt_basis Basis functions evaluated at Gaussian quadrature points
+!! @param[in] wt_diff_basis Differential of the basis functions evaluated at
+!!                          Gaussian quadrature points
 !! @param[in] nqp_h Number of quadrature points in the horizontal
 !! @param[in] nqp_v Number of quadrature points in the vertical
-!! @param[in] wqp_h horizontal quadrature weights
-!! @param[in] wqp_v vertical quadrature weights
+!! @param[in] wqp_h Horizontal quadrature weights
+!! @param[in] wqp_v Vertical quadrature weights
 subroutine pressure_gradient_code(nlayers,                                          &
                                   r_u, rho, theta,                                  &
                                   ndf_w2, undf_w2, map_w2, w2_basis, w2_diff_basis, &
@@ -102,14 +107,12 @@ subroutine pressure_gradient_code(nlayers,                                      
   implicit none
 
   ! Arguments
-  integer, intent(in) :: nlayers,nqp_h, nqp_v
-  integer, intent(in) :: ndf_wt, ndf_w2, ndf_w3
-  integer, intent(in) :: undf_wt, undf_w2, undf_w3
-  integer, dimension(ndf_wt), intent(in) :: map_wt
-  integer, dimension(ndf_w2), intent(in) :: map_w2
-  integer, dimension(ndf_w3), intent(in) :: map_w3
-
-
+  integer(kind=i_def), intent(in) :: nlayers,nqp_h, nqp_v
+  integer(kind=i_def), intent(in) :: ndf_wt, ndf_w2, ndf_w3
+  integer(kind=i_def), intent(in) :: undf_wt, undf_w2, undf_w3
+  integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
+  integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
+  integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
 
   real(kind=r_def), dimension(1,ndf_w3,nqp_h,nqp_v), intent(in) :: w3_basis
   real(kind=r_def), dimension(3,ndf_w2,nqp_h,nqp_v), intent(in) :: w2_basis
@@ -125,12 +128,12 @@ subroutine pressure_gradient_code(nlayers,                                      
   real(kind=r_def), dimension(nqp_v), intent(in)      ::  wqp_v
 
   ! Internal variables
-  integer               :: df, k
-  integer               :: qp1, qp2
+  integer(kind=i_def) :: df, k
+  integer(kind=i_def) :: qp1, qp2
 
-  real(kind=r_def), dimension(ndf_w3)          :: rho_e
-  real(kind=r_def), dimension(ndf_w2)          :: ru_e
-  real(kind=r_def), dimension(ndf_wt)          :: theta_e
+  real(kind=r_def), dimension(ndf_w3) :: rho_e
+  real(kind=r_def), dimension(ndf_w2) :: ru_e
+  real(kind=r_def), dimension(ndf_wt) :: theta_e
 
   real(kind=r_def) :: grad_theta_at_quad(3), v(3)
   real(kind=r_def) :: exner_at_quad, rho_at_quad, theta_at_quad, &
@@ -156,7 +159,7 @@ subroutine pressure_gradient_code(nlayers,                                      
         theta_at_quad = 0.0_r_def
         grad_theta_at_quad(:) = 0.0_r_def
         do df = 1, ndf_wt
-          theta_at_quad   = theta_at_quad                                      &
+          theta_at_quad   = theta_at_quad                             &
                           + theta_e(df)*wt_basis(1,df,qp1,qp2)
           grad_theta_at_quad(:) = grad_theta_at_quad(:) &
                                 + theta_e(df)*wt_diff_basis(:,df,qp1,qp2)
@@ -169,7 +172,7 @@ subroutine pressure_gradient_code(nlayers,                                      
           v  = w2_basis(:,df,qp1,qp2)
           dv = w2_diff_basis(1,df,qp1,qp2)
 
-!pressure gradient term
+! pressure gradient term
           grad_term = cp*exner_at_quad * (                           &
                       theta_at_quad * dv                             &
                     + dot_product( grad_theta_at_quad(:),v)          &

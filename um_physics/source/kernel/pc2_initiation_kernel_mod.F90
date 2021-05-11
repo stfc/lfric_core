@@ -7,12 +7,13 @@
 
 module pc2_initiation_kernel_mod
 
-use argument_mod, only: arg_type,                                &
-                        GH_FIELD, GH_READ, GH_WRITE,             &
-                        GH_READWRITE, CELLS, ANY_DISCONTINUOUS_SPACE_1
+use argument_mod,      only: arg_type,          &
+                             GH_FIELD, GH_REAL, &
+                             GH_READ, GH_WRITE, &
+                             CELL_COLUMN,       &
+                             ANY_DISCONTINUOUS_SPACE_1
 use fs_continuity_mod, only: WTHETA, W3
-
-use kernel_mod,   only: kernel_type
+use kernel_mod,        only: kernel_type
 
 implicit none
 
@@ -25,94 +26,95 @@ private
 
 type, public, extends(kernel_type) :: pc2_initiation_kernel_type
   private
-  type(arg_type) :: meta_args(32) = (/                              &
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! mv_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! ml_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! mi_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! cfl_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! cff_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! bcf_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! theta_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! exner_wth
-       arg_type(GH_FIELD,   GH_READ,    W3),                        & ! exner_w3
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! dsldzm
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! wvar
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! tau_dec_bm
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! tau_hom_bm
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! tau_mph_bm
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! mv_n_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! ml_n_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! theta_n_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! exner_n_wth
-       arg_type(GH_FIELD,   GH_READ,    ANY_DISCONTINUOUS_SPACE_1), & ! zlcl_mixed
-       arg_type(GH_FIELD,   GH_READ,    ANY_DISCONTINUOUS_SPACE_1), & ! r_cumulus
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! height_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                    & ! dtheta_inc
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                    & ! dqv_inc_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                    & ! dqcl_inc_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                    & ! dqcf_inc_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                    & ! dcfl_inc_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                    & ! dcff_inc_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                    & ! dbcf_inc_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                    & ! sskew_bm 
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                    & ! svar_bm
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                    & ! svar_tb
-       arg_type(GH_FIELD,   GH_READ,    WTHETA)                     & ! rh_crit_wth
+  type(arg_type) :: meta_args(32) = (/                                   &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! mv_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! ml_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! mi_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! cfl_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! cff_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! bcf_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! theta_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! exner_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                        & ! exner_w3
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! dsldzm
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! wvar
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! tau_dec_bm
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! tau_hom_bm
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! tau_mph_bm
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! mv_n_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! ml_n_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! theta_n_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! exner_n_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & ! zlcl_mixed
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & ! r_cumulus
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! height_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                    & ! dtheta_inc
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                    & ! dqv_inc_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                    & ! dqcl_inc_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                    & ! dqcf_inc_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                    & ! dcfl_inc_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                    & ! dcff_inc_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                    & ! dbcf_inc_wth
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                    & ! sskew_bm
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                    & ! svar_bm
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                    & ! svar_tb
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA)                     & ! rh_crit_wth
        /)
-   integer :: iterates_over = CELLS
+   integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: pc2_initiation_code
 end type
 
-public pc2_initiation_code
+public :: pc2_initiation_code
+
 contains
 
 !> @brief Interface to pc2 initiation
 !> @details Calculates whether cloud should be created from clear-sky conditions
 !>          or whether overcast conditions should be broken up.
 !>          More info is in UMDP 30.
-!> @param[in] nlayers         Number of layers
-!> @param[in] mv_wth          Vapour mass mixing ratio
-!> @param[in] ml_wth          Liquid cloud mass mixing ratio
-!> @param[in] mi_wth          Liquid cloud mass mixing ratio
-!> @param[in] cfl_wth         Liquid cloud fraction
-!> @param[in] cff_wth         Ice cloud fraction
-!> @param[in] bcf_wth         Bulk cloud fraction
-!> @param[in] theta_wth       Potential temperature field
-!> @param[in] exner_wth       Exner pressure in theta space
-!> @param[in] exner_w3        Exner pressure in w3 space
-!> @param[in] dsldzm          Liquid potential temperature gradient in wth 
-!> @param[in] wvar            Vertical velocity variance in wth
-!> @param[in] tau_dec_bm      Decorrelation time scale in wth
-!> @param[in] tau_hom_bm      Homogenisation time scale in wth
-!> @param[in] tau_mph_bm      Phase-relaxation time scale in wth
-!> @param[in] mv_n_wth        Start of timestep vapour mass mixing ratio
-!> @param[in] ml_n_wth        Start of timestep liquid cloud mass mixing ratio
-!> @param[in] theta_n_wth     Start of timestep theta in theta space
-!> @param[in] exner_n_wth     Start of timestep exner in theta space
-!> @param[in] zlcl_mixed      The height of the lifting condensation level in the mixed layer
-!> @param[in] r_cumulus       A real number representing the logical cumulus flag
-!> @param[in] height_wth      Height of wth levels above mean sea level
-!> @param[out] dtheta_inc_wth Increment to theta in theta space
-!> @param[out] dqv_inc_wth    Increment to water vapour in theta space
-!> @param[out] dqcl_inc_wth   Increment to liquid water content in theta space
-!> @param[out] dqcf_inc_wth   Increment to ice water content in theta space
-!> @param[out] dcfl_inc_wth   Increment to liquid cloud fraction in theta space
-!> @param[out] dcff_inc_wth   Increment to ice cloud fraction in theta space
-!> @param[out] dbcf_inc_wth   Increment to bulk cloud fraction in theta space
-!> @param[in,out] sskew_bm    Bimodal skewness of SD PDF
-!> @param[in,out] svar_bm     Bimodal variance of SD PDF
-!> @param[in,out] svar_tb     Unimodal variance of SD PDF
-!> @param[in] rh_crit_wth     Critical relative humidity in theta space
-!> @param[in] ndf_wth         Number of degrees of freedom per cell for theta space
-!> @param[in] undf_wth        Number unique of degrees of freedom  for theta space
-!> @param[in] map_wth         Dofmap for the cell at the base of the column for theta space
-!> @param[in] ndf_w3          Number of degrees of freedom per cell for density space
-!> @param[in] undf_w3         Number unique of degrees of freedom  for density space
-!> @param[in] map_w3          Dofmap for the cell at the base of the column for density space
-!> @param[in] ndf_2d          Number of degrees of freedom per cell for density space
-!> @param[in] undf_2d         Number of unique degrees of freedom for density space
-!> @param[in] map_2d          Dofmap for the cell at the base of the column for density space
+!> @param[in]     nlayers        Number of layers
+!> @param[in]     mv_wth         Vapour mass mixing ratio
+!> @param[in]     ml_wth         Liquid cloud mass mixing ratio
+!> @param[in]     mi_wth         Liquid cloud mass mixing ratio
+!> @param[in]     cfl_wth        Liquid cloud fraction
+!> @param[in]     cff_wth        Ice cloud fraction
+!> @param[in]     bcf_wth        Bulk cloud fraction
+!> @param[in]     theta_wth      Potential temperature field
+!> @param[in]     exner_wth      Exner pressure in theta space
+!> @param[in]     exner_w3       Exner pressure in w3 space
+!> @param[in]     dsldzm         Liquid potential temperature gradient in wth
+!> @param[in]     wvar           Vertical velocity variance in wth
+!> @param[in]     tau_dec_bm     Decorrelation time scale in wth
+!> @param[in]     tau_hom_bm     Homogenisation time scale in wth
+!> @param[in]     tau_mph_bm     Phase-relaxation time scale in wth
+!> @param[in]     mv_n_wth       Start of timestep vapour mass mixing ratio
+!> @param[in]     ml_n_wth       Start of timestep liquid cloud mass mixing ratio
+!> @param[in]     theta_n_wth    Start of timestep theta in theta space
+!> @param[in]     exner_n_wth    Start of timestep exner in theta space
+!> @param[in]     zlcl_mixed     The height of the lifting condensation level in the mixed layer
+!> @param[in]     r_cumulus      A real number representing the logical cumulus flag
+!> @param[in]     height_wth     Height of wth levels above mean sea level
+!> @param[in,out] dtheta_inc_wth Increment to theta in theta space
+!> @param[in,out] dqv_inc_wth    Increment to water vapour in theta space
+!> @param[in,out] dqcl_inc_wth   Increment to liquid water content in theta space
+!> @param[in,out] dqcf_inc_wth   Increment to ice water content in theta space
+!> @param[in,out] dcfl_inc_wth   Increment to liquid cloud fraction in theta space
+!> @param[in,out] dcff_inc_wth   Increment to ice cloud fraction in theta space
+!> @param[in,out] dbcf_inc_wth   Increment to bulk cloud fraction in theta space
+!> @param[in,out] sskew_bm       Bimodal skewness of SD PDF
+!> @param[in,out] svar_bm        Bimodal variance of SD PDF
+!> @param[in,out] svar_tb        Unimodal variance of SD PDF
+!> @param[in]     rh_crit_wth    Critical relative humidity in theta space
+!> @param[in]     ndf_wth        Number of degrees of freedom per cell for theta space
+!> @param[in]     undf_wth       Number unique of degrees of freedom  for theta space
+!> @param[in]     map_wth        Dofmap for the cell at the base of the column for theta space
+!> @param[in]     ndf_w3         Number of degrees of freedom per cell for density space
+!> @param[in]     undf_w3        Number unique of degrees of freedom  for density space
+!> @param[in]     map_w3         Dofmap for the cell at the base of the column for density space
+!> @param[in]     ndf_2d         Number of degrees of freedom per cell for density space
+!> @param[in]     undf_2d        Number of unique degrees of freedom for density space
+!> @param[in]     map_2d         Dofmap for the cell at the base of the column for density space
 
 subroutine pc2_initiation_code( nlayers,                           &
                                 mv_wth,                            &

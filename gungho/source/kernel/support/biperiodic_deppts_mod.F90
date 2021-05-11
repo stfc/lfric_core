@@ -3,21 +3,21 @@
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !------------------------------------------------------------------------------
-!>  @brief   Routines for calculating departure points in 1D used for the
-!!           split advection scheme.
+!> @brief  Routines for calculating departure points in 1D used for the
+!!         split advection scheme.
 !!
 !------------------------------------------------------------------------------
 module biperiodic_deppts_mod
 
 use constants_mod, only : r_def, i_def
 use log_mod,       only : log_event, LOG_LEVEL_ERROR, log_scratch_space
-use biperiodic_deppt_config_mod, only : method_euler,       &
-                                        method_midpoint,    &
-                                        method_trapezoidal,    &
-                                        method_timeaverage, &
+use biperiodic_deppt_config_mod, only : method_euler,                &
+                                        method_midpoint,             &
+                                        method_trapezoidal,          &
+                                        method_timeaverage,          &
                                         vertical_method_euler,       &
                                         vertical_method_midpoint,    &
-                                        vertical_method_trapezoidal,    &
+                                        vertical_method_trapezoidal, &
                                         vertical_method_timeaverage
 
 implicit none
@@ -26,7 +26,7 @@ private
 
 public :: calc_dep_point
 public :: calc_vertical_trapezoidal
-! the following subroutines are public in order to facilitate unit testing.
+! The following subroutines are public in order to facilitate unit testing
 public :: find_local_x_value
 public :: find_local_vertical_value
 public :: calc_u_at_x
@@ -34,21 +34,23 @@ public :: calc_u_in_vertical
 
 contains
 
-!------------------------------------------------------------------------------
-!>  @brief  Calculates the distance between the arrival point and the departure
-!!          point in 1D. Note that the distance has sign (+/-) and positive
-!!          values represent the case when the wind is positive, such that
-!!          x_departure < x_arrival. The distance is negative if the wind is
-!!          negative.
-!!
-!!  @param[in]   x_arrival    Arrival point in departure point calculation
-!!  @param[in]   nCellEdges   Number of velocity values
-!!  @param[in]   u_n          Velocity at cell edges at time n
-!!  @param[in]   u_np1        Velocity at cell edges at time n+1
-!!  @param[in]   deltaT       Time step length
-!!  @param[in]   method       Integration method
-!!  @param[in]   n_dep_pt_iterations Number of solver iterations
-!------------------------------------------------------------------------------
+  !----------------------------------------------------------------------------
+  !> @brief  Calculates the distance between the arrival point and the
+  !!         departure point in 1D. Note that the distance has sign (+/-) and
+  !!         positive values represent the case when the wind is positive, such
+  !!         that x_departure < x_arrival. The distance is negative if the wind
+  !!         is negative.
+  !!
+  !! @param[in]   x_arrival    Arrival point in departure point calculation
+  !! @param[in]   nCellEdges   Number of velocity values
+  !! @param[in]   u_n          Velocity at cell edges at time n
+  !! @param[in]   u_np1        Velocity at cell edges at time n+1
+  !! @param[in]   deltaT       Time step length
+  !! @param[in]   method       Integration method
+  !! @param[in]   n_dep_pt_iterations Number of solver iterations
+  !! @return      distance     Distance between arrival point and departure
+  !!                           point
+  !----------------------------------------------------------------------------
   function calc_dep_point(  x_arrival,           &
                             nCellEdges,          &
                             u_n,                 &
@@ -60,12 +62,12 @@ contains
     implicit none
 
     real(kind=r_def), intent(in)    :: x_arrival
-    integer, intent(in)             :: nCellEdges
+    integer(kind=i_def), intent(in) :: nCellEdges
     real(kind=r_def), intent(in)    :: u_n(1:nCellEdges)
     real(kind=r_def), intent(in)    :: u_np1(1:nCellEdges)
     real(kind=r_def), intent(in)    :: deltaT
-    integer, intent(in)             :: method
-    integer, intent(in)             :: n_dep_pt_iterations
+    integer(kind=i_def), intent(in) :: method
+    integer(kind=i_def), intent(in) :: n_dep_pt_iterations
     real(kind=r_def)                :: distance
 
     real(kind=r_def) :: u_arrival
@@ -77,7 +79,7 @@ contains
     real(kind=r_def) :: x_departure
     real(kind=r_def) :: u_arrival_np
 
-    integer :: iLoop
+    integer(kind=i_def) :: iLoop
 
     x_departure = x_arrival
 
@@ -134,23 +136,23 @@ contains
   end function calc_dep_point
 
 
-!------------------------------------------------------------------------------
-!>  @brief  Calculates the distance between the arrival point and the departure
-!!          point in 1D in the vertical. Note that the distance has sign (+/-) and positive
-!!          values represent the case when the wind is positive, such that
-!!          x_departure < x_arrival. The distance is negative if the wind is
-!!          negative.
-!!
-!!  @param[in]   x_arrival    Arrival point in departure point calculation
-!!  @param[in]   nCellEdges   Number of velocity values
-!!  @param[in]   u_n          Velocity at cell edges at time n
-!!  @param[in]   u_np1        Velocity at cell edges at time n+1
-!!  @param[in]   deltaT       Time step length
-!!  @param[in]   vertical_method     Integration method
-!!  @param[in]   n_dep_pt_iterations Number of solver iterations
-!!  @param[out]  distance     Distance between arrival point and departure
-!!                            point.
-!------------------------------------------------------------------------------
+  !----------------------------------------------------------------------------
+  !> @brief  Calculates the distance between the arrival point and the departure
+  !!         point in 1D in the vertical. Note that the distance has sign (+/-)
+  !!         and positive values represent the case when the wind is positive,
+  !!         such that x_departure < x_arrival. The distance is negative if the
+  !!         wind is negative.
+  !!
+  !! @param[in]   x_arrival    Arrival point in departure point calculation
+  !! @param[in]   nCellEdges   Number of velocity values
+  !! @param[in]   u_n          Velocity at cell edges at time n
+  !! @param[in]   u_np1        Velocity at cell edges at time n+1
+  !! @param[in]   deltaT       Time step length
+  !! @param[in]   vertical_method     Integration method
+  !! @param[in]   n_dep_pt_iterations Number of solver iterations
+  !! @return      distance     Distance between arrival point and departure
+  !!                           point
+  !----------------------------------------------------------------------------
   function calc_vertical_trapezoidal( x_arrival,              &
                                       nCellEdges,             &
                                       u_n,                    &
@@ -167,7 +169,7 @@ contains
     real(kind=r_def), intent(in)        :: u_n(1:nCellEdges)
     real(kind=r_def), intent(in)        :: u_np1(1:nCellEdges)
     real(kind=r_def), intent(in)        :: deltaT
-    integer, intent(in)                 :: vertical_method
+    integer(kind=i_def), intent(in)     :: vertical_method
     integer(kind=i_def), intent(in)     :: n_dep_pt_iterations
     real(kind=r_def)                    :: distance
 
@@ -237,23 +239,23 @@ contains
   end function calc_vertical_trapezoidal
 
 
-!------------------------------------------------------------------------------
-!>  @brief  Calculates the location of a value x_in within a given stencil of
-!!          length nCellEdges
-!!
-!!  @param[in]    x_in  Arrival value, typically equal to 0.0.
-!!  @param[in]    nCellEdges  Number of cell edges in a stencil
-!!  @param[out]   iEdge       Index of cell edge to the left of x_in
-!!  @param[out]   fractional_x_value  Fractional value of x_in
-!------------------------------------------------------------------------------
+  !----------------------------------------------------------------------------
+  !> @brief  Calculates the location of a value x_in within a given stencil of
+  !!         length nCellEdges.
+  !!
+  !! @param[in]    x_in  Arrival value, typically equal to 0.0.
+  !! @param[in]    nCellEdges  Number of cell edges in a stencil
+  !! @param[out]   iEdge       Index of cell edge to the left of x_in
+  !! @param[out]   fractional_x_value  Fractional value of x_in
+  !----------------------------------------------------------------------------
   subroutine find_local_x_value(x_in,nCellEdges,iEdge,fractional_x_value)
 
     implicit none
 
-    real(kind=r_def), intent(in)    :: x_in
-    integer, intent(in)             :: nCellEdges
-    integer, intent(out)            :: iEdge
-    real(kind=r_def), intent(out)   :: fractional_x_value
+    real(kind=r_def), intent(in)     :: x_in
+    integer(kind=i_def), intent(in)  :: nCellEdges
+    integer(kind=i_def), intent(out) :: iEdge
+    real(kind=r_def), intent(out)    :: fractional_x_value
 
     ! Check that the number of CellEdges is even
     if (modulo(nCellEdges,2) == 1) then
@@ -272,15 +274,15 @@ contains
   end subroutine find_local_x_value
 
 
-!------------------------------------------------------------------------------
-!>  @brief  Calculates integer part and fractional part of x_in and the subrotine
-!!          is typically used in the vertical direction.
-!!
-!!  @param[in]    x_in  Arrival value, typically equal to 0.0.
-!!  @param[in]    nCellEdges  Number of cell edges in a stencil
-!!  @param[out]   iEdge       Index of cell edge to the left of x_in
-!!  @param[out]   fractional_x_value  Fractional value of x_in
-!------------------------------------------------------------------------------
+  !----------------------------------------------------------------------------
+  !> @brief  Calculates integer part and fractional part of x_in and the
+  !!         subroutine is typically used in the vertical direction.
+  !!
+  !! @param[in]    x_in  Arrival value, typically equal to 0.0.
+  !! @param[in]    nCellEdges  Number of cell edges in a stencil
+  !! @param[out]   iEdge       Index of cell edge to the left of x_in
+  !! @param[out]   fractional_x_value  Fractional value of x_in
+  !----------------------------------------------------------------------------
   subroutine find_local_vertical_value(x_in,nCellEdges,iEdge,fractional_x_value)
 
     implicit none
@@ -301,14 +303,14 @@ contains
 
   end subroutine find_local_vertical_value
 
-!------------------------------------------------------------------------------
-!>  @brief  Subroutine which checks whether departure points are outside the
-!!          domain of interest defined by the stencil length
-!!
-!!  @param[in]   x_in         X value to be tested
-!!  @param[in]   left_limit   Left hand bound
-!!  @param[in]   right_limit  Right hand bound
-!------------------------------------------------------------------------------
+  !----------------------------------------------------------------------------
+  !> @brief  Subroutine which checks whether departure points are outside the
+  !!         domain of interest defined by the stencil length.
+  !!
+  !! @param[in]   x_in         X value to be tested
+  !! @param[in]   left_limit   Left hand bound
+  !! @param[in]   right_limit  Right hand bound
+  !----------------------------------------------------------------------------
   subroutine test_value_in_limits(x_in,left_limit,right_limit)
 
     implicit none
@@ -326,23 +328,23 @@ contains
 
   end subroutine test_value_in_limits
 
-!------------------------------------------------------------------------------
-!>  @brief  Subroutine which checks whether departure points are outside the
-!!          vertical domain defined by the stencil length. We follow Wood et al.
-!!          2009 to make the departure point fall within the domain at the lowest
-!!          level and set it to the domain top and the highest level.
-!!
-!!  @param[inout] x_dep      X value to be tested
-!!  @param[in]    lower_limit   lower bound
-!!  @param[in]    upper_limit   upper bound
-!------------------------------------------------------------------------------
+  !----------------------------------------------------------------------------
+  !> @brief  Subroutine which checks whether departure points are outside the
+  !!         vertical domain defined by the stencil length. We follow Wood et
+  !!         al. 2009 to make the departure point fall within the domain at the
+  !!         lowest level and set it to the domain top and the highest level.
+  !!
+  !! @param[in,out] x_dep         X value to be tested
+  !! @param[in]     lower_limit   Lower bound
+  !! @param[in]     upper_limit   Upper bound
+  !----------------------------------------------------------------------------
   subroutine test_value_in_vertical_limits(x_dep,lower_limit,upper_limit)
 
     implicit none
 
     real(kind=r_def), intent(inout) ::   x_dep
-    real(kind=r_def), intent(in) ::      lower_limit
-    real(kind=r_def), intent(in) ::      upper_limit
+    real(kind=r_def), intent(in)    ::   lower_limit
+    real(kind=r_def), intent(in)    ::   upper_limit
 
     if (x_dep > upper_limit) then
       ! Set departure point value to upper limit
@@ -359,26 +361,26 @@ contains
 
   end subroutine test_value_in_vertical_limits
 
-!------------------------------------------------------------------------------
-!>  @brief  Returns an interpolated wind field value at x_in
-!!
-!!  @param[in]    x_in        Position at which to interpolate wind
-!!  @param[in]    nCellEdges  Number of values in the local u field
-!!  @param[in]    u_wind      Wind values
-!!  @result       u_out       Interpolated wind value
-!------------------------------------------------------------------------------
+  !----------------------------------------------------------------------------
+  !> @brief  Returns an interpolated wind field value at x_in.
+  !!
+  !! @param[in]    x_in        Position at which to interpolate wind
+  !! @param[in]    nCellEdges  Number of values in the local u field
+  !! @param[in]    u_wind      Wind values
+  !! @return       u_out       Interpolated wind value
+  !----------------------------------------------------------------------------
   function calc_u_at_x(x_in,nCellEdges,u_wind) result(u_out)
 
     implicit none
 
-    real(kind=r_def), intent(in)  ::  x_in
-    integer, intent(in)           ::  nCellEdges
-    real(kind=r_def), intent(in)  ::  u_wind(1:nCellEdges)
-    real(kind=r_def)              ::  u_out
+    real(kind=r_def), intent(in)    ::  x_in
+    integer(kind=i_def), intent(in) ::  nCellEdges
+    real(kind=r_def), intent(in)    ::  u_wind(1:nCellEdges)
+    real(kind=r_def)                ::  u_out
 
     real(kind=r_def)    :: fractional_x_value
-    integer :: iEdge
-    integer :: iCellRight
+    integer(kind=i_def) :: iEdge
+    integer(kind=i_def) :: iCellRight
 
     call find_local_x_value(x_in,nCellEdges,iEdge,fractional_x_value)
 
@@ -393,15 +395,15 @@ contains
 
   end function calc_u_at_x
 
-!------------------------------------------------------------------------------
-!>  @brief  Returns an interpolated wind field value in the vertical direction
-!!          at x_in.
-!!
-!!  @param[in]    x_in        Position at which to interpolate wind
-!!  @param[in]    nCellEdges  Number of values in the local u field
-!!  @param[in]    u_wind      Wind values
-!!  @result       u_out       Interpolated wind value
-!------------------------------------------------------------------------------
+  !----------------------------------------------------------------------------
+  !> @brief  Returns an interpolated wind field value in the vertical direction
+  !!         at x_in.
+  !!
+  !! @param[in]    x_in        Position at which to interpolate wind
+  !! @param[in]    nCellEdges  Number of values in the local u field
+  !! @param[in]    u_wind      Wind values
+  !! @return       u_out       Interpolated wind value
+  !----------------------------------------------------------------------------
   function calc_u_in_vertical(x_in,nCellEdges,u_wind) result(u_out)
 
     implicit none

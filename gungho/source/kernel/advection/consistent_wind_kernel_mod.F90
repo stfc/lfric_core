@@ -14,11 +14,11 @@
 module consistent_wind_kernel_mod
 
 use argument_mod,      only : arg_type, func_type,     &
-                              GH_FIELD,                &
+                              GH_FIELD, GH_REAL,       &
                               GH_INC, GH_READ,         &
                               ANY_SPACE_1,             &
                               GH_BASIS, GH_DIFF_BASIS, &
-                              CELLS, GH_EVALUATOR
+                              CELL_COLUMN, GH_EVALUATOR
 use constants_mod,     only : r_def, i_def
 use fs_continuity_mod, only : Wtheta, W2
 use kernel_mod,        only : kernel_type
@@ -32,17 +32,17 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the PSy layer
 type, public, extends(kernel_type) :: consistent_wind_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_FIELD,   GH_INC,  W2),                              &
-       arg_type(GH_FIELD,   GH_READ, W2),                              &
-       arg_type(GH_FIELD,   GH_READ, Wtheta),                          &
-       arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_1)                      &
+  type(arg_type) :: meta_args(4) = (/                      &
+       arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),         &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ, W2),         &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ, Wtheta),     &
+       arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_1) &
        /)
-  type(func_type) :: meta_funcs(2) = (/                                &
-       func_type(W2,          GH_BASIS),                               &
-       func_type(ANY_SPACE_1, GH_DIFF_BASIS)                           &
+  type(func_type) :: meta_funcs(2) = (/                    &
+       func_type(W2,          GH_BASIS),                   &
+       func_type(ANY_SPACE_1, GH_DIFF_BASIS)               &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_EVALUATOR
 contains
   procedure, nopass :: consistent_wind_code
@@ -51,33 +51,34 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public consistent_wind_code
+public :: consistent_wind_code
+
 contains
 
-!>@brief Modify the vertical wind to include consistent computation of grid
-!>       metric
-!>@param[in]     nlayers Number of vertical layers
-!>@param[in,out] consistent_wind Wind with the vertical component modified to
-!>                               include consistent metrics
-!>@param[in]     wind Unmodified wind field
-!>@param[in]     theta_metrics Horizontal component of u.grad(z) computed by
-!>                             advection scheme
-!>@param[in]     chi1 1st component of the physical coordinate field
-!>@param[in]     chi2 2nd component of the physical coordinate field
-!>@param[in]     chi3 3rd component of the physical coordinate field
-!>@param[in]     ndf_w2 Number of degrees of freedom per cell for W2
-!>@param[in]     undf_w2 Total number of degrees of freedom for W2
-!>@param[in]     map_w2 Dofmap of the wind field
-!>@param[in]     basis_w2 Basis function of the wind space evaluated on
-!>                        W2 nodal points
-!>@param[in]     ndf_wt Number of degrees of freedom per cell for Wtheta
-!>@param[in]     undf_wt Total number of degrees of freedom for Wtheta
-!>@param[in]     map_wt Dofmap of the metric field
-!>@param[in]     ndf_wx Number of degrees of freedom per cell for the coordinate space
-!>@param[in]     undf_wx Total number of degrees of freedom for the coordinate space
-!>@param[in]     map_wx Dofmap of the coordinate space
-!>@param[in]     diff_basis_wx Differential of basis function of the coordinate space evaluated on
-!>                             W2 nodal points
+!> @brief Modify the vertical wind to include consistent computation of grid
+!>        metric
+!> @param[in]     nlayers Number of vertical layers
+!> @param[in,out] consistent_wind Wind with the vertical component modified to
+!>                                include consistent metrics
+!> @param[in]     wind Unmodified wind field
+!> @param[in]     theta_metrics Horizontal component of u.grad(z) computed by
+!>                              advection scheme
+!> @param[in]     chi1 1st component of the physical coordinate field
+!> @param[in]     chi2 2nd component of the physical coordinate field
+!> @param[in]     chi3 3rd component of the physical coordinate field
+!> @param[in]     ndf_w2 Number of degrees of freedom per cell for W2
+!> @param[in]     undf_w2 Total number of degrees of freedom for W2
+!> @param[in]     map_w2 Dofmap of the wind field
+!> @param[in]     basis_w2 Basis function of the wind space evaluated on
+!>                         W2 nodal points
+!> @param[in]     ndf_wt Number of degrees of freedom per cell for Wtheta
+!> @param[in]     undf_wt Total number of degrees of freedom for Wtheta
+!> @param[in]     map_wt Dofmap of the metric field
+!> @param[in]     ndf_wx Number of degrees of freedom per cell for the coordinate space
+!> @param[in]     undf_wx Total number of degrees of freedom for the coordinate space
+!> @param[in]     map_wx Dofmap of the coordinate space
+!> @param[in]     diff_basis_wx Differential of basis function of the coordinate space
+!>                              evaluated on W2 nodal points
 subroutine consistent_wind_code(nlayers,                   &
                                 consistent_wind,           &
                                 wind,                      &

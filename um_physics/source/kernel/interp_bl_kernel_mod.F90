@@ -4,18 +4,20 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-!> @brief Interpolates BL momentum variables from w3 to w2 dofs
+!> @brief Interpolates BL momentum variables from W3 to W2 dofs
 !> @detail Takes all the variables required for BL momentum mixing and
-!>         interpolates them from their lowest order w3 dof to w2 dofs
+!>         interpolates them from their lowest order W3 dof to W2 dofs
 !>         so that wind increments can be calculated in their native space
 
 module interp_bl_kernel_mod
 
   use kernel_mod,               only: kernel_type
-  use argument_mod,             only: arg_type, func_type,                 &
-                                      GH_FIELD, GH_INC, GH_READ, CELLS,    &
-                                      ANY_DISCONTINUOUS_SPACE_1,           &
-                                      ANY_SPACE_1
+  use argument_mod,             only: arg_type,                 &
+                                      GH_FIELD, GH_REAL,        &
+                                      GH_INC, GH_READ,          &
+                                      ANY_SPACE_1, CELL_COLUMN, &
+                                      ANY_DISCONTINUOUS_SPACE_1
+
   use constants_mod,            only: r_def, i_def
   use fs_continuity_mod,        only: W2, W3, WTHETA
   use kernel_mod,               only: kernel_type
@@ -32,22 +34,22 @@ module interp_bl_kernel_mod
   !> Kernel metadata type.
   type, public, extends(kernel_type) :: interp_bl_kernel_type
     private
-    type(arg_type) :: meta_args(13) = (/                          &
-         arg_type(GH_FIELD, GH_READ,  WTHETA),                    &! rhokm_bl
-         arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &! rhokm_surf
-         arg_type(GH_FIELD, GH_READ,  WTHETA),                    &! ngstress_bl
-         arg_type(GH_FIELD, GH_READ,  W3),                        &! dtrdz_uv_bl
-         arg_type(GH_FIELD, GH_READ,  WTHETA),                    &! rdz_uv_bl
-         arg_type(GH_FIELD, GH_READ,  WTHETA),                    &! fd_taux
-         arg_type(GH_FIELD, GH_READ,  WTHETA),                    &! fd_tauy
-         arg_type(GH_FIELD, GH_INC,   W2),                        &! rhokm_w2
-         arg_type(GH_FIELD, GH_INC,   ANY_SPACE_1),               &! rhokm_surf_w2
-         arg_type(GH_FIELD, GH_INC,   W2),                        &! ngstress_w2
-         arg_type(GH_FIELD, GH_INC,   W2),                        &! dtrdz_w2
-         arg_type(GH_FIELD, GH_INC,   W2),                        &! rdz_w2
-         arg_type(GH_FIELD, GH_INC,   W2)                         &! fd_tau_w2
+    type(arg_type) :: meta_args(13) = (/                                  &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, WTHETA),                    &! rhokm_bl
+         arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), &! rhokm_surf
+         arg_type(GH_FIELD, GH_REAL, GH_READ, WTHETA),                    &! ngstress_bl
+         arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        &! dtrdz_uv_bl
+         arg_type(GH_FIELD, GH_REAL, GH_READ, WTHETA),                    &! rdz_uv_bl
+         arg_type(GH_FIELD, GH_REAL, GH_READ, WTHETA),                    &! fd_taux
+         arg_type(GH_FIELD, GH_REAL, GH_READ, WTHETA),                    &! fd_tauy
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  W2),                        &! rhokm_w2
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  ANY_SPACE_1),               &! rhokm_surf_w2
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  W2),                        &! ngstress_w2
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  W2),                        &! dtrdz_w2
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  W2),                        &! rdz_w2
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  W2)                         &! fd_tau_w2
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: interp_bl_code
   end type interp_bl_kernel_type
@@ -55,7 +57,7 @@ module interp_bl_kernel_mod
   !----------------------------------------------------------------------------
   ! Contained functions/subroutines
   !----------------------------------------------------------------------------
-  public interp_bl_code
+  public :: interp_bl_code
 
 contains
 
@@ -64,7 +66,7 @@ contains
   !> @param[in]     rhokm_bl      Momentum eddy diffusivity on BL levels
   !> @param[in]     rhokm_surf    Momentum eddy diffusivity for coastal tiling
   !> @param[in]     ngstress_bl   Non-gradient stress function on BL levels
-  !> @param[in]     dtrdz_uv_bl   dt/(rho*r*r*dz) in w3 space
+  !> @param[in]     dtrdz_uv_bl   dt/(rho*r*r*dz) in W3 space
   !> @param[in]     rdz_uv_bl     1/dz in wth space
   !> @param[in]     fd_taux       'Zonal' momentum stress from form drag
   !> @param[in]     fd_tauy       'Meridional' momentum stress from form drag
@@ -83,12 +85,12 @@ contains
   !> @param[in]     ndf_w3        Number of DOFs per cell for density space
   !> @param[in]     undf_w3       Number of unique DOFs for density space
   !> @param[in]     map_w3        dofmap for the cell at the base of the column for density space
-  !> @param[in]     ndf_w2        Number of DOFs per cell for w2 space
-  !> @param[in]     undf_w2       Number of unique DOFs for w2 space
-  !> @param[in]     map_w2        dofmap for the cell at the base of the column for w2 space
-  !> @param[in]     ndf_w2_2d     Number of DOFs per cell for w2 surface space
-  !> @param[in]     undf_w2_2d    Number of unique DOFs for w2 surface space
-  !> @param[in]     map_w2_2d     dofmap for the cell at the base of the column for w2 surface space
+  !> @param[in]     ndf_w2        Number of DOFs per cell for W2 space
+  !> @param[in]     undf_w2       Number of unique DOFs for W2 space
+  !> @param[in]     map_w2        dofmap for the cell at the base of the column for W2 space
+  !> @param[in]     ndf_w2_2d     Number of DOFs per cell for W2 surface space
+  !> @param[in]     undf_w2_2d    Number of unique DOFs for W2 surface space
+  !> @param[in]     map_w2_2d     dofmap for the cell at the base of the column for W2 surface space
   subroutine interp_bl_code(nlayers,       &
                             rhokm_bl,      &
                             rhokm_surf,    &
@@ -127,7 +129,7 @@ contains
     implicit none
 
     ! Arguments
-    integer, intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers
 
     integer(kind=i_def), intent(in) :: ndf_wth, ndf_w3, ndf_w2, ndf_w2_2d
     integer(kind=i_def), intent(in) :: undf_wth, undf_w3, undf_w2, undf_w2_2d
@@ -157,12 +159,12 @@ contains
     real(kind=r_def), dimension(undf_w2_2d), intent(inout) :: rhokm_surf_w2
 
     ! Internal variables
-    integer :: k, df
+    integer(kind=i_def) :: k, df
 
-    ! Map the BL variables from w3 to w2 space
+    ! Map the BL variables from W3 to W2 space
 
     ! Temporarily use the vertical co-ordinate here until multi-dimensional
-    ! w2 fields are available
+    ! W2 fields are available
     do df = 1,3,2
       ! rhokm_land
       rhokm_surf_w2(map_w2_2d(df)) = rhokm_surf_w2(map_w2_2d(df)) +            &

@@ -12,17 +12,20 @@
 module map_u_kernel_mod
 
   use argument_mod,            only : arg_type, func_type,       &
-                                      GH_FIELD, GH_INC, GH_READ, &
-                                      ANY_SPACE_9, GH_REAL,      &
+                                      GH_FIELD, GH_REAL,         &
+                                      GH_INC, GH_READ,           &
+                                      ANY_SPACE_9,               &
+                                      ANY_DISCONTINUOUS_SPACE_3, &
                                       GH_BASIS, GH_DIFF_BASIS,   &
-                                      CELLS, GH_QUADRATURE_XYoZ, &
-                                      ANY_DISCONTINUOUS_SPACE_3
+                                      CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,           only : r_def, i_def
-  use fs_continuity_mod,       only : W2, W3, WTHETA
+  use fs_continuity_mod,       only : W2, W3, Wtheta
   use kernel_mod,              only : kernel_type
   use log_mod,                 only : log_event, LOG_LEVEL_ERROR
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -32,41 +35,43 @@ module map_u_kernel_mod
   !>
   type, public, extends(kernel_type) :: map_u_kernel_type
     private
-    type(arg_type) :: meta_args(6) = (/                          &
-        arg_type(GH_FIELD,   GH_INC,  W2),                       &
-        arg_type(GH_FIELD,   GH_READ, W3),                       &
-        arg_type(GH_FIELD,   GH_READ, W3),                       &
-        arg_type(GH_FIELD,   GH_READ, WTHETA),                   &
-        arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_9),              &
-        arg_type(GH_FIELD,   GH_READ, ANY_DISCONTINUOUS_SPACE_3) &
-        /)
-    type(func_type) :: meta_funcs(4) = (/                        &
-        func_type(W2, GH_BASIS),                                 &
-        func_type(W3, GH_BASIS),                                 &
-        func_type(WTHETA, GH_BASIS),                             &
-        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)          &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(6) = (/                                    &
+         arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),                       &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, W3),                       &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, W3),                       &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, Wtheta),                   &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),              &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3) &
+         /)
+    type(func_type) :: meta_funcs(4) = (/                                  &
+         func_type(W2,          GH_BASIS),                                 &
+         func_type(W3,          GH_BASIS),                                 &
+         func_type(Wtheta,      GH_BASIS),                                 &
+         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                   &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
-    procedure, public, nopass :: map_u_code
+    procedure, nopass :: map_u_code
   end type
 
 !-----------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-----------------------------------------------------------------------------
+public :: map_u_code
+
 contains
 
-!> @brief Compute the right hand side to mapise the wind field.
+!> @brief Compute the right hand side to map the wind field.
 !! @param[in] nlayers Number of layers
-!! @param[inout] rhs Right hand side field to compute
-!! @param[in] u_lon Longitudinal component of wind in W3.
-!! @param[in] u_lat Latitudinal component of wind in W3.
-!! @param[in] u_up Vertical component of wind in Wtheta.
+!! @param[in,out] rhs Right hand side field to compute
+!! @param[in] u_lon Longitudinal component of wind in W3
+!! @param[in] u_lat Latitudinal component of wind in W3
+!! @param[in] u_up Vertical component of wind in Wtheta
 !! @param[in] chi_sph_1 1st coordinate in spherical Wchi
 !! @param[in] chi_sph_2 2nd coordinate in spherical Wchi
 !! @param[in] chi_sph_3 3rd coordinate in spherical Wchi
-!! @param[in] panel_id Field giving the ID for mesh panels.
+!! @param[in] panel_id Field giving the ID for mesh panels
 !! @param[in] ndf_w2 Number of degrees of freedom per cell for w2
 !! @param[in] undf_w2 Number of unique degrees of freedom  for w2
 !! @param[in] map_w2 Dofmap for the cell at the base of the column for w2

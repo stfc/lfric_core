@@ -23,22 +23,20 @@
 !!             information;
 !!
 !!          4) `type(mesh_data_type) :: meta_mesh(...)` that describes the
-!!              required mesh properties information;
+!!             required mesh properties information;
 !!
 !!          5) `gh_shape = ...` (e.g.\ `gh_shape = gh_quadrature_XYoZ` that
 !!             describes the required quadrature and/or evaluator properties
 !!             information;
 !!
-!!          6) `iterates_over` metadata that describes what is the iteration
-!!             of the PSy-layer loop that calls the kernel (in #2472 this will
-!!             change to `operates_on` to denote what the kernel updates,
-!!             e.g.\ a vertical single-cell column);
+!!          6) `operates_on` metadata that describes what the kernel updates,
+!!             e.g.\ a vertical single-cell column;
 !!
 !!          7) `procedure` metadata that specifies the name of the kernel
-!!              subroutine that the metadata describes.
+!!             subroutine that the metadata describes.
 !!
-!!          `type(arg_type) :: meta_args(...)`, `iterates_over` (`operates_on`
-!!          from #2472) and the `procedure` metadata are mandatory for all kernels.
+!!          `type(arg_type) :: meta_args(...)`, `operates_on` and
+!!          the `procedure` metadata are mandatory for all kernels.
 module argument_mod
 
   implicit none
@@ -54,8 +52,6 @@ module argument_mod
   !> @}
 
   !> @defgroup data_type Enumeration of argument data type property descriptors.
-  !> @details Argument data type property descriptors are currently argument
-  !!          types for scalars until LFRic moves to PSyclone 2.0.0 in #2472.
   !> @{
   integer, public, parameter :: GH_REAL    = 58
   integer, public, parameter :: GH_INTEGER = 5
@@ -77,7 +73,7 @@ module argument_mod
   !!          1) "ANY_SPACE_[1-10]+" for generalised function spaces regardless
   !!              of their continuity;
   !!          2) "ANY_W2" for any `W2`-type space regardless of its continuity;
-  !!          3) "ANY_DISCONTINUOUS_SPACE_[1-10]+" for generalised discontinuous
+  !!          3) "ANY_DISCONTINUOUS_SPACE_[1-20]+" for generalised discontinuous
   !!             function spaces.
   !!          Distinct IDs are required as we may have groups of fields that
   !!          must be on the same space within a kernel.
@@ -106,6 +102,16 @@ module argument_mod
   integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_8  = 361
   integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_9  = 536
   integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_10 = 882
+  integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_11 = 785
+  integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_12 = 932
+  integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_13 = 108
+  integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_14 = 327
+  integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_15 = 860
+  integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_16 = 219
+  integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_17 = 585
+  integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_18 = 643
+  integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_19 = 42
+  integer, public, parameter :: ANY_DISCONTINUOUS_SPACE_20 = 468
   !> @}
 
   !> @defgroup stencil_map Enumeration of stencil access map types.
@@ -172,15 +178,11 @@ module argument_mod
   integer, public, parameter :: adjacent_face = 533
   !> @}
 
-  !> @defgroup iterates_over Enumeration of kernel iterator property descriptors.
-  !!                         (to be renamed to `operates_on` in #2472).
+  !> @defgroup operates_on Enumeration of kernel iterator property descriptors.
   !> @{
-  ! Note: `iterates_over = CELLS` changes to `operates_on = CELL_COLUMN` in
-  !       PSyclone 2.0.0. Currently both options are supported for uninterrupted
-  !       development, however the `CELLS` option will be removed in #2472).
   integer, public, parameter :: CELL_COLUMN = 396
-  integer, public, parameter :: CELLS       = 712
   integer, public, parameter :: DOMAIN      = 945
+  integer, public, parameter :: DOF         = 712
   !> @}
 
   !> Metadata for the argument type description, stored in the `arg_type` type
@@ -188,31 +190,28 @@ module argument_mod
   !! and/or operators are passed to the kernel and in what order they are
   !! passed. We also need to know how these scalars/fields/operators:
   !! - Are accessed (read, write, etc.) within the kernel;
-  !! - What is the type of argument data (to be enabled in #2472 when upgrading
-  !!   PSyclone to release 2.0.0);
+  !! - What is the type of argument data;
   !! - What function space the fields and operators are on (w0, w1, etc.).
   !! In the case of operators there are two function spaces (to and from).
   !! Fields may have an optional metadata describing either a stencil access
   !! or, for inter-grid kernels, which mesh the field is on.
   type, public :: arg_type
      !> Type of a kernel argument (scalar, field, operator or a
-     !! column-wise operator). Currently one of {GH_REAL, GH_INTEGER,
-     !! GH_FIELD, GH_OPERATOR, GH_COLUMNWISE_OPERATOR}. From #2472 one of
-     !! {GH_SCALAR, GH_FIELD, GH_OPERATOR, GH_COLUMNWISE_OPERATOR}.
+     !! column-wise operator). One of {GH_SCALAR, GH_FIELD, GH_OPERATOR,
+     !! GH_COLUMNWISE_OPERATOR}.
      integer :: argument_type
-     !> @todo in #2472: Add Fortran primitive type of a kernel argument data
-     !!                 One of {GH_REAL, GH_INTEGER} (note that these values
-     !!                 are currently used to denote scalar argument types).
-     ! integer :: data_type  = -1 ! To be enabled in #2472
+     !> Fortran primitive type of kernel argument data.
+     !! One of {GH_REAL, GH_INTEGER}.
+     integer :: data_type  = -1
      !> How the kernel argument data is accessed (e.g.\ read-only, update,
      !! global reduction). One of {GH_READ, GH_WRITE, GH_READWRITE,
      !! GH_INC, GH_SUM, GH_MIN, GH_MAX}.
      integer :: argument_access
      !> Function space "on" of a field argument or "to" of an operator argument.
-     !! One of {W*, ANY_SPACE_[1-10]+, ANY_DISCONTINUOUS_SPACE_[1-10]+, ANY_W2}.
+     !! One of {W*, ANY_SPACE_[1-10]+, ANY_DISCONTINUOUS_SPACE_[1-20]+, ANY_W2}.
      integer :: fspace      = -1
      !> Function space "from" of an operator argument. One of {W*,
-     !! ANY_SPACE_[1-10]+, ANY_DISCONTINUOUS_SPACE_[1-10]+, ANY_W2}.
+     !! ANY_SPACE_[1-10]+, ANY_DISCONTINUOUS_SPACE_[1-20]+, ANY_W2}.
      integer :: fspace_from = -1
      !> Optional metadata (fields only) for a type of stencil map to use.
      !! One of {XORY1D, X1D, Y1D, CROSS, REGION, CROSS2D}.
@@ -229,7 +228,7 @@ module argument_mod
   !! type or evaluator target).
   type, public :: func_type
      !> Function space "on" of basis/differential basis functions. One of
-     !! {W*, ANY_SPACE_[1-10]+, ANY_DISCONTINUOUS_SPACE_[1-10]+, ANY_W2}.
+     !! {W*, ANY_SPACE_[1-10]+, ANY_DISCONTINUOUS_SPACE_[1-20]+, ANY_W2}.
      integer :: fspace
      !> Basis/differential basis functions on a specified function space.
      !! One of {GH_BASIS, GH_DIFF_BASIS}.

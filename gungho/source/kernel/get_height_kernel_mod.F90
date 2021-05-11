@@ -9,11 +9,12 @@
 !>
 module get_height_kernel_mod
 
-  use argument_mod,              only: arg_type, func_type,                    &
-                                       GH_FIELD, GH_WRITE, GH_READ, GH_INC,    &
-                                       ANY_SPACE_9, ANY_DISCONTINUOUS_SPACE_1, &
-                                       GH_BASIS,                               &
-                                       CELLS, GH_EVALUATOR
+  use argument_mod,              only: arg_type, func_type,       &
+                                       GH_FIELD, GH_REAL,         &
+                                       GH_WRITE, GH_READ, GH_INC, &
+                                       ANY_DISCONTINUOUS_SPACE_1, &
+                                       ANY_SPACE_9, GH_BASIS,     &
+                                       CELL_COLUMN, GH_EVALUATOR
   use base_mesh_config_mod,      only: geometry, &
                                        geometry_spherical
   use constants_mod,             only: r_def, i_def
@@ -24,6 +25,7 @@ module get_height_kernel_mod
 
   implicit none
   private
+
   !---------------------------------------------------------------------------
   ! Public types
   !---------------------------------------------------------------------------
@@ -32,24 +34,23 @@ module get_height_kernel_mod
   !>
   type, public, extends(kernel_type) :: get_height_kernel_type
     private
-    type(arg_type) :: meta_args(2) = (/                             &
-        arg_type(GH_FIELD,   GH_WRITE,  ANY_DISCONTINUOUS_SPACE_1), &
-        arg_type(GH_FIELD*3, GH_READ,   ANY_SPACE_9)                &
-        /)
-    type(func_type) :: meta_funcs(1) = (/ &
-        func_type(ANY_SPACE_9, GH_BASIS)  &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(2) = (/                                      &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9)                &
+         /)
+    type(func_type) :: meta_funcs(1) = (/                                    &
+         func_type(ANY_SPACE_9, GH_BASIS)                                    &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_EVALUATOR
   contains
     procedure, nopass :: get_height_code
   end type
 
-
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public get_height_code
+  public :: get_height_code
 
 contains
 
@@ -77,7 +78,7 @@ subroutine get_height_code(nlayers,                         &
   implicit none
 
   ! Arguments
-  integer, intent(in) :: nlayers
+  integer(kind=i_def), intent(in) :: nlayers
 
   integer(kind=i_def),                         intent(in) :: ndf_x, undf_x
   integer(kind=i_def),                         intent(in) :: ndf_chi, undf_chi

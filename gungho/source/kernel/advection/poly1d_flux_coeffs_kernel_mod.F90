@@ -20,14 +20,15 @@
 !>          This method is only valid for lowest order elements
 module poly1d_flux_coeffs_kernel_mod
 
-use argument_mod,      only : arg_type, func_type,                 &
-                              GH_FIELD, GH_INTEGER, GH_REAL,       &
-                              GH_WRITE, GH_READ,                   &
-                              ANY_SPACE_1,                         &
-                              ANY_DISCONTINUOUS_SPACE_3,           &
-                              GH_BASIS, CELLS, GH_QUADRATURE_XYoZ, &
-                              GH_QUADRATURE_face,                  &
-                              STENCIL, REGION
+use argument_mod,      only : arg_type, func_type,          &
+                              GH_SCALAR, GH_FIELD,          &
+                              GH_INTEGER, GH_REAL,          &
+                              GH_WRITE, GH_READ,            &
+                              STENCIL, REGION, ANY_SPACE_1, &
+                              ANY_DISCONTINUOUS_SPACE_3,    &
+                              GH_BASIS, CELL_COLUMN,        &
+                              GH_QUADRATURE_XYoZ, GH_QUADRATURE_face
+
 use constants_mod,     only : r_def, i_def, l_def
 use fs_continuity_mod, only : W3
 use kernel_mod,        only : kernel_type
@@ -41,19 +42,20 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the PSy layer
 type, public, extends(kernel_type) :: poly1d_flux_coeffs_kernel_type
   private
-  type(arg_type) :: meta_args(7) = (/                                  &
-       arg_type(GH_FIELD,   GH_WRITE, W3),                             &
-       arg_type(GH_FIELD,   GH_READ,  W3,          STENCIL(REGION)),   &
-       arg_type(GH_FIELD*3, GH_READ,  ANY_SPACE_1, STENCIL(REGION)),   &
-       arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_3, STENCIL(REGION)),   &
-       arg_type(GH_INTEGER, GH_READ),                                  &
-       arg_type(GH_INTEGER, GH_READ),                                  &
-       arg_type(GH_REAL,    GH_READ)                                   &
+  type(arg_type) :: meta_args(7) = (/                                            &
+       arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, W3),                           &
+       arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W3,          STENCIL(REGION)), &
+       arg_type(GH_FIELD*3, GH_REAL,    GH_READ,  ANY_SPACE_1, STENCIL(REGION)), &
+       arg_type(GH_FIELD,   GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_3,     &
+                                                  STENCIL(REGION)),              &
+       arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                                &
+       arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                                &
+       arg_type(GH_SCALAR,  GH_REAL,    GH_READ)                                 &
        /)
-  type(func_type) :: meta_funcs(1) = (/                                &
-       func_type(ANY_SPACE_1, GH_BASIS)                                &
+  type(func_type) :: meta_funcs(1) = (/                                          &
+       func_type(ANY_SPACE_1, GH_BASIS)                                          &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape(2) = (/ GH_QUADRATURE_XYoZ, GH_QUADRATURE_face /)
 contains
   procedure, nopass :: poly1d_flux_coeffs_code
@@ -62,49 +64,49 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public poly1d_flux_coeffs_code
+public :: poly1d_flux_coeffs_code
 contains
 
-!>@brief Compute the coefficients needed for a 1D horizontal reconstruction
-!>       of a tracer field on horizontal faces
-!>@param[in] nlayers Number of vertical layers
-!>@param[out] coeff Array of fields to store the coefficients for the polynomial
-!!                  reconstruction
-!>@param[in]  mdw3 Mass matrix diagonal for the W3 space, this is used to give
-!!                 the cell volume
-!>@param[in] chi1 1st component of the physical coordinate field
-!>@param[in] chi2 2nd component of the physical coordinate field
-!>@param[in] chi3 3rd component of the physical coordinate field
-!>@param[in] panel_id Id of the cubed sphere panel for each column
-!>@param[in] ndf_w3 Number of degrees of freedom per cell for W3
-!>@param[in] undf_w3 Total number of degrees of freedom for W3
-!>@param[in] stencil_size_w3 Number of cells in the W3 stencil
-!>@param[in] smap_w3 Stencil dofmap of the W3 stencil
-!>@param[in] ndf_wx Number of degrees of freedom per cell for the coordinate space
-!>@param[in] undf_wx Total number of degrees of freedom for the coordinate space
-!>@param[in] stencil_size_wx Number of cells in the coordinate space stencil
-!>@param[in] smap_wx Stencil dofmap of the coordinate space stencil
-!>@param[in] basis_wx Basis function of the coordinate space evaluated on
-!!                    quadrature points
-!>@param[in] face_basis_wx Basis function of the coordinate space evaluated on
-!!                         quadrature points on the horizontal faces
-!>@param[in] ndf_pid Number of degrees of freedom per cell for the panel_id space
-!>@param[in] undf_pid Total number of degrees of freedom per cell for the panel_id space
-!>@param[in] stencil_size_pid Number of cells in the stencil for the panel_id space
-!>@param[in] smap_pid Stencil dofmap for the panel_id space
-!>@param[in] order Polynomial order for flux computations
-!>@param[in] nfaces_h Number of horizontal neighbours
-!>@param[in] transform_radius A radius used for transforming to spherically-based
-!!                            coords. For Cartesian coordinates this is zero, but
-!!                            for spherical coordinates it is the global minimum
-!!                            of the height field plus 1.
-!>@param[in] nqp_h Number of horizontal quadrature points
-!>@param[in] nqp_v Number of vertical quadrature points
-!>@param[in] wqp_h Weights of horizontal quadrature points
-!>@param[in] wqp_v Weights of vertical quadrature points
-!>@param[in] nfaces_qr Number of faces in the quadrature rule
-!>@param[in] nqp_f Number of face quadrature points
-!>@param[in] wqp_f Weights of face quadrature points
+!> @brief Compute the coefficients needed for a 1D horizontal reconstruction
+!>        of a tracer field on horizontal faces
+!> @param[in] nlayers Number of vertical layers
+!> @param[in,out] coeff Array of fields to store the coefficients for the
+!!                      polynomial reconstruction
+!> @param[in] mdw3 Mass matrix diagonal for the W3 space, this is used to
+!!                 give the cell volume
+!> @param[in] chi1 1st component of the physical coordinate field
+!> @param[in] chi2 2nd component of the physical coordinate field
+!> @param[in] chi3 3rd component of the physical coordinate field
+!> @param[in] panel_id Id of the cubed sphere panel for each column
+!> @param[in] ndf_w3 Number of degrees of freedom per cell for W3
+!> @param[in] undf_w3 Total number of degrees of freedom for W3
+!> @param[in] stencil_size_w3 Number of cells in the W3 stencil
+!> @param[in] smap_w3 Stencil dofmap of the W3 stencil
+!> @param[in] ndf_wx Number of degrees of freedom per cell for the coordinate space
+!> @param[in] undf_wx Total number of degrees of freedom for the coordinate space
+!> @param[in] stencil_size_wx Number of cells in the coordinate space stencil
+!> @param[in] smap_wx Stencil dofmap of the coordinate space stencil
+!> @param[in] basis_wx Basis function of the coordinate space evaluated on
+!!                     quadrature points
+!> @param[in] face_basis_wx Basis function of the coordinate space evaluated on
+!!                          quadrature points on the horizontal faces
+!> @param[in] ndf_pid Number of degrees of freedom per cell for the panel_id space
+!> @param[in] undf_pid Total number of degrees of freedom per cell for the panel_id space
+!> @param[in] stencil_size_pid Number of cells in the stencil for the panel_id space
+!> @param[in] smap_pid Stencil dofmap for the panel_id space
+!> @param[in] order Polynomial order for flux computations
+!> @param[in] nfaces_h Number of horizontal neighbours
+!> @param[in] transform_radius A radius used for transforming to spherically-based
+!!                             coords. For Cartesian coordinates this is zero, but
+!!                             for spherical coordinates it is the global minimum
+!!                             of the height field plus 1.
+!> @param[in] nqp_h Number of horizontal quadrature points
+!> @param[in] nqp_v Number of vertical quadrature points
+!> @param[in] wqp_h Weights of horizontal quadrature points
+!> @param[in] wqp_v Weights of vertical quadrature points
+!> @param[in] nfaces_qr Number of faces in the quadrature rule
+!> @param[in] nqp_f Number of face quadrature points
+!> @param[in] wqp_f Weights of face quadrature points
 subroutine poly1d_flux_coeffs_code(nlayers,                    &
                                    coeff,                      &
                                    mdw3,                       &
@@ -153,10 +155,10 @@ subroutine poly1d_flux_coeffs_code(nlayers,                    &
   integer(kind=i_def), dimension(ndf_wx, stencil_size_wx),  intent(in) :: smap_wx
   integer(kind=i_def), dimension(ndf_pid,stencil_size_pid), intent(in) :: smap_pid
 
-  real(kind=r_def), dimension(undf_w3),                    intent(in)  :: mdw3
-  real(kind=r_def), dimension(undf_wx),                    intent(in)  :: chi1, chi2, chi3
-  real(kind=r_def), dimension(order+1, nfaces_h, undf_w3), intent(out) :: coeff
-  real(kind=r_def), dimension(undf_pid),                   intent(in)  :: panel_id
+  real(kind=r_def), dimension(undf_w3),                    intent(in)    :: mdw3
+  real(kind=r_def), dimension(undf_wx),                    intent(in)    :: chi1, chi2, chi3
+  real(kind=r_def), dimension(order+1, nfaces_h, undf_w3), intent(inout) :: coeff
+  real(kind=r_def), dimension(undf_pid),                   intent(in)    :: panel_id
 
   real(kind=r_def), dimension(1,ndf_wx,nqp_h,nqp_v),     intent(in) :: basis_wx
   real(kind=r_def), dimension(1,ndf_wx,nqp_f,nfaces_qr), intent(in) :: face_basis_wx

@@ -16,13 +16,16 @@
 module calc_cell_orientation_kernel_mod
 
   use argument_mod,      only : arg_type, func_type, &
-                                GH_FIELD, GH_WRITE,  &
-                                GH_BASIS, CELLS
+                                GH_FIELD, GH_REAL,   &
+                                GH_WRITE, GH_BASIS,  &
+                                CELL_COLUMN
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W3
   use kernel_mod,        only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -32,18 +35,18 @@ module calc_cell_orientation_kernel_mod
   !>
   type, public, extends(kernel_type) :: calc_cell_orientation_kernel_type
     private
-    type(arg_type) :: meta_args(1) = (/  &
-        arg_type(GH_FIELD, GH_WRITE, W3) &
-        /)
-    type(func_type) :: meta_funcs(1) = (/ &
-        func_type(W3, GH_BASIS)           &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(1) = (/            &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3) &
+         /)
+    type(func_type) :: meta_funcs(1) = (/          &
+         func_type(W3, GH_BASIS)                   &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
-    procedure, nopass ::calc_cell_orientation_code
+    procedure, nopass :: calc_cell_orientation_code
   end type
 
-  public calc_cell_orientation_code
+  public :: calc_cell_orientation_code
 
 contains
 
@@ -52,11 +55,11 @@ contains
 !-------------------------------------------------------------------------------
 
 !--------------------------------------------------------------------------------
-!>  @brief  Function which returns the index depending on orientation of cell
+!> @brief Returns the index depending on orientation of cell
 !!
-!!  @param[in]      branch                    branch of the cross-stencil
-!!  @param[in]      orientation               orientation of cell
-!!  @param[return]  index_of_interest_map     returns index
+!! @param[in]      branch                    Branch of the cross-stencil
+!! @param[in]      orientation               Orientation of cell
+!! @return         index_of_interest_map     Returns index
 !--------------------------------------------------------------------------------
 function index_of_interest_map(branch, orientation)
 
@@ -69,11 +72,11 @@ function index_of_interest_map(branch, orientation)
 end function index_of_interest_map
 
 !--------------------------------------------------------------------------------
-!>  @brief  Function which returns the cells orientation
+!> @brief  Function which returns the cells orientation
 !!
-!!  @param[in]      ii        relates to the W2 dof
-!!  @param[in]      branch    relates to the branch of the cross-stencil
-!!  @param[return]  orientation_of_cell    orientation of the cell
+!! @param[in]      ii                     Relates to the W2 dof
+!! @param[in]      branch                 Relates to the branch of the cross-stencil
+!! @return         orientation_of_cell    Orientation of the cell
 !--------------------------------------------------------------------------------
 function orientation_of_cell(branch,ii)
 
@@ -87,7 +90,7 @@ function orientation_of_cell(branch,ii)
 end function orientation_of_cell
 
 !--------------------------------------------------------------------------------
-!>  @brief  Subroutine which calculates the orientation of cells
+!> @brief  Subroutine which calculates the orientation of cells
 !!
 !> @details The kernel computes the orientation of cells which is dependent on
 !>          the numbering of the local W2 dof values.
@@ -98,7 +101,7 @@ end function orientation_of_cell
 !>          each of the subsequent branches.
 !!
 !! @param[in] nlayers              Number of layers
-!! @param[inout] orientation       W3 field containing orientation of cells
+!! @param[in,out] orientation      W3 field containing orientation of cells
 !! @param[in] undf_w3              Number of unique degrees of freedom
 !! @param[in] ndf_w3               Number of degrees of freedom per cell
 !! @param[in] map_w3               Dofmap for the cell at the base of the column

@@ -11,16 +11,20 @@
 !! separate fields in the target space
 
 module convert_hdiv_field_kernel_mod
+
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,                     &
-                                    GH_FIELD, GH_READ, GH_INC,               &
-                                    ANY_SPACE_9, ANY_SPACE_2, ANY_SPACE_1,   &
-                                    ANY_DISCONTINUOUS_SPACE_3,               &
-                                    GH_DIFF_BASIS, GH_BASIS,                 &
-                                    CELLS, GH_EVALUATOR
+use argument_mod,            only : arg_type, func_type,       &
+                                    GH_FIELD, GH_REAL, GH_INC, &
+                                    GH_READ, ANY_SPACE_9,      &
+                                    ANY_SPACE_2, ANY_SPACE_1,  &
+                                    ANY_DISCONTINUOUS_SPACE_3, &
+                                    GH_DIFF_BASIS, GH_BASIS,   &
+                                    CELL_COLUMN, GH_EVALUATOR
 use constants_mod,           only : r_def, i_def
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -28,17 +32,17 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: convert_hdiv_field_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_FIELD*3,  GH_INC,  ANY_SPACE_1),                    &
-       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                    &
-       arg_type(GH_FIELD*3,  GH_READ, ANY_SPACE_9),                    &
-       arg_type(GH_FIELD,    GH_READ, ANY_DISCONTINUOUS_SPACE_3)       &
+  type(arg_type) :: meta_args(4) = (/                                    &
+       arg_type(GH_FIELD*3, GH_REAL, GH_INC,  ANY_SPACE_1),              &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_SPACE_2),              &
+       arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),              &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3) &
        /)
-  type(func_type) :: meta_funcs(2) = (/                                &
-       func_type(ANY_SPACE_2, GH_BASIS),                               &
-       func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                 &
+  type(func_type) :: meta_funcs(2) = (/                                  &
+       func_type(ANY_SPACE_2, GH_BASIS),                                 &
+       func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                   &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_EVALUATOR
 contains
   procedure, nopass :: convert_hdiv_field_code
@@ -47,7 +51,7 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public convert_hdiv_field_code
+public :: convert_hdiv_field_code
 contains
 
 !> @param[in] nlayers Number of layers
@@ -61,7 +65,7 @@ contains
 !> @param[in] chi1 Coordinates in the first direction
 !> @param[in] chi2 Coordinates in the second direction
 !> @param[in] chi3 Coordinates in the third direction
-!> @param[in] panel_id A field giving the ID for mesh panels.
+!> @param[in] panel_id A field giving the ID for mesh panels
 !> @param[in] ndf1 Number of degrees of freedom per cell for the physical field
 !> @param[in] undf1 Number of unique degrees of freedom for the physical field
 !> @param[in] map1 Dofmap for the cell at the base of the column for the physical field
@@ -96,18 +100,19 @@ subroutine convert_hdiv_field_code(nlayers,                                  &
                                    )
   use coordinate_jacobian_mod, only: coordinate_jacobian
   implicit none
-  ! Arguments
-  integer,                                    intent(in)    :: nlayers
-  integer,                                    intent(in)    :: ndf1, undf1
-  integer,                                    intent(in)    :: ndf2, undf2
-  integer,                                    intent(in)    :: ndf_chi
-  integer,                                    intent(in)    :: undf_chi
-  integer,                                    intent(in)    :: ndf_pid, undf_pid
 
-  integer,          dimension(ndf1),          intent(in)    :: map1
-  integer,          dimension(ndf2),          intent(in)    :: map2
-  integer,          dimension(ndf_chi),       intent(in)    :: map_chi
-  integer,          dimension(ndf_pid),       intent(in)    :: map_pid
+  ! Arguments
+  integer(kind=i_def),                        intent(in)    :: nlayers
+  integer(kind=i_def),                        intent(in)    :: ndf1, undf1
+  integer(kind=i_def),                        intent(in)    :: ndf2, undf2
+  integer(kind=i_def),                        intent(in)    :: ndf_chi
+  integer(kind=i_def),                        intent(in)    :: undf_chi
+  integer(kind=i_def),                        intent(in)    :: ndf_pid, undf_pid
+
+  integer(kind=i_def), dimension(ndf1),       intent(in)    :: map1
+  integer(kind=i_def), dimension(ndf2),       intent(in)    :: map2
+  integer(kind=i_def), dimension(ndf_chi),    intent(in)    :: map_chi
+  integer(kind=i_def), dimension(ndf_pid),    intent(in)    :: map_pid
 
   real(kind=r_def), dimension(undf2),         intent(in)    :: computational_field
   real(kind=r_def), dimension(undf_chi),      intent(in)    :: chi1, chi2, chi3
@@ -120,8 +125,8 @@ subroutine convert_hdiv_field_code(nlayers,                                  &
   real(kind=r_def), dimension(3,ndf_chi,ndf1), intent(in)   :: diff_basis_chi
   real(kind=r_def), dimension(3,ndf2,ndf1),    intent(in)   :: basis2
 
-  !Internal variables
-  integer          :: df, df2, k
+  ! Internal variables
+  integer(kind=i_def) :: df, df2, k
   real(kind=r_def) :: jacobian(3,3,ndf1), dj(ndf1)
   real(kind=r_def) :: vector_in(3), vector_out(3)
   real(kind=r_def), dimension(ndf_chi) :: chi1_e, chi2_e, chi3_e

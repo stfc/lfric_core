@@ -11,10 +11,10 @@ module compute_total_pv_kernel_mod
 
   use argument_mod,      only : arg_type, func_type,         &
                                 GH_FIELD, GH_WRITE, GH_READ, &
-                                ANY_SPACE_9,                 &
+                                GH_REAL, ANY_SPACE_9,        &
+                                ANY_DISCONTINUOUS_SPACE_3,   &
                                 GH_BASIS, GH_DIFF_BASIS,     &
-                                CELLS, GH_QUADRATURE_XYoZ,   &
-                                ANY_DISCONTINUOUS_SPACE_3
+                                CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W0, W1, W3
   use kernel_mod,        only : kernel_type
@@ -31,19 +31,19 @@ module compute_total_pv_kernel_mod
   !>
   type, public, extends(kernel_type) :: compute_total_pv_kernel_type
     private
-    type(arg_type) :: meta_args(5) = (/                           &
-        arg_type(GH_FIELD,   GH_WRITE, W3),                       &
-        arg_type(GH_FIELD,   GH_READ,  W1),                       &
-        arg_type(GH_FIELD,   GH_READ,  W0),                       &
-        arg_type(GH_FIELD*3, GH_READ,  ANY_SPACE_9),              &
-        arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
+    type(arg_type) :: meta_args(5) = (/                                    &
+        arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                       &
+        arg_type(GH_FIELD,   GH_REAL, GH_READ,  W1),                       &
+        arg_type(GH_FIELD,   GH_REAL, GH_READ,  W0),                       &
+        arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),              &
+        arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
         /)
-    type(func_type) :: meta_funcs(3) = (/                         &
-        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS),          &
-        func_type(W0, GH_DIFF_BASIS),                             &
-        func_type(W1, GH_BASIS)                                   &
+    type(func_type) :: meta_funcs(3) = (/                                  &
+        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS),                   &
+        func_type(W0,          GH_DIFF_BASIS),                             &
+        func_type(W1,          GH_BASIS)                                   &
         /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
     procedure, nopass :: compute_total_pv_code
@@ -52,14 +52,14 @@ module compute_total_pv_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public compute_total_pv_code
+  public :: compute_total_pv_code
 
 contains
 
 !> @brief The kernel computes the cell integrated potential vorticity
 !! @param[in] nlayers   Number of layers
 !! @param[in,out] pv Cell integrated potential vorticity
-!! @param[in]  xi       Absolute vorticity
+!! @param[in] xi        Absolute vorticity
 !! @param[in] theta     Potential temperature
 !! @param[in] chi1      1st (spherical) coordinate field in Wchi
 !! @param[in] chi2      2nd (spherical) coordinate field in Wchi
@@ -79,7 +79,7 @@ contains
 !! @param[in] ndf_chi   Number of degrees of freedom per cell for chi
 !! @param[in] undf_chi  Number of unique degrees of freedom  for chi
 !! @param[in] map_chi   Dofmap for the cell at the base of the column for chi
-!! @param[in] chi_basis Wchi basis functions evaluated at gaussian quadrature points.
+!! @param[in] chi_basis Wchi basis functions evaluated at gaussian quadrature points
 !! @param[in] chi_diff_basis Derivatives of Wchi basis functions
 !!                           evaluated at gaussian quadrature points
 !! @param[in] ndf_pid   Number of degrees of freedom per cell for panel_id

@@ -18,10 +18,10 @@ module compute_derham_matrices_kernel_mod
   use argument_mod,            only: arg_type, func_type,       &
                                      GH_OPERATOR, GH_FIELD,     &
                                      GH_READ, GH_WRITE,         &
-                                     ANY_SPACE_9,               &
+                                     GH_REAL, ANY_SPACE_9,      &
+                                     ANY_DISCONTINUOUS_SPACE_3, &
                                      GH_BASIS, GH_DIFF_BASIS,   &
-                                     CELLS, GH_QUADRATURE_XYoZ, &
-                                     ANY_DISCONTINUOUS_SPACE_3
+                                     CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,           only: r_def, i_def
   use coordinate_jacobian_mod, only: pointwise_coordinate_jacobian, &
                                      pointwise_coordinate_jacobian_inverse
@@ -38,30 +38,30 @@ module compute_derham_matrices_kernel_mod
 
   type, public, extends(kernel_type) :: compute_derham_matrices_kernel_type
     private
-    type(arg_type) :: meta_args(12) = (/                           &
-        arg_type(GH_OPERATOR, GH_WRITE, W0, W0),                   &
-        arg_type(GH_OPERATOR, GH_WRITE, W1, W1),                   &
-        arg_type(GH_OPERATOR, GH_WRITE, W2, W2),                   &
-        arg_type(GH_OPERATOR, GH_WRITE, W2broken, W2broken),       &
-        arg_type(GH_OPERATOR, GH_WRITE, W3, W3),                   &
-        arg_type(GH_OPERATOR, GH_WRITE, Wtheta, Wtheta),           &
-        arg_type(GH_OPERATOR, GH_WRITE, W1, W0),                   &
-        arg_type(GH_OPERATOR, GH_WRITE, W2, W1),                   &
-        arg_type(GH_OPERATOR, GH_WRITE, W3, W2),                   &
-        arg_type(GH_OPERATOR, GH_WRITE, W3, W2broken),             &
-        arg_type(GH_FIELD*3,  GH_READ,  ANY_SPACE_9),              &
-        arg_type(GH_FIELD,    GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
-        /)
-    type(func_type) :: meta_funcs(7) = (/                          &
-        func_type(W0,          GH_BASIS, GH_DIFF_BASIS),           &
-        func_type(W1,          GH_BASIS, GH_DIFF_BASIS),           &
-        func_type(W2,          GH_BASIS, GH_DIFF_BASIS),           &
-        func_type(W2broken,    GH_BASIS, GH_DIFF_BASIS),           &
-        func_type(W3,          GH_BASIS),                          &
-        func_type(Wtheta,      GH_BASIS),                          &
-        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)            &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(12) = (/                                     &
+         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W0, W0),                   &
+         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W1, W1),                   &
+         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W2, W2),                   &
+         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W2broken, W2broken),       &
+         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W3, W3),                   &
+         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, Wtheta, Wtheta),           &
+         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W1, W0),                   &
+         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W2, W1),                   &
+         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W3, W2),                   &
+         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W3, W2broken),             &
+         arg_type(GH_FIELD*3,  GH_REAL, GH_READ,  ANY_SPACE_9),              &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
+         /)
+    type(func_type) :: meta_funcs(7) = (/                                    &
+         func_type(W0,          GH_BASIS, GH_DIFF_BASIS),                    &
+         func_type(W1,          GH_BASIS, GH_DIFF_BASIS),                    &
+         func_type(W2,          GH_BASIS, GH_DIFF_BASIS),                    &
+         func_type(W2broken,    GH_BASIS, GH_DIFF_BASIS),                    &
+         func_type(W3,          GH_BASIS),                                   &
+         func_type(Wtheta,      GH_BASIS),                                   &
+         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                     &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
     procedure, nopass :: compute_derham_matrices_code
@@ -70,7 +70,7 @@ module compute_derham_matrices_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public compute_derham_matrices_code
+  public :: compute_derham_matrices_code
 
 contains
 

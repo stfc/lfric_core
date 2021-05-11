@@ -21,18 +21,22 @@
 !>         \f[ r_u = -\xi/\rho \times F - \nabla(\Phi + 1/2*u.u) - cp*\theta*\nabla(\Pi) \f]
 !>         Where \f[ \xi \f] is the Vorticity
 module vorticity_advection_kernel_mod
+
 use kernel_mod,              only: kernel_type
-use argument_mod,            only: arg_type, func_type,                 &
-                                   GH_FIELD, GH_READ, GH_INC,           &
-                                   ANY_SPACE_9,                         &
-                                   ANY_DISCONTINUOUS_SPACE_3,           &
-                                   GH_BASIS, GH_DIFF_BASIS,             &
-                                   CELLS, GH_QUADRATURE_XYoZ
+use argument_mod,            only: arg_type, func_type,       &
+                                   GH_FIELD, GH_REAL,         &
+                                   GH_READ, GH_INC,           &
+                                   ANY_SPACE_9,               &
+                                   ANY_DISCONTINUOUS_SPACE_3, &
+                                   GH_BASIS, GH_DIFF_BASIS,   &
+                                   CELL_COLUMN, GH_QUADRATURE_XYoZ
 use constants_mod,           only: r_def, i_def
 use fs_continuity_mod,       only: W1, W2
 use cross_product_mod,       only: cross_product
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -40,19 +44,19 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: vorticity_advection_kernel_type
   private
-  type(arg_type) :: meta_args(5) = (/                                  &
-       arg_type(GH_FIELD,   GH_INC,  W2),                              &
-       arg_type(GH_FIELD,   GH_READ, W2),                              &
-       arg_type(GH_FIELD,   GH_READ, W1),                              &
-       arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_9),                     &
-       arg_type(GH_FIELD,   GH_READ, ANY_DISCONTINUOUS_SPACE_3)        &
+  type(arg_type) :: meta_args(5) = (/                                    &
+       arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),                       &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ, W2),                       &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ, W1),                       &
+       arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),              &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3) &
        /)
-  type(func_type) :: meta_funcs(3) = (/                                &
-       func_type(W2, GH_BASIS),                                        &
-       func_type(W1, GH_BASIS),                                        &
-       func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                 &
+  type(func_type) :: meta_funcs(3) = (/                                  &
+       func_type(W2,          GH_BASIS),                                 &
+       func_type(W1,          GH_BASIS),                                 &
+       func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                   &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_QUADRATURE_XYoZ
 contains
   procedure, nopass :: vorticity_advection_code
@@ -61,32 +65,34 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public vorticity_advection_code
+public :: vorticity_advection_code
+
 contains
 
 !> @brief Compute the advection of the wind field by the vorticity
 !! @param[in] nlayers Number of layers
-!! @param[inout] r_u Right hand side of the momentum equation
+!! @param[in,out] r_u Right hand side of the momentum equation
 !! @param[in] wind Advecting wind field
 !! @param[in] vorticity Vorticity field = curl(u)
 !! @param[in] chi_1 1st (spherical) coordinate field in Wchi
 !! @param[in] chi_2 2nd (spherical) coordinate field in Wchi
 !! @param[in] chi_3 3rd (spherical) coordinate field in Wchi
-!! @param[in] panel_id Field giving the ID for mesh panels.
-!! @param[in] ndf_w2 Number of degrees of freedom per cell for w2
-!! @param[in] undf_w2 Number of unique degrees of freedom  for w2
-!! @param[in] map_w2 Dofmap for the cell at the base of the column for w2
+!! @param[in] panel_id Field giving the ID for mesh panels
+!! @param[in] ndf_w2 Number of degrees of freedom per cell for W2
+!! @param[in] undf_w2 Number of unique degrees of freedom  for W2
+!! @param[in] map_w2 Dofmap for the cell at the base of the column for W2
 !! @param[in] w2_basis Basis functions evaluated at quadrature points
-!! @param[in] ndf_w1 Number of degrees of freedom per cell for w1
-!! @param[in] undf_w1 Number of unique degrees of freedom  for w1
-!! @param[in] map_w1 Dofmap for the cell at the base of the column for w1
-!! @param[in] w1_basis Basis functions evaluated at gaussian quadrature points
+!! @param[in] ndf_w1 Number of degrees of freedom per cell for W1
+!! @param[in] undf_w1 Number of unique degrees of freedom  for W1
+!! @param[in] map_w1 Dofmap for the cell at the base of the column for W1
+!! @param[in] w1_basis Basis functions evaluated at Gaussian quadrature points
 !! @param[in] ndf_chi Number of degrees of freedom per cell for chi
 !! @param[in] undf_chi Number of unique degrees of freedom  for chi
 !! @param[in] map_chi Dofmap for the cell at the base of the column for chi
-!! @param[in] chi_basis Wchi basis functions evaluated at gaussian quadrature points.
+!! @param[in] chi_basis Wchi basis functions evaluated at Gaussian
+!!                      quadrature points
 !! @param[in] chi_diff_basis Derivatives of Wchi basis functions
-!!                           evaluated at gaussian quadrature points
+!!                           evaluated at Gaussian quadrature points
 !! @param[in] ndf_pid  Number of degrees of freedom per cell for panel_id
 !! @param[in] undf_pid Number of unique degrees of freedom for panel_id
 !! @param[in] map_pid  Dofmap for the cell at the base of the column for panel_id
@@ -107,15 +113,17 @@ subroutine vorticity_advection_code(nlayers,                                   &
 
   use coordinate_jacobian_mod, only: pointwise_coordinate_jacobian, &
                                      pointwise_coordinate_jacobian_inverse
+
   implicit none
+
   ! Arguments
-  integer, intent(in) :: nlayers,nqp_h, nqp_v
-  integer, intent(in) :: ndf_chi, ndf_w1, ndf_w2, ndf_pid
-  integer, intent(in) :: undf_chi, undf_w1, undf_w2, undf_pid
-  integer, dimension(ndf_chi), intent(in) :: map_chi
-  integer, dimension(ndf_w1),  intent(in) :: map_w1
-  integer, dimension(ndf_w2),  intent(in) :: map_w2
-  integer, dimension(ndf_pid), intent(in) :: map_pid
+  integer(kind=i_def), intent(in) :: nlayers,nqp_h, nqp_v
+  integer(kind=i_def), intent(in) :: ndf_chi, ndf_w1, ndf_w2, ndf_pid
+  integer(kind=i_def), intent(in) :: undf_chi, undf_w1, undf_w2, undf_pid
+  integer(kind=i_def), dimension(ndf_chi), intent(in) :: map_chi
+  integer(kind=i_def), dimension(ndf_w1),  intent(in) :: map_w1
+  integer(kind=i_def), dimension(ndf_w2),  intent(in) :: map_w2
+  integer(kind=i_def), dimension(ndf_pid), intent(in) :: map_pid
 
   real(kind=r_def), dimension(3,ndf_w2,nqp_h,nqp_v),  intent(in) :: w2_basis
   real(kind=r_def), dimension(3,ndf_w1,nqp_h,nqp_v),  intent(in) :: w1_basis

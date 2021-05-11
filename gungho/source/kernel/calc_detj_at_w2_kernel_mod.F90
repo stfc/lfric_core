@@ -7,16 +7,20 @@
 !>
 module calc_detj_at_w2_kernel_mod
 
-  use argument_mod,      only : arg_type, func_type,              &
-                                GH_FIELD, GH_READ, GH_INC,        &
-                                GH_DIFF_BASIS, GH_BASIS,          &
-                                ANY_SPACE_1, CELLS, GH_EVALUATOR, &
-                                ANY_DISCONTINUOUS_SPACE_3
+  use argument_mod,      only : arg_type, func_type,       &
+                                GH_FIELD, GH_REAL, GH_INC, &
+                                GH_READ, ANY_SPACE_1,      &
+                                GH_DIFF_BASIS, GH_BASIS,   &
+                                ANY_DISCONTINUOUS_SPACE_3, &
+                                CELL_COLUMN, GH_EVALUATOR
+
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2
   use kernel_mod,        only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -26,15 +30,15 @@ module calc_detj_at_w2_kernel_mod
   !>
   type, public, extends(kernel_type) :: calc_detj_at_w2_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                            &
-        arg_type(GH_FIELD,    GH_INC,   W2),                       &
-        arg_type(GH_FIELD*3,  GH_READ,  ANY_SPACE_1),              &
-        arg_type(GH_FIELD,    GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
-        /)
-    type(func_type) :: meta_funcs(1) = (/                          &
-        func_type(ANY_SPACE_1, GH_BASIS, GH_DIFF_BASIS)            &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(3) = (/                                    &
+         arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),                       &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_1),              &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3) &
+         /)
+    type(func_type) :: meta_funcs(1) = (/                                  &
+         func_type(ANY_SPACE_1, GH_BASIS, GH_DIFF_BASIS)                   &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_EVALUATOR
   contains
     procedure, nopass :: calc_detj_at_w2_code
@@ -43,12 +47,12 @@ module calc_detj_at_w2_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public calc_detj_at_w2_code
+  public :: calc_detj_at_w2_code
 
 contains
 
 !> @param[in]  nlayers        Integer the number of layers
-!> @param[out] detj_w2        The output field containing the detj values at W2 locations
+!> @param[in,out] detj_w2     The output field containing the detj values at W2 locations
 !> @param[in]  chi1           1st (spherical) coordinate field in Wchi
 !> @param[in]  chi2           2nd (spherical) coordinate field in Wchi
 !> @param[in]  chi3           3rd (spherical) coordinate field in Wchi

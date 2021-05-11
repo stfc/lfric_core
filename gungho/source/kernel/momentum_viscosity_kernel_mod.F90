@@ -8,16 +8,19 @@
 !>
 module momentum_viscosity_kernel_mod
 
-  use argument_mod,      only : arg_type, func_type,       &
-                                GH_FIELD, GH_READ, GH_INC, &
-                                ANY_SPACE_9,               &
-                                CELLS, STENCIL, CROSS
-  use constants_mod,     only : r_def
+  use argument_mod,      only : arg_type,          &
+                                GH_FIELD, GH_REAL, &
+                                GH_READ, GH_INC,   &
+                                ANY_SPACE_9,       &
+                                STENCIL, CROSS, CELL_COLUMN
+  use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2
   use kernel_mod,        only : kernel_type
   use mixing_config_mod, only : viscosity_mu
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -27,20 +30,20 @@ module momentum_viscosity_kernel_mod
   !>
   type, public, extends(kernel_type) :: momentum_viscosity_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                    &
-        arg_type(GH_FIELD,   GH_INC,  W2),                 &
-        arg_type(GH_FIELD,   GH_READ, W2, STENCIL(CROSS)), &
-        arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_9)         &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(3) = (/                              &
+         arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),                 &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, W2, STENCIL(CROSS)), &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9)         &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
-    procedure, nopass ::momentum_viscosity_code
+    procedure, nopass :: momentum_viscosity_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public momentum_viscosity_code
+  public :: momentum_viscosity_code
 
 contains
 
@@ -68,20 +71,21 @@ subroutine momentum_viscosity_code(nlayers,                               &
                                    ndf_chi, undf_chi, map_chi)
 
   implicit none
+
   ! Arguments
-  integer, intent(in) :: nlayers
-  integer, intent(in) :: ndf_w2, undf_w2, ndf_chi, undf_chi
-  integer, intent(in) :: map_w2_size
-  integer, dimension(ndf_w2,map_w2_size), intent(in)  :: map_w2
-  integer, dimension(ndf_chi),            intent(in)  :: map_chi
-  integer, dimension(ndf_w2),             intent(in)  :: cell_map_w2
+  integer(kind=i_def), intent(in) :: nlayers
+  integer(kind=i_def), intent(in) :: ndf_w2, undf_w2, ndf_chi, undf_chi
+  integer(kind=i_def), intent(in) :: map_w2_size
+  integer(kind=i_def), dimension(ndf_w2,map_w2_size), intent(in) :: map_w2
+  integer(kind=i_def), dimension(ndf_chi),            intent(in) :: map_chi
+  integer(kind=i_def), dimension(ndf_w2),             intent(in) :: cell_map_w2
 
   real(kind=r_def), dimension(undf_w2),  intent(inout) :: u_inc
   real(kind=r_def), dimension(undf_w2),  intent(in)    :: u_n
   real(kind=r_def), dimension(undf_chi), intent(in)    :: chi1, chi2, chi3
 
   ! Internal variables
-  integer                                  :: k, km, kp, df
+  integer(kind=i_def)                      :: k, km, kp, df
   real(kind=r_def)                         :: d2dx, d2dy, d2dz
   real(kind=r_def), dimension(0:nlayers-1) :: idx2, idy2, idz2
   real(kind=r_def), dimension(ndf_chi)     :: chi1_e, chi2_e, chi3_e

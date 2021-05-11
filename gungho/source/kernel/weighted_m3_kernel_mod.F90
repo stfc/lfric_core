@@ -7,12 +7,15 @@
 !>
 module weighted_m3_kernel_mod
 
-  use argument_mod,            only: arg_type, func_type,                  &
-                                     GH_OPERATOR, GH_FIELD, GH_REAL,       &
-                                     GH_READ, GH_WRITE,                    &
-                                     ANY_SPACE_1, GH_BASIS, GH_DIFF_BASIS, &
-                                     CELLS, GH_QUADRATURE_XYoZ,            &
-                                     ANY_DISCONTINUOUS_SPACE_3
+  use argument_mod,            only: arg_type, func_type,       &
+                                     GH_OPERATOR, GH_FIELD,     &
+                                     GH_SCALAR, GH_REAL,        &
+                                     GH_READ, GH_WRITE,         &
+                                     ANY_SPACE_1,               &
+                                     ANY_DISCONTINUOUS_SPACE_3, &
+                                     GH_BASIS, GH_DIFF_BASIS,   &
+                                     CELL_COLUMN, GH_QUADRATURE_XYoZ
+
   use constants_mod,           only: r_def, i_def
   use coordinate_jacobian_mod, only: coordinate_jacobian
   use fs_continuity_mod,       only: W3
@@ -20,23 +23,25 @@ module weighted_m3_kernel_mod
 
   implicit none
 
+  private
+
   !---------------------------------------------------------------------------
   ! Public types
   !---------------------------------------------------------------------------
   type, public, extends(kernel_type) :: weighted_m3_kernel_type
     private
-    type(arg_type) :: meta_args(5) = (/                             &
-        arg_type(GH_OPERATOR, GH_WRITE, W3, W3),                    &
-        arg_type(GH_FIELD,    GH_READ,  W3),                        &
-        arg_type(GH_FIELD*3,  GH_READ,  ANY_SPACE_1),               &
-        arg_type(GH_FIELD,    GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
-        arg_type(GH_REAL,     GH_READ)                              &
-        /)
-    type(func_type) :: meta_funcs(2) = (/                           &
-        func_type(W3, GH_BASIS),                                    &
-        func_type(ANY_SPACE_1, GH_BASIS, GH_DIFF_BASIS)             &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(5) = (/                                       &
+         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W3, W3),                    &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  W3),                        &
+         arg_type(GH_FIELD*3,  GH_REAL, GH_READ,  ANY_SPACE_1),               &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
+         arg_type(GH_SCALAR,   GH_REAL, GH_READ)                              &
+         /)
+    type(func_type) :: meta_funcs(2) = (/                                     &
+         func_type(W3,          GH_BASIS),                                    &
+         func_type(ANY_SPACE_1, GH_BASIS, GH_DIFF_BASIS)                      &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
     procedure, nopass :: weighted_m3_code
@@ -45,31 +50,31 @@ module weighted_m3_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public weighted_m3_code
+  public :: weighted_m3_code
 
 contains
 
-!> @brief Computes the mass matrix for the w3 space weighted by the reference
+!> @brief Computes the mass matrix for the W3 space weighted by the reference
 !!        density
 !! @param[in] cell Cell number
-!! @param[in] nlayers Number of layers.
+!! @param[in] nlayers Number of layers
 !! @param[in] ncell_3d ncell*ndf
-!! @param[inout] mm Mass matrix data array
+!! @param[in,out] mm Mass matrix data array
 !! @param[in] rho Density
 !! @param[in] chi_1 1st (spherical) coordinate field in Wchi
 !! @param[in] chi_2 2nd (spherical) coordinate field in Wchi
 !! @param[in] chi_3 3rd (spherical) coordinate field in Wchi
-!! @param[in] panel_id Field giving the ID for mesh panels.
+!! @param[in] panel_id Field giving the ID for mesh panels
 !! @param[in] scalar Scalar weight for the operator
-!! @param[in] ndf_w3 Number of degrees of freedom per cell for the operator space.
+!! @param[in] ndf_w3 Number of degrees of freedom per cell for the operator space
 !! @param[in] undf_w3 Total number of degrees of freedom for the W3 space
 !! @param[in] map_w3 Dofmap for the bottom layer in the W3 space
-!! @param[in] basis_w3 Basis functions evaluated at quadrature points.
-!! @param[in] ndf_chi Number of degrees of freedom per cell for the coordinate field.
-!! @param[in] undf_chi Number of unique degrees of freedum  for chi field
-!! @param[in] map_chi Dofmap for the cell at the base of the column.
-!! @param[in] basis_chi Basis functions evaluated at quadrature points.
-!! @param[in] diff_basis_chi Differential basis functions evaluated at quadrature points.
+!! @param[in] basis_w3 Basis functions evaluated at quadrature points
+!! @param[in] ndf_chi Number of degrees of freedom per cell for the coordinate field
+!! @param[in] undf_chi Number of unique degrees of freedom for the coordinate field
+!! @param[in] map_chi Dofmap for the cell at the base of the column in the Wchi space
+!! @param[in] basis_chi Basis functions evaluated at quadrature points
+!! @param[in] diff_basis_chi Differential basis functions evaluated at quadrature points
 !! @param[in] ndf_pid  Number of degrees of freedom per cell for panel_id
 !! @param[in] undf_pid Number of unique degrees of freedom for panel_id
 !! @param[in] map_pid  Dofmap for the cell at the base of the column for panel_id

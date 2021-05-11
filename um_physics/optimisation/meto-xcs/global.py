@@ -10,14 +10,12 @@ colouring, OpenMP and redundant computation to the level1 halo for
 setval_* generically.
 
 '''
-from __future__ import absolute_import
-from __future__ import print_function
 from psyclone.transformations import Dynamo0p3ColourTrans, \
                                      Dynamo0p3OMPLoopTrans, \
                                      OMPParallelTrans, \
                                      Dynamo0p3RedundantComputationTrans
 
-from psyclone.dynamo0p3 import VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES
+from psyclone.domain.lfric.function_space import FunctionSpace
 
 
 def trans(psy):
@@ -40,7 +38,7 @@ def trans(psy):
         # Make setval_* compute redundantly to the level 1 halo if it
         # is in its own loop.
         for loop in schedule.loops():
-            if loop.iteration_space == "dofs":
+            if loop.iteration_space == "dof":
                 if len(loop.kernels()) != 1:
                     raise Exception(
                         "Expecting loop to contain 1 call but found '{0}'".
@@ -52,9 +50,9 @@ def trans(psy):
         # Colour loops over cells unless they are on discontinuous
         # spaces or over dofs
         for loop in schedule.loops():
-            if loop.iteration_space == "cells" \
+            if loop.iteration_space == "cell_column" \
                 and loop.field_space.orig_name \
-                    not in VALID_DISCONTINUOUS_FUNCTION_SPACE_NAMES:
+                    not in FunctionSpace.VALID_DISCONTINUOUS_NAMES:
                 schedule, _ = ctrans.apply(loop)
 
         # Add OpenMP to loops unless they are over colours

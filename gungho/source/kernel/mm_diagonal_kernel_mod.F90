@@ -13,14 +13,18 @@
 
 
 module mm_diagonal_kernel_mod
-use argument_mod,            only : arg_type,                               &
-                                    GH_FIELD, GH_OPERATOR, GH_READ, GH_INC, &
-                                    ANY_SPACE_1,                            &
-                                    CELLS
+
+use argument_mod,            only : arg_type,              &
+                                    GH_FIELD, GH_OPERATOR, &
+                                    GH_READ, GH_INC,       &
+                                    GH_REAL, ANY_SPACE_1,  &
+                                    CELL_COLUMN
 use constants_mod,           only : r_def, i_def
 use kernel_mod,              only : kernel_type
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -28,27 +32,27 @@ implicit none
 
 type, public, extends(kernel_type) :: mm_diagonal_kernel_type
   private
-  type(arg_type) :: meta_args(2) = (/                                  &
-       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                    &
-       arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_1)        &
+  type(arg_type) :: meta_args(2) = (/                                    &
+       arg_type(GH_FIELD,    GH_REAL, GH_INC,  ANY_SPACE_1),             &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ, ANY_SPACE_1, ANY_SPACE_1) &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
-  procedure, nopass ::mm_diagonal_kernel_code
+  procedure, nopass :: mm_diagonal_kernel_code
 end type
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public mm_diagonal_kernel_code
+public :: mm_diagonal_kernel_code
 
 contains
 
 !> @brief Stores the diagonal of a mass_matrix
 !> @param[in] cell Horizontal cell index
 !! @param[in] nlayers Number of layers
-!! @param[inout] mm_diag Field array to store the diagonal entries
-!!               of the mass matrix
+!! @param[in,out] mm_diag Field array to store the diagonal entries
+!!                        of the mass matrix
 !! @param[in] ncell_3d Total number of cells
 !! @param[in] mass_matrix Array holding mass matrix values
 !! @param[in] ndf Number of degrees of freedom per cell

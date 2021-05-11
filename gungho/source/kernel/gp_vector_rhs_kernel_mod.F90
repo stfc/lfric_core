@@ -7,13 +7,13 @@
 !>
 module gp_vector_rhs_kernel_mod
 
-  use argument_mod,              only : arg_type, func_type,        &
-                                        GH_FIELD, GH_INC, GH_READ,  &
-                                        ANY_SPACE_1, ANY_SPACE_2,   &
-                                        ANY_SPACE_9,                &
-                                        GH_BASIS, GH_DIFF_BASIS,    &
-                                        CELLS, GH_QUADRATURE_XYoZ,  &
-                                        ANY_DISCONTINUOUS_SPACE_3
+  use argument_mod,              only : arg_type, func_type,       &
+                                        GH_FIELD, GH_REAL, GH_INC, &
+                                        GH_READ, ANY_SPACE_1,      &
+                                        ANY_SPACE_2, ANY_SPACE_9,  &
+                                        ANY_DISCONTINUOUS_SPACE_3, &
+                                        GH_BASIS, GH_DIFF_BASIS,   &
+                                        CELL_COLUMN, GH_QUADRATURE_XYoZ
   use base_mesh_config_mod,      only : geometry,                   &
                                         geometry_spherical
   use chi_transform_mod,         only : chi2xyz
@@ -26,6 +26,8 @@ module gp_vector_rhs_kernel_mod
 
   implicit none
 
+  private
+
   !---------------------------------------------------------------------------
   ! Public types
   !---------------------------------------------------------------------------
@@ -34,27 +36,28 @@ module gp_vector_rhs_kernel_mod
   !>
   type, public, extends(kernel_type) :: gp_vector_rhs_kernel_type
     private
-    type(arg_type) :: meta_args(5) = (/                           &
-        arg_type(GH_FIELD*3, GH_INC,  ANY_SPACE_1),               &
-        arg_type(GH_FIELD,   GH_READ, ANY_SPACE_2),               &
-        arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_9),               &
-        arg_type(GH_FIELD,   GH_READ, ANY_DISCONTINUOUS_SPACE_3), &
-        arg_type(GH_FIELD,   GH_READ, W2)                         &
-        /)
-    type(func_type) :: meta_funcs(3) = (/               &
-        func_type(ANY_SPACE_1, GH_BASIS),               &
-        func_type(ANY_SPACE_2, GH_BASIS),               &
-        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS) &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(5) = (/                                     &
+         arg_type(GH_FIELD*3, GH_REAL, GH_INC,  ANY_SPACE_1),               &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_SPACE_2),               &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),               &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3), &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, W2)                         &
+         /)
+    type(func_type) :: meta_funcs(3) = (/                                   &
+         func_type(ANY_SPACE_1, GH_BASIS),                                  &
+         func_type(ANY_SPACE_2, GH_BASIS),                                  &
+         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                    &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
-    procedure, public, nopass :: gp_vector_rhs_code
+    procedure, nopass :: gp_vector_rhs_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
+  public :: gp_vector_rhs_code
 
 contains
 
@@ -67,9 +70,9 @@ contains
 !>          be projected into three separate scalar fields suitable for further
 !>          manipulation
 !! @param[in] nlayers   Number of layers
-!! @param[inout] rhs1   Field to compute
-!! @param[inout] rhs2   Field to compute
-!! @param[inout] rhs3   Field to compute
+!! @param[in,out] rhs1  Field to compute
+!! @param[in,out] rhs2  Field to compute
+!! @param[in,out] rhs3  Field to compute
 !! @param[in] field     Field to be projected
 !! @param[in] chi_sph_1 1st coordinate in spherical Wchi
 !! @param[in] chi_sph_2 2nd coordinate in spherical Wchi

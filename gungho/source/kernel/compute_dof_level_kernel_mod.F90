@@ -9,14 +9,17 @@
 !> @brief Kernel to compute the fractional level a dof lives on. This is given
 !! by the layer index (k) + the nodal coordinate (hat{chi})
 module compute_dof_level_kernel_mod
+
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,                     &
-                                    GH_FIELD, GH_INC,                        &
-                                    ANY_SPACE_1, GH_BASIS,                   &
-                                    CELLS
-use constants_mod,           only : r_def
+use argument_mod,            only : arg_type,            &
+                                    GH_FIELD, GH_REAL,   &
+                                    GH_INC, ANY_SPACE_1, &
+                                    CELL_COLUMN
+use constants_mod,           only : r_def, i_def
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -24,18 +27,18 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: compute_dof_level_kernel_type
   private
-  type(arg_type) :: meta_args(1) = (/                                &
-       arg_type(GH_FIELD,    GH_INC, ANY_SPACE_1)                    &
+  type(arg_type) :: meta_args(1) = (/                   &
+       arg_type(GH_FIELD, GH_REAL, GH_INC, ANY_SPACE_1) &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
-  procedure, nopass ::compute_dof_level_code
+  procedure, nopass :: compute_dof_level_code
 end type
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public compute_dof_level_code
+public :: compute_dof_level_code
 contains
 
 !> @param[in]     nlayers Number of layers
@@ -52,16 +55,16 @@ subroutine compute_dof_level_code(nlayers,                                  &
 
   implicit none
 
-  !Arguments
-  integer, intent(in)                               :: nlayers
-  integer, intent(in)                               :: ndf
-  integer, intent(in)                               :: undf
-  integer, dimension(ndf),            intent(in)    :: map
-  real(kind=r_def), dimension(undf),  intent(inout) :: level
-  real(kind=r_def), dimension(3,ndf), intent(in)    :: nodes
+  ! Arguments
+  integer(kind=i_def), intent(in)                    :: nlayers
+  integer(kind=i_def), intent(in)                    :: ndf
+  integer(kind=i_def), intent(in)                    :: undf
+  integer(kind=i_def), dimension(ndf), intent(in)    :: map
+  real(kind=r_def), dimension(undf),   intent(inout) :: level
+  real(kind=r_def), dimension(3,ndf),  intent(in)    :: nodes
 
-  !Internal variables
-  integer          :: df, k
+  ! Internal variables
+  integer(kind=i_def) :: df, k
 
   do k = 0,nlayers - 1
     do df = 1,ndf

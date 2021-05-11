@@ -7,18 +7,23 @@
 !>        The Jones method ( doi:10.1038/370450a0 ) is an empirical relation
 !>        used to estimate CDNC from the GLOMAP-mode aersol scheme.
 !>
-!>        Jones will be superseeded with the Abdul-Razzak and Ghan
+!>        Jones will be superseded with the Abdul-Razzak and Ghan
 !>        mechanistic activation scheme.
 
 module glomap_aerosol_kernel_mod
 
-use argument_mod,      only: arg_type, GH_FIELD, GH_READ, CELLS, GH_WRITE
+use argument_mod,      only: arg_type,          &
+                             GH_FIELD, GH_REAL, &
+                             GH_READ, GH_WRITE, &
+                             CELL_COLUMN
 
 use fs_continuity_mod, only: WTHETA
 
 use kernel_mod,        only: kernel_type
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -28,72 +33,73 @@ implicit none
 
 type, public, extends(kernel_type) :: glomap_aerosol_kernel_type
   private
-  type(arg_type) :: meta_args(23) = (/       &
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! theta_in_wth
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! exner_in_wth
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! n_nuc_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! nuc_sol_su
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! nuc_sol_om
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! n_ait_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! ait_sol_su
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! ait_sol_bc
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! ait_sol_om
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! n_acc_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! acc_sol_su
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! acc_sol_bc
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! acc_sol_om
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! acc_sol_ss
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! n_cor_sol
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! cor_sol_su
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! cor_sol_bc
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! cor_sol_om
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! cor_sol_ss
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! n_ait_ins
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! ait_ins_bc
-       arg_type(GH_FIELD, GH_READ,  WTHETA), & ! ait_ins_om
-       arg_type(GH_FIELD, GH_WRITE, WTHETA)  & ! cloud_drop_no_conc
+  type(arg_type) :: meta_args(23) = (/                &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! theta_in_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! exner_in_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! n_nuc_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! nuc_sol_su
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! nuc_sol_om
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! n_ait_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! ait_sol_su
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! ait_sol_bc
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! ait_sol_om
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! n_acc_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! acc_sol_su
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! acc_sol_bc
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! acc_sol_om
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! acc_sol_ss
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! n_cor_sol
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! cor_sol_su
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! cor_sol_bc
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! cor_sol_om
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! cor_sol_ss
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! n_ait_ins
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! ait_ins_bc
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! ait_ins_om
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA)  & ! cloud_drop_no_conc
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: glomap_aerosol_code
 end type
 
-public glomap_aerosol_code
+public :: glomap_aerosol_code
+
 contains
 
 !> @brief Interface to glomap aersol climatology scheme.
-!> @param[in]    nlayers             The number of layers
-!> @param[in]    theta_in_wth        Potential temperature field
-!> @param[in]    exner_in_wth        Exner pressure
-!>                                    in potential temperature space
-!> @param[in]    n_nuc_sol           Climatology aerosol field
-!> @param[in]    nuc_sol_su          Climatology aerosol field
-!> @param[in]    nuc_sol_om          Climatology aerosol field
-!> @param[in]    n_ait_sol           Climatology aerosol field
-!> @param[in]    ait_sol_su          Climatology aerosol field
-!> @param[in]    ait_sol_bc          Climatology aerosol field
-!> @param[in]    ait_sol_om          Climatology aerosol field
-!> @param[in]    n_acc_sol           Climatology aerosol field
-!> @param[in]    acc_sol_su          Climatology aerosol field
-!> @param[in]    acc_sol_bc          Climatology aerosol field
-!> @param[in]    acc_sol_om          Climatology aerosol field
-!> @param[in]    acc_sol_ss          Climatology aerosol field
-!> @param[in]    n_cor_sol           Climatology aerosol field
-!> @param[in]    cor_sol_su          Climatology aerosol field
-!> @param[in]    cor_sol_bc          Climatology aerosol field
-!> @param[in]    cor_sol_om          Climatology aerosol field
-!> @param[in]    cor_sol_ss          Climatology aerosol field
-!> @param[in]    n_ait_ins           Climatology aerosol field
-!> @param[in]    ait_ins_bc          Climatology aerosol field
-!> @param[in]    ait_ins_om          Climatology aerosol field
-!> @param[in,out] cloud_drop_no_conc Cloud Droplet Number Concentration
-!>                                    via Jones method doi:10.1038/370450a0
-!> @param[in]    ndf_wth             Number of degrees of freedom per cell for
-!>                                    potential temperature space
-!> @param[in]    undf_wth            Unique number of degrees of freedom for
-!>                                    potential temperature space
-!> @param[in]    map_wth             Dofmap for the cell at the base of the
-!>                                    column for potential temperature space
+!> @param[in]     nlayers             The number of layers
+!> @param[in]     theta_in_wth        Potential temperature field
+!> @param[in]     exner_in_wth        Exner pressure
+!!                                     in potential temperature space
+!> @param[in]     n_nuc_sol           Climatology aerosol field
+!> @param[in]     nuc_sol_su          Climatology aerosol field
+!> @param[in]     nuc_sol_om          Climatology aerosol field
+!> @param[in]     n_ait_sol           Climatology aerosol field
+!> @param[in]     ait_sol_su          Climatology aerosol field
+!> @param[in]     ait_sol_bc          Climatology aerosol field
+!> @param[in]     ait_sol_om          Climatology aerosol field
+!> @param[in]     n_acc_sol           Climatology aerosol field
+!> @param[in]     acc_sol_su          Climatology aerosol field
+!> @param[in]     acc_sol_bc          Climatology aerosol field
+!> @param[in]     acc_sol_om          Climatology aerosol field
+!> @param[in]     acc_sol_ss          Climatology aerosol field
+!> @param[in]     n_cor_sol           Climatology aerosol field
+!> @param[in]     cor_sol_su          Climatology aerosol field
+!> @param[in]     cor_sol_bc          Climatology aerosol field
+!> @param[in]     cor_sol_om          Climatology aerosol field
+!> @param[in]     cor_sol_ss          Climatology aerosol field
+!> @param[in]     n_ait_ins           Climatology aerosol field
+!> @param[in]     ait_ins_bc          Climatology aerosol field
+!> @param[in]     ait_ins_om          Climatology aerosol field
+!> @param[in,out] cloud_drop_no_conc  Cloud Droplet Number Concentration
+!!                                     via Jones method doi:10.1038/370450a0
+!> @param[in]     ndf_wth             Number of degrees of freedom per cell for
+!!                                     potential temperature space
+!> @param[in]     undf_wth            Unique number of degrees of freedom for
+!!                                     potential temperature space
+!> @param[in]     map_wth             Dofmap for the cell at the base of the
+!!                                     column for potential temperature space
 
 subroutine glomap_aerosol_code( nlayers,                                       &
                                 theta_in_wth,                                  &
@@ -138,6 +144,8 @@ subroutine glomap_aerosol_code( nlayers,                                       &
   use ukca_cdnc_jones_mod,          only: ukca_cdnc_jones
 
   use ukca_mode_setup,              only: nmodes
+
+  implicit none
 
   ! Arguments
 

@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
-!(c) Crown copyright 2020 Met Office. All rights reserved.
-!The file LICENCE, distributed with this code, contains details of the terms
-!under which the code may be used.
+! (c) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
 !-------------------------------------------------------------------------------
 !> @brief Initialise Jules soil fields on soil levels
 !> @details Non-standard Surface fields (pseudo-levels) aren't as yet not
@@ -11,12 +11,14 @@
 !>  suitable infrastructure is available (Ticket #2081)
 module initial_soil_kernel_mod
 
-  use argument_mod,  only: arg_type, GH_FIELD, GH_WRITE, CELLS, &
-       ANY_DISCONTINUOUS_SPACE_1
+  use argument_mod,  only: arg_type,              &
+                           GH_FIELD, GH_REAL,     &
+                           GH_WRITE, CELL_COLUMN, &
+                           ANY_DISCONTINUOUS_SPACE_1
   use constants_mod, only: r_def, i_def
   use kernel_mod,    only: kernel_type
 
-  use idealised_config_mod,   only: test, test_snow
+  use idealised_config_mod, only: test, test_snow
 
   implicit none
 
@@ -25,29 +27,29 @@ module initial_soil_kernel_mod
   !> Kernel metadata for Psyclone
   type, public, extends(kernel_type) :: initial_soil_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                           &
-         arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)  &
+    type(arg_type) :: meta_args(4) = (/                                    &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)  &
          /)
-    integer :: iterates_over = CELLS
-
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: initial_soil_code
   end type initial_soil_kernel_type
 
-  public initial_soil_code
+  public :: initial_soil_code
+
 contains
 
-  !> @param[in]  nlayers                The number of layers
-  !> @param[out] soil_temperature       Soil temperature (K)
-  !> @param[out] soil_moisture          Soil moisture content (kg m-2)
-  !> @param[out] unfrozen_soil_moisture Unfrozen soil moisture proportion
-  !> @param[out] frozen_soil_moisture   Frozen soil moisture proportion
-  !> @param[in]  ndf_soil               Number of DOFs per cell for soil levels
-  !> @param[in]  undf_soil              Number of total DOFs for soil levels
-  !> @param[in]  map_soil               Dofmap for cell for soil levels
+  !> @param[in]     nlayers                The number of layers
+  !> @param[in,out] soil_temperature       Soil temperature (K)
+  !> @param[in,out] soil_moisture          Soil moisture content (kg m-2)
+  !> @param[in,out] unfrozen_soil_moisture Unfrozen soil moisture proportion
+  !> @param[in,out] frozen_soil_moisture   Frozen soil moisture proportion
+  !> @param[in]     ndf_soil               Number of DOFs per cell for soil levels
+  !> @param[in]     undf_soil              Number of total DOFs for soil levels
+  !> @param[in]     map_soil               Dofmap for cell for soil levels
   subroutine initial_soil_code(nlayers,                       &
                                soil_temperature,              &
                                soil_moisture,                 &

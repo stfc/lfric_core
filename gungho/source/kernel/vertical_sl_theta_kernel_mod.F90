@@ -11,9 +11,10 @@
 
 module vertical_sl_theta_kernel_mod
 
-use argument_mod,          only : arg_type,                           &
-                                  GH_FIELD, GH_READWRITE, GH_READ,    &
-                                  CELLS, GH_REAL
+use argument_mod,          only : arg_type,              &
+                                  GH_FIELD, GH_SCALAR,   &
+                                  GH_READWRITE, GH_READ, &
+                                  GH_REAL, CELL_COLUMN
 use fs_continuity_mod,     only : W2, Wtheta
 use constants_mod,         only : r_def, i_def
 use kernel_mod,            only : kernel_type
@@ -32,12 +33,12 @@ private
 !>                                      by the PSy layer.
 type, public, extends(kernel_type) :: vertical_sl_theta_kernel_type
   private
-  type(arg_type) :: meta_args(3) = (/                           &
-       arg_type(GH_FIELD,   GH_READ,       W2    ),             &
-       arg_type(GH_FIELD,   GH_READWRITE,  Wtheta),             &
-       arg_type(GH_REAL,    GH_READ)                            &
+  type(arg_type) :: meta_args(3) = (/                      &
+       arg_type(GH_FIELD,  GH_REAL, GH_READ,      W2    ), &
+       arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, Wtheta), &
+       arg_type(GH_SCALAR, GH_REAL, GH_READ)               &
        /)
-  integer  :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: vertical_sl_theta_code
 end type
@@ -45,7 +46,8 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public vertical_sl_theta_code
+public :: vertical_sl_theta_code
+
 contains
 
 !-------------------------------------------------------------------------------

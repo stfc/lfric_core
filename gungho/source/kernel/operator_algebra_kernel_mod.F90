@@ -14,10 +14,10 @@ module operator_algebra_kernel_mod
 use constants_mod, only: r_def, i_def
 use kernel_mod,    only: kernel_type
 use argument_mod,  only: arg_type, func_type,            &
-                         GH_OPERATOR, GH_REAL,           &
-                         GH_READ, GH_WRITE,              &
+                         GH_OPERATOR, GH_SCALAR,         &
+                         GH_REAL, GH_READ, GH_WRITE,     &
                          ANY_SPACE_1, ANY_SPACE_2,       &
-                         CELLS
+                         CELL_COLUMN
 implicit none
 
 private
@@ -28,24 +28,24 @@ private
 
 type, public, extends(kernel_type) :: operator_x_plus_ay_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                             &
-       arg_type(GH_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
-       arg_type(GH_OPERATOR, GH_READ,  ANY_SPACE_1, ANY_SPACE_2), &
-       arg_type(GH_REAL,     GH_READ),                            &
-       arg_type(GH_OPERATOR, GH_READ,  ANY_SPACE_1, ANY_SPACE_2)  &
+  type(arg_type) :: meta_args(4) = (/                                      &
+       arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  ANY_SPACE_1, ANY_SPACE_2), &
+       arg_type(GH_SCALAR,   GH_REAL, GH_READ),                            &
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  ANY_SPACE_1, ANY_SPACE_2)  &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: operator_x_plus_ay_kernel_code
 end type
 
 type, public, extends(kernel_type) :: operator_setval_c_kernel_type
   private
-  type(arg_type) :: meta_args(2) = (/                             &
-       arg_type(GH_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
-       arg_type(GH_REAL,     GH_READ)                             &
+  type(arg_type) :: meta_args(2) = (/                                      &
+       arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2), &
+       arg_type(GH_SCALAR,   GH_REAL, GH_READ)                             &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: operator_setval_c_kernel_code
 end type
@@ -53,8 +53,8 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public operator_x_plus_ay_kernel_code
-public operator_setval_c_kernel_code
+public :: operator_x_plus_ay_kernel_code
+public :: operator_setval_c_kernel_code
 
 contains
 
@@ -101,9 +101,9 @@ end subroutine operator_x_plus_ay_kernel_code
 
 !> @brief Computes x = a, where x is an operator and a is a constant.
 !! @param[in] cell Cell number
-!! @param[in] nlayers Number of layers.
+!! @param[in] nlayers Number of layers
 !! @param[in] ncell_3d Number of 3D cells
-!! @param[out] x Operator to compute
+!! @param[in,out] x Operator to compute
 !! @param[in] a Scalar weighting
 !! @param[in] ndf1 Number of dofs per cell for space 1
 !! @param[in] ndf2 Number of dofs per cell for space 2

@@ -9,10 +9,10 @@ module compute_broken_div_operator_kernel_mod
   use argument_mod,              only: arg_type, func_type,       &
                                        GH_OPERATOR, GH_FIELD,     &
                                        GH_READ, GH_WRITE,         &
-                                       ANY_SPACE_1,               &
+                                       GH_REAL, ANY_SPACE_1,      &
+                                       ANY_DISCONTINUOUS_SPACE_3, &
                                        GH_BASIS, GH_DIFF_BASIS,   &
-                                       CELLS, GH_QUADRATURE_XYoZ, &
-                                       ANY_DISCONTINUOUS_SPACE_3
+                                       CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,             only: r_def, i_def
   use coordinate_jacobian_mod,   only: coordinate_jacobian
   use fs_continuity_mod,         only: W2broken, W3
@@ -29,17 +29,17 @@ module compute_broken_div_operator_kernel_mod
 
   type, public, extends(kernel_type) :: compute_broken_div_operator_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                            &
-        arg_type(GH_OPERATOR, GH_WRITE, W3, W2broken),             &
-        arg_type(GH_FIELD*3,  GH_READ,  ANY_SPACE_1),              &
-        arg_type(GH_FIELD,    GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
-        /)
-    type(func_type) :: meta_funcs(3) = (/                          &
-        func_type(W3, GH_BASIS),                                   &
-        func_type(W2broken, GH_DIFF_BASIS),                        &
-        func_type(ANY_SPACE_1, GH_BASIS, GH_DIFF_BASIS)            &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(3) = (/                                      &
+         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W3, W2broken),             &
+         arg_type(GH_FIELD*3,  GH_REAL, GH_READ,  ANY_SPACE_1),              &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
+         /)
+    type(func_type) :: meta_funcs(3) = (/                                    &
+         func_type(W3,          GH_BASIS),                                   &
+         func_type(W2broken,    GH_DIFF_BASIS),                              &
+         func_type(ANY_SPACE_1, GH_BASIS, GH_DIFF_BASIS)                     &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
     procedure, nopass :: compute_broken_div_operator_code
@@ -48,7 +48,7 @@ module compute_broken_div_operator_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public compute_broken_div_operator_code
+  public :: compute_broken_div_operator_code
 
 contains
 
@@ -56,7 +56,7 @@ contains
   !! @param[in] cell     Cell number.
   !! @param[in] nlayers  Number of layers.
   !! @param[in] ncell_3d ncell*ndf
-  !! @param[out] broken_div Local stencil of the broken div operator.
+  !! @param[in,out] broken_div Local stencil of the broken div operator.
   !! @param[in] chi1     1st (spherical) coordinate field in Wchi
   !! @param[in] chi2     2nd (spherical) coordinate field in Wchi
   !! @param[in] chi3     3rd (spherical) coordinate field in Wchi
@@ -111,7 +111,7 @@ contains
     real(kind=r_def), intent(in) :: basis_w3(1, ndf_w3, nqp_h, nqp_v)
     real(kind=r_def), intent(in) :: diff_basis_w2b(1, ndf_w2b, nqp_h, nqp_v)
 
-    real(kind=r_def), dimension(ndf_w3, ndf_w2b, ncell_3d), intent(out)   :: broken_div
+    real(kind=r_def), dimension(ndf_w3, ndf_w2b, ncell_3d), intent(inout) :: broken_div
     real(kind=r_def), dimension(undf_chi),                  intent(in)    :: chi1
     real(kind=r_def), dimension(undf_chi),                  intent(in)    :: chi2
     real(kind=r_def), dimension(undf_chi),                  intent(in)    :: chi3

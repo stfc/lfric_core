@@ -61,8 +61,8 @@ for i in "${!project[@]}"; do
     fi
     PROJ_DIR="${project_src_dir[$i]}"
 
-    echo $PSYCLONE -api $PSYCLONE_API -l $FLAG_KERNEL_DIR -opsy $PROJ_DIR/$psyname -oalg $PROJ_DIR/$algname $x90file
-    $PSYCLONE -api $PSYCLONE_API -l $FLAG_KERNEL_DIR -opsy $PROJ_DIR/$psyname -oalg $PROJ_DIR/$algname $x90file
+    echo $PSYCLONE -api $PSYCLONE_API -l all $FLAG_KERNEL_DIR -opsy $PROJ_DIR/$psyname -oalg $PROJ_DIR/$algname $x90file
+    $PSYCLONE -api $PSYCLONE_API -l all $FLAG_KERNEL_DIR -opsy $PROJ_DIR/$psyname -oalg $PROJ_DIR/$algname $x90file
 
   done
 

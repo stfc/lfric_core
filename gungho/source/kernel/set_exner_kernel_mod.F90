@@ -7,12 +7,13 @@
 !>
 module set_exner_kernel_mod
 
-  use argument_mod,         only : arg_type, func_type,        &
-                                  GH_FIELD, GH_READ, GH_WRITE, &
-                                  ANY_SPACE_9, GH_REAL,        &
-                                  GH_BASIS, GH_DIFF_BASIS,     &
-                                  CELLS, GH_QUADRATURE_XYoZ,   &
-                                  ANY_DISCONTINUOUS_SPACE_3
+  use argument_mod,         only : arg_type, func_type,       &
+                                   GH_FIELD, GH_SCALAR,       &
+                                   GH_READ, GH_WRITE,         &
+                                   GH_REAL, ANY_SPACE_9,      &
+                                   ANY_DISCONTINUOUS_SPACE_3, &
+                                   GH_BASIS, GH_DIFF_BASIS,   &
+                                   CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,        only : r_def, i_def
   use fs_continuity_mod,    only : W3
   use idealised_config_mod, only : test
@@ -20,6 +21,8 @@ module set_exner_kernel_mod
   use log_mod,              only : log_event, LOG_LEVEL_ERROR
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -29,17 +32,17 @@ module set_exner_kernel_mod
   !>
   type, public, extends(kernel_type) :: set_exner_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                             &
-        arg_type(GH_FIELD,   GH_WRITE,  W3),                        &
-        ARG_TYPE(GH_FIELD*3, GH_READ,   ANY_SPACE_9),               &
-        arg_type(GH_FIELD,   GH_READ,   ANY_DISCONTINUOUS_SPACE_3), &
-        arg_type(GH_REAL,    GH_READ)                               &
-        /)
-    type(func_type) :: meta_funcs(2) = (/                           &
-        func_type(W3, GH_BASIS),                                    &
-        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)             &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(4) = (/                                      &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                        &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),               &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ)                              &
+         /)
+    type(func_type) :: meta_funcs(2) = (/                                    &
+         func_type(W3,          GH_BASIS),                                   &
+         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                     &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
     procedure, nopass :: set_exner_code
@@ -48,29 +51,29 @@ module set_exner_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public set_exner_code
+  public :: set_exner_code
 
 contains
 
 !> @brief Computes LHS of Galerkin projection and solves equation in W3 space
 !! @param[in] nlayers Number of layers
-!! @param[inout] exner Pressure field
+!! @param[in,out] exner Pressure field
 !! @param[in] chi_sph_1 1st coordinate in spherical Wchi
 !! @param[in] chi_sph_2 2nd coordinate in spherical Wchi
 !! @param[in] chi_sph_3 3rd coordinate in spherical Wchi
-!! @param[in] panel_id Field giving the ID for mesh panels.
+!! @param[in] panel_id Field giving the ID for mesh panels
 !! @param[in] time Time evaluated as a real value
 !! @param[in] ndf_w3 Number of degrees of freedom per cell
 !! @param[in] undf_w3 Total number of degrees of freedom
 !! @param[in] map_w3 Dofmap for the cell at the base of the column
-!! @param[in] w3_basis Basis functions evaluated at gaussian quadrature points
+!! @param[in] w3_basis Basis functions evaluated at Gaussian quadrature points
 !! @param[in] ndf_chi_sph Number of degrees of freedom per cell for spherical chi
 !! @param[in] undf_chi_sph Number of unique degrees of freedom for spherical chi
 !! @param[in] map_chi_sph Dofmap for the cell at the base of the column for spherical chi
 !! @param[in] chi_sph_basis Basis functions for spherical Wchi evaluated at
-!!                          gaussian quadrature points
+!!                          Gaussian quadrature points
 !! @param[in] chi_sph_diff_basis Differential of the spherical Wchi basis functions
-!!                               evaluated at gaussian quadrature points
+!!                               evaluated at Gaussian quadrature points
 !! @param[in] ndf_pid  Number of degrees of freedom per cell for panel_id
 !! @param[in] undf_pid Number of unique degrees of freedom for panel_id
 !! @param[in] map_pid  Dofmap for the cell at the base of the column for panel_id

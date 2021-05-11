@@ -19,10 +19,10 @@ module exner_gradient_bd_kernel_mod
                                       mesh_data_type,              &
                                       reference_element_data_type, &
                                       GH_FIELD, GH_READ, GH_INC,   &
-                                      STENCIL, CROSS,              &
+                                      GH_REAL, STENCIL, CROSS,     &
                                       GH_BASIS, GH_DIFF_BASIS,     &
-                                      CELLS, GH_QUADRATURE_face,   &
-                                      adjacent_face,               &
+                                      GH_QUADRATURE_face,          &
+                                      CELL_COLUMN, adjacent_face,  &
                                       outward_normals_to_horizontal_faces
   use constants_mod,           only : r_def, i_def
   use cross_product_mod,       only : cross_product
@@ -41,9 +41,9 @@ module exner_gradient_bd_kernel_mod
   type, public, extends(kernel_type) :: exner_gradient_bd_kernel_type
     private
     type(arg_type) :: meta_args(3) = (/                                     &
-         arg_type(GH_FIELD,   GH_INC,  W2),                                 &
-         arg_type(GH_FIELD,   GH_READ, W3, STENCIL(CROSS)),                 &
-         arg_type(GH_FIELD,   GH_READ, Wtheta)                              &
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  W2),                          &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, W3, STENCIL(CROSS)),          &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, Wtheta)                       &
          /)
     type(func_type) :: meta_funcs(3) = (/                                   &
          func_type(W2,     GH_BASIS),                                       &
@@ -56,7 +56,7 @@ module exner_gradient_bd_kernel_mod
     type(reference_element_data_type) :: meta_reference_element(1) = (/     &
          reference_element_data_type( outward_normals_to_horizontal_faces ) &
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_face
   contains
     procedure, nopass :: exner_gradient_bd_code
@@ -65,7 +65,7 @@ module exner_gradient_bd_kernel_mod
   !-------------------------------------------------------------------------------
   ! Contained functions/subroutines
   !-------------------------------------------------------------------------------
-  public exner_gradient_bd_code
+  public :: exner_gradient_bd_code
 
 contains
 

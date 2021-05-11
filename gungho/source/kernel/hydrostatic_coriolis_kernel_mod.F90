@@ -13,13 +13,14 @@ module hydrostatic_coriolis_kernel_mod
 !!          below. Unlike hydrostatic_eos_kernel which balances upwards, the
 !!          Coriolis term is also added to the vertical balance equation.
 
-use argument_mod,               only : arg_type, func_type,            &
-                                       GH_FIELD, GH_READ, GH_WRITE,    &
-                                       ANY_SPACE_9, ANY_SPACE_1,       &
-                                       GH_BASIS, CELLS, GH_EVALUATOR
+use argument_mod,               only : arg_type, func_type,      &
+                                       GH_FIELD, GH_REAL,        &
+                                       GH_READ, GH_WRITE,        &
+                                       ANY_SPACE_9, ANY_SPACE_1, &
+                                       GH_BASIS, CELL_COLUMN, GH_EVALUATOR
 use constants_mod,              only : r_def, i_def
 use planet_config_mod,          only : gravity, p_zero, kappa, rd, cp
-use fs_continuity_mod,          only : WTHETA, W3, W2
+use fs_continuity_mod,          only : Wtheta, W3, W2
 use kernel_mod,                 only : kernel_type
 use reference_element_mod,      only : B
 
@@ -32,20 +33,20 @@ private
 !-------------------------------------------------------------------------------
 type, public, extends(kernel_type) :: hydrostatic_coriolis_kernel_type
   private
-  type(arg_type) :: meta_args(6) = (/                       &
-       arg_type(GH_FIELD,   GH_WRITE, W3),                  &
-       arg_type(GH_FIELD,   GH_READ,  W3),                  &
-       arg_type(GH_FIELD,   GH_READ,  WTHETA),              &
-       arg_type(GH_FIELD,   GH_READ,  W2),                  &
-       arg_type(GH_FIELD*3, GH_READ,  WTHETA),              &
-       arg_type(GH_FIELD,   GH_READ,  W3)                   &
+  type(arg_type) :: meta_args(6) = (/                   &
+       arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),     &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),     &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta), &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  W2),     &
+       arg_type(GH_FIELD*3, GH_REAL, GH_READ,  Wtheta), &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3)      &
        /)
-  type(func_type) :: meta_funcs(2) = (/                     &
-       func_type(W3, GH_BASIS),                             &
-       func_type(WTHETA, GH_BASIS)                          &
+  type(func_type) :: meta_funcs(2) = (/                 &
+       func_type(W3,     GH_BASIS),                     &
+       func_type(Wtheta, GH_BASIS)                      &
        /)
-       integer :: iterates_over = CELLS
-       integer :: gh_shape = GH_EVALUATOR
+  integer :: operates_on = CELL_COLUMN
+  integer :: gh_shape = GH_EVALUATOR
 contains
   procedure, nopass :: hydrostatic_coriolis_code
 end type
@@ -53,11 +54,12 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public hydrostatic_coriolis_code
+public :: hydrostatic_coriolis_code
+
 contains
 
 !! @param[in]  nlayers       Number of layers
-!! @param[inout] exner       Exner pressure field
+!! @param[in,out] exner      Exner pressure field
 !! @param[in]  rho           Density field
 !! @param[in]  theta         Potential temperature field
 !! @param[in]  coriolis_term Vertical component of the coriolis term

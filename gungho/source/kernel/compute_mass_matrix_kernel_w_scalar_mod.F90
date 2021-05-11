@@ -1,47 +1,48 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2021,  Met Office, on behalf of HMSO and Queen's Printer
-! For further details please refer to the file LICENCE.original which
-! you should have received as part of this distribution.
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
 !-----------------------------------------------------------------------------
 !> @brief Provides access to the members of the ws_kernel class.
 !>
-!> Accessor functions for the ws_kernel class are defined in this
-!module.
+!> Accessor functions for the ws_kernel class are defined in this module.
 !>
-!> @param RHS_w_scalar_code        Code to implement the RHS for a w0 or wtheta field
-!> @param gaussian_quadrature      Contains result of gaussian quadrature
+!> @param RHS_w_scalar_code        Code to implement the RHS for a W0 or Wtheta field
+!> @param gaussian_quadrature      Contains result of Gaussian quadrature
 !>
 module compute_mass_matrix_kernel_w_scalar_mod
 
   use argument_mod,            only: arg_type, func_type,       &
                                      GH_OPERATOR, GH_FIELD,     &
                                      GH_READ, GH_WRITE,         &
-                                     ANY_SPACE_2,               &
+                                     GH_REAL, ANY_SPACE_2,      &
                                      ANY_DISCONTINUOUS_SPACE_3, &
                                      GH_BASIS, GH_DIFF_BASIS,   &
-                                     CELLS, GH_QUADRATURE_XYoZ
+                                     CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,           only: r_def, i_def
   use coordinate_jacobian_mod, only: coordinate_jacobian
-  use fs_continuity_mod,       only: W0, Wtheta, Wchi
+  use fs_continuity_mod,       only: Wchi
   use kernel_mod,              only: kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
   !---------------------------------------------------------------------------
   type, public, extends(kernel_type) :: compute_mass_matrix_kernel_w_scalar_type
     private
-    type(arg_type) :: meta_args(3) = (/                            &
-        arg_type(GH_OPERATOR, GH_WRITE, ANY_SPACE_2, ANY_SPACE_2), &
-        arg_type(GH_FIELD*3,  GH_READ,  Wchi),                     &
-        arg_type(GH_FIELD,    GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
-        /)
-    type(func_type) :: meta_funcs(2) = (/                          &
-        func_type(ANY_SPACE_2, GH_BASIS),                          &
-        func_type(Wchi, GH_DIFF_BASIS, GH_BASIS)                   &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(3) = (/                                      &
+         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, ANY_SPACE_2, ANY_SPACE_2), &
+         arg_type(GH_FIELD*3,  GH_REAL, GH_READ,  Wchi),                     &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
+         /)
+    type(func_type) :: meta_funcs(2) = (/                                    &
+         func_type(ANY_SPACE_2, GH_BASIS),                                   &
+         func_type(Wchi,        GH_BASIS, GH_DIFF_BASIS)                     &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
     procedure, nopass :: compute_mass_matrix_w_scalar_code
@@ -50,49 +51,46 @@ module compute_mass_matrix_kernel_w_scalar_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public compute_mass_matrix_w_scalar_code
+  public :: compute_mass_matrix_w_scalar_code
 
 contains
 
-!> @brief This subroutine computes the mass matrix for scalar spaces w0 and wtheta
-!! @param[in] cell     The cell number
-!! @param[in] nlayers  The number of layers.
+!> @brief This subroutine computes the mass matrix for scalar spaces W0 and Wtheta
+!! @param[in] cell     Cell number
+!! @param[in] nlayers  Number of layers
 !! @param[in] ncell_3d ncell*ndf
-!! @param[in,out] mm    The mass matrix data array
+!! @param[in,out] mm   Mass matrix data array
 !! @param[in] chi1     1st (spherical) coordinate field in Wchi
 !! @param[in] chi2     2nd (spherical) coordinate field in Wchi
 !! @param[in] chi3     3rd (spherical) coordinate field in Wchi
-!! @param[in] panel_id Field giving the ID for mesh panels.
-!! @param[in] ndf_w_scalar   The number of degrees of freedom per cell
-!for w_scalar.
-!! @param[in] ndf_chi  The number of degrees of freedom per cell for
-!chi.
+!! @param[in] panel_id Field giving the ID for mesh panels
+!! @param[in] ndf_w_scalar Number of degrees of freedom per cell for w_scalar
 !! @param[in] basis_w_scalar 4-dim array holding SCALAR basis functions
-!evaluated at quadrature points for w_scalar.
+!!                           evaluated at quadrature points for w_scalar
+!! @param[in] ndf_chi  Number of degrees of freedom per cell for chi
 !! @param[in] undf_chi Number of unique degrees of freedom for chi
 !! @param[in] map_chi  Array holding the dofmap for the cell at the base
-!of the column for chi
+!!                     of the column for chi
 !! @param[in] basis_chi 4-dim array holding basis functions evaluated at
-!quadrature points for chi
-!! @param[in] diff_basis_chi 4-dim array holding VECTOR differential
-!basis functions evaluated at quadrature points for chi
-!! @param[in] ndf_pid  Number of degrees of freedom per cell for
-!panel_id
+!!                      quadrature points for chi
+!! @param[in] diff_basis_chi 4-dim array holding VECTOR differential basis
+!!                           functions evaluated at quadrature points for chi
+!! @param[in] ndf_pid  Number of degrees of freedom per cell for panel_id
 !! @param[in] undf_pid Number of unique degrees of freedom for panel_id
 !! @param[in] map_pid  Dofmap for the cell at the base of the column for
-!panel_id
+!!                     panel_id
 !! @param[in] nqp_h    Number of horizontal quadrature points
 !! @param[in] nqp_v    Number of vertical quadrature points
 !! @param[in] wqp_h    Quadrature weights horizontal
 !! @param[in] wqp_v    Quadrature weights vertical
-subroutine compute_mass_matrix_w_scalar_code(cell, nlayers, ncell_3d, &
-                                       mm,                            &
-                                       chi1, chi2, chi3, panel_id,    &
-                                       ndf_w_scalar, basis_w_scalar,  &
-                                       ndf_chi, undf_chi, map_chi,    &
-                                       basis_chi, diff_basis_chi,     &
-                                       ndf_pid, undf_pid, map_pid,    &
-                                       nqp_h, nqp_v, wqp_h, wqp_v  )
+subroutine compute_mass_matrix_w_scalar_code(cell, nlayers, ncell_3d,    &
+                                             mm, chi1, chi2, chi3,       &
+                                             panel_id, ndf_w_scalar,     &
+                                             basis_w_scalar,             &
+                                             ndf_chi, undf_chi, map_chi, &
+                                             basis_chi, diff_basis_chi,  &
+                                             ndf_pid, undf_pid, map_pid, &
+                                             nqp_h, nqp_v, wqp_h, wqp_v  )
 
   implicit none
 

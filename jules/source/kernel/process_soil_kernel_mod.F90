@@ -1,13 +1,17 @@
 !-------------------------------------------------------------------------------
-!(c) Crown copyright 2020 Met Office. All rights reserved.
-!The file LICENCE, distributed with this code, contains details of the terms
-!under which the code may be used.
+! (c) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
 !-------------------------------------------------------------------------------
 !> @brief Process Jules soil ancillaries
 module process_soil_kernel_mod
 
-  use argument_mod,  only: arg_type, GH_FIELD, GH_WRITE, CELLS, &
-       ANY_DISCONTINUOUS_SPACE_1, ANY_DISCONTINUOUS_SPACE_2, GH_READ
+  use argument_mod,  only: arg_type,                  &
+                           GH_FIELD, GH_REAL,         &
+                           GH_WRITE, GH_READ,         &
+                           ANY_DISCONTINUOUS_SPACE_1, &
+                           ANY_DISCONTINUOUS_SPACE_2, &
+                           CELL_COLUMN
   use constants_mod, only: r_def, i_def, r_um, i_um
   use kernel_mod,    only: kernel_type
 
@@ -18,50 +22,50 @@ module process_soil_kernel_mod
   !> Kernel metadata for Psyclone
   type, public, extends(kernel_type) :: process_soil_kernel_type
     private
-    type(arg_type) :: meta_args(13) = (/                          &
-         arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), &
-         arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), &
-         arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
-         arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2)  &
+    type(arg_type) :: meta_args(13) = (/                                   &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2)  &
          /)
-    integer :: iterates_over = CELLS
-
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: process_soil_code
   end type process_soil_kernel_type
 
-  public process_soil_code
+  public :: process_soil_code
+
 contains
 
-  !> @param[in]  nlayers            The number of layers
-  !> @param[in]  soil_moist_sat     Volumetric soil moist at saturation
-  !> @param[in]  mean_topog_index   Mean topographic index
-  !> @param[in]  stdev_topog_index  Standard dev in topog index
-  !> @param[out] a_sat_frac         saturated fraction fitting parameter a
-  !> @param[out] c_sat_frac         saturated fraction fitting parameter c
-  !> @param[out] a_wet_frac         wet fraction fitting parameter a
-  !> @param[out] c_wet_frac         wet fraction fitting parameter c
-  !> @param[in]  clapp_horn_b       Clapp and Hornberger b coefficient
-  !> @param[in]  soil_suction_sat   Saturated soil water suction (m)
-  !> @param[in]  soil_temperature       Soil temperature (K)
-  !> @param[in]  soil_moisture          Soil moisture content (kg m-2)
-  !> @param[out] unfrozen_soil_moisture Unfrozen soil moisture proportion
-  !> @param[out] frozen_soil_moisture   Frozen soil moisture proportion
-  !> @param[in]  ndf_2d             Number of DOFs per cell for 2d fields
-  !> @param[in]  undf_2d            Number of total DOFs for 2d fields
-  !> @param[in]  map_2d             Dofmap for cell for surface 2d fields
-  !> @param[in]  ndf_soil           Number of DOFs per cell for soil levels
-  !> @param[in]  undf_soil          Number of total DOFs for soil levels
-  !> @param[in]  map_soil           Dofmap for cell for soil levels
+  !> @param[in]     nlayers                The number of layers
+  !> @param[in]     soil_moist_sat         Volumetric soil moist at saturation
+  !> @param[in]     mean_topog_index       Mean topographic index
+  !> @param[in]     stdev_topog_index      Standard dev in topog index
+  !> @param[in,out] a_sat_frac             Saturated fraction fitting parameter a
+  !> @param[in,out] c_sat_frac             Saturated fraction fitting parameter c
+  !> @param[in,out] a_wet_frac             Wet fraction fitting parameter a
+  !> @param[in,out] c_wet_frac             Wet fraction fitting parameter c
+  !> @param[in]     clapp_horn_b           Clapp and Hornberger b coefficient
+  !> @param[in]     soil_suction_sat       Saturated soil water suction (m)
+  !> @param[in]     soil_temperature       Soil temperature (K)
+  !> @param[in]     soil_moisture          Soil moisture content (kg m-2)
+  !> @param[in,out] unfrozen_soil_moisture Unfrozen soil moisture proportion
+  !> @param[in,out] frozen_soil_moisture   Frozen soil moisture proportion
+  !> @param[in]     ndf_2d                 Number of DOFs per cell for 2d fields
+  !> @param[in]     undf_2d                Number of total DOFs for 2d fields
+  !> @param[in]     map_2d                 Dofmap for cell for surface 2d fields
+  !> @param[in]     ndf_soil               Number of DOFs per cell for soil levels
+  !> @param[in]     undf_soil              Number of total DOFs for soil levels
+  !> @param[in]     map_soil               Dofmap for cell for soil levels
   subroutine process_soil_code(nlayers,                       &
                                soil_moist_sat,                &
                                mean_topog_index,              &

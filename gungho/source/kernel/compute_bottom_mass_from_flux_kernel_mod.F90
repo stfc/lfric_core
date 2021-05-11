@@ -12,9 +12,11 @@
 !>
 module compute_bottom_mass_from_flux_kernel_mod
 
-  use argument_mod,            only : arg_type,                     &
-                                      GH_FIELD, GH_WRITE, GH_READ,  &
-                                      CELLS, ANY_DISCONTINUOUS_SPACE_1
+  use argument_mod,            only : arg_type,          &
+                                      GH_FIELD, GH_REAL, &
+                                      GH_WRITE, GH_READ, &
+                                      CELL_COLUMN,       &
+                                      ANY_DISCONTINUOUS_SPACE_1
   use constants_mod,           only : r_def, i_def
   use fs_continuity_mod,       only : W2
   use kernel_mod,              only : kernel_type
@@ -33,19 +35,19 @@ module compute_bottom_mass_from_flux_kernel_mod
   !>
   type, public, extends(kernel_type) :: compute_bottom_mass_from_flux_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                             &
-         arg_type(GH_FIELD,   GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD,   GH_READ,  W2)                         &
+    type(arg_type) :: meta_args(3) = (/                                    &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  W2)                         &
          /)
-    integer :: iterates_over = CELLS
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: compute_bottom_mass_from_flux_code
   end type
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public compute_bottom_mass_from_flux_code
+  public :: compute_bottom_mass_from_flux_code
 contains
 
 !> @brief Compute the mass in a column corresponding to an incoming flux

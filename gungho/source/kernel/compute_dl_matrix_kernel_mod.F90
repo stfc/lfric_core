@@ -15,10 +15,10 @@ module compute_dl_matrix_kernel_mod
   use argument_mod,              only: arg_type, func_type,       &
                                        GH_OPERATOR, GH_FIELD,     &
                                        GH_READ, GH_WRITE,         &
-                                       ANY_SPACE_9,               &
+                                       GH_REAL, ANY_SPACE_9,      &
+                                       ANY_DISCONTINUOUS_SPACE_3, &
                                        GH_BASIS, GH_DIFF_BASIS,   &
-                                       CELLS, GH_QUADRATURE_XYoZ, &
-                                       ANY_DISCONTINUOUS_SPACE_3
+                                       CELL_COLUMN, GH_QUADRATURE_XYoZ
   use base_mesh_config_mod,      only: geometry, geometry_spherical
   use constants_mod,             only: i_def, r_def, PI
   use coord_transform_mod,       only: xyz2llr
@@ -35,22 +35,24 @@ module compute_dl_matrix_kernel_mod
 
   implicit none
 
+  private
+
   !-------------------------------------------------------------------------------
   ! Public types
   !-------------------------------------------------------------------------------
 
   type, public, extends(kernel_type) :: compute_dl_matrix_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                                  &
-         arg_type(GH_OPERATOR, GH_WRITE, W2, W2),                        &
-         arg_type(GH_FIELD*3,  GH_READ,  ANY_SPACE_9),                   &
-         ARG_TYPE(GH_FIELD,    GH_READ,  ANY_DISCONTINUOUS_SPACE_3)      &
+    type(arg_type) :: meta_args(3) = (/                                      &
+         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W2, W2),                   &
+         arg_type(GH_FIELD*3,  GH_REAL, GH_READ,  ANY_SPACE_9),              &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
          /)
-    type(func_type) :: meta_funcs(2) = (/                                &
-        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS),                 &
-        func_type(W2, GH_BASIS)                                          &
-        /)
-        integer :: iterates_over = CELLS
+    type(func_type) :: meta_funcs(2) = (/                                    &
+         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS),                    &
+         func_type(W2,          GH_BASIS)                                    &
+         /)
+        integer :: operates_on = CELL_COLUMN
         integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
     procedure, nopass :: compute_dl_matrix_code
@@ -59,37 +61,37 @@ module compute_dl_matrix_kernel_mod
   !-------------------------------------------------------------------------------
   ! Contained functions/subroutines
   !-------------------------------------------------------------------------------
-  public compute_dl_matrix_code
+  public :: compute_dl_matrix_code
   public damping_layer_func
 
 contains
 
   !> @brief Computes the reduced mass matrix for the damping layer term in the momentum equation.
   !!
-  !! @param[in] cell     Identifying number of cell.
-  !! @param[in] nlayers  Number of layers.
-  !! @param[in] ncell_3d ncell*ndf.
-  !! @param[in] mm       Local stencil or mass matrix.
+  !! @param[in] cell     Identifying number of cell
+  !! @param[in] nlayers  Number of layers
+  !! @param[in] ncell_3d ncell*ndf
+  !! @param[in,out] mm   Local stencil or mass matrix
   !! @param[in] chi1     1st (spherical) coordinate field in Wchi
   !! @param[in] chi2     2nd (spherical) coordinate field in Wchi
   !! @param[in] chi3     3rd (spherical) coordinate field in Wchi
-  !! @param[in] panel_id Field giving the ID for mesh panels.
-  !! @param[in] ndf_w2   Degrees of freedom per cell.
+  !! @param[in] panel_id Field giving the ID for mesh panels
+  !! @param[in] ndf_w2   Degrees of freedom per cell
   !! @param[in] basis_w2 Vector basis functions evaluated at quadrature points.
-  !! @param[in] ndf_chi  Degrees of freedom per cell for chi field.
-  !! @param[in] undf_chi Unique degrees of freedom for chi field.
+  !! @param[in] ndf_chi  Degrees of freedom per cell for chi field
+  !! @param[in] undf_chi Unique degrees of freedom for chi field
   !! @param[in] map_chi  Dofmap for the cell at the base of the column, for the
-  !!                     space on which the chi field lives.
-  !! @param[in] basis_chi Vector basis functions evaluated at quadrature points.
+  !!                     space on which the chi field lives
+  !! @param[in] basis_chi Vector basis functions evaluated at quadrature points
   !! @param[in] diff_basis_chi Vector differential basis functions evaluated at
-  !!                           quadrature points.
+  !!                           quadrature points
   !! @param[in] ndf_pid  Number of degrees of freedom per cell for panel_id
   !! @param[in] undf_pid Number of unique degrees of freedom for panel_id
   !! @param[in] map_pid  Dofmap for the cell at the base of the column for panel_id
-  !! @param[in] nqp_h    Number of horizontal quadrature points.
-  !! @param[in] nqp_v    Number of vertical quadrature points.
-  !! @param[in] wqp_h    Horizontal quadrature weights.
-  !! @param[in] wqp_v    Vertical quadrature weights.
+  !! @param[in] nqp_h    Number of horizontal quadrature points
+  !! @param[in] nqp_v    Number of vertical quadrature points
+  !! @param[in] wqp_h    Horizontal quadrature weights
+  !! @param[in] wqp_v    Vertical quadrature weights
   subroutine compute_dl_matrix_code(cell, nlayers, ncell_3d,     &
                                     mm, chi1, chi2, chi3,        &
                                     panel_id,                    &
@@ -171,7 +173,7 @@ contains
                 chi3_at_quad = chi3_at_quad + chi3_e(dfc)*basis_chi(1,dfc,qp1,qp2)
               end do
 
-              if(geometry == geometry_spherical) then
+              if (geometry == geometry_spherical) then
 
                 if (spherical_coord_system == spherical_coord_system_xyz) then
                   call xyz2llr(chi1_at_quad,chi2_at_quad,chi3_at_quad, &
@@ -192,7 +194,7 @@ contains
                           matmul(jac(:,:,qp1,qp2),basis_w2(:,df2,qp1,qp2)) ) &
                           /dj(qp1,qp2)
               ! Only modify dofs corresponding to vertical part of w-basis function (for lowest order: bottom two rows)
-              if(df > ndf_w2 - (element_order+2)*(element_order+1)**2) then
+              if (df > ndf_w2 - (element_order+2)*(element_order+1)**2) then
                 mm(df,df2,ik) = mm(df,df2,ik) + &
                                 (1.0_r_def + dt*mu_at_quad) * integrand
               else
@@ -219,14 +221,14 @@ contains
     implicit none
 
     ! Arguments
-    real(r_def),   intent(in)  :: height
-    real(r_def),   intent(in)  :: dl_str
-    real(r_def),   intent(in)  :: dl_base
-    real(r_def),   intent(in)  :: domain_top
-    real(r_def)                :: dl_val
+    real(kind=r_def),   intent(in)  :: height
+    real(kind=r_def),   intent(in)  :: dl_str
+    real(kind=r_def),   intent(in)  :: dl_base
+    real(kind=r_def),   intent(in)  :: domain_top
+    real(kind=r_def)                :: dl_val
 
     if (height >= dl_base) then
-      dl_val =  dl_str*sin(0.5_r_def*PI*(height-dl_base)/(domain_top-dl_base))**2
+      dl_val = dl_str*sin(0.5_r_def*PI*(height-dl_base)/(domain_top-dl_base))**2
     else
       dl_val = 0.0_r_def
     end if

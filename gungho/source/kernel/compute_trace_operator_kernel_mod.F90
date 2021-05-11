@@ -23,10 +23,10 @@ module compute_trace_operator_kernel_mod
 
   use argument_mod,              only: arg_type, func_type,             &
                                        reference_element_data_type,     &
-                                       GH_OPERATOR, GH_WRITE,           &
-                                       GH_FIELD, GH_READ,               &
+                                       GH_OPERATOR, GH_FIELD,           &
+                                       GH_REAL, GH_WRITE, GH_READ,      &
                                        GH_BASIS, GH_DIFF_BASIS,         &
-                                       CELLS,                           &
+                                       CELL_COLUMN,                     &
                                        GH_QUADRATURE_face,              &
                                        ANY_SPACE_9,                     &
                                        outward_normals_to_faces
@@ -47,20 +47,20 @@ module compute_trace_operator_kernel_mod
 
   type, public, extends(kernel_type) :: compute_trace_operator_type
     private
-    type(arg_type) :: meta_args(2) = (/                                  &
-         arg_type(GH_OPERATOR, GH_WRITE, W2trace, W2broken),             &
-         arg_type(GH_FIELD*3,  GH_READ,  ANY_SPACE_9)                    &
+    type(arg_type) :: meta_args(2) = (/                                 &
+         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W2trace, W2broken),   &
+         arg_type(GH_FIELD*3,  GH_REAL, GH_READ,  ANY_SPACE_9)          &
          /)
-    type(func_type) :: meta_funcs(3) = (/                                &
-         func_type(W2broken,    GH_BASIS),                               &
-         func_type(W2trace,     GH_BASIS),                               &
-         func_type(ANY_SPACE_9, GH_DIFF_BASIS)                           &
+    type(func_type) :: meta_funcs(3) = (/                               &
+         func_type(W2broken,    GH_BASIS),                              &
+         func_type(W2trace,     GH_BASIS),                              &
+         func_type(ANY_SPACE_9, GH_DIFF_BASIS)                          &
          /)
-    type(reference_element_data_type) :: meta_reference_element(1) = (/  &
-         reference_element_data_type( outward_normals_to_faces )         &
+    type(reference_element_data_type) :: meta_reference_element(1) = (/ &
+         reference_element_data_type( outward_normals_to_faces )        &
          /)
      integer :: gh_shape = GH_QUADRATURE_face
-     integer :: iterates_over = CELLS
+     integer :: operates_on = CELL_COLUMN
    contains
      procedure, nopass :: compute_trace_operator_code
    end type compute_trace_operator_type
@@ -69,28 +69,28 @@ module compute_trace_operator_kernel_mod
    ! Contained functions/subroutines
    !-------------------------------------------------------------------------------
 
-   public compute_trace_operator_code
+   public :: compute_trace_operator_code
 
 contains
 
   !> @brief Compute the boundary integral terms in the hybridized formulation of
   !!        the momentum and transmission equations (terms with Lagrange multipliers).
-  !! @param[in] cell The cell id.
-  !! @param[in] nlayers Number of layers.
+  !! @param[in] cell The cell id
+  !! @param[in] nlayers Number of layers
   !! @param[in] ncell_3d ncell*nlayers
-  !! @param[in,out] trace_op The operator coupling broken W2 and W2 trace functions.
-  !! @param[in] ndf_w2b Number of degrees of freedom per cell for W2broken space.
-  !! @param[in] ndf_w2t Number of degrees of freedom per cell for W2trace space.
-  !! @param[in] nqp Number of quadrature points on each face.
-  !! @param[in] wqp Quadrature weights for quadrature points on faces.
+  !! @param[in,out] trace_op The operator coupling broken W2 and W2 trace functions
+  !! @param[in] ndf_w2b Number of degrees of freedom per cell for W2broken space
+  !! @param[in] ndf_w2t Number of degrees of freedom per cell for W2trace space
+  !! @param[in] nqp Number of quadrature points on each face
+  !! @param[in] wqp Quadrature weights for quadrature points on faces
   !! @param[in] w2b_basis Basis functions in W2broken space evaluated at gaussian
-  !!                      quadrature points on horizontal and vertical faces.
+  !!                      quadrature points on horizontal and vertical faces
   !! @param[in] w2t_basis Basis functions in W2trace space evaluated at gaussian
-  !!                      quadrature points on horizontal and vertical faces.
-  !! @param[in] face_entity_map Array mapping dof index to face entity.
-  !! @param[in] nfaces_re The number of faces (3D) or edges (2D) in each cell.
+  !!                      quadrature points on horizontal and vertical faces
+  !! @param[in] face_entity_map Array mapping dof index to face entity
+  !! @param[in] nfaces_re The number of faces (3D) or edges (2D) in each cell
   !! @param[in] outward_normals_to_faces Vector of normals to the reference
-  !!                                     element "outward faces".
+  !!                                     element "outward faces"
   !!
   subroutine compute_trace_operator_code( cell, nlayers, ncell_3d,   &
                                           trace_op,                  &

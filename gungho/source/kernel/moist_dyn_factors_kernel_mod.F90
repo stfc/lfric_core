@@ -6,9 +6,10 @@
 !> @brief Compute moisture-dependent factors used by dynamics
 module moist_dyn_factors_kernel_mod
 
-    use argument_mod,                  only: arg_type,                    &
-                                             GH_FIELD, GH_WRITE, GH_READ, &
-                                             GH_BASIS, CELLS
+    use argument_mod,                  only: arg_type,          &
+                                             GH_FIELD, GH_REAL, &
+                                             GH_WRITE, GH_READ, &
+                                             CELL_COLUMN
     use constants_mod,                 only: r_def, i_def
     use fs_continuity_mod,             only: Wtheta
     use kernel_mod,                    only: kernel_type
@@ -16,16 +17,19 @@ module moist_dyn_factors_kernel_mod
 
     implicit none
 
+    private
+
     !-------------------------------------------------------------------------------
     ! Public types
     !-------------------------------------------------------------------------------
     !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
     type, public, extends(kernel_type) :: moist_dyn_factors_kernel_type
         private
-        type(arg_type) :: meta_args(2) = (/ arg_type(GH_FIELD*3, GH_WRITE, Wtheta),  &
-                                            arg_type(GH_FIELD*6, GH_READ,  Wtheta) /)
-        integer :: iterates_over = CELLS
-
+        type(arg_type) :: meta_args(2) = (/                   &
+             arg_type(GH_FIELD*3, GH_REAL, GH_WRITE, Wtheta), &
+             arg_type(GH_FIELD*6, GH_REAL, GH_READ,  Wtheta)  &
+             /)
+        integer :: operates_on = CELL_COLUMN
     contains
         procedure, nopass :: moist_dyn_factors_code
     end type
@@ -33,7 +37,8 @@ module moist_dyn_factors_kernel_mod
     !-------------------------------------------------------------------------------
     ! Contained functions/subroutines
     !-------------------------------------------------------------------------------
-    public moist_dyn_factors_code
+    public :: moist_dyn_factors_code
+
 contains
 
     !> @brief The subroutine which is called directly by the Psy layer
@@ -67,7 +72,7 @@ contains
         real(kind=r_def), dimension(undf_wtheta),   intent(in)    :: mr_ci, mr_s, mr_g
         integer(kind=i_def), dimension(ndf_wtheta), intent(in)    :: map_wtheta
 
-        !Internal variables
+        ! Internal variables
         integer(kind=i_def)                 :: k, df
 
         real(kind=r_def)                    :: mr_v_at_dof, mr_cl_at_dof, mr_r_at_dof

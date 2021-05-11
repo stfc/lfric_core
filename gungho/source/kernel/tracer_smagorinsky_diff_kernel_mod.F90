@@ -4,15 +4,16 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-!> @brief Applies horizontal Smagorinsky diffusion visc_h * (d2dx2 + d2dy2) to a tracer
-!>        variable in the Wtheta space for lowest order elements.
+!> @brief Applies horizontal Smagorinsky diffusion visc_h * (d2dx2 + d2dy2) to
+!>        a tracer variable in the Wtheta space for lowest order elements.
 !>
 module tracer_smagorinsky_diff_kernel_mod
 
-  use argument_mod,          only : arg_type, func_type,         &
-                                    GH_FIELD, GH_READ, GH_WRITE, &
-                                    ANY_SPACE_9,                 &
-                                    CELLS, STENCIL, CROSS
+  use argument_mod,          only : arg_type,          &
+                                    GH_FIELD, GH_REAL, &
+                                    GH_READ, GH_WRITE, &
+                                    ANY_SPACE_9,       &
+                                    CELL_COLUMN, STENCIL, CROSS
   use constants_mod,         only : r_def, i_def
   use fs_continuity_mod,     only : Wtheta
   use kernel_mod,            only : kernel_type
@@ -29,21 +30,21 @@ module tracer_smagorinsky_diff_kernel_mod
 
   type, public, extends(kernel_type) :: tracer_smagorinsky_diff_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                        &
-        arg_type(GH_FIELD,   GH_WRITE,  Wtheta),               &
-        arg_type(GH_FIELD,   GH_READ, Wtheta, STENCIL(CROSS)), &
-        arg_type(GH_FIELD,   GH_READ, Wtheta),                 &
-        arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_9)             &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(4) = (/                                   &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, Wtheta),                 &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta, STENCIL(CROSS)), &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                 &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9)             &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
-    procedure, nopass ::tracer_smagorinsky_diff_code
+    procedure, nopass :: tracer_smagorinsky_diff_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public tracer_smagorinsky_diff_code
+  public :: tracer_smagorinsky_diff_code
 
 contains
 
@@ -51,18 +52,21 @@ contains
 !! @param[in] nlayers Number of layers in the mesh
 !! @param[in,out] theta_inc Diffusion increment for temperature field
 !! @param[in] theta_n Input temperature field
-!! @param[in] map_wt_stencil_size Number of cells in the stencil at the base of the column for wt
-!! @param[in] map_wt_stencil Array holding the dofmap for the stencil at the base of the column for wt
-!! @param[in] visc_h Diffusion coefficient for scalars on wtheta points
+!! @param[in] map_wt_stencil_size Number of cells in the stencil at the base
+!!                                of the column for Wtheta
+!! @param[in] map_wt_stencil Array holding the dofmap for the stencil at the
+!!                           base of the column for Wtheta
+!! @param[in] visc_h Diffusion coefficient for scalars on Wtheta points
 !! @param[in] chi1 First coordinate field
 !! @param[in] chi2 Second coordinate field
 !! @param[in] chi3 Third coordinate field
 !! @param[in] ndf_wt Number of degrees of freedom per cell for theta space
-!! @param[in] undf_wt  Number of unique degrees of freedom  for theta_space
-!! @param[in] map_wt Cell dofmap for the wtheta space
+!! @param[in] undf_wt  Number of unique degrees of freedom for theta space
+!! @param[in] map_wt Cell dofmap for theta space
 !! @param[in] ndf_chi Number of degrees of freedom per cell for chi space
-!! @param[in] undf_chi Number of unique degrees of freedom  for chi space
-!! @param[in] map_chi Array holding the dofmap for the cell at the base of the column for chi
+!! @param[in] undf_chi Number of unique degrees of freedom for chi space
+!! @param[in] map_chi Array holding the dofmap for the cell at the base of
+!!                    the column for chi
 
 subroutine tracer_smagorinsky_diff_code( nlayers,                               &
                                          theta_inc,                             &
@@ -75,6 +79,7 @@ subroutine tracer_smagorinsky_diff_code( nlayers,                               
                                         )
 
   implicit none
+
   ! Arguments
   integer(kind=i_def), intent(in) :: nlayers
   integer(kind=i_def), intent(in) :: ndf_wt, undf_wt, ndf_chi, undf_chi

@@ -10,20 +10,22 @@
 
 module hydrostatic_exner_kernel_mod
 
-use argument_mod,               only : arg_type, func_type,            &
-                                       GH_FIELD, GH_READ, GH_WRITE,    &
-                                       ANY_SPACE_9, GH_BASIS,          &
-                                       GH_DIFF_BASIS,                  &
-                                       CELLS, GH_EVALUATOR
+use argument_mod,               only : arg_type, func_type,   &
+                                       GH_FIELD, GH_REAL,     &
+                                       GH_READ, GH_WRITE,     &
+                                       ANY_SPACE_9, GH_BASIS, &
+                                       CELL_COLUMN, GH_EVALUATOR
 use constants_mod,              only : r_def, i_def
 use planet_config_mod,          only : gravity, cp, rd, p_zero
 use idealised_config_mod,       only : test
 use kernel_mod,                 only : kernel_type
-use fs_continuity_mod,          only : WTHETA, W3
+use fs_continuity_mod,          only : Wtheta, W3
 use formulation_config_mod,     only : init_exner_bt
 use coord_transform_mod,        only : xyz2llr
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -31,32 +33,33 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: hydrostatic_exner_kernel_type
   private
-  type(arg_type) :: meta_args(6) = (/                                  &
-       arg_type(GH_FIELD,  GH_WRITE,  W3),                             &
-       arg_type(GH_FIELD,  GH_READ,   WTHETA),                         &
-       arg_type(GH_FIELD*3,GH_READ,   WTHETA),                         &
-       arg_type(GH_FIELD,  GH_READ,   WTHETA),                         &
-       arg_type(GH_FIELD,  GH_READ,   W3),                             &
-       arg_type(GH_FIELD*3,GH_READ, ANY_SPACE_9)                       &
+  type(arg_type) :: meta_args(6) = (/                       &
+       arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),         &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),     &
+       arg_type(GH_FIELD*3, GH_REAL, GH_READ,  Wtheta),     &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),     &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),         &
+       arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9) &
        /)
-  type(func_type) :: meta_funcs(1) = (/                             &
-       func_type(ANY_SPACE_9, GH_BASIS)                             &
+  type(func_type) :: meta_funcs(1) = (/                     &
+       func_type(ANY_SPACE_9, GH_BASIS)                     &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_EVALUATOR
 contains
-  procedure, nopass ::hydrostatic_exner_code
+  procedure, nopass :: hydrostatic_exner_code
 end type
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public hydrostatic_exner_code
+public :: hydrostatic_exner_code
+
 contains
 
 !> @brief Computes hydrostatic Exner function
 !! @param[in] nlayers Number of layers
-!! @param[inout] exner Exner pressure field
+!! @param[in,out] exner Exner pressure field
 !! @param[in] theta Potential temperature field
 !! @param[in] moist_dyn_gas Moist dynamics factor in gas law
 !! @param[in] moist_dyn_tot Moist dynamics total mass factor
@@ -85,7 +88,7 @@ subroutine hydrostatic_exner_code(nlayers, exner, theta, moist_dyn_gas, moist_dy
 
   implicit none
 
-  !Arguments
+  ! Arguments
   integer(kind=i_def), intent(in) :: nlayers, ndf_w3, ndf_wt, ndf_chi, undf_w3, undf_wt, undf_chi
   integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
   integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
@@ -101,7 +104,7 @@ subroutine hydrostatic_exner_code(nlayers, exner, theta, moist_dyn_gas, moist_dy
 
   real(kind=r_def), dimension(1,ndf_chi,ndf_wt),  intent(in)  :: basis_chi
 
-  !Internal variables
+  ! Internal variables
   integer(kind=i_def)                    :: k, dfc, layers_offset, wt_dof
   real(kind=r_def)                       :: dz
   real(kind=r_def)                       :: theta_moist
@@ -110,7 +113,7 @@ subroutine hydrostatic_exner_code(nlayers, exner, theta, moist_dyn_gas, moist_dy
 
   real(kind=r_def)            :: exner_start
 
-  if(init_exner_bt) then
+  if (init_exner_bt) then
     layers_offset = 0
     wt_dof = 1
   else
@@ -135,7 +138,7 @@ subroutine hydrostatic_exner_code(nlayers, exner, theta, moist_dyn_gas, moist_dy
   ! Exner at the model surface or top
   exner_start = analytic_pressure( x, test, 0.0_r_def)
 
-  if(init_exner_bt) then
+  if (init_exner_bt) then
 
     ! Bottom-up initialization
     ! Exner at the bottom level

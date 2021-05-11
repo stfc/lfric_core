@@ -17,11 +17,12 @@
 !>          a reference cube.
 module poly1d_vert_flux_kernel_mod
 
-use argument_mod,      only : arg_type, func_type,           &
-                              reference_element_data_type,   &
-                              GH_FIELD, GH_INTEGER,          &
-                              GH_INC, GH_READ,               &
-                              GH_BASIS, CELLS, GH_EVALUATOR, &
+use argument_mod,      only : arg_type, func_type,         &
+                              reference_element_data_type, &
+                              GH_FIELD, GH_SCALAR,         &
+                              GH_REAL, GH_INTEGER,         &
+                              GH_INC, GH_READ, GH_BASIS,   &
+                              CELL_COLUMN, GH_EVALUATOR,   &
                               outward_normals_to_vertical_faces
 use constants_mod,     only : r_def, i_def
 use fs_continuity_mod, only : W2, W3
@@ -38,12 +39,12 @@ private
 type, public, extends(kernel_type) :: poly1d_vert_flux_kernel_type
   private
   type(arg_type) :: meta_args(6) = (/                                   &
-       arg_type(GH_FIELD,   GH_INC,   W2),                              &
-       arg_type(GH_FIELD,   GH_READ,  W2),                              &
-       arg_type(GH_FIELD,   GH_READ,  W3),                              &
-       arg_type(GH_FIELD,   GH_READ,  W3),                              &
-       arg_type(GH_INTEGER, GH_READ),                                   &
-       arg_type(GH_INTEGER, GH_READ)                                    &
+       arg_type(GH_FIELD,  GH_REAL,    GH_INC,  W2),                    &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ, W2),                    &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ, W3),                    &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ, W3),                    &
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                        &
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ)                         &
        /)
   type(func_type) :: meta_funcs(1) = (/                                 &
        func_type(W2, GH_BASIS)                                          &
@@ -51,7 +52,7 @@ type, public, extends(kernel_type) :: poly1d_vert_flux_kernel_type
   type(reference_element_data_type) :: meta_reference_element(1) = (/   &
        reference_element_data_type( outward_normals_to_vertical_faces ) &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_EVALUATOR
 contains
   procedure, nopass :: poly1d_vert_flux_code
@@ -60,13 +61,13 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public poly1d_vert_flux_code
+public :: poly1d_vert_flux_code
 
 contains
 
 !> @brief Computes the vertical fluxes for a tracer density.
 !! @param[in]  nlayers Number of layers
-!! @param[out] flux Mass flux field to compute
+!! @param[in,out] flux Mass flux field to compute
 !! @param[in]  wind Wind field
 !! @param[in]  density Tracer density
 !! @param[in]  coeff Array of polynomial coefficients for interpolation
@@ -114,9 +115,9 @@ subroutine poly1d_vert_flux_code( nlayers,                           &
   integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
   integer(kind=i_def), intent(in)                    :: global_order, nfaces_re_v
 
-  real(kind=r_def), dimension(undf_w2), intent(out)  :: flux
-  real(kind=r_def), dimension(undf_w2), intent(in)   :: wind
-  real(kind=r_def), dimension(undf_w3), intent(in)   :: density
+  real(kind=r_def), dimension(undf_w2), intent(inout) :: flux
+  real(kind=r_def), dimension(undf_w2), intent(in)    :: wind
+  real(kind=r_def), dimension(undf_w3), intent(in)    :: density
 
   real(kind=r_def), dimension(global_order+1, nfaces_re_v, undf_w3), intent(in) :: coeff
 

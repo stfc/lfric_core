@@ -12,16 +12,18 @@
 !>
 module mg_flux_kernel_mod
 
-  use argument_mod,      only : arg_type, func_type,       &
-                                GH_FIELD, GH_READ, GH_INC, &
-                                ANY_SPACE_1,               &
-                                GH_BASIS,   &
-                                CELLS, GH_EVALUATOR
+  use argument_mod,      only : arg_type, func_type,   &
+                                GH_FIELD, GH_REAL,     &
+                                GH_READ, GH_INC,       &
+                                ANY_SPACE_1, GH_BASIS, &
+                                CELL_COLUMN, GH_EVALUATOR
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2
   use kernel_mod,        only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -31,23 +33,23 @@ module mg_flux_kernel_mod
   !>
   type, public, extends(kernel_type) :: mg_flux_kernel_type
     private
-    type(arg_type) :: meta_args(2) = (/            &
-        arg_type(GH_FIELD,   GH_INC,  W2),         &
-        arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1) &
-        /)
-    type(func_type) :: meta_funcs(1) = (/ &
-        func_type(ANY_SPACE_1, GH_BASIS)  &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(2) = (/                    &
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  W2),         &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_1) &
+         /)
+    type(func_type) :: meta_funcs(1) = (/                  &
+         func_type(ANY_SPACE_1, GH_BASIS)                  &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_EVALUATOR
   contains
-    procedure, nopass ::mg_flux_code
+    procedure, nopass :: mg_flux_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public mg_flux_code
+  public :: mg_flux_code
 
 contains
 
@@ -56,7 +58,7 @@ contains
 !! @param[in] ndf_f Number of degrees of freedom per cell for w2
 !! @param[in] undf_f Number of unique degrees of freedom for w2
 !! @param[in] map_f Dofmap for the cell at the base of the column for w2
-!! @param[inout] flux Field to contain the right hand side to be computed
+!! @param[in,out] flux Field to contain the right hand side to be computed
 !! @param[in] rmultiplicity Reciprocal of How many times the dof has been visited in total
 !! @param[in] u Advecting wind
 !! @param[in] ndf_q Number of degrees of freedom per cell for the field to be advected
@@ -70,7 +72,8 @@ subroutine mg_flux_code(nlayers,                                           &
                             ndf_q, undf_q, map_q, basis_q                  &
                             )
   implicit none
-  !Arguments
+
+  ! Arguments
   integer(kind=i_def), intent(in) :: nlayers
   integer(kind=i_def), intent(in) :: ndf_f, ndf_q, undf_f, undf_q
   integer(kind=i_def), dimension(ndf_f), intent(in) :: map_f
@@ -79,8 +82,8 @@ subroutine mg_flux_code(nlayers,                                           &
   real(kind=r_def), dimension(undf_f),        intent(inout) :: flux
   real(kind=r_def), dimension(undf_q),        intent(in)    :: q
 
-  !Internal variables
-  integer(kind=i_def)               :: df, df_q, k
+  ! Internal variables
+  integer(kind=i_def)                :: df, df_q, k
 
   real(kind=r_def), dimension(ndf_q) :: q_cell
   real(kind=r_def)                   :: q_at_node

@@ -15,9 +15,11 @@
 module advective_wind_update_kernel_mod
 
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,         &
-                                    GH_FIELD, GH_READ, GH_WRITE, &
-                                    CELLS, GH_BASIS, GH_EVALUATOR
+use argument_mod,            only : arg_type, func_type,   &
+                                    GH_FIELD, GH_REAL,     &
+                                    GH_READ, GH_WRITE,     &
+                                    GH_BASIS, CELL_COLUMN, &
+                                    GH_EVALUATOR
 use constants_mod,           only : r_def, i_def
 use fs_continuity_mod,       only : W2, W3
 
@@ -31,15 +33,15 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the PSy layer
 type, public, extends(kernel_type) :: advective_wind_update_kernel_type
   private
-  type(arg_type) :: meta_args(3) = (/      &
-       arg_type(GH_FIELD,   GH_WRITE, W3), &
-       arg_type(GH_FIELD,   GH_READ,  W2), &
-       arg_type(GH_FIELD,   GH_READ,  W2)  &
+  type(arg_type) :: meta_args(3) = (/             &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W2), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W2)  &
        /)
-    type(func_type) :: meta_funcs(1) = (/     &
-        func_type(W2, GH_BASIS)               &
-        /)
-  integer :: iterates_over = CELLS
+  type(func_type) :: meta_funcs(1) = (/           &
+       func_type(W2, GH_BASIS)                    &
+       /)
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_EVALUATOR
 contains
   procedure, nopass :: advective_wind_update_code
@@ -48,12 +50,12 @@ end type
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public advective_wind_update_code
+public :: advective_wind_update_code
 
 contains
 
 !> @param[in] nlayers Number of layers
-!> @param[out] advective_update u.grad(v) where u is the wind and v is the wind_reconstruction
+!> @param[in,out] advective_update u.grad(v) where u is the wind and v is the wind_reconstruction
 !> @param[in] wind_reconstruction Reconstructed values of the wind component
 !> @param[in] wind The advecting wind field
 !> @param[in] ndf_w3 Number of degrees of freedom per cell for the update field
@@ -76,14 +78,14 @@ subroutine advective_wind_update_code(nlayers,                 &
   implicit none
 
   ! Arguments
-  integer(kind=i_def),                     intent(in)  :: nlayers
-  integer(kind=i_def),                     intent(in)  :: ndf_w3, undf_w3, &
-                                                          ndf_w2, undf_w2
-  integer(kind=i_def), dimension(ndf_w3),  intent(in)  :: map_w3
-  integer(kind=i_def), dimension(ndf_w2),  intent(in)  :: map_w2
-  real(kind=r_def), dimension(undf_w3),    intent(out) :: advective_update
-  real(kind=r_def), dimension(undf_w2),    intent(in)  :: wind_reconstruction
-  real(kind=r_def), dimension(undf_w2),    intent(in)  :: wind
+  integer(kind=i_def),                     intent(in)    :: nlayers
+  integer(kind=i_def),                     intent(in)    :: ndf_w3, undf_w3, &
+                                                            ndf_w2, undf_w2
+  integer(kind=i_def), dimension(ndf_w3),  intent(in)    :: map_w3
+  integer(kind=i_def), dimension(ndf_w2),  intent(in)    :: map_w2
+  real(kind=r_def), dimension(undf_w3),    intent(inout) :: advective_update
+  real(kind=r_def), dimension(undf_w2),    intent(in)    :: wind_reconstruction
+  real(kind=r_def), dimension(undf_w2),    intent(in)    :: wind
 
   real(kind=r_def), dimension(3,ndf_w2,ndf_w3), intent(in)  :: basis_w2
 

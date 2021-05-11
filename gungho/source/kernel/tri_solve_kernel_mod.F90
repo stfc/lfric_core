@@ -12,27 +12,29 @@
 !>
 module tri_solve_kernel_mod
 
-  use argument_mod,      only: arg_type, func_type,         &
-                               GH_FIELD, GH_READ, GH_WRITE, &
-                               CELLS
+  use argument_mod,      only: arg_type,          &
+                               GH_FIELD, GH_REAL, &
+                               GH_READ, GH_WRITE, &
+                               CELL_COLUMN
   use constants_mod,     only: r_def, i_def
   use fs_continuity_mod, only: W3
   use kernel_mod,        only: kernel_type
 
   implicit none
 
+  private
+
   !---------------------------------------------------------------------------
   ! Public types
   !---------------------------------------------------------------------------
   type, public, extends(kernel_type) :: tri_solve_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/     &
-        arg_type(GH_FIELD,   GH_WRITE, W3), &
-        arg_type(GH_FIELD,   GH_READ,  W3), &
-        arg_type(GH_FIELD*3, GH_READ,  W3)  &
-        /)
-    integer :: iterates_over = CELLS
-
+    type(arg_type) :: meta_args(3) = (/               &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3), &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3), &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  W3)  &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: tri_solve_code
   end type tri_solve_kernel_type
@@ -40,7 +42,7 @@ module tri_solve_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public tri_solve_code
+  public :: tri_solve_code
 
 contains
 
@@ -54,8 +56,8 @@ contains
 !> @param[in]  ndf Number of dofs per cell for all fields, should be = 1
 !> @param[in]  undf Size of all field arrays
 !> @param[in]  map Array containing the address of the first dof in the column
-subroutine tri_solve_code(nlayers, &
-                          y, x, &
+subroutine tri_solve_code(nlayers,                    &
+                          y, x,                       &
                           tri_0, tri_plus, tri_minus, &
                           ndf, undf, map)
 
@@ -64,7 +66,7 @@ subroutine tri_solve_code(nlayers, &
   integer(kind=i_def), intent(in) :: ndf, undf
   integer(kind=i_def), intent(in) :: nlayers
 
-  integer, dimension(ndf),  intent(in) :: map
+  integer(kind=i_def), dimension(ndf),  intent(in) :: map
 
   real(kind=r_def), dimension(undf), intent(inout) :: y
   real(kind=r_def), dimension(undf), intent(in)    :: x

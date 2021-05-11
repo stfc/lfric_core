@@ -16,52 +16,54 @@
 module create_wthetamask_blend_kernel_mod
 
   use argument_mod,         only : arg_type, func_type, &
-                                   GH_FIELD, GH_REAL,   &
+                                   GH_SCALAR, GH_FIELD, &
                                    GH_READ, GH_WRITE,   &
-                                   GH_BASIS,            &
-                                   CELLS, GH_EVALUATOR
+                                   GH_REAL, GH_BASIS,   &
+                                   CELL_COLUMN, GH_EVALUATOR
   use constants_mod,        only : r_def, i_def, l_def
-  use fs_continuity_mod,    only : WTHETA, Wchi
+  use fs_continuity_mod,    only : Wtheta, Wchi
   use kernel_mod,           only : kernel_type
   use base_mesh_config_mod, only : geometry,            &
                                    geometry_spherical
 
   implicit none
 
+  private
+
   !-------------------------------------------------------------------------
   ! Public types
   !-------------------------------------------------------------------------
   type, public, extends(kernel_type) :: create_wthetamask_blend_kernel_type
     private
-    type(arg_type) :: meta_args(14) = (/      &
-      arg_type(GH_REAL,    GH_READ),          &
-      arg_type(GH_REAL,    GH_READ),          &
-      arg_type(GH_REAL,    GH_READ),          &
-      arg_type(GH_REAL,    GH_READ),          &
-      arg_type(GH_REAL,    GH_READ),          &
-      arg_type(GH_REAL,    GH_READ),          &
-      arg_type(GH_REAL,    GH_READ),          &
-      arg_type(GH_REAL,    GH_READ),          &
-      arg_type(GH_REAL,    GH_READ),          &
-      arg_type(GH_REAL,    GH_READ),          &
-      arg_type(GH_REAL,    GH_READ),          &
-      arg_type(GH_REAL,    GH_READ),          &
-      arg_type(GH_FIELD,   GH_WRITE, WTHETA), &
-      arg_type(GH_FIELD*3, GH_READ,  Wchi)    &
-      /)
-    type(func_type) :: meta_funcs(1) = (/     &
-      func_type(Wchi, GH_BASIS )              &
-      /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(14) = (/                  &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, Wtheta), &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  Wchi)    &
+         /)
+    type(func_type) :: meta_funcs(1) = (/                 &
+         func_type(Wchi, GH_BASIS)                        &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_EVALUATOR
   contains
-    procedure, nopass ::create_wthetamask_blend_code
+    procedure, nopass :: create_wthetamask_blend_code
   end type
 
   !-------------------------------------------------------------------------
   ! Contained functions/subroutines
   !-------------------------------------------------------------------------
-  public create_wthetamask_blend_code
+  public :: create_wthetamask_blend_code
 
 contains
 
@@ -78,7 +80,7 @@ contains
 !> @param[in] blend_n        Northern blending boundary coordinates
 !> @param[in] blend_e        Eastern blending boundary coordinates
 !> @param[in] blend_w        Western blending boundary coordinates
-!> @param[in,out] theta_mask Blending mask for WTHETA fields
+!> @param[in,out] theta_mask Blending mask for Wtheta fields
 !> @param[in] chi_1          X component of the chi coordinate field
 !> @param[in] chi_2          Y component of the chi coordinate field
 !> @param[in] chi_3          Z component of the chi coordinate field
@@ -116,7 +118,7 @@ subroutine create_wthetamask_blend_code( nlayers,     &
 
   implicit none
 
-  !Arguments
+  ! Arguments
   integer(kind=i_def),                        intent(in) :: nlayers,     &
                                                             ndf_wtheta,  &
                                                             ndf_chi,     &
@@ -142,7 +144,7 @@ subroutine create_wthetamask_blend_code( nlayers,     &
                                                                       chi_2, &
                                                                       chi_3
 
-  !Internal variables
+  ! Internal variables
   integer(kind=i_def)                    :: k, df1, df2
   real(kind=r_def), dimension(ndf_chi)   :: chi_1_e, chi_2_e, chi_3_e
   real(kind=r_def)                       :: x(3)
@@ -166,7 +168,7 @@ subroutine create_wthetamask_blend_code( nlayers,     &
   enddo
 
   ! Get the x values (x,y,z) for each cell centre, by summing
-  ! over W0 to WTHETA basis functions
+  ! over W0 to Wtheta basis functions
   ! x(v) = sum_u chi_e(u) * g(u,v)
   do df1 = 1, ndf_wtheta
     x(:) = 0.0_r_def

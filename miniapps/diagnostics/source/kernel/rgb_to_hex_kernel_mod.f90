@@ -3,21 +3,22 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-!> @brief Convert seperate rgb (0-255) values to a single numerical value that can be formatted to z6 to output hex
-!>
+!> @brief Convert seperate rgb (0-255) values to a single numerical value that
+!>        can be formatted to z6 to output hex
 
 module rgb_to_hex_kernel_mod
 
-    use argument_mod, only : arg_type, func_type, &
-            GH_OPERATOR, GH_FIELD, GH_REAL, &
-            GH_READ, GH_WRITE, &
-            GH_BASIS, GH_DIFF_BASIS, &
-            CELLS, GH_QUADRATURE_XYoZ, STENCIL, CROSS
+    use argument_mod, only : arg_type,          &
+                             GH_FIELD, GH_REAL, &
+                             GH_READ, GH_WRITE, &
+                             CELL_COLUMN
     use constants_mod, only : r_def, i_def
-    use fs_continuity_mod, only : W2, W3
+    use fs_continuity_mod, only : W3
     use kernel_mod, only : kernel_type
 
     implicit none
+
+    private
 
     !---------------------------------------------------------------------------
     ! Public types
@@ -25,29 +26,27 @@ module rgb_to_hex_kernel_mod
 
     type, public, extends(kernel_type) :: rgb_to_hex_kernel_type
         private
-        type(arg_type) :: meta_args(4) = (/               &
-                    arg_type(GH_FIELD, GH_WRITE, W3), &
-                    arg_type(GH_FIELD, GH_READ, W3), &
-                    arg_type(GH_FIELD, GH_READ, W3), &
-                    arg_type(GH_FIELD, GH_READ, W3) &
-                /)
-
-        integer :: iterates_over = CELLS
+        type(arg_type) :: meta_args(4) = (/             &
+             arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3), &
+             arg_type(GH_FIELD, GH_REAL, GH_READ,  W3), &
+             arg_type(GH_FIELD, GH_REAL, GH_READ,  W3), &
+             arg_type(GH_FIELD, GH_REAL, GH_READ,  W3)  &
+             /)
+        integer :: operates_on = CELL_COLUMN
     contains
         procedure, nopass :: rgb_to_hex_code
     end type
 
-
     !---------------------------------------------------------------------------
     ! Contained functions/subroutines
     !---------------------------------------------------------------------------
-    public rgb_to_hex_code
+    public :: rgb_to_hex_code
 
 contains
 
     !> @brief return RGB value from separate r/g/b values
     !> @param[in] number_of_layers
-    !> @param[inout] hex
+    !> @param[in,out] hex
     !> @param[in] red
     !> @param[in] green
     !> @param[in] blue
@@ -62,25 +61,26 @@ contains
             blue, &
             degrees_of_freedom, &
             unique_degrees_of_freedom, &
-            dof_map &
-)
+            dof_map)
 
         implicit none
+
         !> Arguments
 
         integer(kind = i_def), intent(in) :: number_of_layers
         integer(kind = i_def), intent(in) :: degrees_of_freedom, unique_degrees_of_freedom
         integer(kind = i_def), dimension(degrees_of_freedom), intent(in) :: dof_map
 
-        real(kind = r_def), dimension(unique_degrees_of_freedom), intent(inout) :: red, green, blue
-        real(kind = r_def), dimension(unique_degrees_of_freedom), intent(out) :: hex
+        real(kind = r_def), dimension(unique_degrees_of_freedom), intent(in) :: red, green, blue
+        real(kind = r_def), dimension(unique_degrees_of_freedom), intent(inout) :: hex
 
         !> Internal Vars
 
         integer(kind = i_def) :: df
         !> processing
-        !> loop through all the unique degrees of freedom calculating the hex value from the rgb. No need to loop through
-        !> each layer as the unique degrees of freedom will loop through them all whilst avoiding boundary duplicates.
+        !> loop through all the unique degrees of freedom calculating the hex value from the rgb.
+        !> No need to loop through each layer as the unique degrees of freedom will loop through
+        !> them all whilst avoiding boundary duplicates.
         do df = 1, unique_degrees_of_freedom
             hex(df)=ishft(ishft(int(red(df)),8)+int(green(df)),8)+int(blue(df))
         end do

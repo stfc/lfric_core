@@ -14,18 +14,20 @@
 module w3_to_sh_w3_ints_kernel_mod
 
   use argument_mod,          only : arg_type, func_type,       &
+                                    GH_FIELD, GH_REAL,         &
                                     GH_READ, GH_WRITE,         &
-                                    CELLS, GH_FIELD,           &
                                     ANY_DISCONTINUOUS_SPACE_3, &
                                     ANY_DISCONTINUOUS_SPACE_9, &
                                     GH_BASIS, GH_DIFF_BASIS,   &
-                                    ANY_SPACE_9,               &
+                                    ANY_SPACE_9, CELL_COLUMN,  &
                                     GH_QUADRATURE_XYoZ
   use constants_mod,         only : r_def, i_def
   use fs_continuity_mod,     only : W3
   use kernel_mod,            only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -35,16 +37,16 @@ module w3_to_sh_w3_ints_kernel_mod
   !>
   type, public, extends(kernel_type) :: w3_to_sh_w3_ints_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                            &
-        arg_type(GH_FIELD*2, GH_WRITE, W3),                        &
-        arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
-        arg_type(GH_FIELD*3, GH_READ,  ANY_SPACE_9),               &
-        arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_9)  &
-        /)
-    type(func_type) :: meta_funcs(1) = (/                          &
-        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)            &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(4) = (/                                      &
+         arg_type(GH_FIELD*2, GH_REAL, GH_WRITE, W3),                        & ! T_ip1, T_i
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), & ! dummy_w3_sh
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),               & ! chi_dl
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_9)  & ! panel_id
+         /)
+    type(func_type) :: meta_funcs(1) = (/                                    &
+         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                     &
+         /)
+    integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
     procedure, nopass :: w3_to_sh_w3_ints_code
@@ -53,7 +55,7 @@ module w3_to_sh_w3_ints_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public w3_to_sh_w3_ints_code
+  public :: w3_to_sh_w3_ints_code
 
 contains
 

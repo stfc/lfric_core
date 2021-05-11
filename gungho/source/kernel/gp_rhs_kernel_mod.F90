@@ -9,15 +9,17 @@
 module gp_rhs_kernel_mod
 use kernel_mod,              only : kernel_type
 use constants_mod,           only : r_def, i_def
-use argument_mod,            only : arg_type, func_type,           &
-                                    GH_FIELD, GH_INC, GH_READ,     &
-                                    ANY_SPACE_9, ANY_SPACE_1,      &
-                                    ANY_SPACE_2,                   &
-                                    ANY_DISCONTINUOUS_SPACE_3,     &
-                                    GH_BASIS, GH_DIFF_BASIS,       &
-                                    CELLS, GH_QUADRATURE_XYoZ
+use argument_mod,            only : arg_type, func_type,       &
+                                    GH_FIELD, GH_REAL, GH_INC, &
+                                    GH_READ, ANY_SPACE_9,      &
+                                    ANY_SPACE_1, ANY_SPACE_2,  &
+                                    ANY_DISCONTINUOUS_SPACE_3, &
+                                    GH_BASIS, GH_DIFF_BASIS,   &
+                                    CELL_COLUMN, GH_QUADRATURE_XYoZ
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -25,26 +27,28 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: gp_rhs_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1),                     &
-       arg_type(GH_FIELD,   GH_READ, ANY_SPACE_2),                     &
-       arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_9),                     &
-       arg_type(GH_FIELD,   GH_READ, ANY_DISCONTINUOUS_SPACE_3)        &
+  type(arg_type) :: meta_args(4) = (/                                    &
+       arg_type(GH_FIELD,   GH_REAL, GH_INC,  ANY_SPACE_1),              &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_SPACE_2),              &
+       arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),              &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3) &
        /)
-  type(func_type) :: meta_funcs(3) = (/                                &
-       func_type(ANY_SPACE_1, GH_BASIS),                               &
-       func_type(ANY_SPACE_2, GH_BASIS),                               &
-       func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                 &
+  type(func_type) :: meta_funcs(3) = (/                                  &
+       func_type(ANY_SPACE_1, GH_BASIS),                                 &
+       func_type(ANY_SPACE_2, GH_BASIS),                                 &
+       func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                   &
        /)
-  integer :: iterates_over = CELLS
+  integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_QUADRATURE_XYoZ
 contains
-  procedure, public, nopass :: gp_rhs_code
+  procedure, nopass :: gp_rhs_code
 end type
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
+public :: gp_rhs_code
+
 contains
 
 !> @brief     Subroutine to compute right hand side of a galerkin projection of
@@ -53,12 +57,12 @@ contains
 !>            galerkin projection of scalar field f into another space of which gamma
 !>            is the test function
 !! @param[in] nlayers Number of layers
-!! @param[inout] rhs Field containing the intergral of test_function * field
+!! @param[in,out] rhs Field containing the intergral of test_function * field
 !! @param[in] field Field to be projected
 !! @param[in] chi_1 1st (spherical) coordinate field in Wchi
 !! @param[in] chi_2 2nd (spherical) coordinate field in Wchi
 !! @param[in] chi_3 3rd (spherical) coordinate field in Wchi
-!! @param[in] panel_id Field giving the ID for mesh panels.
+!! @param[in] panel_id Field giving the ID for mesh panels
 !! @param[in] ndf Number of degrees of freedom per cell
 !! @param[in] undf Number of (local) unique degrees of freedom of the field rhs
 !! @param[in] map Dofmap for the cell at the base of the column
@@ -70,7 +74,7 @@ contains
 !! @param[in] ndf_chi Number of dofs per cell for the coordinate field
 !! @param[in] undf_chi Number of (local) unique degrees of freedom of the chi field
 !! @param[in] map_chi Dofmap for the coordinate field
-!! @param[in] chi_basis Wchi basis functions evaluated at gaussian quadrature points.
+!! @param[in] chi_basis Wchi basis functions evaluated at gaussian quadrature points
 !! @param[in] chi_diff_basis Derivatives of Wchi basis functions
 !!                           evaluated at gaussian quadrature points
 !! @param[in] ndf_pid  Number of degrees of freedom per cell for panel_id

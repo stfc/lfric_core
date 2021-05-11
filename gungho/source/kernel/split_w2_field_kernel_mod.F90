@@ -6,15 +6,20 @@
 !> @brief Split a W2 field into the component W2v and W2h fields
 !>
 module split_w2_field_kernel_mod
-  use argument_mod,      only : arg_type, func_type,       &
-                                GH_FIELD, GH_READ, GH_INC, GH_READWRITE, &
-                                ANY_SPACE_1,               &
-                                GH_BASIS, GH_DIFF_BASIS,   &
-                                CELLS, GH_EVALUATOR
+
+  use argument_mod,      only : arg_type,             &
+                                GH_FIELD, GH_REAL,    &
+                                GH_INC, GH_READWRITE, &
+                                GH_READ, ANY_SPACE_1, &
+                                CELL_COLUMN
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2, W2h, W2v
   use kernel_mod,        only : kernel_type
+
   implicit none
+
+  private
+
   !---------------------------------------------------------------------------
   ! Public types
   !---------------------------------------------------------------------------
@@ -23,19 +28,19 @@ module split_w2_field_kernel_mod
   !>
   type, public, extends(kernel_type) :: split_w2_field_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/          &
-        arg_type(GH_FIELD,   GH_INC, W2h),      &
-        arg_type(GH_FIELD,   GH_READWRITE, W2v),       &
-        arg_type(GH_FIELD,   GH_READ,  W2)       &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(3) = (/                  &
+         arg_type(GH_FIELD, GH_REAL, GH_INC,       W2h), &
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W2v), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      W2)   &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
-    procedure, nopass ::split_w2_field_code
+    procedure, nopass :: split_w2_field_code
   end type
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public split_w2_field_code
+  public :: split_w2_field_code
 
 contains
 
@@ -43,15 +48,15 @@ contains
 !> @param[in,out] uv Horizontal wind
 !> @param[in,out] w Vertical wind
 !> @param[in]     uvw 3D wind
-!> @param[in]     ndf_w2h  Number of degrees of freedom per cell for w2h
-!> @param[in]     undf_w2h Number of unique degrees of freedom for w2h
-!> @param[in]     map_w2h  Dofmap for the cell at the base of the column for w2h
-!> @param[in]     ndf_w2v  Number of degrees of freedom per cell for w2v
-!> @param[in]     undf_w2v Number of unique degrees of freedom for w2v
-!> @param[in]     map_w2v  Dofmap for the cell at the base of the column for w2v
-!> @param[in]     ndf_w2   Number of degrees of freedom per cell for w2
-!> @param[in]     undf_w2  Number of unique degrees of freedom for w2
-!> @param[in]     map_w2   Dofmap for the cell at the base of the column for w2
+!> @param[in]     ndf_w2h  Number of degrees of freedom per cell for W2h
+!> @param[in]     undf_w2h Number of unique degrees of freedom for W2h
+!> @param[in]     map_w2h  Dofmap for the cell at the base of the column for W2h
+!> @param[in]     ndf_w2v  Number of degrees of freedom per cell for W2v
+!> @param[in]     undf_w2v Number of unique degrees of freedom for W2v
+!> @param[in]     map_w2v  Dofmap for the cell at the base of the column for W2v
+!> @param[in]     ndf_w2   Number of degrees of freedom per cell for W2
+!> @param[in]     undf_w2  Number of unique degrees of freedom for W2
+!> @param[in]     map_w2   Dofmap for the cell at the base of the column for W2
 
 subroutine split_w2_field_code(nlayers,                    &
                                uv, w, uvw,                 &
@@ -59,6 +64,7 @@ subroutine split_w2_field_code(nlayers,                    &
                                ndf_w2v, undf_w2v, map_w2v, &
                                ndf_w2,  undf_w2,  map_w2 )
   implicit none
+
   ! Arguments
   integer(kind=i_def), intent(in) :: nlayers
   integer(kind=i_def), intent(in) :: ndf_w2, ndf_w2h, ndf_w2v
@@ -72,6 +78,7 @@ subroutine split_w2_field_code(nlayers,                    &
 
   ! Internal variables
   integer(kind=i_def) :: df, k
+
   do k = 0, nlayers-1
     do df = 1,4
       uv(map_w2h(df) + k) = uvw(map_w2(df) + k)
@@ -80,5 +87,7 @@ subroutine split_w2_field_code(nlayers,                    &
       w(map_w2v(df) + k) = uvw(map_w2(4+df) + k)
     end do
   end do
+
 end subroutine split_w2_field_code
+
 end module split_w2_field_kernel_mod

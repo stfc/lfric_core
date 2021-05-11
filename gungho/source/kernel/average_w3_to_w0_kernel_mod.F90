@@ -13,15 +13,18 @@
 !>
 module average_w3_to_w0_kernel_mod
 
-  use argument_mod,            only : arg_type, func_type,                    &
-                                      GH_FIELD, GH_INC, GH_READ,              &
-                                      CELLS
+  use argument_mod,            only : arg_type,         &
+                                      GH_FIELD, GH_INC, &
+                                      GH_REAL, GH_READ, &
+                                      CELL_COLUMN
   use constants_mod,           only : r_def, i_def
   use fs_continuity_mod,       only : W0, W3
 
   use kernel_mod,              only : kernel_type
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -31,24 +34,26 @@ module average_w3_to_w0_kernel_mod
   !>
   type, public, extends(kernel_type) :: average_w3_to_w0_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/          &
-        arg_type(GH_FIELD,   GH_INC,   W0),      &
-        arg_type(GH_FIELD,   GH_READ,  W3),      &
-        arg_type(GH_FIELD,   GH_READ,  W0)       &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(3) = (/            &
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  W0), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, W3), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ, W0)  &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
-    procedure, public, nopass :: average_w3_to_w0_code
+    procedure, nopass :: average_w3_to_w0_code
   end type
 
 !-----------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-----------------------------------------------------------------------------
+public :: average_w3_to_w0_code
+
 contains
 
 !> @brief
 !! @param[in] nlayers Number of layers
-!! @param[inout] field_w0 Surface altitude on lowest order w0
+!! @param[in,out] field_w0 Surface altitude on lowest order w0
 !! @param[in] field_w3 Surface altitude on lowest order w3
 !! @param[in] weight_w0 weight used in accumulation of w3 data
 !! @param[in] ndf_w0 Number of degrees of freedom per cell for w0
@@ -67,7 +72,7 @@ subroutine average_w3_to_w0_code(nlayers,                 &
 
   implicit none
 
-  !Arguments
+  ! Arguments
   integer, intent(in) :: nlayers
   integer, intent(in) :: undf_w0, ndf_w0
   integer, intent(in) :: undf_w3, ndf_w3

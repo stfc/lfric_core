@@ -8,9 +8,11 @@
 !>
 module set_any_dof_kernel_mod
 
-  use argument_mod,      only: arg_type,                         &
-                               GH_FIELD, GH_INC, CELLS, GH_READ, &
-                               GH_REAL, GH_INTEGER, ANY_SPACE_1
+  use argument_mod,      only: arg_type,            &
+                               GH_FIELD, GH_SCALAR, &
+                               GH_REAL, GH_INTEGER, &
+                               GH_INC, GH_READ,     &
+                               ANY_SPACE_1, CELL_COLUMN
   use constants_mod,     only: r_def, i_def
   use kernel_mod,        only: kernel_type
 
@@ -26,12 +28,12 @@ module set_any_dof_kernel_mod
   !>
   type, public, extends(kernel_type) :: set_any_dof_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/            &
-        arg_type( GH_FIELD, GH_INC, ANY_SPACE_1 ), &
-        arg_type( GH_INTEGER, GH_READ ),           &
-        arg_type( GH_REAL, GH_READ )               &
-        /)
-    integer :: iterates_over = CELLS
+    type(arg_type) :: meta_args(3) = (/                        &
+         arg_type(GH_FIELD,  GH_REAL,    GH_INC, ANY_SPACE_1), &
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),             &
+         arg_type(GH_SCALAR, GH_REAL,    GH_READ)              &
+         /)
+    integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: set_any_dof_code
   end type
@@ -39,7 +41,7 @@ module set_any_dof_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public set_any_dof_code
+  public :: set_any_dof_code
 
 contains
 
@@ -63,9 +65,8 @@ subroutine set_any_dof_code(nlayers,                &
   implicit none
 
   ! Arguments
-  integer, intent(in) :: nlayers
-
-  integer, intent(in) :: ndf, undf
+  integer(kind=i_def), intent(in) :: nlayers
+  integer(kind=i_def), intent(in) :: ndf, undf
 
   real(kind=r_def), dimension(undf), intent(inout) :: field
   integer(kind=i_def), intent(in)                  :: dof_to_update
