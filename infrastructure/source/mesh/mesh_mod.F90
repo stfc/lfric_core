@@ -176,8 +176,6 @@ module mesh_mod
     integer(i_def), allocatable, private :: ncells_per_colour(:)
     !> integer 2-d array, which cells are in each colour.
     integer(i_def), allocatable, private :: cells_in_colour(:,:)
-    !> integer Number of cells in the global 2D mesh
-    integer(i_def)                       :: ncells_global_mesh
     !> integer 2-d array, how many of the first so many cells belong to each colour
     integer(i_def), allocatable, private :: ncells_per_colour_subset(:,:)
     integer(i_def),allocatable           :: last_inner_cell_per_colour(:,:)
@@ -336,11 +334,6 @@ contains
     ! Loop counters
     integer(i_def) :: i, j
 
-    ! Arrays used in entity ownership calculation - see their names
-    ! for a descriptioin of what they actually contain
-    integer(i_def), allocatable :: verts( : )
-    integer(i_def), allocatable :: edges( : )
-
     integer(kind=i_def),allocatable :: gid_from_lid(:)
 
     ! Vertices connected to local 2d cell.
@@ -358,6 +351,9 @@ contains
     ! Number of panels in the global mesh.
     ! Used to optimise colouring algorithm
     integer(i_def) :: n_panels
+
+    !> integer Number of cells in the global 2D mesh
+    integer(i_def) :: ncells_global_mesh
 
     ! Surface Coordinates in [long, lat, radius] (Units: Radians/metres)
     real(r_def), allocatable :: vertex_coords_2d(:,:)
@@ -410,7 +406,6 @@ contains
     self%domain_top           = extrusion%get_atmosphere_top()
     self%domain_bottom        = extrusion%get_atmosphere_bottom()
     self%ncolours             = -1     ! Initialise ncolours to error status
-    self%ncells_global_mesh   = global_mesh%get_ncells()
 
     allocate( self%eta ( 0:self%nlayers ) )
     allocate( self%dz  ( self%nlayers   ) )
@@ -472,7 +467,7 @@ contains
     end do
 
     is_spherical = .false.
-    if ( trim(global_mesh%get_mesh_class()) == "sphere" ) is_spherical = .true.
+    if ( trim(local_mesh%get_mesh_class()) == "sphere" ) is_spherical = .true.
 
     ! Set base surface height
     vertex_coords_2d(3,:) = self%domain_bottom
@@ -538,16 +533,11 @@ contains
     allocate( &
       self%edge_cell_owner  (self%nedges_per_2d_cell, self%ncells_2d_with_ghost) )
 
-    allocate( verts (self%nverts_per_2d_cell) )
-    allocate( edges (self%nedges_per_2d_cell) )
-
     do i=1, self%ncells_2d_with_ghost
       ! Vertex ownership
-      call global_mesh%get_vert_on_cell(local_mesh%get_gid_from_lid(i), verts)
       do j=1, self%nverts_per_2d_cell
-        self%vert_cell_owner(j,i) = local_mesh%get_lid_from_gid( &
-                                   global_mesh%get_vert_cell_owner( verts(j) ) )
-
+        self%vert_cell_owner(j,i) = &
+            local_mesh%get_vert_cell_owner(local_mesh%get_vert_on_cell(j,i))
         if (self%vert_cell_owner(j,i) > 0) then
           self%vertex_ownership(j,i) = local_mesh%get_cell_owner( &
                                                      self%vert_cell_owner(j,i) )
@@ -555,13 +545,10 @@ contains
           self%vertex_ownership(j,i) = get_comm_size() + 1
         end if
       end do
-
       ! Edge ownership
-      call global_mesh%get_edge_on_cell(local_mesh%get_gid_from_lid(i), edges)
       do j=1, self%nedges_per_2d_cell
-        self%edge_cell_owner(j,i) = local_mesh%get_lid_from_gid( &
-                                   global_mesh%get_edge_cell_owner( edges(j) ) )
-
+        self%edge_cell_owner(j,i) = &
+            local_mesh%get_edge_cell_owner(local_mesh%get_edge_on_cell(j,i))
         if (self%edge_cell_owner(j,i) > 0) then
           self%edge_ownership(j,i) = local_mesh%get_cell_owner( &
                                                      self%edge_cell_owner(j,i) )
@@ -570,10 +557,6 @@ contains
         end if
       end do
     end do
-
-    deallocate( verts )
-    deallocate( edges )
-
 
     if (.not. allocated(self%mesh_maps) ) &
         allocate ( self%mesh_maps, source = mesh_map_collection_type() )
@@ -594,7 +577,8 @@ contains
     ! the local cells.
     ! Colour algorithm may access cells beyond the local partition when searching
     ! for neighbours, so make the array big enough.
-    allocate(gid_from_lid(self%ncells_global_mesh))
+    ncells_global_mesh = global_mesh%get_ncells()
+    allocate(gid_from_lid(ncells_global_mesh))
 
     ! Set default global ID as 0: to apply to cells outside local partition
     gid_from_lid(:)=0
@@ -613,13 +597,11 @@ contains
                       self%cells_in_colour,                                 &
                       self%reference_element%get_number_horizontal_faces(), &
                       n_panels,                                             &
-                      self%ncells_global_mesh,                              &
+                      ncells_global_mesh,                                   &
                       gid_from_lid(:) )
 
     call init_last_cell_per_colour(self)
 
-    if (allocated( verts) )        deallocate(verts)
-    if (allocated( edges) )        deallocate(edges)
     if (allocated( gid_from_lid) ) deallocate(gid_from_lid)
 
     if (allocated( vert_on_cell_2d ))  deallocate(vert_on_cell_2d)
@@ -2144,7 +2126,6 @@ contains
     self%nfaces_per_cell = 6
     self%nverts_per_2d_cell = 4
     self%nedges_per_2d_cell = 4
-    self%ncells_global_mesh = 9
     self%ncolours        = -1  ! Initialise ncolours to error status
 
     mesh_id_counter = mesh_id_counter+1

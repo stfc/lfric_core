@@ -103,6 +103,7 @@ contains
     type(partition_type) :: partition
     type(local_mesh_type) :: local_mesh
     character(str_def) :: name
+    character(str_def) :: mesh_class
 
     integer(i_def) :: nverts_per_edge
     integer(i_def) :: nedges_per_cell
@@ -127,6 +128,8 @@ contains
     integer(i_def) :: edge_lid
     integer(i_def) :: n_unique_vertices
     integer(i_def) :: n_unique_edges
+    integer(i_def) :: vert_cell_owner
+    integer(i_def) :: edge_cell_owner
     integer(i_def) :: cell_next(4)
     integer(i_def) :: known_cell_next(4)
     real(r_def)    :: vert_coords(2)
@@ -171,6 +174,10 @@ contains
     ! Check the local mesh has the correct name
     name = local_mesh%get_mesh_name()
     @assertEqual( trim(mesh_name), trim(name) )
+
+    ! Check the local mesh has the correct class
+    mesh_class = local_mesh%get_mesh_class()
+    @assertEqual( "plane", trim(mesh_class) )
 
     ! Check the local_mesh has the correct properties
     nverts_per_edge = local_mesh%get_nverts_per_edge()
@@ -245,6 +252,12 @@ contains
         known_cell_next(:) = [ 2, 7, 4, 20 ]
         call local_mesh%get_cell_next( 3, cell_next )
         @assertEqual ( known_cell_next, cell_next )
+
+        vert_cell_owner = local_mesh%get_vert_cell_owner ( 5 )
+        @assertEqual ( 7, vert_cell_owner )
+
+        edge_cell_owner = local_mesh%get_edge_cell_owner ( 5 )
+        @assertEqual ( 6, edge_cell_owner )
 
         lid = 1
         gid = local_mesh%get_gid_from_lid( lid )

@@ -4,6 +4,7 @@
 
 class local_mesh_mod::local_mesh_type {
   -mesh_name: string
+  -mesh_class: string
   -nverts_per_cell: integer
   -nverts_per_edge: integer
   -nedges_per_cell: integer
@@ -16,6 +17,8 @@ class local_mesh_mod::local_mesh_type {
   -edge_on_cell: integer[::] <<allocatable>>
   -vert_on_cell_gid: integer[::] <<allocatable>>
   -edge_on_cell_gid: integer[::] <<allocatable>>
+  -vert_cell_owner: integer[:] <<allocatable>>
+  -edge_cell_owner: integer[:] <<allocatable>>
   -cell_next: integer[::] <<allocatable>>
   -cell_owner: integer[:] <<allocatable>>
   -num_inner: integer[:] <<allocatable>>
@@ -40,6 +43,7 @@ class local_mesh_mod::local_mesh_type {
   +init_cell_owner()
   +clear()
   +get_mesh_name(): string
+  +get_mesh_class(): string
   +get_nverts_per_cell(): integer
   +get_nverts_per_edge(): integer
   +get_nedges_per_cell(): integer
@@ -51,6 +55,8 @@ class local_mesh_mod::local_mesh_type {
   +get_n_unique_edges(): integer
   +get_edge_on_cell(<<in>>iedge: integer, <<in>>icell: integer): integer
   +get_vert_on_cell(<<in>>ivert: integer, <<in>>icell: integer): integer
+  +get_vert_cell_owner(<<in>>vert: integer): integer
+  +get_edge_cell_owner(<<in>>edge: integer): integer
   +get_cell_next(<<in>>cell_lid: integer, <<out>>cell_next(:): integer)
   +get_inner_depth(): integer
   +get_num_cells_inner(): integer

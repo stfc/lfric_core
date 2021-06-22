@@ -519,7 +519,7 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief  Returns string identifying the class of mesh.
   !>
-  !> @details Currently only 'sphere', 'planar' mesh classes recognised.
+  !> @details Currently only 'sphere', 'plane' or 'lbc' mesh classes recognised.
   !>
   !> @return mesh_class Type of mesh_class this global_mesh describes.
   !>

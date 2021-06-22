@@ -28,7 +28,9 @@ module local_mesh_mod
   type, extends(linked_list_data_type), public :: local_mesh_type
     private
   ! Tag name of mesh
-    character(str_def)          :: mesh_name
+    character(str_def) :: mesh_name
+  ! Type of mesh that the global mesh describes
+    character(str_def) :: mesh_class
   ! number of vertices on each cell
     integer(i_def)     :: nverts_per_cell
   ! number of vertices on each edge
@@ -56,6 +58,10 @@ module local_mesh_mod
     integer(i_def), allocatable :: vert_on_cell_gid(:,:)
   ! Global ids of edges connected to local 2d cell.
     integer(i_def), allocatable :: edge_on_cell_gid(:,:)
+  ! Cell that "owns" each vertex
+    integer(i_def), allocatable :: vert_cell_owner(:)
+  ! Cell that "owns" each edge
+    integer(i_def), allocatable :: edge_cell_owner(:)
   ! Local domain cell to cell lid connectivities
     integer(i_def), allocatable :: cell_next(:,:)
   ! A list of the ranks that own all the cells known to this partition
@@ -98,6 +104,7 @@ module local_mesh_mod
     procedure, public  :: init_cell_owner
     procedure, public  :: clear
     procedure, public  :: get_mesh_name
+    procedure, public  :: get_mesh_class
     procedure, public  :: get_nverts_per_cell
     procedure, public  :: get_nverts_per_edge
     procedure, public  :: get_nedges_per_cell
@@ -109,6 +116,8 @@ module local_mesh_mod
     procedure, public  :: get_n_unique_edges
     procedure, public  :: get_edge_on_cell
     procedure, public  :: get_vert_on_cell
+    procedure, public  :: get_vert_cell_owner
+    procedure, public  :: get_edge_cell_owner
     procedure, public  :: get_cell_next
     procedure, public  :: get_inner_depth
     procedure, public  :: get_num_cells_inner
@@ -167,6 +176,7 @@ contains
     integer(i_def)                               :: counter
     integer(i_def), allocatable                  :: tmp_list(:)
     integer(i_def), allocatable                  :: vert_lid_gid_map(:)
+    integer(i_def), allocatable                  :: edge_lid_gid_map(:)
     integer(i_def)                               :: vert_gid
 
     logical (l_def)                              :: new_unique_vertex
@@ -178,6 +188,8 @@ contains
     else
       self%mesh_name =  global_mesh%get_mesh_name()
     end if
+
+    self%mesh_class = global_mesh%get_mesh_class()
 
     ! Extract the info that makes up a local mesh from the
     ! global mesh and partition
@@ -289,7 +301,25 @@ contains
         end if
       end do
     end do
+    allocate(edge_lid_gid_map(self%n_unique_edges))
+    edge_lid_gid_map(:) = tmp_list(1:self%n_unique_edges)
     deallocate(tmp_list)
+
+    ! Set cell ownership for each vertex
+    allocate( self%vert_cell_owner(self%n_unique_vertices) )
+    do vertex=1,self%n_unique_vertices
+      self%vert_cell_owner(vertex) = &
+          self%get_lid_from_gid( &
+            global_mesh%get_vert_cell_owner(vert_lid_gid_map(vertex)) )
+    end do
+
+    ! Set cell ownership for each edge
+    allocate( self%edge_cell_owner(self%n_unique_edges) )
+    do edge=1,self%n_unique_edges
+      self%edge_cell_owner(edge) = &
+          self%get_lid_from_gid( &
+            global_mesh%get_edge_cell_owner(edge_lid_gid_map(edge)) )
+    end do
 
     allocate( self%vert_coords(3,self%n_unique_vertices) )
     do vertex = 1, self%n_unique_vertices
@@ -303,6 +333,9 @@ contains
               source = local_mesh_map_collection_type() )
 
     self%npanels = partition%get_num_panels_global_mesh()
+
+    deallocate( vert_lid_gid_map )
+    deallocate( edge_lid_gid_map )
 
   end subroutine initialise_full
 
@@ -337,6 +370,7 @@ contains
     !    1---2---2---5---5---8---1
 
     self%mesh_name = 'unit_test'
+    self%mesh_class = 'plane'
 
     local_mesh_id_counter = local_mesh_id_counter + 1
     call self%set_id( local_mesh_id_counter )
@@ -345,6 +379,8 @@ contains
     self%nverts_per_edge = 2
     self%nedges_per_cell = 4
     self%num_cells_in_layer = 9
+    self%n_unique_vertices = 16
+    self%n_unique_edges = 24
 
     allocate( self%global_cell_id(9) )
     self%global_cell_id = [1,2,3,4,5,6,7,8,9]
@@ -369,6 +405,17 @@ contains
     self%last_halo_cell(3) = 9
 
     self%num_ghost = 0
+
+    allocate( self%vert_cell_owner(self%n_unique_vertices) )
+    self%vert_cell_owner(:) = [ 8, 9, 6, 1, &
+                                5, 3, 2, 4, &
+                                6, 4, 7, 9, &
+                                7, 8, 9, 9 ]
+    allocate( self%edge_cell_owner(self%n_unique_edges) )
+    self%edge_cell_owner(:) = [ 1, 8, 6, 1, 2, 5, &
+                                3, 2, 4, 3, 6, 4, &
+                                4, 5, 7, 9, 6, 7, &
+                                7, 8, 8, 9, 9, 9 ]
 
     allocate( self%cell_next(self%nedges_per_cell, self%num_cells_in_layer) )
     self%cell_next(:,1) = [3, 7, 2, 4]
@@ -512,7 +559,8 @@ contains
     if( allocated( self%last_inner_cell ) ) deallocate( self%last_inner_cell )
     if( allocated( self%num_halo ) )        deallocate( self%num_halo )
     if( allocated( self%last_halo_cell ) )  deallocate( self%last_halo_cell )
-
+    if( allocated( self%vert_cell_owner) )  deallocate( self%vert_cell_owner)
+    if( allocated( self%edge_cell_owner) )  deallocate( self%edge_cell_owner)
     return
   end subroutine clear
 
@@ -528,6 +576,25 @@ contains
     mesh_name = self%mesh_name
 
   end function get_mesh_name
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Returns string identifying the class of mesh.
+  !>
+  !> @details Currently only 'sphere', 'plane' or 'lbc' mesh classes recognised
+  !>
+  !> @return mesh_class Type of mesh_class this local_mesh describes
+  !>
+  function get_mesh_class( self ) result ( mesh_class )
+
+    implicit none
+
+    class(local_mesh_type), intent(in) :: self
+
+    character(str_def) :: mesh_class
+
+    mesh_class = self%mesh_class
+
+  end function get_mesh_class
 
   !---------------------------------------------------------------------------
   !> @brief Gets the number of vertices per 2D-cell.
@@ -719,6 +786,42 @@ contains
     vert_lid = self%vert_on_cell(ivert, icell)
 
   end function get_vert_on_cell
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Gets the cell that a vertex has been allocated to
+  !>
+  !> @param[in] vert Local ID of the vertex
+  !>
+  !> @return Local cell ID that the vertex has been allocated to
+  !>
+  function get_vert_cell_owner ( self, vert ) result ( cell )
+
+    implicit none
+    class (local_mesh_type), intent(in)  :: self
+    integer (i_def),         intent(in)  :: vert
+    integer (i_def)                      :: cell
+
+    cell = self%vert_cell_owner( vert )
+
+  end function get_vert_cell_owner
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Gets the cell that an edge has been allocated to
+  !>
+  !> @param[in] edge Local ID of the edge
+  !>
+  !> @return Local cell ID that the edge has been allocated to
+  !>
+  function get_edge_cell_owner ( self, edge ) result ( cell )
+
+    implicit none
+    class (local_mesh_type), intent(in)  :: self
+    integer (i_def),         intent(in)  :: edge
+    integer (i_def)                      :: cell
+
+    cell = self%edge_cell_owner( edge )
+
+  end function get_edge_cell_owner
 
   !---------------------------------------------------------------------------
   !> @brief Gets the local ids of the cells adjacent to a cell.
