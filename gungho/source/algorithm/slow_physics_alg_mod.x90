@@ -14,9 +14,7 @@ module slow_physics_alg_mod
                                        cv_scheme_gregory_rowntree
   use constants_mod,             only: i_def, r_def, l_def
   use log_mod,                   only: LOG_LEVEL_INFO
-  use physics_config_mod,        only: heldsuarez_thermo_placement,    &
-                                       heldsuarez_wind_placement,      &
-                                       microphysics_placement,         &
+  use physics_config_mod,        only: microphysics_placement,         &
                                        microphysics_placement_slow,    &
                                        orographic_drag_placement,      &
                                        orographic_drag_placement_slow, &
@@ -37,7 +35,9 @@ module slow_physics_alg_mod
                                        methane_oxidation,                   &
                                        surface, surface_jules,              &
                                        convection, convection_um,           &
-                                       cloud, cloud_um
+                                       cloud, cloud_um,                     &
+                                       external_forcing
+
   ! Derived Types
   use field_mod,                 only: field_type
   use field_collection_mod,      only: field_collection_type
@@ -54,7 +54,7 @@ module slow_physics_alg_mod
   use io_config_mod,             only: subroutine_timers,                    &
                                        write_conservation_diag
   use timer_mod,                 only: timer
-  use held_suarez_alg_mod,       only: held_suarez_alg
+  use external_forcing_alg_mod,  only: external_forcing_alg
   ! Physics schemes called
 #ifdef UM_PHYSICS
   use locate_tropopause_alg_mod, only: locate_tropopause_alg
@@ -155,8 +155,8 @@ contains
     real( kind=r_def ),    intent(in) :: dt
 
     ! Local fields...
-    ! ...for H-S physics
-    type( field_type ) :: dtheta_hs, du_hs
+    ! ...for external forcing
+    type( field_type ) :: dtheta_forcing, du_forcing
     ! ...for microphysics
     type( field_type ), pointer :: dtheta_mphys => null()
     type( field_type ) :: dmr_mphys(nummr)
@@ -215,8 +215,8 @@ contains
     integer( kind=i_def ) :: i_mr
 
     ! Flags to indicate whether scheme has run and increments need adding
-    logical( kind=l_def ) :: held_suarez_thermo_done
-    logical( kind=l_def ) :: held_suarez_wind_done
+    logical( kind=l_def ) :: theta_forcing_done
+    logical( kind=l_def ) :: wind_forcing_done
     logical( kind=l_def ) :: microphysics_done
     logical( kind=l_def ) :: radiation_done
     logical( kind=l_def ) :: spectral_gwd_done
@@ -232,23 +232,22 @@ contains
     call invoke( setval_c(dtheta, 0.0_r_def), &
                  setval_c(du, 0.0_r_def) )
     exner_in_wth => derived_fields%get_field('exner_in_wth')
-    held_suarez_thermo_done = .false.
-    held_suarez_wind_done   = .false.
-    microphysics_done       = .false.
-    radiation_done          = .false.
-    spectral_gwd_done       = .false.
-    orographic_drag_done    = .false.
-    methox_done             = .false.
-    boundary_layer_done     = .false.
+    theta_forcing_done   = .false.
+    wind_forcing_done    = .false.
+    microphysics_done    = .false.
+    radiation_done       = .false.
+    spectral_gwd_done    = .false.
+    orographic_drag_done = .false.
+    methox_done          = .false.
+    boundary_layer_done  = .false.
 
     !--------------------------------------------------------------------
-    ! Held-Suarez simple physics codes
+    ! External forcing options
     !--------------------------------------------------------------------
-    if ( heldsuarez_thermo_placement < 0 .OR. &
-         heldsuarez_wind_placement < 0 ) then
-      call held_suarez_alg(derived_fields, theta, exner, exner_in_wth,   &
-                           dtheta_hs, du_hs, dt,                         &
-                           held_suarez_thermo_done, held_suarez_wind_done)
+    if ( external_forcing ) then
+      call external_forcing_alg(derived_fields, theta, exner, exner_in_wth, &
+                                dt, dtheta_forcing, du_forcing,             &
+                                theta_forcing_done, wind_forcing_done)
     end if
 
 #ifdef UM_PHYSICS
@@ -497,12 +496,12 @@ contains
     !=====================================================================
     ! Update the main fields and increments to pass out
     !=====================================================================
-    if (held_suarez_thermo_done) then
-      call invoke(inc_X_plus_Y(dtheta, dtheta_hs))
+    if (theta_forcing_done) then
+      call invoke(inc_X_plus_Y(dtheta, dtheta_forcing))
     end if
 
-    if (held_suarez_wind_done) then
-      call invoke(inc_X_plus_Y(du, du_hs))
+    if (wind_forcing_done) then
+      call invoke(inc_X_plus_Y(du, du_forcing))
     end if
 
     if (cloud == cloud_um .and. scheme == scheme_pc2) then

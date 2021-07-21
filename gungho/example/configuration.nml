@@ -125,9 +125,6 @@
 /
 
 &physics
-  heldsuarez_thermo_placement = 0
-  heldsuarez_wind_placement   = 0
-  hs_random = .false.
   blayer_placement = 'fast'
   convection_placement = 'fast'
   microphysics_placement = 'slow'
@@ -319,4 +316,5 @@ aerosol='none'
 cloud='none'
 spectral_gwd='none'
 orographic_drag='none'
+external_forcing=.false.
 /
