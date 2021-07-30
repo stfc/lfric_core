@@ -26,12 +26,11 @@ module transport_general_mod
   !> @param[in]     wind      3D advecting wind
   !> @param[in,out] field     field to be transported/advected
   !> @param[in] adv_scheme    Advection/transport scheme to be used
-  !> @param[in] shifted_grid  True/False to specify if grid is shifted or not
   !> @param[in] conservative  True/False to specify if the transport problem is
   !>                          the conservative form (true) or advective form (false)
   !> @param[in] dt            The model timestep length
 
-  subroutine transport_general(wind, field, adv_scheme, shifted_grid, conservative, dt)
+  subroutine transport_general(wind, field, adv_scheme, conservative, dt)
 
   use constants_mod,                 only: r_def, i_def, l_def, tiny_eps
   use field_mod,                     only: field_type
@@ -54,7 +53,7 @@ module transport_general_mod
   type(field_type), intent(in)      :: wind
   type(field_type), intent(inout)   :: field
   integer(i_def),   intent(in)      :: adv_scheme
-  logical(l_def),   intent(in)      :: conservative, shifted_grid
+  logical(l_def),   intent(in)      :: conservative
   real(r_def),      intent(in)      :: dt
 
   type(function_space_type), pointer :: w2_fs => null()
@@ -65,8 +64,8 @@ module transport_general_mod
   real(r_def)            :: cfl_min, cfl_max
   integer(i_def)         :: sub_step_count, mol_substeps
   integer(i_def)         :: function_space, mesh_id
-  logical(l_def)         :: advect_density, si_advective_terms, &
-                             shifted, density_predictor
+  logical(l_def)         :: advect_density, si_advective_terms
+  logical(l_def)         :: density_predictor
   type(operator_type), pointer :: mm_w3_inv     => null(), &
                                    div           => null()
   type(field_type)             :: r_rho, mass_flux
@@ -84,7 +83,6 @@ module transport_general_mod
 
   mesh_id = field%get_mesh_id()
   advect_density = conservative
-  shifted = shifted_grid
   si_advective_terms = .false.
   density_predictor = .false.
   mol_substeps  = 1_i_def
@@ -117,8 +115,7 @@ module transport_general_mod
          call advect_field(mass_flux, field, wind,                          &
                            scheme_method_of_lines, wind, wind,              &
                            advect_density, dt_substep, si_advective_terms,  &
-                           shifted, density_predictor, logspace=log_rho,    &
-                           dt=dt)
+                           density_predictor, logspace=log_rho, dt=dt)
 
          call invoke( setval_c(r_rho, 0.0_r_def),                              &
                       matrix_vector_kernel_type(r_rho, mass_flux, div),        &
@@ -136,8 +133,7 @@ module transport_general_mod
          call advect_field(field_inc, field, wind,                          &
                            scheme_method_of_lines, wind, wind,              &
                            advect_density, dt_substep, si_advective_terms,  &
-                           shifted, density_predictor, logspace=.false.,    &
-                           dt=dt)
+                           density_predictor, logspace=.false., dt=dt)
 
          call invoke( aX_plus_Y(field, dt_substep, field_inc, field_old) )
 
@@ -147,11 +143,10 @@ module transport_general_mod
   else
 
       call field%copy_field(field_old)
-      call advect_field(field_inc, field, wind,                 &
-                        adv_scheme, wind, wind,                 &
-                        advect_density, dt, si_advective_terms, &
-                        shifted, density_predictor,             &
-                        logspace=.false., dt=dt                 )
+      call advect_field(field_inc, field, wind,                    &
+                        adv_scheme, wind, wind,                    &
+                        advect_density, dt, si_advective_terms,    &
+                        density_predictor, logspace=.false., dt=dt )
 
        call invoke( setval_c(field, 0.0_r_def),                 &
                      aX_plus_Y(field, dt, field_inc, field_old) )

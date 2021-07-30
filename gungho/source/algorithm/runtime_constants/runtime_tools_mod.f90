@@ -51,13 +51,13 @@ contains
     integer(kind=i_def), intent(in) :: mesh_id_list(:)
 
     ! Internal variables
-    integer(kind=i_def)             :: num_meshes, i
+    integer(kind=i_def) :: i, number_of_meshes
 
-    num_meshes = size(mesh_id_list)
+    number_of_meshes = size(mesh_id_list)
 
-    allocate(global_mesh_id_list(num_meshes))
+    allocate(global_mesh_id_list(number_of_meshes))
 
-    do i = 1, num_meshes
+    do i = 1, number_of_meshes
       global_mesh_id_list(i) = mesh_id_list(i)
     end do
 
@@ -75,6 +75,9 @@ contains
   !> @param[in] mesh_id
   !> @return The mesh index
   function find_mesh_index(mesh_id) result(mesh_index)
+    ! TODO: This routine should be removed in #2790. It should be possible
+    ! to return the appropriate constant without relying on a mesh_index
+
     implicit none
     integer(kind=i_def), intent(in) :: mesh_id
     integer(kind=i_def)             :: i, mesh_index

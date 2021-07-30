@@ -78,11 +78,16 @@ contains
                                       panel_id_extra         )
 
     ! Other runtime_constants modules
+    use advective_update_alg_mod,    only: advective_update_set_num_meshes
     use fem_constants_mod,           only: create_fem_constants
+    use flux_alg_mod,                only: flux_alg_set_num_meshes
     use geometric_constants_mod,     only: create_geometric_constants
     use intermesh_constants_mod,     only: create_intermesh_constants
     use limited_area_constants_mod,  only: create_limited_area_constants
     use physical_op_constants_mod,   only: create_physical_op_constants
+    use rk_transport_rho_mod,        only: rk_transport_rho_set_num_meshes
+    use rk_transport_theta_mod,      only: rk_transport_theta_set_num_meshes
+    use runge_kutta_init_mod,        only: runge_kutta_init
     use runtime_tools_mod,           only: init_mesh_id_list
 
     implicit none
@@ -275,6 +280,13 @@ contains
                                       double_level_chi_sph)
     end if
 
+    ! Set-up arrays for transport coefficients
+    call runge_kutta_init()
+    call flux_alg_set_num_meshes( num_meshes )
+    call advective_update_set_num_meshes( num_meshes )
+    call rk_transport_rho_set_num_meshes( num_meshes )
+    call rk_transport_theta_set_num_meshes( num_meshes )
+
     deallocate(mesh_id_list)
     deallocate(label_list)
 
@@ -312,11 +324,16 @@ contains
   subroutine final_runtime_constants()
 
     ! Other runtime_constants modules
+    use advective_update_alg_mod,    only: advective_update_alg_final
     use fem_constants_mod,           only: final_fem_constants
+    use flux_alg_mod,                only: flux_alg_final
     use geometric_constants_mod,     only: final_geometric_constants
     use intermesh_constants_mod,     only: final_intermesh_constants
     use limited_area_constants_mod,  only: final_limited_area_constants
     use physical_op_constants_mod,   only: final_physical_op_constants
+    use rk_transport_rho_mod,        only: rk_transport_rho_final
+    use rk_transport_theta_mod,      only: rk_transport_theta_final
+    use runge_kutta_init_mod,        only: runge_kutta_final
     use runtime_tools_mod,           only: final_mesh_id_list
 
     implicit none
@@ -326,6 +343,11 @@ contains
     call final_physical_op_constants()
     if ( limited_area ) call final_limited_area_constants()
     if ( moisture_conservation ) call final_intermesh_constants()
+    call rk_transport_theta_final()
+    call rk_transport_rho_final()
+    call flux_alg_final()
+    call advective_update_alg_final()
+    call runge_kutta_final()
     call final_mesh_id_list()
 
 

@@ -79,9 +79,6 @@ module advection_alg_mod
   use flux_alg_mod,                   only: flux_alg_init,                  &
                                             flux_alg_final,                 &
                                             flux_alg
-  use flux_shifted_alg_mod,           only: flux_shifted_alg_init,          &
-                                            flux_shifted_alg_final,         &
-                                            flux_shifted_alg
   use split_mol_cosmic_alg_mod,       only: split_transport_rho_step
   use rk_transport_rho_mod,           only: rk_transport_rho_init
   use rk_transport_theta_mod,         only: rk_transport_theta_init
@@ -137,7 +134,7 @@ contains
     end if
     if ( moisture_conservation ) then
       shifted_mesh_id => get_shifted_mesh_id()
-      call flux_shifted_alg_init(shifted_mesh_id)
+      call flux_alg_init(shifted_mesh_id)
     end if
 
     ! Set up the advective update spatial computation
@@ -157,7 +154,6 @@ contains
     implicit none
 
     call flux_alg_final()
-    if ( moisture_conservation ) call flux_shifted_alg_final()
     call advective_update_alg_final()
 
   end subroutine advection_alg_final
@@ -416,7 +412,6 @@ contains
      call advect_field(advection(igh_d), state(igh_d), advecting_wind, &
                       scheme, wind_n, wind_np1, advect_density=.true., &
                       timestep=dt_step, si_advective_terms=.false.,    &
-                      shifted=.false.,                                 &
                       density_predictor=use_density_predictor,         &
                       logspace=.false., dt=dt_step )
     else
@@ -434,7 +429,7 @@ contains
        call advect_field(mass_flux_i, field, advecting_wind,        &
           scheme, wind_n, wind_np1, advect_density=.true.,          &
           timestep=dt_substep, si_advective_terms=.false.,          &
-          shifted=.false., density_predictor=use_density_predictor, &
+          density_predictor=use_density_predictor,                  &
           logspace=log_rho, dt=dt_step                              &
           )
        call invoke( setval_c(r_rho, 0.0_r_def),                         &
@@ -455,7 +450,6 @@ contains
     call advect_field(advection(igh_d), state(igh_d), advecting_wind,  &
                       scheme, wind_n, wind_np1, advect_density=.true., &
                       timestep=dt_step, si_advective_terms=.false.,    &
-                      shifted=.false.,                                 &
                       density_predictor=use_density_predictor,         &
                       logspace=.false., dt=dt_step )
   end if
@@ -473,7 +467,7 @@ contains
     call advect_field(field_inc, field, advecting_wind,            &
                     scheme_method_of_lines, wind_n, wind_np1,      &
                     advect_density=.false., timestep=dt_substep,   &
-                    si_advective_terms=.false., shifted=.false.,   &
+                    si_advective_terms=.false.,                    &
                     density_predictor=.false., logspace=log_theta, &
                     dt=dt_step )
     call invoke( aX_plus_Y(field, dt_substep, field_inc, field_old), &
@@ -567,7 +561,7 @@ end subroutine advection_alg
         call advect_field( field_inc, field, advecting_wind,        &
                            scheme_method_of_lines, wind_n, wind_np1,    &
                            advect_density=.false., timestep=dt_substep, &
-                           si_advective_terms=.false., shifted=.false., &
+                           si_advective_terms=.false.,                  &
                            density_predictor=.false., logspace=.false., &
                            dt=dt_step )
         call invoke( aX_plus_Y(field, dt_substep, field_inc, field_old), &
@@ -704,7 +698,7 @@ end subroutine advection_alg
     call advect_field(mass_flux, rho_d_n, advecting_wind,                      &
                       scheme_method_of_lines, wind_n, wind_np1,                &
                       advect_density=.true., timestep=dt_step,                 &
-                      si_advective_terms=.false., shifted=.false.,             &
+                      si_advective_terms=.false.,                              &
                       density_predictor=.false., logspace=log_rho, dt=dt_step )
 
     call invoke( name = "Compute advected dry density",                        &
@@ -738,7 +732,7 @@ end subroutine advection_alg
                         advecting_wind_shifted,                                &
                         scheme_method_of_lines, wind_n, wind_np1,              &
                         advect_density=.true., timestep=dt_step,               &
-                        si_advective_terms=.false., shifted=.true.,            &
+                        si_advective_terms=.false.,                            &
                         density_predictor=.false., logspace=.false., dt=dt_step )
 
       ! Reconstruct the advection increment from the mass flux
@@ -847,7 +841,7 @@ end subroutine advection_alg
           call advect_field( field_inc, field, advecting_wind,  &
                            scheme_method_of_lines, wind_n, wind_np1,          &
                            advect_density=.false., timestep=dt_substep,       &
-                           si_advective_terms=.false., shifted=.false.,       &
+                           si_advective_terms=.false.,                        &
                            density_predictor=.false., logspace=.false.,       &
                            dt=dt_step )
           call invoke( aX_plus_Y(field, dt_substep, field_inc, field_old), &
@@ -955,12 +949,11 @@ end subroutine advection_alg
       do sub_step_count = 1, n_substeps
         call field%copy_field(field_old)
         call field_inc%initialise( field%get_function_space() )
-        call advect_field(field_inc, field, advecting_wind,                  &
-                        scheme, wind_n, wind_np1,                            &
-                        advect_density=.false., timestep=dt_substep,         &
-                        si_advective_terms=from_si, shifted=.false.,         &
-                        density_predictor=.false., logspace=.false.,         &
-                        dt=dt_step )
+        call advect_field(field_inc, field, advecting_wind,                    &
+                        scheme, wind_n, wind_np1,                              &
+                        advect_density=.false., timestep=dt_substep,           &
+                        si_advective_terms=from_si, density_predictor=.false., &
+                        logspace=.false., dt=dt_step )
         call invoke( aX_plus_Y(field, dt_substep, field_inc, field_old), &
                      inc_X_plus_bY(adv_wind_update(dir), dt_fraction, field_inc) &
                      )
@@ -992,7 +985,6 @@ end subroutine advection_alg
   !> @param[in]     timestep The length of time by which to advect by
   !> @param[in]     si_advective_terms Flag to avoid using Runge-Kutta
   !>                substepping
-  !> @param[in]     shifted Flag for advection on the shifted mesh
   !> @param[in]     density_predictor Flag for advecting the density
   !>                                  predictor rho*[1-beta*dt*div(u)]
   !> @param[in]     logspace If true, then if scheme allows, do interpolation
@@ -1000,7 +992,7 @@ end subroutine advection_alg
   !> @param[in]     dt The length of the full model timestep
   subroutine advect_field( advection_inc, field, advecting_wind, adv_scheme, &
                            wind_n, wind_np1, advect_density, timestep,       &
-                           si_advective_terms, shifted, density_predictor,   &
+                           si_advective_terms, density_predictor,            &
                            logspace, dt )
 
     use advective_wind_update_kernel_mod, &
@@ -1017,7 +1009,6 @@ end subroutine advection_alg
     logical(l_def),   intent(in)    :: advect_density
     real(r_def),      intent(in)    :: timestep
     logical(l_def),   intent(in)    :: si_advective_terms
-    logical(l_def),   intent(in)    :: shifted
     logical(l_def),   intent(in)    :: density_predictor
     logical(l_def),   intent(in)    :: logspace
     real(r_def),      intent(in)    :: dt
@@ -1194,11 +1185,7 @@ end subroutine advection_alg
               ! Compute the flux using desired spatial reconstruction
               call invoke( setval_c( flux, 0.0_r_def ) )
               if ( advect_density ) then
-                if ( shifted ) then
-                  call flux_shifted_alg(flux, field_new, advecting_wind, logspace=logspace )
-                else
-                  call flux_alg(flux, field_new, advecting_wind, logspace=logspace )
-                end if
+                call flux_alg(flux, field_new, advecting_wind, logspace=logspace )
 
                 ! Compute: -div(F)
                 call invoke( dg_matrix_vector_kernel_type(rhs, flux, div),       &
@@ -1208,11 +1195,7 @@ end subroutine advection_alg
                                             flux ) )
               else
                 ! Compute the advective form increment, first the reconstructed tracer
-                if ( shifted ) then
-                  call flux_shifted_alg(flux, field_new, unit_wind, logspace=logspace)
-                else
-                  call flux_alg(flux, field_new, unit_wind, logspace=logspace)
-                end if
+                call flux_alg(flux, field_new, unit_wind, logspace=logspace)
 
                 ! Remove unit_wind term from flux and
                 ! Compute the advective update u.grad(f)

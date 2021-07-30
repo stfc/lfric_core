@@ -79,8 +79,6 @@ module transport_driver_mod
   use yaxt,                           only: xt_initialize, xt_finalize
   use rk_transport_rho_mod,           only: rk_transport_rho_final
   use rk_transport_theta_mod,         only: rk_transport_theta_final
-  use runge_kutta_init_mod,           only: runge_kutta_init, &
-                                            runge_kutta_final
   use split_mol_cosmic_alg_mod,       only: split_transport_rho_step
   use diagnostic_alg_mod,             only: l2norm_diff_2fields
   use advection_alg_mod,              only: advection_alg_init
@@ -246,14 +244,12 @@ contains
                          wind_shifted, density_shifted )
 
     ! Initialise dependencies
-    ! scheme_method_of_lines                  -> runge_kutta_init
     ! rho_splitting /= rho_splitting_none   or
     ! theta_splitting /= theta_splitting_none -> advection_alg_init
     !
     if ( scheme == scheme_method_of_lines    .or.  &
          rho_splitting /= rho_splitting_none .or.  &
          theta_splitting /= theta_splitting_none   ) then
-      call runge_kutta_init()
       call advection_alg_init( mesh_id )
     end if
 
@@ -324,7 +320,7 @@ contains
     type(field_type)    :: density_t0, density_inc, density_n
     type(field_type)    :: theta_t0, theta_inc, theta_n
     real(r_def)         :: err_rho, err_theta, dt
-    logical(l_def)      :: conservative_form, shifted_grid
+    logical(l_def)      :: conservative_form
     logical(l_def)      :: time_varying_wind
 
 
@@ -427,18 +423,14 @@ contains
 
           case ( scheme_method_of_lines )
 
-            ! shifted_grid = T/F (the field is on shifted/not grid)
             ! conservative_form=T/F (solving the conservative/advective form of transport)
-            shifted_grid = .false.
             conservative_form = .true.
 
             call transport_general(wind_n, density, scheme_method_of_lines, &
-                                   shifted_grid, conservative_form ,        &
-                                   dt)
+                                   conservative_form, dt)
             conservative_form = .false.
             call transport_general(wind_n, theta, scheme_method_of_lines,   &
-                                  shifted_grid, conservative_form,          &
-                                  dt)
+                                   conservative_form, dt)
 
           case default
             write(log_scratch_space, '(A, A)') &
@@ -449,19 +441,15 @@ contains
       else
         ! Use the split scheme for density and theta fields
         !-----------------------------------------------------
-        ! Both theta and density are not on the shifted grid (shifted_grid = .false.)
         ! Density is in the conservative for (mconservative_form = .true.
         ! Theta is in advection form (conservative_form = .false.)
 
-         shifted_grid = .false.
          conservative_form = .true.
          call transport_general(wind_n, density, rho_splitting, &
-                                shifted_grid, conservative_form, &
-                                dt )
+                                conservative_form, dt )
          conservative_form = .false.
          call transport_general(wind_n, theta, theta_splitting, &
-                                shifted_grid, conservative_form, &
-                                dt )
+                                conservative_form, dt )
       end if
 
       if ( subroutine_timers ) call timer( 'transport step' )
@@ -514,7 +502,6 @@ contains
     if ( scheme == scheme_method_of_lines    .or.  &
          rho_splitting /= rho_splitting_none .or.  &
          theta_splitting /= theta_splitting_none   ) then
-      call runge_kutta_final()
       call rk_transport_rho_final()
       call rk_transport_theta_final()
     end if

@@ -77,8 +77,6 @@ module gungho_model_mod
                                          rk_alg_final
   use rk_transport_mod,           only : rk_transport_init, &
                                          rk_transport_final
-  use runge_kutta_init_mod,       only : runge_kutta_init, &
-                                         runge_kutta_final
   use runtime_constants_mod,      only : create_runtime_constants, &
                                          final_runtime_constants
   use semi_implicit_timestep_alg_mod, &
@@ -443,8 +441,6 @@ contains
 
       select case( scheme )
         case ( scheme_method_of_lines )
-          ! Initialise and output initial conditions for first timestep
-          call runge_kutta_init()
           if ( use_moisture ) then
             call rk_transport_init( rho, theta, mr )
           else
@@ -458,7 +454,6 @@ contains
       select case( method )
         case( method_semi_implicit )  ! Semi-Implicit
           ! Initialise and output initial conditions for first timestep
-          call runge_kutta_init()
           call semi_implicit_alg_init(mesh_id, u, rho, theta, exner, mr)
           if ( write_conservation_diag ) then
            call conservation_algorithm( clock%get_step(), &
@@ -474,7 +469,6 @@ contains
           end if
         case( method_rk )             ! RK
           ! Initialise and output initial conditions for first timestep
-          call runge_kutta_init()
           call rk_alg_init(mesh_id, u, rho, theta, exner)
           if ( write_conservation_diag ) then
            call conservation_algorithm( clock%get_step(), &
@@ -620,9 +614,7 @@ contains
       end if
     end if
 
-    if(write_minmax_tseries) call minmax_tseries_final(mesh_id)
-
-    call runge_kutta_final()
+    if (write_minmax_tseries) call minmax_tseries_final(mesh_id)
 
     if ( .not. transport_only ) then
       if ( method == method_semi_implicit ) call semi_implicit_alg_final()

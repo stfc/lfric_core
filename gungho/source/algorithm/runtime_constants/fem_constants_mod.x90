@@ -110,6 +110,7 @@ module fem_constants_mod
   type(field_type),    allocatable, dimension(:), target :: nodal_rmultiplicity_w1
   type(field_type),    allocatable, dimension(:), target :: nodal_rmultiplicity_w2h
   type(field_type),    allocatable, dimension(:), target :: nodal_rmultiplicity_w2
+  type(field_type),    allocatable, dimension(:), target :: nodal_multiplicity_w1
   type(field_type),    allocatable, dimension(:), target :: w2_normalisation
   type(field_type),    allocatable, dimension(:), target :: detj_at_w2
 
@@ -135,6 +136,7 @@ module fem_constants_mod
   public :: get_div_h
   public :: get_div_v
   public :: get_normalisation
+  public :: get_multiplicity
   public :: get_rmultiplicity
   public :: get_detj_at_w2
 
@@ -169,7 +171,6 @@ contains
     type(field_type)                   :: ones
 
     ! Temporary fields
-    type(field_type) :: nodal_multiplicity_w1
     type(field_type) :: nodal_multiplicity_w2h
     type(field_type) :: nodal_multiplicity_w0
     type(field_type), allocatable :: nodal_multiplicity_w2(:)
@@ -220,6 +221,7 @@ contains
              nodal_rmultiplicity_w1(num_meshes),  &
              nodal_rmultiplicity_w2h(num_meshes), &
              nodal_rmultiplicity_w2(num_meshes),  &
+             nodal_multiplicity_w1(num_meshes),   &
              w2_normalisation(num_meshes),        &
              detj_at_w2(num_meshes)               )
 
@@ -463,19 +465,19 @@ contains
       if ( label_list(i) == primary_mesh_label ) then
         ! NB most of the time we want 1/multiplicity
         call nodal_multiplicity_w0%initialise( vector_space = w0_fs )
-        call nodal_multiplicity_w1%initialise( vector_space = w1_fs )
+        call nodal_multiplicity_w1(i)%initialise( vector_space = w1_fs )
         call nodal_multiplicity_w2h%initialise( vector_space = w2h_fs )
         call nodal_rmultiplicity_w0(i)%initialise( vector_space = w0_fs )
         call nodal_rmultiplicity_w1(i)%initialise( vector_space = w1_fs )
         call nodal_rmultiplicity_w2h(i)%initialise( vector_space = w2h_fs )
 
-        call invoke( name = "create_multiplicities",                  &
-                     setval_c(nodal_multiplicity_w0, 0.0_r_def),      &
-                     multiplicity_kernel_type(nodal_multiplicity_w0), &
-                     setval_c(nodal_multiplicity_w1, 0.0_r_def),      &
-                     multiplicity_kernel_type(nodal_multiplicity_w1), &
-                     setval_c(nodal_multiplicity_w2h, 0.0_r_def),     &
-                     multiplicity_kernel_type(nodal_multiplicity_w2h) )
+        call invoke( name = "create_multiplicities",                     &
+                     setval_c(nodal_multiplicity_w0, 0.0_r_def),         &
+                     multiplicity_kernel_type(nodal_multiplicity_w0),    &
+                     setval_c(nodal_multiplicity_w1(i), 0.0_r_def),      &
+                     multiplicity_kernel_type(nodal_multiplicity_w1(i)), &
+                     setval_c(nodal_multiplicity_w2h, 0.0_r_def),        &
+                     multiplicity_kernel_type(nodal_multiplicity_w2h)    )
 
         ! Calculate the reciprocals
         call ones%initialise( vector_space = w0_fs )
@@ -488,7 +490,7 @@ contains
         call invoke( name = "compute_w1_rmultiplicity",             &
                      setval_c(ones, 1.0_r_def),                     &
                      X_divideby_Y(nodal_rmultiplicity_w1(i), ones,  &
-                                  nodal_multiplicity_w1) )
+                                  nodal_multiplicity_w1(i)) )
 
         call ones%initialise( vector_space = w2h_fs )
         call invoke( name = "compute_w2h_rmultiplicity",            &
@@ -837,6 +839,30 @@ contains
 
   end function get_rmultiplicity
 
+  !> @brief Returns a pointer to the multiplicity field
+  !> @param[in] space   the space of the desired multiplicity field
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The multiplicity field
+  function get_multiplicity(space, mesh_id) result(multiplicity)
+    implicit none
+    integer(kind=i_def), intent(in) :: space
+    integer(kind=i_def), intent(in) :: mesh_id
+    integer(kind=i_def)             :: mesh_index
+    type(field_type),       pointer :: multiplicity
+
+    mesh_index = find_mesh_index(mesh_id)
+
+    select case (space)
+      case (W1)
+        multiplicity => nodal_multiplicity_w1(mesh_index)
+      case default
+        multiplicity => null()
+        call log_event( "Multiplicity does not exist for given space", &
+           LOG_LEVEL_ERROR)
+    end select
+
+  end function get_multiplicity
+
   !> @brief Returns the detj values at W2 dof locations
   !> @param[in] mesh_id the ID of the mesh to get the object for
   !> @return The detj field
@@ -859,6 +885,7 @@ contains
 
     deallocate(detj_at_w2)
     deallocate(w2_normalisation)
+    deallocate(nodal_multiplicity_w1)
     deallocate(nodal_rmultiplicity_w2)
     deallocate(nodal_rmultiplicity_w2h)
     deallocate(nodal_rmultiplicity_w1)

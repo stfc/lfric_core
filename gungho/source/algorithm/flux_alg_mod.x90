@@ -52,6 +52,7 @@ module flux_alg_mod
                                             operators_fv,         &
                                             operators_fem,        &
                                             oned_reconstruction
+  use runtime_tools_mod,              only: find_mesh_index
   use log_mod,                        only: log_event,         &
                                             LOG_LEVEL_ERROR,   &
                                             LOG_LEVEL_INFO
@@ -62,25 +63,59 @@ module flux_alg_mod
 
   private
 
-  ! These are made public to be used in other transport modules
-  integer(kind=i_def), public :: flux_stencil_extent, &
-                                 flux2d_stencil_size
-  ! Interpolation coefficients needed for nonuniform fv operators
-  type( field_type ), public  :: flux_coeffs, &
-                                 vert_flux_coeffs
-  integer(kind=i_def), public :: nfaces_re_h, nfaces_re_v
-  integer(kind=i_def), public :: ndata_h, ndata_v
+  logical(kind=l_def) :: variables_allocated = .false.
 
-  public  :: flux_alg
-  public  :: flux_alg_init
-  public  :: flux_alg_final
+  integer(kind=i_def), allocatable, target :: flux_stencil_extent_list(:)
+  integer(kind=i_def), allocatable, target :: flux_2d_stencil_size_list(:)
+  integer(kind=i_def), allocatable, target :: ndata_h_list(:)
+  integer(kind=i_def), allocatable, target :: ndata_v_list(:)
+  type(field_type),    allocatable, target :: flux_coeffs_list(:)
+  type(field_type),    allocatable, target :: vert_flux_coeffs_list(:)
+
+  public :: flux_alg_set_num_meshes
+  public :: flux_alg_init
+  public :: flux_alg_final
+  public :: flux_alg
+  public :: get_flux_stencil_extent
+  public :: get_flux_2d_stencil_size
+  public :: get_flux_ndata_h
+  public :: get_flux_ndata_v
+  public :: get_flux_coeffs
+  public :: get_vert_flux_coeffs
 
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !> @brief Initialises the system for running computing the flux
+  !> @brief Allocates the lists of flux coefficients
+  !> @param[in] number_of_meshes Number of meshes to have coefficients on.
+  subroutine flux_alg_set_num_meshes( number_of_meshes )
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: number_of_meshes
+
+    ! Allocate the arrays of variables
+    if (.not. variables_allocated) then
+      if (.not. allocated(flux_stencil_extent_list)) allocate(flux_stencil_extent_list(number_of_meshes))
+      if (.not. allocated(flux_2d_stencil_size_list)) allocate(flux_2d_stencil_size_list(number_of_meshes))
+      if (.not. allocated(flux_coeffs_list)) allocate(flux_coeffs_list(number_of_meshes))
+      if (.not. allocated(vert_flux_coeffs_list)) allocate(vert_flux_coeffs_list(number_of_meshes))
+      if (.not. allocated(ndata_h_list)) allocate(ndata_h_list(number_of_meshes))
+      if (.not. allocated(ndata_v_list)) allocate(ndata_v_list(number_of_meshes))
+      variables_allocated = .true.
+    else
+      call log_event('Variables have already been allocated for ' // &
+                     'flux_alg', LOG_LEVEL_ERROR)
+    end if
+
+  end subroutine
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Initialises the flux coefficients for a single mesh
   !>
-  !> @details Initializes system required for FV flux computation.
+  !> @details Initialises the flux coefficients and other constants that can
+  !>          be pre-computed for a single mesh.
   !>          FV aspects currently only support lowest order elements.
   !>
   !> @param[in] mesh_id Identity of the mesh to create all fields on
@@ -91,28 +126,45 @@ contains
     use function_space_collection_mod,     only: function_space_collection
     use reference_element_mod,             only: reference_element_type
     use mesh_mod,                          only: mesh_type
+
     implicit none
 
     integer(kind=i_def), intent(in) :: mesh_id
 
-    integer(kind=i_def)             :: flux_stencil_size,  &
-                                        polynomial
-    type( field_type ), pointer     :: chi_sph(:) => null()
-    type( field_type ), pointer     :: panel_id => null()
-    type( field_type ), pointer     :: md_w3 => null()
+    integer(kind=i_def)         :: mesh_index
+    integer(kind=i_def)         :: flux_stencil_size
+    integer(kind=i_def)         :: polynomial
+    integer(kind=i_def)         :: nfaces_re_h
+    integer(kind=i_def)         :: nfaces_re_v
+    integer(kind=i_def)         :: flux_2d_stencil_size
+    integer(kind=i_def)         :: flux_stencil_extent
+    integer(kind=i_def)         :: ndata_h
+    integer(kind=i_def)         :: ndata_v
+    type(field_type),   pointer :: chi_sph(:) => null()
+    type(field_type),   pointer :: panel_id => null()
+    type(field_type),   pointer :: md_w3 => null()
 
-    type( quadrature_rule_gaussian_type )  :: gaussian_quadrature
+    type(quadrature_rule_gaussian_type )  :: gaussian_quadrature
 
-    type( quadrature_xyoz_type )           :: qr
-    type( quadrature_face_type )           :: qrf
-    type( function_space_type ), pointer   :: w3_fs => null()
-    type( field_type )                     :: w3_field
+    type(quadrature_xyoz_type)             :: qr
+    type(quadrature_face_type)             :: qrf
+    type(function_space_type), pointer     :: w3_fs => null()
+    type(field_type)                       :: w3_field
     class(reference_element_type), pointer :: reference_element => null()
     type(mesh_type),               pointer :: mesh => null()
     integer(kind=i_def)                    :: face_quad_order
     integer(kind=i_def)                    :: nqp_xy, nqp_z, nqp_xyz
     real(kind=r_def)                       :: transform_radius, chi3_max
-    type( function_space_type ),   pointer :: multidata_fs => null()
+    type(function_space_type),     pointer :: multidata_fs => null()
+
+    mesh_index = find_mesh_index(mesh_id)
+
+    ! Set default values of 0 for the integers to be stored for this mesh_id,
+    ! in case they aren't set below
+    flux_stencil_extent = 0_i_def
+    flux_2d_stencil_size = 0_i_def
+    ndata_h = 0_i_def
+    ndata_v = 0_i_def
 
     if ( operators == operators_fv ) then
       ! This setup is only needed for FV methods
@@ -141,15 +193,15 @@ contains
           ! Compute the maximum number of cells in the flux stencil
           ! This occurs on a uniform mesh
           ! (this computation is only correct for quadrilateral meshes)
-          flux2d_stencil_size = 1
+          flux_2d_stencil_size = 1
           do polynomial = 1, fv_flux_order
             if ( mod(polynomial, 2) == 0 ) then
-              flux2d_stencil_size = flux2d_stencil_size + nfaces_re_h
+              flux_2d_stencil_size = flux_2d_stencil_size + nfaces_re_h
             else
-              flux2d_stencil_size = flux2d_stencil_size + nfaces_re_h*polynomial
+              flux_2d_stencil_size = flux_2d_stencil_size + nfaces_re_h*polynomial
             end if
           end do
-          flux_stencil_size = flux2d_stencil_size
+          flux_stencil_size = flux_2d_stencil_size
         end if
 
         chi_sph => get_coordinates(mesh_id)
@@ -179,39 +231,63 @@ contains
                                    reference_element, gaussian_quadrature)
 
         call log_event( "Gungho: computing horizontal flux coeffs", LOG_LEVEL_INFO )
+
         md_w3 => get_mass_matrix_diagonal(W3, mesh_id)
         ! Create multi-data space and field for the vertical flux coefficients
         ndata_h = nfaces_re_h*flux_stencil_size
         multidata_fs => function_space_collection%get_fs( mesh_id, element_order, W3, ndata_h )
-        call flux_coeffs%initialise( vector_space = multidata_fs, ndata_first = .true. )
+        call flux_coeffs_list(mesh_index)%initialise( vector_space = multidata_fs, ndata_first = .true. )
+
         if ( oned_reconstruction ) then
-          call invoke(poly1d_flux_coeffs_kernel_type(                              &
-                                          flux_coeffs, md_w3, flux_stencil_extent, &
-                                          chi_sph, flux_stencil_extent,            &
-                                          panel_id, flux_stencil_extent,           &
-                                          ndata_h, fv_flux_order,                  &
-                                          transform_radius, qr, qrf ) )
+          call invoke(poly1d_flux_coeffs_kernel_type(                          &
+                                                flux_coeffs_list(mesh_index),  &
+                                                md_w3,                         &
+                                                flux_stencil_extent,           &
+                                                chi_sph,                       &
+                                                flux_stencil_extent,           &
+                                                panel_id,                      &
+                                                flux_stencil_extent,           &
+                                                ndata_h,                       &
+                                                fv_flux_order,                 &
+                                                transform_radius,              &
+                                                qr, qrf ) )
         else
-          call invoke(poly2d_flux_coeffs_kernel_type( flux_coeffs, md_w3, flux_stencil_extent, &
-                                          chi_sph, flux_stencil_extent, panel_id,              &
-                                          flux_stencil_extent, ndata_h, fv_flux_order,         &
-                                          flux2d_stencil_size, transform_radius,               &
-                                          qr, qrf) )
+          call invoke(poly2d_flux_coeffs_kernel_type(                          &
+                                                flux_coeffs_list(mesh_index),  &
+                                                md_w3,                         &
+                                                flux_stencil_extent,           &
+                                                chi_sph,                       &
+                                                flux_stencil_extent,           &
+                                                panel_id,                      &
+                                                flux_stencil_extent,           &
+                                                ndata_h,                       &
+                                                fv_flux_order,                 &
+                                                flux_2d_stencil_size,          &
+                                                transform_radius,              &
+                                                qr, qrf) )
         end if
+
         ! Vertical flux coeffs
         call log_event( "Gungho: computing vertical flux coeffs", LOG_LEVEL_INFO )
+
         ! Create multi-data space and field for the vertical flux coefficients
         ndata_v = nfaces_re_v*(fv_flux_order+1)
         multidata_fs => function_space_collection%get_fs( mesh_id, element_order, W3, ndata_v )
-        call vert_flux_coeffs%initialise( vector_space = multidata_fs, ndata_first = .true. )
+        call vert_flux_coeffs_list(mesh_index)%initialise( vector_space = multidata_fs, ndata_first = .true. )
+
         ! Quadrature rule on vertical faces with 1 point in both horizontal and
         ! vertical directions
         nqp_xyz = 1
         qrf = quadrature_face_type(nqp_xyz, .false., .true.,                   &
                                    reference_element, gaussian_quadrature)
-        call invoke(poly1d_vert_flux_coeffs_kernel_type( vert_flux_coeffs, md_w3, chi_sph, &
-                                                         ndata_v, fv_flux_order, qr, qrf ) )
 
+        call invoke(poly1d_vert_flux_coeffs_kernel_type(                       &
+                                          vert_flux_coeffs_list(mesh_index),   &
+                                          md_w3,                               &
+                                          chi_sph,                             &
+                                          ndata_v,                             &
+                                          fv_flux_order,                       &
+                                          qr, qrf ) )
 
         !======================================================================!
       else
@@ -219,6 +295,11 @@ contains
                          order elements", LOG_LEVEL_ERROR )
       end if
     end if
+
+    flux_stencil_extent_list(mesh_index) = flux_stencil_extent
+    flux_2d_stencil_size_list(mesh_index) = flux_2d_stencil_size
+    ndata_h_list(mesh_index) = ndata_h
+    ndata_v_list(mesh_index) = ndata_v
 
     nullify( chi_sph, panel_id, md_w3, w3_fs, reference_element, mesh )
 
@@ -230,6 +311,13 @@ contains
   subroutine flux_alg_final()
 
     implicit none
+
+    if (allocated(ndata_v_list)) deallocate(ndata_v_list)
+    if (allocated(ndata_h_list)) deallocate(ndata_h_list)
+    if (allocated(vert_flux_coeffs_list)) deallocate(vert_flux_coeffs_list)
+    if (allocated(flux_coeffs_list)) deallocate(flux_coeffs_list)
+    if (allocated(flux_2d_stencil_size_list)) deallocate(flux_2d_stencil_size_list)
+    if (allocated(flux_stencil_extent_list)) deallocate(flux_stencil_extent_list)
 
   end subroutine flux_alg_final
 
@@ -259,9 +347,16 @@ contains
 
   type(function_space_type), pointer  :: u_fs  => null()
   integer(kind=i_def) :: mesh_id
+  integer(kind=i_def) :: mesh_index
   integer(kind=i_def) :: logspace_loc
   integer(kind=i_def) :: stencil_extent
 
+  integer(kind=i_def), pointer :: flux_stencil_extent
+  integer(kind=i_def), pointer :: flux_2d_stencil_size
+  integer(kind=i_def), pointer :: ndata_h
+  integer(kind=i_def), pointer :: ndata_v
+  type(field_type),    pointer :: flux_coeffs
+  type(field_type),    pointer :: vert_flux_coeffs
 
   ! Psyclone doesn't support the passing of logicals to kernels
   ! so we have to set up an integer instead
@@ -271,6 +366,15 @@ contains
   end if
 
   mesh_id = mass_flux%get_mesh_id()
+  mesh_index = find_mesh_index(mesh_id)
+
+  ! Get extents and data sizes for this mesh
+  flux_stencil_extent => flux_stencil_extent_list(mesh_index)
+  flux_2d_stencil_size => flux_2d_stencil_size_list(mesh_index)
+  ndata_h => ndata_h_list(mesh_index)
+  ndata_v => ndata_v_list(mesh_index)
+  flux_coeffs => flux_coeffs_list(mesh_index)
+  vert_flux_coeffs => vert_flux_coeffs_list(mesh_index)
 
   select case(operators)
 
@@ -283,19 +387,26 @@ contains
       call invoke( setval_c( mass_flux, 0.0_r_def) )
      if ( oned_reconstruction ) then
        ! Use 1d flux reconstruction
-       call invoke( poly1d_flux_kernel_type( mass_flux, wind, density, flux_stencil_extent, &
-                                             flux_coeffs, fv_flux_order, ndata_h ) )
+       call invoke( poly1d_flux_kernel_type( mass_flux, wind, density,        &
+                                             flux_stencil_extent,             &
+                                             flux_coeffs,                     &
+                                             fv_flux_order,                   &
+                                             ndata_h ) )
      else
        ! Use 2d flux reconstruction
        stencil_extent = fv_flux_order/2
-       call invoke( poly2d_flux_kernel_type( mass_flux, wind, density, stencil_extent, &
-                                flux_coeffs, ndata_h, flux2d_stencil_size) )
+       call invoke( poly2d_flux_kernel_type( mass_flux, wind, density,        &
+                                             stencil_extent,                  &
+                                             flux_coeffs,                     &
+                                             ndata_h,                         &
+                                             flux_2d_stencil_size) )
 
      end if
      ! Compute vertical components of mass flux
-     call invoke( poly1d_vert_flux_kernel_type( mass_flux, wind, density,   &
-                                                vert_flux_coeffs,           &
-                                                ndata_v, fv_flux_order,     &
+     call invoke( poly1d_vert_flux_kernel_type( mass_flux, wind, density,     &
+                                                vert_flux_coeffs,             &
+                                                ndata_v,                      &
+                                                fv_flux_order,                &
                                                 logspace_loc) )
     case(operators_fem)
       ! Project density*wind into the mass flux space
@@ -317,5 +428,89 @@ contains
       nullify( mm_w2, chi_sph, panel_id, mmd_w2, u_fs )
   end select
   end subroutine flux_alg
+
+  !> @brief Returns a pointer to the flux stencil extent
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The flux stencil extent
+  function get_flux_stencil_extent(mesh_id) result(flux_stencil_extent)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    integer(kind=i_def)             :: mesh_index
+    integer(kind=i_def),    pointer :: flux_stencil_extent
+
+    mesh_index = find_mesh_index(mesh_id)
+    flux_stencil_extent => flux_stencil_extent_list(mesh_index)
+
+  end function get_flux_stencil_extent
+
+  !> @brief Returns a pointer to the flux 2D stencil size
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The flux 2D stencil size
+  function get_flux_2d_stencil_size(mesh_id) result(flux_stencil_size)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    integer(kind=i_def)             :: mesh_index
+    integer(kind=i_def),    pointer :: flux_stencil_size
+
+    mesh_index = find_mesh_index(mesh_id)
+    flux_stencil_size => flux_2d_stencil_size_list(mesh_index)
+
+  end function get_flux_2d_stencil_size
+
+  !> @brief Returns a pointer to the number of horizontal data points
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The ndata_h integer
+  function get_flux_ndata_h(mesh_id) result(ndata_h)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    integer(kind=i_def)             :: mesh_index
+    integer(kind=i_def),    pointer :: ndata_h
+
+    mesh_index = find_mesh_index(mesh_id)
+    ndata_h => ndata_h_list(mesh_index)
+
+  end function get_flux_ndata_h
+
+  !> @brief Returns a pointer to the number of vertical data points
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The ndata_v integer
+  function get_flux_ndata_v(mesh_id) result(ndata_v)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    integer(kind=i_def)             :: mesh_index
+    integer(kind=i_def),    pointer :: ndata_v
+
+    mesh_index = find_mesh_index(mesh_id)
+    ndata_v => ndata_v_list(mesh_index)
+
+  end function get_flux_ndata_v
+
+  !> @brief Returns a pointer to the flux coefficients
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The flux coefficients field
+  function get_flux_coeffs(mesh_id) result(flux_coeffs)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    integer(kind=i_def)             :: mesh_index
+    type(field_type),       pointer :: flux_coeffs
+
+    mesh_index = find_mesh_index(mesh_id)
+    flux_coeffs => flux_coeffs_list(mesh_index)
+
+  end function get_flux_coeffs
+
+  !> @brief Returns a pointer to the vertical flux coefficients
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The vertical flux coefficient field
+  function get_vert_flux_coeffs(mesh_id) result(vert_flux_coeffs)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    integer(kind=i_def)             :: mesh_index
+    type(field_type),       pointer :: vert_flux_coeffs
+
+    mesh_index = find_mesh_index(mesh_id)
+    vert_flux_coeffs => vert_flux_coeffs_list(mesh_index)
+
+  end function get_vert_flux_coeffs
 
 end module flux_alg_mod
