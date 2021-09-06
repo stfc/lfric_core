@@ -174,9 +174,9 @@ subroutine rad_tile_code(nlayers,                                &
   use nvegparm, only: emis_nvg
   use pftparm, only: emis_pft
   use jules_sea_seaice_mod, only: nice, nice_use, emis_sea, emis_sice
-  use jules_fields_mod, only: psparms, ainfo, urban_param, progs, coast, &
-    jules_vars, &
-    !fluxes, &
+  use jules_fields_mod, only: psparms, ainfo, urban_param, progs, coast,      &
+    jules_vars,                                                               &
+    fluxes,                                                                   &
     lake_vars
     !forcing, &
     !rivers, &
@@ -249,7 +249,7 @@ subroutine rad_tile_code(nlayers,                                &
 
   ! Inputs to surf_couple_radiation
   real(r_um), dimension(row_length, rows) :: &
-    tstar_sea, ws_10m_sea, chloro, flandg
+    ws_10m_sea, chloro, flandg
   real(r_um), dimension(row_length, rows, nice_use) :: &
     ice_fract_cat
   real(r_um), dimension(land_field) :: &
@@ -261,9 +261,7 @@ subroutine rad_tile_code(nlayers,                                &
 
   ! Outputs from surf_couple_radiation
   real(r_um), dimension(row_length, rows, 4) :: &
-    sea_ice_albedo, land_albedo
-  real(r_um), dimension(land_field, ntiles, 4) :: &
-    alb_tile
+    sea_ice_albedo
   real(r_um), dimension(row_length, rows, ntiles, 2) :: &
     albobs_sc
   real(r_um), dimension(row_length, rows, 2, n_sw_band) :: &
@@ -308,7 +306,7 @@ subroutine rad_tile_code(nlayers,                                &
   end do
 
   ! Sea temperature
-  tstar_sea = real(tile_temperature(map_tile(1)+first_sea_tile-1), r_um)
+  fluxes%tstar_ij = real(tile_temperature(map_tile(1)+first_sea_tile-1), r_um)
 
   ! Sea-ice temperatures
   i_sice = 0
@@ -434,27 +432,24 @@ subroutine rad_tile_code(nlayers,                                &
   progs%soot_ij = real(snow_soot(map_2d(1)), r_um)
 
   call surf_couple_radiation(                                   &
-  ! Fluxes INTENT(IN)
-    tstar_sea,                                                  &
   ! Misc INTENT(IN)
     ws_10m_sea, chloro,                                         &
     n_sw_band, n_sw_band,                                       &
     sw_wavelength_short, sw_wavelength_long,                    &
   ! Misc INTENT(OUT)
     sea_ice_albedo,                                             &
-  ! Fluxes INTENT(OUT)
-    alb_tile, land_albedo,                                      &
   ! (ancil_info mod)
     ntiles, land_field, type_pts, row_length, rows,             &
   ! (coastal mod)
-    flandg,                                      &
+    flandg,                                                     &
   ! (prognostics mod)
     snow_surft, &
   ! UM-only args: INTENT(OUT)
     albobs_sc, open_sea_albedo,                                 &
   ! JULES types
-    psparms, ainfo, urban_param, progs, coast, jules_vars, &
-  lake_vars &
+    psparms, ainfo, urban_param, progs, coast, jules_vars,      &
+    fluxes,                                                     &
+    lake_vars &
   !forcing, &
   !rivers, &
   !veg3_parm, &
@@ -471,14 +466,14 @@ subroutine rad_tile_code(nlayers,                                &
       if (tile_fraction(map_tile(1)+i_tile-1) > 0.0_r_def) then
         tile_sw_direct_albedo(map_sw_tile(1)+df_rtile-1) &
           = sw_weight_blue(i_band) &
-          * real(alb_tile(1, i_tile, 1), r_def)  & ! visible direct albedo
+          * real(fluxes%alb_surft(1, i_tile, 1), r_def)  & ! visible direct albedo
           + (1.0_r_def - sw_weight_blue(i_band)) &
-          * real(alb_tile(1, i_tile, 3), r_def)    ! near-ir direct albedo
+          * real(fluxes%alb_surft(1, i_tile, 3), r_def)    ! near-ir direct albedo
         tile_sw_diffuse_albedo(map_sw_tile(1)+df_rtile-1) &
           = sw_weight_blue(i_band) &
-          * real(alb_tile(1, i_tile, 2), r_def)  & ! visible diffuse albedo
+          * real(fluxes%alb_surft(1, i_tile, 2), r_def)  & ! visible diffuse albedo
           + (1.0_r_def - sw_weight_blue(i_band)) &
-          * real(alb_tile(1, i_tile, 4), r_def)    ! near-ir diffuse albedo
+          * real(fluxes%alb_surft(1, i_tile, 4), r_def)    ! near-ir diffuse albedo
       else
         tile_sw_direct_albedo(map_sw_tile(1)+df_rtile-1) = 0.0_r_def
         tile_sw_diffuse_albedo(map_sw_tile(1)+df_rtile-1) = 0.0_r_def

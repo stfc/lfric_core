@@ -96,8 +96,8 @@ module jules_physics_init_mod
                                       trifctl_data, trifctltype,              &
                                       coastal_data, coast,                    &
                                       jules_vars_data, jules_vars,            &
-                                      !fluxes_data, fluxes, &
-                                      lake_data, lake_vars, &
+                                      fluxes_data, fluxes,                    &
+                                      lake_data, lake_vars,                   &
                                       forcing_data, forcing
                                       !rivers_data, rivers, &
                                       !veg3_parm_data, veg3_parm, &
@@ -117,7 +117,7 @@ module jules_physics_init_mod
   use trifctl,                 only : trifctl_assoc
   use coastal,                 only : coastal_assoc
   use jules_vars_mod,          only : jules_vars_assoc
-! use fluxes,                  only: fluxes_assoc
+  use fluxes_mod,              only : fluxes_assoc
   use lake_mod,                only: lake_assoc
   use jules_forcing_mod,       only: forcing_assoc
 ! use jules_rivers_mod,        only: rivers_assoc
@@ -486,9 +486,9 @@ contains
                                soil_ecosse_vars_data, aero_data,               &
                                urban_param_data, progs_data, trifctl_data,     &
                                coastal_data,jules_vars_data,                   &
-                              !fluxes_data, &
-                               lake_data, &
-                               forcing_data &
+                               fluxes_data,                                    &
+                               lake_data,                                      &
+                               forcing_data                                    &
                               !rivers_data, &
                               !veg3_parm_data, &
                               !veg3_field_data, &
@@ -515,7 +515,7 @@ contains
     call trifctl_assoc(trifctltype, trifctl_data)
     call coastal_assoc(coast, coastal_data)
     call jules_vars_assoc(jules_vars,jules_vars_data)
-    !call fluxes_assoc(fluxes,fluxes_data)
+    call fluxes_assoc(fluxes,fluxes_data)
     call lake_assoc(lake_vars,lake_data)
     call forcing_assoc(forcing,forcing_data)
     !call rivers_assoc(rivers,rivers_data)

@@ -256,9 +256,9 @@ contains
     use jules_snow_mod, only: nsmax
     use jules_fields_mod, only: crop_vars, psparms, toppdm, fire_vars, ainfo, &
                                 trif_vars, soilecosse, aerotype, urban_param, &
-                                progs, trifctltype, jules_vars, &
-                                !fluxes, &
-                                lake_vars, &
+                                progs, trifctltype, jules_vars,               &
+                                fluxes,                                       &
+                                lake_vars,                                    &
                                 forcing
                                 !rivers, &
                                 !veg3_parm, &
@@ -381,10 +381,7 @@ contains
     ! State
     real(r_um), dimension(land_pts, ntiles) ::                                &
     ! Fluxes
-         ei_surft, surf_htf_surft, ecan_surft, tile_frac, sw_surft,           &
-         fqw_surft, u_s_std_surft
-
-    real(r_um), dimension(land_pts, nsoilt, sm_levels) :: ext_soilt
+         tile_frac, u_s_std_surft
 
     real(r_um), dimension(land_pts, nsoilt) :: fexp_soilt, gamtot_soilt,      &
          ti_mean_soilt, ti_sig_soilt, a_fsat_soilt, c_fsat_soilt,             &
@@ -407,31 +404,21 @@ contains
     integer(i_um) :: a_steps_since_riv, asteps_since_triffid
 
     ! Real variables (module intent = in out)
-    real(r_um), dimension(land_pts, nsurft) :: melt_surft
-
     real(r_um), dimension(row_length, rows) :: substore, surfstore, flowin,   &
          bflowin, acc_lake_evap
 
     real(r_um), dimension(river_row_length, river_rows) :: twatstor
 
-    real(r_um), dimension(land_pts, dim_cs1) :: resp_s_acc_gb_um,        &
+    real(r_um), dimension(land_pts, dim_cs1) :: resp_s_acc_gb_um,             &
          cs_pool_gb_um
 
-    real(r_um), dimension(land_pts) :: snomlt_sub_htf, dhf_surf_minus_soil,   &
+    real(r_um), dimension(land_pts) :: dhf_surf_minus_soil,                   &
          ls_rainfrac_gb, tot_surf_runoff, tot_sub_runoff, inlandout_atm_gb
 
     real(r_um), dimension(land_pts, nsoilt) :: hcons_soilt, fsat_soilt,       &
          fwetl_soilt, zw_soilt, sthzw_soilt, cs_ch4_soilt
 
     real(r_um), dimension(land_pts, nsoilt, 1, dim_cs1) :: resp_s_soilt
-
-    ! Real variables (module intent = out)
-    real(r_um), dimension(land_pts) :: sub_surf_roff, surf_roff, tot_tfall,   &
-         snowmelt_gb, rrun, rflow
-
-    real(r_um), dimension(row_length, rows) :: snomlt_surf_htf, snowmelt_ij
-
-    real(r_um), dimension(land_pts, nsurft) :: snow_soil_htf
 
     !-------------------------------------------------------------------
 
@@ -453,9 +440,9 @@ contains
     do i = 1, n_land_tile
       flandg = flandg + real(tile_fraction(map_tile(1)+i-1), r_um)
       ainfo%frac_surft(1, i)     = real(tile_fraction(map_tile(1)+i-1), r_um)
-      ei_surft(1, i)       = real(snow_sublimation(map_tile(1)+i-1), r_um)
-      surf_htf_surft(1, i) = real(surf_heat_flux(map_tile(1)+i-1), r_um)
-      ecan_surft(1, i)     = real(canopy_evap(map_tile(1)+i-1), r_um)
+      fluxes%ei_surft(1, i)       = real(snow_sublimation(map_tile(1)+i-1), r_um)
+      fluxes%surf_htf_surft(1, i) = real(surf_heat_flux(map_tile(1)+i-1), r_um)
+      fluxes%ecan_surft(1, i)     = real(canopy_evap(map_tile(1)+i-1), r_um)
     end do
 
     ! Jules requires fractions with respect to the land area
@@ -558,7 +545,7 @@ contains
     ! Frozen soil moisture proportion (sthf_soilt)
       psparms%sthf_soilt(1, 1, i) = real(frozen_soil_moisture(map_soil(1)+i-1), r_um)
     ! Water extraction (ext_soilt [=ext in bl_kernel))
-      ext_soilt(1, 1, i) = real(water_extraction(map_soil(1)+i-1), r_um)
+      fluxes%ext_soilt(1, 1, i) = real(water_extraction(map_soil(1)+i-1), r_um)
     end do
 
     ! Soil thermal conductivity (hcon_soilt, hcons_soilt)
@@ -625,7 +612,7 @@ contains
 
     ! Snow melt
     do i = 1, n_land_tile
-      melt_surft(1, i) = real(total_snowmelt(map_tile(1)+i-1), r_um)
+      fluxes%melt_surft(1, i) = real(total_snowmelt(map_tile(1)+i-1), r_um)
     end do
 
     ! Soil saturated fraction
@@ -643,22 +630,19 @@ contains
   !----------------------------------------------------------------------------
   ! Call to surf_couple_extra using JULESvn5.4 standalone variable names
 
+    !fqw_surft is not set so will not pick up value calculated via bl_imp
+    !However, this is only presently used by river routing so has no effect in
+    !LFRic
+
+    !sw_surft is not set in this kernel so will not pick up appropriate values
+    !This will affect water resource, irrigation and lakes once coupled to LFRic
+
     call surf_couple_extra(                                                   &
     !Driving data and associated INTENT(IN)
     u_1_ij, v_1_ij,                                                           &
 
-    !Fluxes INTENT(IN)
-    ei_surft, surf_htf_surft, ecan_surft, ext_soilt, sw_surft,                &
-
     !Misc INTENT(IN)
     a_step, smlt, tile_frac, hcons_soilt, rho_star,                           &
-
-    !Fluxes INTENT(IN OUT)
-    melt_surft,                                                               &
-
-    !Fluxes INTENT(OUT)
-    snomlt_surf_htf, snowmelt_ij, snomlt_sub_htf, sub_surf_roff, surf_roff,   &
-    tot_tfall, snowmelt_gb, rrun, rflow, snow_soil_htf,                       &
 
     !IN
     land_pts, row_length, rows, river_row_length, river_rows,                 &
@@ -666,7 +650,7 @@ contains
     lice_pts, soil_pts, stf_sub_surf_roff,fexp_soilt,                         &
     gamtot_soilt, ti_mean_soilt, ti_sig_soilt, cs_ch4_soilt, flash_rate_ancil,&
     pop_den_ancil, a_fsat_soilt, c_fsat_soilt, a_fwet_soilt, c_fwet_soilt,    &
-    ntype, fqw_surft, delta_lambda, delta_phi,                                &
+    ntype, delta_lambda, delta_phi,                                &
     cos_theta_latitude, aocpl_row_length, aocpl_p_rows, xpa, xua, xva, ypa,   &
     yua, yva, g_p_field, g_r_field, nproc, global_row_length, global_rows,    &
     global_river_row_length, global_river_rows, flandg, trivdir, trivseq,     &
@@ -690,7 +674,7 @@ contains
     ! JULES TYPES containing field data
     crop_vars, psparms, toppdm, fire_vars, ainfo, trif_vars, soilecosse,      &
     urban_param, progs, trifctltype, jules_vars,                              &
-    !fluxes, &
+    fluxes, &
     lake_vars, &
     forcing &
     !rivers, &
@@ -719,7 +703,7 @@ contains
       ! Snowpack density (rho_snow_grnd_surft)
       snowpack_density(map_tile(1)+i-1) = real(progs%rho_snow_grnd_surft(1, i), r_def)
       ! Total snowmelt
-      total_snowmelt(map_tile(1)+i-1) = real(melt_surft(1, i), r_def)
+      total_snowmelt(map_tile(1)+i-1) = real(fluxes%melt_surft(1, i), r_def)
       do j = 1, nsmax
         ! Thickness of snow layers
         snow_layer_thickness(map_snow(1)+i_snow) = real(progs%ds_surft(1, i, j), r_def)

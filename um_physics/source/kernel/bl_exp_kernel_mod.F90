@@ -517,7 +517,6 @@ contains
     use timestep_mod, only: timestep
 
     ! spatially varying fields used from modules
-    use fluxes, only: sw_sea, sw_sicat
     use level_heights_mod, only: r_theta_levels, r_rho_levels
     use ozone_vars, only: o3_gb
     use turb_diff_ctl_mod, only: visc_m, visc_h, max_diff, delta_smag
@@ -538,9 +537,9 @@ contains
     use jules_fields_mod, only : crop_vars, psparms, ainfo, trif_vars,         &
                                  aerotype, urban_param, progs, trifctltype,    &
                                  coast, jules_vars,                            &
-                                !fluxes, &
-                                lake_vars, &
-                                forcing
+                                 fluxes,                                       &
+                                 lake_vars,                                    &
+                                 forcing
                                 !rivers, &
                                 !veg3_parm, &
                                 !veg3_field, &
@@ -785,7 +784,7 @@ contains
 
     ! fields on sea-ice categories
     real(r_um), dimension(row_length,rows,nice_use) ::                       &
-         tstar_sice_ncat, fqw_ice, ftl_ice, ice_fract_ncat, alpha1_sice,     &
+         tstar_sice_ncat, ice_fract_ncat, alpha1_sice,                       &
          ashtf_prime, rhokh_sice, k_sice_ncat, ti_sice_ncat, dtstar_sice
 
     ! field on land points and soil levels
@@ -812,10 +811,10 @@ contains
 
     ! fields on land points and tiles
     real(r_um), dimension(land_field,ntiles) :: canopy_surft, catch_surft,   &
-         catch_snow_surft, snow_surft, z0_surft, z0h_bare_surft, sw_surft,   &
-         tstar_surft, frac_surft, ftl_surft, fqw_surft, dtstar_surft,        &
+         catch_snow_surft, snow_surft, z0_surft, z0h_bare_surft,             &
+         tstar_surft, frac_surft, dtstar_surft,                              &
          alpha1, ashtf_prime_surft, chr1p5m, fraca, resfs, rhokh_surft,      &
-         z0h_surft, z0m_surft, canhc_surft
+         canhc_surft
 
     ! fields on land points and pfts
     real(r_um), dimension(land_field,npft) :: canht_pft, lai_pft
@@ -871,7 +870,7 @@ contains
     real(r_um), dimension(land_field,dim_cs2) :: resp_s_acc_gb_um
 
     real(r_um), dimension(land_field,ntiles) :: tsurf_elev_surft, epot_surft,&
-         aresist_surft, dust_emiss_frac, emis_surft, flake, gc_surft, resft, &
+         aresist_surft, dust_emiss_frac, flake, gc_surft, resft,             &
          resist_b_surft, rho_aresist_surft, tile_frac, u_s_std_surft
 
     real(r_um), dimension(land_field,ntiles,ndivh) :: u_s_t_dry_tile,        &
@@ -919,9 +918,9 @@ contains
     rho_wet_rsq = 1.0_r_um
 
     ! Initialise those fields whose contents will not be fully set
-    fraca      = 0.0_r_um
-    fqw_surft  = 0.0_r_um
-    epot_surft = 0.0_r_um
+    fraca            = 0.0_r_um
+    fluxes%fqw_surft = 0.0_r_um
+    epot_surft       = 0.0_r_um
 
     !-----------------------------------------------------------------------
     ! Mapping of LFRic fields into UM variables
@@ -1146,19 +1145,19 @@ contains
 
     ! Net SW radiation on tiles
     do i = 1, n_land_tile
-      sw_surft(1, i) = real(sw_down_surf(map_2d(1)) - &
+      fluxes%sw_surft(1, i) = real(sw_down_surf(map_2d(1)) - &
                             sw_up_tile(map_tile(1)+i-1), r_um)
     end do
 
     ! Net SW on open sea
-    sw_sea(1) = real(sw_down_surf(map_2d(1)) - &
+    fluxes%sw_sea(1) = real(sw_down_surf(map_2d(1)) - &
                      sw_up_tile(map_tile(1)+first_sea_tile-1), r_um)
 
     ! Net SW on sea-ice
     i_sice = 0
     do i = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
       i_sice = i_sice + 1
-      sw_sicat(1, i_sice) = real(sw_down_surf(map_2d(1)) - &
+      fluxes%sw_sicat(1, i_sice) = real(sw_down_surf(map_2d(1)) - &
                                  sw_up_tile(map_tile(1)+i-1), r_um)
     end do
 
@@ -1338,7 +1337,7 @@ contains
     !     IN additional variables for JULES
          canopy_surft, catch_surft, catch_snow_surft, snow_surft,              &
          z0_surft, z0h_bare_surft,                                             &
-         z0m_soil_gb, lw_down, sw_surft, tstar_surft, tsurf_elev_surft,        &
+         z0m_soil_gb, lw_down, tstar_surft, tsurf_elev_surft,                  &
          co2,                                                                  &
          asteps_since_triffid,                                                 &
          cs_pool_gb_um,frac_surft,canht_pft,lai_pft,fland,flandg,              &
@@ -1360,7 +1359,7 @@ contains
     !     JULES TYPES (IN OUT)
          crop_vars, psparms, ainfo, trif_vars, aerotype, urban_param,          &
          progs, trifctltype, coast, jules_vars,                                &
-        !fluxes, &
+         fluxes, &
          lake_vars, &
          forcing, &
         !rivers, &
@@ -1379,16 +1378,16 @@ contains
     !     INOUT variables required in IMP_SOLVER
          alpha1_sea, alpha1_sice, ashtf_prime_sea, ashtf_prime, u_s,           &
     !     INOUT additional variables for JULES
-         ftl_surft,radnet_sice,rho_aresist_surft,                              &
+         radnet_sice,rho_aresist_surft,                                        &
          aresist_surft, resist_b_surft, alpha1, ashtf_prime_surft,             &
-         fqw_surft, epot_surft,                                                &
-         fqw_ice,ftl_ice,fraca,resfs,resft,rhokh_surft,rhokh_sice,rhokh_sea,   &
-         z0hssi,z0h_surft,z0mssi,z0m_surft,chr1p5m,chr1p5m_sice,smc_soilt,     &
+         epot_surft,                                                           &
+         fraca,resfs,resft,rhokh_surft,rhokh_sice,rhokh_sea,                   &
+         z0hssi,z0mssi,chr1p5m,chr1p5m_sice,smc_soilt,                         &
          npp_gb, resp_s_gb_um, resp_s_tot_soilt,                               &
          resp_w_pft, gc_surft, canhc_surft, wt_ext_surft, flake,               &
          surft_index, surft_pts,                                               &
          tile_frac, tstar_land, tstar_ssi, dtstar_surft,                       &
-         dtstar_sea, dtstar_sice, hcons_soilt, emis_surft, emis_soil,          &
+         dtstar_sea, dtstar_sice, hcons_soilt, emis_soil,                      &
          t1_sd, q1_sd, fb_surf,                                                &
     !     OUT variables for message passing
          tau_fd_x, tau_fd_y, rhogamu, rhogamv, f_ngstress,                     &
@@ -1400,7 +1399,7 @@ contains
          u_s_std_surft, kent, we_lim, t_frac, zrzi,                            &
          kent_dsc, we_lim_dsc, t_frac_dsc, zrzi_dsc, zhsc,                     &
     !     OUT fields
-         nbdsc,ntdsc,wstar,wthvs,uw0,vw0,taux_p,tauy_p,rhcpt,tgrad_bm             &
+         nbdsc,ntdsc,wstar,wthvs,uw0,vw0,taux_p,tauy_p,rhcpt,tgrad_bm          &
        )
     end if
 
@@ -1484,7 +1483,7 @@ contains
     !     IN additional variables for JULES
          canopy_surft, catch_surft, catch_snow_surft, snow_surft,       &
          z0_surft, z0h_bare_surft,                                      &
-         z0m_soil_gb, lw_down, sw_surft, tstar_surft, tsurf_elev_surft, &
+         z0m_soil_gb, lw_down, tstar_surft, tsurf_elev_surft, &
          co2,                                                           &
          asteps_since_triffid,                                          &
          cs_pool_gb_um,frac_surft,canht_pft,lai_pft,fland,flandg,       &
@@ -1506,9 +1505,9 @@ contains
     !     JULES TYPES (IN OUT)
          crop_vars, psparms, ainfo, trif_vars, aerotype, urban_param,   &
          progs, trifctltype, coast, jules_vars,                         &
-        !fluxes, &
-         lake_vars, &
-         forcing, &
+         fluxes,                                                        &
+         lake_vars,                                                     &
+         forcing,                                                       &
         !rivers, &
         !veg3_parm, &
         !veg3_field, &
@@ -1525,16 +1524,16 @@ contains
       ! INOUT variables required in IMP_SOLVER
         alpha1_sea, alpha1_sice, ashtf_prime_sea, ashtf_prime, u_s,     &
       ! INOUT additional variables for JULES
-        ftl_surft,radnet_sice,rho_aresist_surft,                        &
+        radnet_sice,rho_aresist_surft,                                  &
         aresist_surft, resist_b_surft, alpha1, ashtf_prime_surft,       &
-        fqw_surft, epot_surft,                                          &
-        fqw_ice,ftl_ice,fraca,resfs,resft,rhokh_surft,rhokh_sice,rhokh_sea, &
-        z0hssi,z0h_surft,z0mssi,z0m_surft,chr1p5m,chr1p5m_sice,smc_soilt, &
+        epot_surft,                                                     &
+        fraca,resfs,resft,rhokh_surft,rhokh_sice,rhokh_sea,             &
+        z0hssi,z0mssi,chr1p5m,chr1p5m_sice,smc_soilt,                   &
         npp_gb, resp_s_gb_um, resp_s_tot_soilt,                         &
         resp_w_pft, gc_surft, canhc_surft, wt_ext_surft, flake,         &
         surft_index, surft_pts,                                         &
         tile_frac, tstar_land, tstar_ssi, dtstar_surft,                 &
-        dtstar_sea, dtstar_sice, hcons_soilt, emis_surft, emis_soil,    &
+        dtstar_sea, dtstar_sice, hcons_soilt, emis_soil,                &
         t1_sd, q1_sd, fb_surf,                                          &
       ! OUT variables for message passing
         tau_fd_x, tau_fd_y, rhogamu, rhogamv, f_ngstress,               &
@@ -1646,8 +1645,8 @@ contains
       ashtf_prime_tile(map_tile(1)+i-1) = ashtf_prime_surft(1, i)
       dtstar_tile(map_tile(1)+i-1) = dtstar_surft(1, i)
       fraca_tile(map_tile(1)+i-1) = fraca(1, i)
-      z0h_tile(map_tile(1)+i-1) = z0h_surft(1, i)
-      z0m_tile(map_tile(1)+i-1) = z0m_surft(1, i)
+      z0h_tile(map_tile(1)+i-1) = fluxes%z0h_surft(1, i)
+      z0m_tile(map_tile(1)+i-1) = fluxes%z0m_surft(1, i)
       rhokh_tile(map_tile(1)+i-1) = rhokh_surft(1, i)
       chr1p5m_tile(map_tile(1)+i-1) = chr1p5m(1, i)
       resfs_tile(map_tile(1)+i-1) = resfs(1, i)
@@ -1718,9 +1717,9 @@ contains
       ! Land tile temperatures
       tile_temperature(map_tile(1)+i-1) = real(tstar_surft(1, i), r_def)
       ! sensible heat flux
-      tile_heat_flux(map_tile(1)+i-1) = real(ftl_surft(1, i), r_def)
+      tile_heat_flux(map_tile(1)+i-1) = real(fluxes%ftl_surft(1, i), r_def)
       ! moisture flux
-      tile_moisture_flux(map_tile(1)+i-1) = real(fqw_surft(1, i), r_def)
+      tile_moisture_flux(map_tile(1)+i-1) = real(fluxes%fqw_surft(1, i), r_def)
     end do
 
     ! Sea temperature
@@ -1732,9 +1731,9 @@ contains
       ! sea-ice temperature
       tile_temperature(map_tile(1)+i-1) = real(tstar_sice_ncat(1,1,i_sice), r_def)
       ! sea-ice heat flux
-      tile_heat_flux(map_tile(1)+i-1) = real(ftl_ice(1,1,i_sice), r_def)
+      tile_heat_flux(map_tile(1)+i-1) = real(fluxes%ftl_sicat(1,1,i_sice), r_def)
       ! sea-ice moisture flux
-      tile_moisture_flux(map_tile(1)+i-1) = real(fqw_ice(1,1,i_sice), r_def)
+      tile_moisture_flux(map_tile(1)+i-1) = real(fluxes%fqw_sicat(1,1,i_sice), r_def)
     end do
 
     ! update blended Smagorinsky diffusion coefficients only if using Smagorinsky scheme

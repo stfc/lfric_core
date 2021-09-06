@@ -381,7 +381,6 @@ contains
     use rad_input_mod, only: co2_mmr
 
     ! spatially varying fields used from modules
-    use fluxes, only: sw_sicat
     use level_heights_mod, only: r_theta_levels, r_rho_levels
 
     ! subroutines used
@@ -396,8 +395,8 @@ contains
     !---------------------------------------
     use jules_fields_mod, only : crop_vars, ainfo, aerotype, progs, coast, &
       jules_vars,                                                          &
-      !fluxes, &
-      lake_vars, &
+      fluxes,                                                              &
+      lake_vars,                                                           &
       forcing
       !rivers, &
       !veg3_parm, &
@@ -571,12 +570,12 @@ contains
 
     ! fields on sea-ice categories
     real(r_um), dimension(row_length,rows,nice_use) ::                       &
-         tstar_sice_ncat, fqw_ice, ftl_ice, ice_fract_ncat, alpha1_sice,     &
+         tstar_sice_ncat, ice_fract_ncat, alpha1_sice,                       &
          ashtf_prime, rhokh_sice, k_sice_ncat, ti_sice_ncat, di_sice_ncat,   &
          dtstar_sice
 
     ! field on land points and soil levels
-    real(r_um), dimension(land_field,sm_levels) :: t_soil_soilt, ext
+    real(r_um), dimension(land_field,sm_levels) :: t_soil_soilt
 
     ! real fields on land points
     real(r_um), dimension(land_field) :: sil_orog_land_gb, ho2r2_orog_gb,    &
@@ -593,10 +592,10 @@ contains
 
     ! fields on land points and surface tiles
     real(r_um), dimension(land_field,ntiles) :: canopy_surft, snow_surft,    &
-         sw_surft, tstar_surft, frac_surft, ftl_surft, fqw_surft,            &
+         tstar_surft, frac_surft,                                            &
          dtstar_surft, alpha1, ashtf_prime_surft, chr1p5m, fraca, resfs,     &
-         rhokh_surft, z0h_surft, z0m_surft, resft, flake, emis_surft,        &
-         canhc_surft, ei_surft, ecan_surft, melt_surft, surf_htf_surft
+         rhokh_surft, resft, flake,                                          &
+         canhc_surft
 
     ! fields on land points and plant functional types
     real(r_um), dimension(land_field,npft) :: canht_pft, lai_pft
@@ -629,7 +628,7 @@ contains
          xx_cos_theta_latitude, ls_rain, ls_snow, conv_rain, conv_snow,      &
          co2_emits, co2flux, tscrndcl_ssi, tstbtrans,                        &
          sum_eng_fluxes, sum_moist_flux, drydep2, olr, surf_ht_flux_land,    &
-         theta_star_surf, qv_star_surf, snowmelt, uwind_wav,                 &
+         theta_star_surf, qv_star_surf, uwind_wav,                           &
          vwind_wav, sstfrz, aresist, resist_b, rho_aresist, rib_gb,          &
          z0m_eff_gb, zhsc, cdr10m_u, cdr10m_v
 
@@ -701,7 +700,7 @@ contains
     kent_dsc = 2
     olr = 300.0_r_um
     tstbtrans      = 0.0_r_um
-    fqw_surft      = 0.0_r_um
+    fluxes%fqw_surft = 0.0_r_um
     cdr10m_u       = 0.0_r_um
     cdr10m_v       = 0.0_r_um
     conv_rain      = 0.0_r_um
@@ -812,9 +811,9 @@ contains
       tstar_surft(1, i) = real(tile_temperature(map_tile(1)+i-1), r_um)
       tstar_land = tstar_land + frac_surft(1, i) * tstar_surft(1, i)
       ! sensible heat flux
-      ftl_surft(1, i) = real(tile_heat_flux(map_tile(1)+i-1), r_um)
+      fluxes%ftl_surft(1, i) = real(tile_heat_flux(map_tile(1)+i-1), r_um)
       ! moisture flux
-      fqw_surft(1, i) = real(tile_moisture_flux(map_tile(1)+i-1), r_um)
+      fluxes%fqw_surft(1, i) = real(tile_moisture_flux(map_tile(1)+i-1), r_um)
     end do
 
     ! Sea temperature
@@ -827,10 +826,10 @@ contains
     end if
 
     ! Sea-ice temperatures
-    ftl_ice         = 0.0_r_um
-    fqw_ice         = 0.0_r_um
-    tstar_sice      = 0.0_r_um
-    tstar_sice_ncat = 0.0_r_um
+    fluxes%ftl_sicat = 0.0_r_um
+    fluxes%fqw_sicat = 0.0_r_um
+    tstar_sice       = 0.0_r_um
+    tstar_sice_ncat  = 0.0_r_um
 
     i_sice = 0
     if (ice_fract(1, 1) > 0.0_r_um) then
@@ -841,9 +840,9 @@ contains
                    + ice_fract_ncat(1,1,i_sice) * tstar_sice_ncat(1,1,i_sice) &
                    / ice_fract
         ! sea-ice heat flux
-        ftl_ice(1,1,i_sice) = real(tile_heat_flux(map_tile(1)+i-1), r_um)
+        fluxes%ftl_sicat(1,1,i_sice) = real(tile_heat_flux(map_tile(1)+i-1), r_um)
         ! sea-ice moisture flux
-        fqw_ice(1,1,i_sice) = real(tile_moisture_flux(map_tile(1)+i-1), r_um)
+        fluxes%fqw_sicat(1,1,i_sice) = real(tile_moisture_flux(map_tile(1)+i-1), r_um)
       end do
     end if
 
@@ -877,7 +876,7 @@ contains
 
     ! Net SW radiation on tiles
     do i = 1, n_land_tile
-      sw_surft(1, i) = real(sw_down_surf(map_2d(1)) - &
+      fluxes%sw_surft(1, i) = real(sw_down_surf(map_2d(1)) - &
                             sw_up_tile(map_tile(1)+i-1), r_um)
     end do
 
@@ -885,7 +884,7 @@ contains
     i_sice = 0
     do i = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
       i_sice = i_sice + 1
-      sw_sicat(1, i_sice) = real(sw_down_surf(map_2d(1)) - &
+      fluxes%sw_sicat(1, i_sice) = real(sw_down_surf(map_2d(1)) - &
                                  sw_up_tile(map_tile(1)+i-1), r_um)
     end do
 
@@ -999,8 +998,8 @@ contains
       ashtf_prime_surft(1, i) = ashtf_prime_tile(map_tile(1)+i-1)
       dtstar_surft(1, i) = dtstar_tile(map_tile(1)+i-1)
       fraca(1, i) = fraca_tile(map_tile(1)+i-1)
-      z0h_surft(1, i) = z0h_tile(map_tile(1)+i-1)
-      z0m_surft(1, i) = z0m_tile(map_tile(1)+i-1)
+      fluxes%z0h_surft(1, i) = z0h_tile(map_tile(1)+i-1)
+      fluxes%z0m_surft(1, i) = z0m_tile(map_tile(1)+i-1)
       rhokh_surft(1, i) = rhokh_tile(map_tile(1)+i-1)
       chr1p5m(1, i) = chr1p5m_tile(map_tile(1)+i-1)
       resfs(1, i) = resfs_tile(map_tile(1)+i-1)
@@ -1014,8 +1013,8 @@ contains
       flake = 0.0
       flake(1,lake) = 1.0
       ! recalculate the surface emissivity
-      emis_surft(1,1:npft) = emis_pft(1:npft)
-      emis_surft(1,npft+1:npft+nnvg) = emis_nvg(1:nnvg)
+      fluxes%emis_surft(1,1:npft) = emis_pft(1:npft)
+      fluxes%emis_surft(1,npft+1:npft+nnvg) = emis_nvg(1:nnvg)
     end if
 
     i_tile = 0
@@ -1135,11 +1134,11 @@ contains
           , surft_pts,surft_index,frac_surft,canopy_surft               &
           , alpha1,fraca,rhokh_surft,smc_soilt,chr1p5m,resfs,z0hssi,z0mssi &
           , canhc_surft,flake,wt_ext_surft,lw_down,lai_pft,canht_pft    &
-          , sw_surft,ashtf_prime_surft,gc_surft,aresist_surft           &
-          , resft,rhokh_sice,rhokh_sea,z0h_surft,z0m_surft              &
+          , ashtf_prime_surft,gc_surft,aresist_surft                    &
+          , resft,rhokh_sice,rhokh_sea                                  &
           , chr1p5m_sice                                                &
           , fland, flandg, flandg_u,flandg_v                            &
-          , emis_surft, t_soil_soilt, snow_surft, sstfrz                &
+          , t_soil_soilt, snow_surft, sstfrz                            &
     ! IN JULES variables for STASH
           , gs_gb, npp_gb, resp_s_gb_um                                 &
           , resp_s_tot_soilt,cs_pool_gb_um                              &
@@ -1152,7 +1151,7 @@ contains
     ! INOUT (Note ti_sice_ncat and ti_sice are IN if l_sice_multilayers=T)
           , TScrnDcl_SSI, TScrnDcl_surft, tStbTrans                     &
           , cca0, fqw, ftl, taux, tauy, rhokh                           &
-          , fqw_ice,ftl_ice,dtstar_surft,dtstar_sea,dtstar_sice,ti_sice_ncat &
+          , dtstar_surft,dtstar_sea,dtstar_sice,ti_sice_ncat &
           , area_cloud_fraction, bulk_cloud_fraction                    &
           , t_latest, q_latest, qcl_latest, qcf_latest, qcf2_latest     &
           , cf_latest, cfl_latest, cff_latest                           &
@@ -1169,12 +1168,12 @@ contains
           , bmass_cld, ocff_new, ocff_aged, ocff_cld, nitr_acc, nitr_diss &
           , co2, ozone_tracer                                           &
     ! INOUT additional variables for JULES
-          , tstar_surft, fqw_surft, epot_surft, ftl_surft               &
+          , tstar_surft, epot_surft                                     &
           , radnet_sice,olr,tstar_sice_ncat,tstar_ssi                   &
           , tstar_sea,taux_land,taux_ssi,tauy_land,tauy_ssi,Error_code  &
     ! JULES TYPES (IN OUT)
           , crop_vars, ainfo, aerotype, progs, coast, jules_vars        &
-          !fluxes, &
+          , fluxes &
           , lake_vars &
           , forcing &
           !rivers, &
@@ -1185,8 +1184,7 @@ contains
           , surf_ht_flux_land, zlcl_mix                                 &
           , theta_star_surf, qv_star_surf                               &
     ! OUT additional variables for JULES
-          , tstar, ti_sice, ext, snowmelt,tstar_land,tstar_sice, ei_surft &
-          , ecan_surft, melt_surft, surf_htf_surft                      &
+          , tstar, ti_sice, tstar_land,tstar_sice                       &
     ! OUT fields for coupling to the wave model
           , uwind_wav, vwind_wav                                        &
             )
@@ -1272,22 +1270,22 @@ contains
       ! Update land tiles
       do i = 1, n_land_tile
         tile_temperature(map_tile(1)+i-1) = real(tstar_surft(1, i), r_def)
-        tile_heat_flux(map_tile(1)+i-1) = real(ftl_surft(1, i), r_def)
-        tile_moisture_flux(map_tile(1)+i-1) = real(fqw_surft(1, i), r_def)
+        tile_heat_flux(map_tile(1)+i-1) = real(fluxes%ftl_surft(1, i), r_def)
+        tile_moisture_flux(map_tile(1)+i-1) = real(fluxes%fqw_surft(1, i), r_def)
         ! Sum the fluxes over the land for use in sea point calculation
         if (tile_fraction(map_tile(1)+i-1) > 0.0_r_def) then
         tile_heat_flux(map_tile(1)+first_sea_tile-1) =                         &
              tile_heat_flux(map_tile(1)+first_sea_tile-1)                      &
-             + ftl_surft(1,i) * tile_fraction(map_tile(1)+i-1)
+             + fluxes%ftl_surft(1,i) * tile_fraction(map_tile(1)+i-1)
         tile_moisture_flux(map_tile(1)+first_sea_tile-1) =                     &
              tile_moisture_flux(map_tile(1)+first_sea_tile-1)                  &
-             + fqw_surft(1,i) * tile_fraction(map_tile(1)+i-1)
+             + fluxes%fqw_surft(1,i) * tile_fraction(map_tile(1)+i-1)
         end if
-        snow_sublimation(map_tile(1)+i-1) = real(ei_surft(1, i), r_def)
+        snow_sublimation(map_tile(1)+i-1) = real(fluxes%ei_surft(1, i), r_def)
         ! NB - net surface heat flux
-        surf_heat_flux(map_tile(1)+i-1) = real(surf_htf_surft(1, i), r_def)
-        canopy_evap(map_tile(1)+i-1) = real(ecan_surft(1, i), r_def)
-        total_snowmelt(map_tile(1)+i-1) = real(melt_surft(1, i), r_def)
+        surf_heat_flux(map_tile(1)+i-1) = real(fluxes%surf_htf_surft(1, i), r_def)
+        canopy_evap(map_tile(1)+i-1) = real(fluxes%ecan_surft(1, i), r_def)
+        total_snowmelt(map_tile(1)+i-1) = real(fluxes%melt_surft(1, i), r_def)
       end do
 
       ! Update sea tile
@@ -1301,9 +1299,9 @@ contains
         if (ice_fract_ncat(1,1,i_sice) > 0.0_r_def) then
           ! un-do the scaling which is done in Jules
           tile_heat_flux(map_tile(1)+i-1) =                                    &
-               real(ftl_ice(1,1,i_sice)/ice_fract_ncat(1,1,i_sice), r_def)
+               real(fluxes%ftl_sicat(1,1,i_sice)/ice_fract_ncat(1,1,i_sice), r_def)
           tile_moisture_flux(map_tile(1)+i-1) =                                &
-               real(fqw_ice(1,1,i_sice)/ice_fract_ncat(1,1,i_sice), r_def)
+               real(fluxes%fqw_sicat(1,1,i_sice)/ice_fract_ncat(1,1,i_sice), r_def)
         else
           tile_heat_flux(map_tile(1)+i-1) = 0.0_r_def
           tile_moisture_flux(map_tile(1)+i-1) = 0.0_r_def
@@ -1336,7 +1334,7 @@ contains
       end if
 
       do i = 1, sm_levels
-        water_extraction(map_soil(1)+i-1) = real(ext(1, i), r_def)
+        water_extraction(map_soil(1)+i-1) = real(fluxes%ext_soilt(1, 1, i), r_def)
       end do
 
     endif
