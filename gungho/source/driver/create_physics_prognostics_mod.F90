@@ -89,10 +89,11 @@ contains
 
 #ifdef UM_PHYSICS
     use jules_control_init_mod,  only: n_surf_tile, n_sea_ice_tile,            &
-         soil_lev_tile, n_surf_interp
+         soil_lev_tile, n_surf_interp, n_land_tile
     use jules_physics_init_mod,  only: snow_lev_tile
     use jules_surface_types_mod, only: npft
     use nlsizes_namelist_mod,    only: sm_levels
+    use ancil_info,              only: rad_nband
 #endif
 
     implicit none
@@ -612,6 +613,12 @@ contains
       'tile_temperature', surft_space, checkpoint_flag=checkpoint_flag, twod=.true. )
     call add_physics_field( surface_fields, depository, prognostic_fields,     &
       'canopy_water', surft_space, checkpoint_flag=checkpoint_flag, twod=.true. )
+
+    vector_space=>function_space_collection%get_fs(twod_mesh_id, 0, W3, &
+                                                   n_land_tile*rad_nband)
+    call add_physics_field( surface_fields, depository, prognostic_fields,     &
+      'albedo_obs_scaling', vector_space,                                      &
+      checkpoint_flag=(checkpoint_flag .and. albedo_obs), twod=.true. )
 
     ! Fields on plant functional types, might need checkpointing
     call add_physics_field( surface_fields, depository, prognostic_fields,     &

@@ -46,7 +46,7 @@ module lfric_xios_time_axis_mod
     !> String identifier for units of the time axis
     character(str_def) :: time_units = 'seconds'
     !> Upper limit for time axis data
-    real(r_def) :: upper_limit
+    real(r_def) :: upper_limit = 31536000.0_r_def
     !> Flag for interpolation
     logical(l_def) :: does_interpolation = .false.
     !> Update frequency in timesteps
@@ -423,6 +423,9 @@ contains
   !> @param[in] time_window The current time window
   subroutine interp_field_1d( model_field, model_proxy, data_proxy, clock, time_window )
 
+    use xios, only: xios_date, xios_get_current_date, &
+                    xios_date_get_day_of_year, xios_date_get_second_of_day
+
     implicit none
 
     type(field_type),       intent(inout), pointer :: model_field
@@ -436,8 +439,9 @@ contains
     type(field_type)                     :: interp_gradient
     type(field_type)                     :: dData
     type(field_proxy_type)               :: time_entry_proxy
-    integer(i_def)                       :: t
-    real(r_def)                          :: dt_recip, time_diff
+    integer(i_def)                       :: t, day_of_year
+    real(r_def)                          :: dt_recip, time_diff, second_of_day
+    type(xios_date)                      :: datetime
 
      ! Split multi-data field into two fields for start and end time entry
     do t = 1, 2
@@ -451,7 +455,14 @@ contains
     call interp_gradient%initialise( model_proxy%vspace )
 
     dt_recip = 1.0_r_def/(time_window(2)-time_window(1))
-    time_diff = clock%seconds_from_steps(clock%get_step())-time_window(1)
+
+    ! Get the current time from xios. This will change when the clock is
+    ! properly integrated.
+    call xios_get_current_date(datetime)
+    day_of_year   = int(xios_date_get_day_of_year(datetime), i_def)
+    second_of_day = real(xios_date_get_second_of_day(datetime), r_def)
+    time_diff     = day_of_year * 24.0_r_def *3600.0_r_def &
+                  + second_of_day - time_window(1)
 
     ! Perform linear interpolation and populate model field with interpolated data
     call invoke( X_minus_Y( dData, field_time_entries(2), field_time_entries(1) ), &

@@ -6,7 +6,7 @@
 !>@brief Updates time-varying fields from linked list of time axis objects
 module variable_fields_mod
 
-  use constants_mod,                 only : r_def, r_second, str_def
+  use constants_mod,                 only : r_def, r_second, str_def, i_def
   use clock_mod,                     only : clock_type
   use field_collection_mod,          only : field_collection_type
   use log_mod,                       only : log_event, &
@@ -26,6 +26,9 @@ contains
 
   subroutine init_variable_fields(time_axis_list, clock, state)
 
+    use xios, only: xios_date, xios_get_current_date, &
+                    xios_date_get_day_of_year, xios_date_get_second_of_day
+
     implicit none
 
     type(linked_list_type),      intent(in)    :: time_axis_list
@@ -36,12 +39,16 @@ contains
     type(linked_list_item_type), pointer :: loop => null()
     type(time_axis_type),        pointer :: time_axis => null()
 
-    real(r_def) :: time_sec
+    type(xios_date) :: datetime
+    integer(i_def)  :: day_of_year
+    real(r_def) :: time_sec, second_of_day
 
-    ! Get time in seconds from clock
-    ! Convert this to r_def because we will pass it to align
-    time_sec = real(clock%seconds_from_steps(clock%get_step()), &
-                    kind=r_def)
+    ! Get the current time from xios. This will change when the clock is
+    ! properly integrated.
+    call xios_get_current_date(datetime)
+    day_of_year   = int(xios_date_get_day_of_year(datetime), i_def)
+    second_of_day = real(xios_date_get_second_of_day(datetime), r_def)
+    time_sec = day_of_year * 24.0_r_def * 3600.0_r_def + second_of_day
 
     ! start at the head of the time_axis linked list
     loop => time_axis_list%get_head()

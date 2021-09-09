@@ -21,8 +21,9 @@ module compute_dl_matrix_kernel_mod
                                        GH_SCALAR, GH_INTEGER,     &
                                        CELL_COLUMN, GH_QUADRATURE_XYoZ
   use base_mesh_config_mod,      only: geometry, geometry_spherical
-  use constants_mod,             only: i_def, r_def, PI
-  use coord_transform_mod,       only: xyz2llr
+  use constants_mod,             only: i_def, r_def, PI, degrees_to_radians
+  use chi_transform_mod,         only: chi2llr
+  use damping_layer_config_mod,  only: dl_type, dl_type_latitude
   use finite_element_config_mod, only: coord_system,    &
                                        coord_system_xyz
   use fs_continuity_mod,         only: W2
@@ -194,19 +195,20 @@ contains
 
               if (geometry == geometry_spherical) then
 
-                if (coord_system == coord_system_xyz) then
-                  call xyz2llr(chi1_at_quad,chi2_at_quad,chi3_at_quad, &
-                               long_at_quad,lat_at_quad,r_at_quad)
-                  z=r_at_quad - radius
+                call chi2llr(chi1_at_quad,chi2_at_quad,chi3_at_quad, &
+                             ipanel, long_at_quad,lat_at_quad,r_at_quad)
+                z=r_at_quad - radius
+
+                if (dl_type == dl_type_latitude) then
+                  mu_at_quad = damping_layer_func(z, dl_strength, &
+                                                  dl_base_height, domain_top, lat_at_quad)
                 else
-                  ! We're in a spherically-based coordinate with chi3=z
-                  z=chi3_at_quad
+                  mu_at_quad = damping_layer_func(z, dl_strength, &
+                                                  dl_base_height, domain_top, 0.0_r_def)
                 end if
-                mu_at_quad = damping_layer_func(z, dl_strength, &
-                                                dl_base_height, domain_top)
               else
                 mu_at_quad = damping_layer_func(chi3_at_quad, dl_strength, &
-                                                dl_base_height, domain_top)
+                                                dl_base_height, domain_top, 0.0_r_def)
               end if
 
               integrand = wqp_h(qp1) * wqp_v(qp2) *                          &
@@ -236,8 +238,9 @@ contains
   !! @param[in]  dl_strength    Damping layer function coefficient and maximum value of damping layer function.
   !! @param[in]  dl_base_height Height above which damping layer is active.
   !! @param[in]  domain_top     Top of the computational domain.
+  !! @param[in]  latitude     Latitude at which to computer the damping function
   !! @return     dl_val         Value of damping layer function.
-  function damping_layer_func(height, dl_strength, dl_base_height, domain_top) result (dl_val)
+  function damping_layer_func(height, dl_strength, dl_base_height, domain_top, latitude) result (dl_val)
 
     implicit none
 
@@ -246,10 +249,21 @@ contains
     real(kind=r_def),   intent(in)  :: dl_strength
     real(kind=r_def),   intent(in)  :: dl_base_height
     real(kind=r_def),   intent(in)  :: domain_top
+    real(kind=r_def),   intent(in)  :: latitude
     real(kind=r_def)                :: dl_val
+    real(kind=r_def)                :: height_star
+    ! Latitude over which to reduce damping height from dl_base_height
+    ! chosen to reduce it to approximately dl_base_height/2
+    real(kind=r_def), parameter     :: taper_lat = 50.0_r_def
 
-    if (height >= dl_base_height) then
-      dl_val = dl_strength*sin(0.5_r_def*PI*(height-dl_base_height) / &
+    if (abs(latitude) < taper_lat*degrees_to_radians) then
+      height_star = domain_top + (height-domain_top)*cos(latitude)
+    else
+      height_star = domain_top + (height-domain_top)*cos(taper_lat*degrees_to_radians)
+    end if
+
+    if (height_star >= dl_base_height) then
+      dl_val = dl_strength*sin(0.5_r_def*PI*(height_star-dl_base_height) / &
                                             (domain_top-dl_base_height))**2
     else
       dl_val = 0.0_r_def

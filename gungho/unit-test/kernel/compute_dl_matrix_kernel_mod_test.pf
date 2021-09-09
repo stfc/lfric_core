@@ -9,7 +9,7 @@
 module compute_dl_matrix_kernel_mod_test
 
   use constants_mod,            only : i_def, r_def
-  use damping_layer_config_mod, only : dl_base, dl_str
+  use damping_layer_config_mod, only : dl_base, dl_str, dl_type, dl_type_standard
   use extrusion_config_mod,     only : method, domain_top, number_of_layers
   use get_unit_test_m3x3_dofmap_mod, &
     only : get_w0_m3x3_dofmap, get_w3_m3x3_dofmap
@@ -126,6 +126,7 @@ contains
 
     integer(i_def), parameter :: nlayers = 3
     integer(i_def), parameter :: element_order = 0
+    integer(i_def), parameter :: dl_type = dl_type_standard
 
     integer(i_def) :: i, j, k, cell
     integer(i_def) :: err

@@ -172,7 +172,7 @@
                      plotstr="robert_plot.py ' + appDiagStemName + ' $NODAL_DATA_DIR 50 4 theta:m_v:u1_in_w3:u2_in_w3:u3_in_w3 T000000:T000100:T000200 $PLOT_DIR")',
     'run_application("lfric_atm", "basic_ral2",
                      resolutions=[("BiP50x4-20x20",2.5)],
-                     env={"crun":2, "nrun":95,
+                     env={"crun":2, "nrun":50,
                           "directives":{"default":{"mpi_parts":5,
                                                    "panel_decomp":' + row + '} } },
                      plotstr="plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR")',

@@ -18,14 +18,13 @@ contains
 ! @param[in]  exner_in_wth  Exner pressure field in potential temperature space
 ! @param[in]  theta         Potential temperature field
 ! @param[in]  rho_in_wth    Density field in potential temperature space
-! @param[in]  height_w3     Height of density space levels above surface
-! @param[in]  height_wth    Height of temperature space levels above surface
+! @param[in]  dz_in_wth     Depth of temperature space levels
 ! @param[out] p_layer             Pressure in Socrates layers
 ! @param[out] t_layer             Temperature in Socrates layers
 ! @param[out] d_mass              Mass per square metre of Socrates layers
 ! @param[out] layer_heat_capacity Heat capacity of Socrates layers
 subroutine set_thermodynamic(nlayers,                            &
-  exner, exner_in_wth, theta, rho_in_wth, height_w3, height_wth, &
+  exner, exner_in_wth, theta, rho_in_wth, dz_in_wth,             &
   p_layer, t_layer, d_mass, layer_heat_capacity)
 
 use constants_mod,     only : r_def, i_def
@@ -35,9 +34,9 @@ implicit none
 
 integer(i_def), intent(in) :: nlayers
 real(r_def), intent(in), dimension(0:nlayers) :: &
-  exner_in_wth, theta, rho_in_wth, height_wth
+  exner_in_wth, theta, rho_in_wth, dz_in_wth
 real(r_def), intent(in), dimension(nlayers) :: &
-  exner, height_w3
+  exner
 real(r_def), intent(out), dimension(nlayers) :: &
   p_layer, t_layer, d_mass, layer_heat_capacity
 
@@ -52,9 +51,9 @@ end do
 
 ! Calculate dry mass as required when using mixing ratios.
 ! Mass of bottom layer bounded by the surface:
-d_mass(1) = rho_in_wth(1) * ( height_w3(2) - height_wth(0) )
+d_mass(1) = rho_in_wth(1) * (dz_in_wth(1) + dz_in_wth(0))
 do k=2,nlayers-1
-  d_mass(k) = rho_in_wth(k) * ( height_w3(k+1) - height_w3(k) )
+  d_mass(k) = rho_in_wth(k) * dz_in_wth(k)
 end do
 ! Hydrostatic approximation for mass of top layer:
 d_mass(nlayers) = p_zero * exner(nlayers)**(1.0_r_def/kappa) / gravity

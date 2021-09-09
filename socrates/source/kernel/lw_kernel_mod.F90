@@ -35,7 +35,7 @@ public :: lw_code
 ! Contains the metadata needed by the PSy layer.
 type, extends(kernel_type) :: lw_kernel_type
   private
-  type(arg_type) :: meta_args(39) = (/                             &
+  type(arg_type) :: meta_args(38) = (/                             &
     arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     Wtheta),                    & ! lw_heating_rate
     arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), & ! lw_down_surf
     arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2), & ! lw_up_tile
@@ -51,8 +51,7 @@ type, extends(kernel_type) :: lw_kernel_type
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                        & ! exner
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta),                    & ! exner_in_wth
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta),                    & ! rho_in_wth
-    arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                        & ! height_w3
-    arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta),                    & ! height_wth
+    arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta),                    & ! dz_in_wth
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta),                    & ! ozone
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta),                    & ! mv
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta),                    & ! mcl
@@ -102,8 +101,7 @@ contains
 ! @param[in]     exner                    Exner pressure in density space
 ! @param[in]     exner_in_wth             Exner pressure in wth space
 ! @param[in]     rho_in_wth               Density in potential temperature space
-! @param[in]     height_w3                Height of w3 levels above surface
-! @param[in]     height_wth               Height of wth levels above surface
+! @param[in]     dz_in_wth                Depth of wth levels
 ! @param[in]     ozone                    Ozone field
 ! @param[in]     mv                       Water vapour field
 ! @param[in]     mcl                      Cloud liquid field
@@ -163,8 +161,7 @@ subroutine lw_code(nlayers,                          &
                    exner,                            &
                    exner_in_wth,                     &
                    rho_in_wth,                       &
-                   height_w3,                        &
-                   height_wth,                       &
+                   dz_in_wth,                        &
                    ozone,                            &
                    mv,                               &
                    mcl,                              &
@@ -237,9 +234,9 @@ subroutine lw_code(nlayers,                          &
   real(r_def), dimension(undf_wth),  intent(inout), target :: &
     cloud_fraction_rts, cloud_droplet_re_rts
 
-  real(r_def), dimension(undf_w3),  intent(in) :: theta_in_w3, exner, height_w3
+  real(r_def), dimension(undf_w3),  intent(in) :: theta_in_w3, exner
   real(r_def), dimension(undf_wth), intent(in) :: theta, exner_in_wth, &
-    rho_in_wth, height_wth, ozone, mv, mcl, mci, &
+    rho_in_wth, dz_in_wth, ozone, mv, mcl, mci, &
     area_fraction, liquid_fraction, ice_fraction, sigma_qcw, &
     cca, ccw, cloud_drop_no_conc
   real(r_def), dimension(undf_tile),  intent(in) :: tile_fraction
@@ -298,7 +295,7 @@ subroutine lw_code(nlayers,                          &
     call set_thermodynamic(nlayers, &
       exner(w3_1:w3_nlayers), exner_in_wth(wth_0:wth_nlayers), &
       theta(wth_0:wth_nlayers), rho_in_wth(wth_0:wth_nlayers), &
-      height_w3(w3_1:w3_nlayers), height_wth(wth_0:wth_nlayers), &
+      dz_in_wth(wth_0:wth_nlayers), &
       p_layer, t_layer, d_mass, layer_heat_capacity)
 
     ! Calculate temperature at layer boundaries

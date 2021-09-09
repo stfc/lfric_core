@@ -15,6 +15,7 @@
       <axis id="snow_layers_and_tiles" name="snow_layers_and_tiles" n_glo="27"/>
       <axis id="soil_levels" name="soil_levels" n_glo="4"/>
       <axis id="plant_func_types" name="plant_func_types" n_glo="5"/>
+      <axis id="land_tile_rad_band" name="land_tile_rad_band" n_glo="18"/>
       <axis id="monthly_axis" name="monthly_axis" n_glo="12"/>
       <axis id="bl_types" name="bl_types" n_glo="7"/>
     </axis_definition>
@@ -123,6 +124,7 @@
 	<field id="checkpoint_tile_fraction" name="tile_fraction" long_name="surface_tile_fraction" unit="1" domain_ref="face" axis_ref="surface_tiles" />
 	<field id="checkpoint_tile_temperature" name="tile_temperature" long_name="surface_tile_temperature" unit="K" domain_ref="face" axis_ref="surface_tiles" />
 	<field id="checkpoint_canopy_water" name="tile_canopy_water" long_name="canopy_water_content_on_tiles" unit="kg m-2" domain_ref="face" axis_ref="surface_tiles" />
+        <field id="checkpoint_albedo_obs_scaling" name="albedo_obs_scaling" long_name="albedo_obs_scaling" unit="1" domain_ref="face" axis_ref="land_tile_rad_band" />
 	<field id="checkpoint_sea_ice_thickness" name="sea_ice_thickness" long_name="sea_ice_thickness" unit="m" domain_ref="face" />
 	<field id="checkpoint_sea_ice_temperature" name="sea_ice_temperature" long_name="sea_ice_bulk_temperature" unit="K" domain_ref="face" />
 	<!-- Orography fields -->
@@ -521,6 +523,7 @@
 	<field id="restart_tile_fraction" name="tile_fraction" long_name="tile_fraction" unit="1" operation="instant" domain_ref="face" axis_ref="surface_tiles" />
 	<field id="restart_tile_temperature" name="tile_temperature" long_name="tile_temperature" unit="K" operation="instant" domain_ref="face" axis_ref="surface_tiles" />
 	<field id="restart_canopy_water" name="tile_canopy_water" long_name="canopy_water_content_on_tiles" unit="kg m-2" operation="instant" domain_ref="face" axis_ref="surface_tiles" />
+        <field id="restart_albedo_obs_scaling" name="albedo_obs_scaling" long_name="albedo_obs_scaling" unit="1" operation="instant" domain_ref="face" axis_ref="land_tile_rad_band" />
 	<field id="restart_sea_ice_thickness" name="sea_ice_thickness" long_name="sea_ice_thickness" unit="m" operation="instant" domain_ref="face" />
 	<field id="restart_sea_ice_temperature" name="sea_ice_temperature" long_name="sea_ice_bulk_temperature" unit="K" operation="instant" domain_ref="face" />
 	<!-- Orography fields -->

@@ -12,6 +12,7 @@ module process_inputs_alg_mod
   use section_choice_config_mod,  only: surface, surface_jules
   use process_surface_kernel_mod, only: process_surface_kernel_type
   use process_soil_kernel_mod,    only: process_soil_kernel_type
+  use process_snow_kernel_mod,    only: process_snow_kernel_type
   use log_mod,                    only: LOG_LEVEL_INFO
   use jules_control_init_mod,     only: n_land_tile, &
                                         first_sea_tile, n_sea_tile, &
@@ -60,6 +61,7 @@ contains
     type( field_type ), pointer :: can_water_in => null()
 
     type( field_type ), pointer :: soil_moist_sat    => null()
+    type( field_type ), pointer :: soil_moist_wilt   => null()
     type( field_type ), pointer :: mean_topog_index  => null()
     type( field_type ), pointer :: stdev_topog_index => null()
     type( field_type ), pointer :: a_sat_frac        => null()
@@ -80,6 +82,11 @@ contains
     type( field_type ), pointer :: snow_depth           => null()
     type( field_type ), pointer :: snow_under_canopy    => null()
     type( field_type ), pointer :: snowpack_density     => null()
+    type( field_type ), pointer :: snow_layer_thickness => null()
+    type( field_type ), pointer :: snow_layer_ice_mass  => null()
+    type( field_type ), pointer :: snow_layer_liq_mass  => null()
+    type( field_type ), pointer :: snow_layer_temp      => null()
+    type( field_type ), pointer :: snow_layer_rgrain    => null()
     type( field_type ), pointer :: tile_snow_mass_in    => null()
     type( field_type ), pointer :: tile_snow_rgrain_in  => null()
     type( field_type ), pointer :: n_snow_layers_in     => null()
@@ -102,6 +109,7 @@ contains
       canopy_water     => surface_fields%get_field('canopy_water')
 
       soil_moist_sat    => soil_fields%get_field('soil_moist_sat')
+      soil_moist_wilt   => soil_fields%get_field('soil_moist_wilt')
       mean_topog_index  => soil_fields%get_field('mean_topog_index')
       stdev_topog_index => ancil_fields%get_field('stdev_topog_index')
       a_sat_frac        => soil_fields%get_field('a_sat_frac')
@@ -122,6 +130,11 @@ contains
       snow_depth           => snow_fields%get_field('snow_depth')
       snow_under_canopy    => snow_fields%get_field('snow_under_canopy')
       snowpack_density     => snow_fields%get_field('snowpack_density')
+      snow_layer_thickness => snow_fields%get_field('snow_layer_thickness')
+      snow_layer_ice_mass  => snow_fields%get_field('snow_layer_ice_mass')
+      snow_layer_liq_mass  => snow_fields%get_field('snow_layer_liq_mass')
+      snow_layer_temp      => snow_fields%get_field('snow_layer_temp')
+      snow_layer_rgrain    => snow_fields%get_field('snow_layer_rgrain')
       tile_snow_mass_in    => fd_fields%get_field('tile_snow_mass_in')
       tile_snow_rgrain_in  => fd_fields%get_field('tile_snow_rgrain_in')
       n_snow_layers_in     => fd_fields%get_field('n_snow_layers_in')
@@ -144,6 +157,7 @@ contains
                                            1, n_land_tile),                   &
       ! Soil fields
                   process_soil_kernel_type( soil_moist_sat,                   &
+                                            soil_moist_wilt,                  &
                                             mean_topog_index,                 &
                                             stdev_topog_index,                &
                                             a_sat_frac,                       &
@@ -168,7 +182,14 @@ contains
                   multi_insert_kernel_type(snow_under_canopy,                 &
                                         snow_under_canopy_in, 1, n_land_tile),&
                   multi_insert_kernel_type(snowpack_density,                  &
-                                          snowpack_density_in, 1, n_land_tile) )
+                                         snowpack_density_in, 1, n_land_tile),&
+                  process_snow_kernel_type(tile_snow_mass, n_snow_layers,     &
+                                          snow_under_canopy, snowpack_density,&
+                                          snow_depth, snow_layer_thickness,   &
+                                          snow_layer_ice_mass,                &
+                                          snow_layer_liq_mass,                &
+                                          snow_layer_temp, snow_layer_rgrain, &
+                                          soil_temperature) )
 
       call land_area_fraction%log_minmax(LOG_LEVEL_INFO, 'sum of surface tiles')
 

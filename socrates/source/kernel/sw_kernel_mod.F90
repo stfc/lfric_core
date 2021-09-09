@@ -35,7 +35,7 @@ public :: sw_code
 ! Contains the metadata needed by the PSy layer.
 type, extends(kernel_type) :: sw_kernel_type
   private
-  type(arg_type) :: meta_args(49) = (/                             &
+  type(arg_type) :: meta_args(48) = (/                             &
     arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     Wtheta),                    & ! sw_heating_rate
     arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), & ! sw_down_surf
     arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), & ! sw_direct_surf
@@ -56,8 +56,7 @@ type, extends(kernel_type) :: sw_kernel_type
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                        & ! exner
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta),                    & ! exner_in_wth
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta),                    & ! rho_in_wth
-    arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                        & ! height_w3
-    arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta),                    & ! height_wth
+    arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta),                    & ! dz_in_wth
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! cos_zenith_angle
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! lit_fraction
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! cos_zenith_angle_rts
@@ -117,8 +116,7 @@ contains
 ! @param[in]     exner                    Exner pressure in density space
 ! @param[in]     exner_in_wth             Exner pressure in wth space
 ! @param[in]     rho_in_wth               Density in wth space
-! @param[in]     height_w3                Height of w3 levels above surface
-! @param[in]     height_wth               Height of wth levels above surface
+! @param[in]     dz_in_wth                Depth of wth levels
 ! @param[in]     cos_zenith_angle         Cosine of the stellar zenith angle
 ! @param[in]     lit_fraction             Lit fraction of the timestep
 ! @param[in]     cos_zenith_angle_rts     Cosine of the stellar zenith angle
@@ -188,8 +186,7 @@ subroutine sw_code(nlayers,                          &
                    exner,                            &
                    exner_in_wth,                     &
                    rho_in_wth,                       &
-                   height_w3,                        &
-                   height_wth,                       &
+                   dz_in_wth,                        &
                    cos_zenith_angle,                 &
                    lit_fraction,                     &
                    cos_zenith_angle_rts,             &
@@ -269,9 +266,9 @@ subroutine sw_code(nlayers,                          &
   real(r_def), dimension(undf_tile), intent(inout), target :: &
     sw_up_tile_rts, sw_up_blue_tile_rts
 
-  real(r_def), dimension(undf_w3),   intent(in) :: exner, height_w3
+  real(r_def), dimension(undf_w3),   intent(in) :: exner
   real(r_def), dimension(undf_wth),  intent(in) :: theta, exner_in_wth, &
-    rho_in_wth, height_wth, ozone, mv, mcl, mci, &
+    rho_in_wth, dz_in_wth, ozone, mv, mcl, mci, &
     area_fraction, liquid_fraction, ice_fraction, sigma_qcw, &
     cca, ccw, cloud_drop_no_conc
   real(r_def), dimension(undf_2d), intent(in) :: &
@@ -331,7 +328,7 @@ subroutine sw_code(nlayers,                          &
     call set_thermodynamic(nlayers, &
       exner(w3_1:w3_nlayers), exner_in_wth(wth_0:wth_nlayers), &
       theta(wth_0:wth_nlayers), rho_in_wth(wth_0:wth_nlayers), &
-      height_w3(w3_1:w3_nlayers), height_wth(wth_0:wth_nlayers), &
+      dz_in_wth(wth_0:wth_nlayers), &
       p_layer, t_layer, d_mass, layer_heat_capacity)
 
     ! Set up cloud fields for radiation

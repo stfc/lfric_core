@@ -23,7 +23,7 @@ private
 !-------------------------------------------------------------------------------
 type, public, extends(kernel_type) :: mphys_turb_gen_kernel_type
   private
-  type(arg_type) :: meta_args(21) = (/           &
+  type(arg_type) :: meta_args(20) = (/           &
        arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA), & ! theta
        arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA), & ! mr_v
        arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA), & ! mr_cl
@@ -35,8 +35,7 @@ type, public, extends(kernel_type) :: mphys_turb_gen_kernel_type
        arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA), & ! exner
        arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA), & ! rho
        arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA), & ! wvar
-       arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA), & ! height_wth
-       arg_type(GH_FIELD, GH_REAL, GH_READ,      W3    ), & ! height_w3
+       arg_type(GH_FIELD, GH_REAL, GH_READ,      WTHETA), & ! dz_in_wth
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA), & ! theta_inc
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA), & ! dmr_v
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE, WTHETA), & ! dmr_cl
@@ -67,8 +66,7 @@ contains
 !> @param[in]     exner      Exner pressure (Pa)
 !> @param[in]     rho        Dry density (kg/m3)
 !> @param[in]     wvar       Vertical velocity variance
-!> @param[in]     height_wth Height of wth space
-!> @param[in]     height_w3  Height of w3 space
+!> @param[in]     dz_in_wth  Depth of wth space
 !> @param[in,out] theta_inc  Potential temperature increment from microphysics
 !> @param[in,out] dmr_v      Vapour mixing ratio increment from microphysics
 !> @param[in,out] dmr_cl     Liquid mixing ratio increment from microphysics
@@ -80,9 +78,6 @@ contains
 !> @param[in]     ndf_wth    Number of dofs per cell for theta space
 !> @param[in]     undf_wth   Number of unique dofs per cell for theta space
 !> @param[in]     map_wth    Dofmap for the cell at the base of the column
-!> @param[in]     ndf_w3     Number of dofs per cell for w3 space
-!> @param[in]     undf_w3    Number of unique dofs per cell for w3 space
-!> @param[in]     map_w3     Dofmap for the cell at the base of the column
 
   subroutine mphys_turb_gen_code( nlayers,   &
                                   theta,     &
@@ -96,8 +91,7 @@ contains
                                   exner,     &
                                   rho,       &
                                   wvar,      &
-                                  height_wth,&
-                                  height_w3, &
+                                  dz_in_wth, &
                                   theta_inc, &
                                   dmr_v,     &
                                   dmr_cl,    &
@@ -106,8 +100,7 @@ contains
                                   dcfl,      &
                                   dcff,      &
                                   dbcf,      &
-                                  ndf_wth, undf_wth, map_wth, &
-                                  ndf_w3, undf_w3, map_w3)
+                                  ndf_wth, undf_wth, map_wth)
 
     !---------------------------------------
     ! UM modules
@@ -121,8 +114,6 @@ contains
     integer(i_def), intent(in) :: nlayers
     integer(i_def), intent(in) :: ndf_wth,  undf_wth
     integer(i_def), intent(in), dimension(ndf_wth) :: map_wth
-    integer(i_def), intent(in) :: ndf_w3,  undf_w3
-    integer(i_def), intent(in), dimension(ndf_w3) :: map_w3
 
     real(r_def), intent(in), dimension(undf_wth) :: theta
     real(r_def), intent(in), dimension(undf_wth) :: mr_v
@@ -135,8 +126,7 @@ contains
     real(r_def), intent(in), dimension(undf_wth) :: exner
     real(r_def), intent(in), dimension(undf_wth) :: rho
     real(r_def), intent(in), dimension(undf_wth) :: wvar
-    real(r_def), intent(in), dimension(undf_wth) :: height_wth
-    real(r_def), intent(in), dimension(undf_w3) :: height_w3
+    real(r_def), intent(in), dimension(undf_wth) :: dz_in_wth
 
     real(r_def), intent(inout), dimension(undf_wth) :: theta_inc
     real(r_def), intent(inout), dimension(undf_wth) :: dmr_v
@@ -189,14 +179,13 @@ contains
 
       ! Vertical velocity variance
       bl_w_var(k) = wvar(map_wth(1) + k)
+
+      ! Layer depth
+      deltaz(k) = dz_in_wth(map_wth(1) + k)
     end do
 
-    deltaz(1) = height_w3(map_w3(1) + 1) - height_wth(map_wth(1))
-    do k = 2, nlayers-1
-      deltaz(k) = height_w3(map_w3(1) + k) - height_w3(map_w3(1) + k-1)
-    end do
-    deltaz(nlayers) = 2.0_r_def * ( height_wth(map_wth(1) + nlayers) - &
-                                    height_w3(map_w3(1) + nlayers-1) )
+    ! Lowest layer needs level 0 adding
+    deltaz(1) = deltaz(1) + dz_in_wth(map_wth(1))
 
     rhodz_dry = rhodz_dry * deltaz
 

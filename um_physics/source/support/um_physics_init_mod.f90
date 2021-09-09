@@ -228,7 +228,8 @@ contains
         sediment_loc, i_mcr_iter_tstep, all_sed_start,                       &
         check_run_precip, graupel_option, no_graupel, a_ratio_exp,           &
         a_ratio_fac, l_droplet_tpr, qclrime, l_shape_rime, ndrop_surf,       &
-        z_surf, l_fsd_generator, mp_dz_scal, l_subgrid_qcl_mp, aut_qc
+        z_surf, l_fsd_generator, mp_dz_scal, l_subgrid_qcl_mp, aut_qc,       &
+        l_mphys_nonshallow
     use pc2_constants_mod, only: i_cld_off, i_cld_smith, i_cld_pc2,        &
          i_cld_bimodal, rhcpt_off, acf_off, real_shear, rhcpt_tke_based,   &
          pc2eros_exp_rh,pc2eros_hybrid_allfaces,pc2eros_hybrid_sidesonly,  &
@@ -745,6 +746,7 @@ contains
       l_droplet_tpr  = droplet_tpr
       l_fsd_generator= cld_fsd_hill
       l_mcr_qrain    = .true.
+      l_mphys_nonshallow = .true.
       l_psd          = .true.
       l_rain         = .true.
       l_shape_rime   = shape_rime

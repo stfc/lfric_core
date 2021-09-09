@@ -14,6 +14,7 @@ module slow_physics_alg_mod
                                        cv_scheme_gregory_rowntree
   use constants_mod,             only: i_def, r_def, l_def
   use log_mod,                   only: LOG_LEVEL_INFO
+  use print_field_stats_alg_mod, only: print_field_stats_alg
   use physics_config_mod,        only: microphysics_placement,         &
                                        microphysics_placement_slow,    &
                                        orographic_drag_placement,      &
@@ -173,7 +174,6 @@ contains
     type( field_type ) :: aer_lw_absorption, aer_lw_scattering, aer_lw_asymmetry
     type( field_type ) :: tile_lw_albedo
     type( field_type ) :: tile_sw_diffuse_albedo, tile_sw_direct_albedo
-    type( field_type ) :: albedo_obs_scaling
 #endif
     ! ...for spectral GWD
     type( field_type ) :: du_tot_spectral_gwd, dtheta_spectral_gwd
@@ -305,10 +305,6 @@ contains
     !--------------------------------------------------------------------
     ! Socrates radiation scheme
     !--------------------------------------------------------------------
-    vector_space=>function_space_collection%get_fs(twod_mesh_id,0,W3, &
-                                                   n_land_tile*rad_nband)
-    call albedo_obs_scaling%initialise(vector_space)
-
     if (radiation == radiation_socrates .and. &
         radiation_placement == radiation_placement_slow) then
 
@@ -344,7 +340,7 @@ contains
                         tile_lw_albedo, derived_fields,                 &
                         radiation_fields, orography_fields,             &
                         surface_fields, soil_fields, snow_fields,       &
-                        albedo_obs_scaling, twod_mesh_id)
+                        twod_mesh_id, clock%get_step())
 
       dtheta_rad => radiation_fields%get_field('dtheta_rad')
       dmv_pc2_rad => radiation_fields%get_field('dmv_pc2_rad')
@@ -425,8 +421,7 @@ contains
                       derived_fields, radiation_fields,                  &
                       microphysics_fields, dmr_mphys, orography_fields,  &
                       turbulence_fields, convection_fields, cloud_fields,&
-                      surface_fields, soil_fields, snow_fields,          &
-                      albedo_obs_scaling)
+                      surface_fields, soil_fields, snow_fields)
 
     !--------------------------------------------------------------------
     ! Calculate time scales for bimodal cloud scheme
@@ -595,8 +590,8 @@ contains
     end if ! (scheme == scheme_pc2)
 #endif
 
-    call dtheta%log_minmax(LOG_LEVEL_INFO, 'slow physics: dtheta' )
-    call du%log_minmax(LOG_LEVEL_INFO, 'slow physics: du' )
+    call print_field_stats_alg(dtheta, LOG_LEVEL_INFO, printmin=-20.0_r_def, &
+                               printmax=20.0_r_def, name='dtheta slow')
 
     if (use_moisture) then
       do i_mr = 1, nummr

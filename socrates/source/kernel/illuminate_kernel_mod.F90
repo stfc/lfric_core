@@ -214,6 +214,9 @@ subroutine illuminate_code(nlayers,                     &
       lit_fraction             = lit_fraction(map_2d(1):map_2d(1)) )
   end if
 
+  cos_zenith_angle(map_2d(1)) = min(max(cos_zenith_angle(map_2d(1)),0.0_r_def),1.0_r_def)
+  cos_zenith_angle_rts(map_2d(1)) = min(max(cos_zenith_angle_rts(map_2d(1)),0.0_r_def),1.0_r_def)
+
 end subroutine illuminate_code
 
 end module illuminate_kernel_mod

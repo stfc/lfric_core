@@ -63,7 +63,7 @@ contains
                         microphysics_fields, dmr_mphys, orography_fields,&
                         turbulence_fields, convection_fields,            &
                         cloud_fields, surface_fields, soil_fields,       &
-                        snow_fields, albedo_obs_scaling)
+                        snow_fields)
 
     use bl_exp_kernel_mod, only: bl_exp_kernel_type
     use interp_bl_kernel_mod, only: interp_bl_kernel_type
@@ -75,9 +75,7 @@ contains
     type( field_type ), intent( inout )     :: visc_m, visc_h
 
     type( field_type ), intent( in )        :: theta, rho, exner, mr_n(nummr)
-    type( field_type ), intent( in )        :: albedo_obs_scaling
     type( field_type ), intent( in )        :: dmr_mphys ( nummr )
-
 
     type( field_collection_type ), intent(in)    :: derived_fields
     type( field_collection_type ), intent(in)    :: radiation_fields
@@ -179,6 +177,7 @@ contains
     type( field_type ), pointer :: surf_interp_w2      => null()
     type( field_type ), pointer :: tau_land_w2         => null()
     type( field_type ), pointer :: tau_ssi_w2          => null()
+    type( field_type ), pointer :: albedo_obs_scaling  => null()
 
     type( field_type ), pointer :: sd_orog              => null()
     type( field_type ), pointer :: peak_to_trough_orog  => null()
@@ -332,6 +331,7 @@ contains
     surf_interp_w2      => surface_fields%get_field('surf_interp_w2')
     tau_land_w2         => surface_fields%get_field('tau_land_w2')
     tau_ssi_w2          => surface_fields%get_field('tau_ssi_w2')
+    albedo_obs_scaling  => surface_fields%get_field('albedo_obs_scaling')
 
     ! Soil fields
     soil_albedo            => soil_fields%get_field('soil_albedo')

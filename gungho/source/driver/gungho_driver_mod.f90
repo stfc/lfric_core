@@ -135,8 +135,10 @@ contains
     do while (clock%tick())
 
       ! Update time-varying fields
-      call update_variable_fields( model_data%ancil_times_list, &
-                                   clock, model_data%ancil_fields )
+      ! This call is currently commented out because it does not work correctly
+      ! and will be re-instated in a later ticket
+      !call update_variable_fields( model_data%ancil_times_list, &
+      !                             clock, model_data%ancil_fields )
       if(l_esm_couple) then
 
          cpl_step = clock%get_step() - clock%get_first_step()

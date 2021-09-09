@@ -496,13 +496,13 @@ subroutine read_time_data(time_id, time_data)
   if ( time_units == 'seconds' ) then
     call log_event( 'Time units already in seconds', LOG_LEVEL_INFO )
   else if ( time_units == 'days' ) then
-    time_data = mod( time_data, 365.0_dp_xios )
+    time_data = mod( time_data, 365.24_dp_xios )
     time_data = time_data * 3600.0_dp_xios * 24.0_dp_xios
   else if ( time_units == 'hours' ) then
-    time_data = mod( time_data, 365.0_dp_xios * 24.0_dp_xios )
+    time_data = mod( time_data, 365.24_dp_xios * 24.0_dp_xios )
     time_data = time_data * 3600.0_dp_xios
   else if ( time_units == 'months' ) then
-    time_data = (real(time_data-1, dp_xios)/12.0_dp_xios) * 365.0_dp_xios * 24.0_dp_xios * 3600.0_dp_xios
+    time_data = (real(time_data-1, dp_xios)/12.0_dp_xios) * 365.24_dp_xios * 24.0_dp_xios * 3600.0_dp_xios
   else
     write( log_scratch_space,'(A,A)' ) "Invalid units for time axis: "// &
                                       trim( time_units )

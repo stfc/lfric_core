@@ -77,7 +77,7 @@ contains
 
     ! Time axis options
     logical(l_def),   parameter :: cyclic=.true.
-    logical(l_def),   parameter :: interp_flag=.false.
+    logical(l_def),   parameter :: interp_flag=.true.
     character(len=*), parameter :: axis_id="monthly_axis"
 
     ! Set pointer to time axis read behaviour

@@ -14,6 +14,7 @@ module mphys_alg_mod
   use constants_mod,        only: r_def, i_def
 
   use geometric_constants_mod, only: get_height
+  use physical_op_constants_mod, only: get_dz_at_wtheta
   use fs_continuity_mod,       only: W3, Wtheta
 
   implicit none
@@ -100,6 +101,7 @@ contains
 
     type( field_type ), pointer :: height_w3 => null()
     type( field_type ), pointer :: height_wth => null()
+    type( field_type ), pointer :: dz_in_wth => null()
 
     integer(kind=i_def) :: mesh_id
 
@@ -166,11 +168,12 @@ contains
                                      theta_inc, dcfl, dcff, dbcf, f_arr ) )
 
     if (turb_gen_mixph) then
+      dz_in_wth => get_dz_at_wtheta()
       call invoke( mphys_turb_gen_kernel_type(theta, mr_n(imr_v), mr_n(imr_cl),&
                                               mr_n(imr_ci), mr_n(imr_s),       &
                                               cfl_in, cff_in, cf_in,           &
                                               exner_in_wth, rho_in_wth, wvar,  &
-                                              height_wth, height_w3,           &
+                                              dz_in_wth,                       &
                                               theta_inc, dmr_mphys(imr_v),     &
                                               dmr_mphys(imr_cl),               &
                                               dmr_mphys(imr_ci),               &

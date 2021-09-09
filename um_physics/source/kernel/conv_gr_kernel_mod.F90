@@ -773,7 +773,7 @@ contains
         , zlcl, zlcl_uv, tnuc_new, tnuc_nlcl, zhpar, entrain_coef           &
         , conv_prog_precip, conv_prog_flx, deep_flag                        &
         , past_conv_ht, it_cape_diluted, n_deep, n_congestus, n_shallow     &
-        , n_mid, r_rho_levels(1,1,1), r_theta_levels(1,1,1)                 &
+        , n_mid, r_rho_levels(1,1,1), r_theta_levels(1,1,0)                 &
         , rho_wet, rho_wet_tq, rho_dry, rho_dry_theta, delta_smag           &
         , exner_rho_levels, exner_rho_minus_one, exner_theta_levels         &
         , p_rho_minus_one, p_theta_levels                                   &
@@ -897,7 +897,8 @@ contains
         bulk_cf_conv(1,1,k)   = bulk_cf_conv(1,1,k)                   &
                                 +(dbcfbydt(1,1,k) * timestep_conv)
         dt_conv(map_wth(1) + k)   = dt_conv(map_wth(1) + k)               &
-                                    + dthbydt(1,1,k) * timestep_conv
+                                    + dthbydt(1,1,k) * timestep_conv      &
+                                    * exner_theta_levels(1,1,k)
         dmv_conv(map_wth(1) + k)  =  dmv_conv(map_wth(1) + k)             &
                                      + dqbydt(1,1,k) * timestep_conv
         dmcl_conv(map_wth(1) + k) =  dmcl_conv(map_wth(1) + k)            &

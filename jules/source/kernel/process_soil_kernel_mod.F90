@@ -9,6 +9,7 @@ module process_soil_kernel_mod
   use argument_mod,  only: arg_type,                  &
                            GH_FIELD, GH_REAL,         &
                            GH_WRITE, GH_READ,         &
+                           GH_READWRITE,              &
                            ANY_DISCONTINUOUS_SPACE_1, &
                            ANY_DISCONTINUOUS_SPACE_2, &
                            CELL_COLUMN
@@ -22,7 +23,8 @@ module process_soil_kernel_mod
   !> Kernel metadata for Psyclone
   type, public, extends(kernel_type) :: process_soil_kernel_type
     private
-    type(arg_type) :: meta_args(13) = (/                                   &
+    type(arg_type) :: meta_args(14) = (/                                   &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
@@ -33,7 +35,7 @@ module process_soil_kernel_mod
          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), &
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), &
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), &
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2)  &
          /)
@@ -48,6 +50,7 @@ contains
 
   !> @param[in]     nlayers                The number of layers
   !> @param[in]     soil_moist_sat         Volumetric soil moist at saturation
+  !> @param[in]     soil_moist_wilt        Volumetric soil moist at wilting pt
   !> @param[in]     mean_topog_index       Mean topographic index
   !> @param[in]     stdev_topog_index      Standard dev in topog index
   !> @param[in,out] a_sat_frac             Saturated fraction fitting parameter a
@@ -57,7 +60,7 @@ contains
   !> @param[in]     clapp_horn_b           Clapp and Hornberger b coefficient
   !> @param[in]     soil_suction_sat       Saturated soil water suction (m)
   !> @param[in]     soil_temperature       Soil temperature (K)
-  !> @param[in]     soil_moisture          Soil moisture content (kg m-2)
+  !> @param[in,out] soil_moisture          Soil moisture content (kg m-2)
   !> @param[in,out] unfrozen_soil_moisture Unfrozen soil moisture proportion
   !> @param[in,out] frozen_soil_moisture   Frozen soil moisture proportion
   !> @param[in]     ndf_2d                 Number of DOFs per cell for 2d fields
@@ -68,6 +71,7 @@ contains
   !> @param[in]     map_soil               Dofmap for cell for soil levels
   subroutine process_soil_code(nlayers,                       &
                                soil_moist_sat,                &
+                               soil_moist_wilt,               &
                                mean_topog_index,              &
                                stdev_topog_index,             &
                                a_sat_frac,                    &
@@ -88,6 +92,7 @@ contains
     use calc_fit_fsat_mod, only: calc_fit_fsat
     use jules_soil_mod, only: dzsoil
     use nlsizes_namelist_mod, only: sm_levels
+    use water_constants_mod, only: rho_water
 
     use jules_physics_init_mod, only: decrease_sath_cond
 
@@ -103,6 +108,7 @@ contains
     integer(kind=i_def), intent(in) :: map_soil(ndf_soil)
 
     real(kind=r_def), intent(in)    :: soil_moist_sat(undf_2d)
+    real(kind=r_def), intent(in)    :: soil_moist_wilt(undf_2d)
     real(kind=r_def), intent(in)    :: mean_topog_index(undf_2d)
     real(kind=r_def), intent(in)    :: stdev_topog_index(undf_2d)
     real(kind=r_def), intent(inout) :: a_sat_frac(undf_2d)
@@ -113,7 +119,7 @@ contains
     real(kind=r_def), intent(in)    :: soil_suction_sat(undf_2d)
     real(kind=r_def), intent(in)    :: clapp_horn_b(undf_2d)
     real(kind=r_def), intent(in)    :: soil_temperature(undf_soil)
-    real(kind=r_def), intent(in)    :: soil_moisture(undf_soil)
+    real(kind=r_def), intent(inout) :: soil_moisture(undf_soil)
     real(kind=r_def), intent(inout) :: unfrozen_soil_moisture(undf_soil)
     real(kind=r_def), intent(inout) :: frozen_soil_moisture(undf_soil)
 
@@ -124,7 +130,7 @@ contains
 
     integer(i_um), dimension(1) :: soil_index
 
-    real(r_um) :: zdepth
+    real(r_um) :: zdepth, smc_min, smc_max
 
     integer(i_um) :: n
 
@@ -161,6 +167,18 @@ contains
       a_wet_frac(map_2d(1)) = real(a_fwet(1), r_def)
       c_wet_frac(map_2d(1)) = real(c_fwet(1), r_def)
 
+      ! Check and adjust soil moisture amounts, as per rcf_soil_moist_chk
+      do n = 1, sm_levels
+        smc_min = 0.1_r_def * soil_moist_wilt(map_2d(1)) * dzsoil(n) * rho_water
+        smc_max = soil_moist_sat(map_2d(1)) * dzsoil(n) * rho_water
+
+        if (soil_moisture(map_soil(1) + n-1) < smc_min) then
+          soil_moisture(map_soil(1) + n-1) = smc_min
+        else if (soil_moisture(map_soil(1) + n-1) > smc_max) then
+          soil_moisture(map_soil(1) + n-1) = smc_max
+        end if
+      end do
+
       ! Calculate frozen and unfrozen soil fractions
       call freeze_soil(soil_pts, sm_levels, clapp_horn_b(map_2d(1)),           &
                        dzsoil, soil_suction_sat(map_2d(1)),                    &
@@ -178,6 +196,7 @@ contains
       c_sat_frac(map_2d(1)) = 0.0_r_def
       a_wet_frac(map_2d(1)) = 0.0_r_def
       c_wet_frac(map_2d(1)) = 0.0_r_def
+      soil_moisture(map_soil(1):map_soil(1)+sm_levels-1) = 0.0_r_def
       unfrozen_soil_moisture(map_soil(1):map_soil(1)+sm_levels-1) = 0.0_r_def
       frozen_soil_moisture(map_soil(1):map_soil(1)+sm_levels-1) = 0.0_r_def
 
