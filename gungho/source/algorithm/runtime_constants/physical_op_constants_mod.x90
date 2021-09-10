@@ -48,6 +48,7 @@ module physical_op_constants_mod
   use calc_dz_face_kernel_mod,            only: calc_dz_face_kernel_type
   use compute_coriolis_matrix_kernel_mod, only: compute_coriolis_matrix_kernel_type
   use compute_geopotential_kernel_mod,    only: compute_geopotential_kernel_type
+  use compute_map_u_operators_kernel_mod, only: compute_map_u_operators_kernel_type
 
   implicit none
 
@@ -56,13 +57,16 @@ module physical_op_constants_mod
   ! Variables private to this module that can only be accessed by public
   ! functions returning pointers to them
 
+  type(operator_type), target :: u_lon_map
+  type(operator_type), target :: u_lat_map
+  type(operator_type), target :: u_up_map
   type(operator_type), target :: coriolis
-  type(field_type), target    :: geopotential
-  type(field_type), target    :: delta_at_wtheta
-  type(field_type), target    :: dtrdz_fd2
-  type(field_type), target    :: rdz_fd1
-  type(field_type), target    :: dz_at_wtheta
-  type(field_type), target    :: max_diff_wtheta
+  type(field_type),    target :: geopotential
+  type(field_type),    target :: delta_at_wtheta
+  type(field_type),    target :: dtrdz_fd2
+  type(field_type),    target :: rdz_fd1
+  type(field_type),    target :: dz_at_wtheta
+  type(field_type),    target :: max_diff_wtheta
 
   ! Public functions to create and access the module contents
 
@@ -75,6 +79,9 @@ module physical_op_constants_mod
   public :: get_rdz_fd1
   public :: get_dz_at_wtheta
   public :: get_max_diff
+  public :: get_u_lon_map
+  public :: get_u_lat_map
+  public :: get_u_up_map
 
 contains
   !>@brief Subroutine to create the physical operator constants
@@ -94,6 +101,7 @@ contains
     type(function_space_type),  pointer :: w2_k0_fs  => null()
     type(function_space_type),  pointer :: w2_fs     => null()
     type(function_space_type),  pointer :: w3_fs     => null()
+    type(function_space_type),  pointer :: wtheta_fs => null()
     type(function_space_type),  pointer :: wtheta_k0_fs => null()
     type(quadrature_xyoz_type), pointer :: qr
     type(field_type),           pointer :: dA_at_w2 => null()
@@ -125,6 +133,7 @@ contains
     w2_k0_fs  => function_space_collection%get_fs( mesh_id, 0, W2 )
     w2_fs     => function_space_collection%get_fs( mesh_id, element_order, W2 )
     w3_fs     => function_space_collection%get_fs( mesh_id, element_order, W3 )
+    wtheta_fs => function_space_collection%get_fs( mesh_id, element_order, Wtheta )
     wtheta_k0_fs => function_space_collection%get_fs( mesh_id, 0, Wtheta )
 
     !=================== Create geopotential field ============================!
@@ -149,6 +158,19 @@ contains
 
     !========================== Physics objects =============================!
     if (use_physics) then
+
+      ! Operators needed to map finite difference physics winds to W2
+      ! finite element winds
+      u_lon_map  = operator_type( w2_fs, w3_fs )
+      u_lat_map  = operator_type( w2_fs, w3_fs )
+      u_up_map   = operator_type( w2_fs, wtheta_fs )
+
+      call invoke( compute_map_u_operators_kernel_type(u_lon_map, &
+                                                       u_lat_map, &
+                                                       u_up_map,  &
+                                                       chi,       &
+                                                       panel_id,  &
+                                                       qr      ))
 
       ! Quantities needed by all UM physics schemes
       call dx_at_w2%initialise( vector_space = w2_k0_fs )
@@ -292,6 +314,36 @@ contains
 
   end function get_max_diff
 
+  !> @brief Returns a pointer to the u_lon mapping operator
+  !> @return The mapping operator for u_lon to W2
+  function get_u_lon_map() result(u_lon_map_op)
+    implicit none
+    type(operator_type),      pointer :: u_lon_map_op
+
+    u_lon_map_op => u_lon_map
+
+  end function get_u_lon_map
+
+  !> @brief Returns a pointer to the u_lat mapping operator
+  !> @return The mapping operator for u_lat to W2
+  function get_u_lat_map() result(u_lat_map_op)
+    implicit none
+    type(operator_type),      pointer :: u_lat_map_op
+
+    u_lat_map_op => u_lat_map
+
+  end function get_u_lat_map
+
+    !> @brief Returns a pointer to the u_up mapping operator
+    !> @return The mapping operator for u_up to W2
+    function get_u_up_map() result(u_up_map_op)
+      implicit none
+      type(operator_type),      pointer :: u_up_map_op
+
+      u_up_map_op => u_up_map
+
+    end function get_u_up_map
+
   !> @brief Explicitly reclaim memory from module scope variables
   !
   subroutine final_physical_op_constants()
@@ -305,6 +357,9 @@ contains
     call rdz_fd1%field_final()
     call dz_at_wtheta%field_final()
     call max_diff_wtheta%field_final()
+    call u_lon_map%operator_final()
+    call u_lat_map%operator_final()
+    call u_up_map%operator_final()
 
   end subroutine final_physical_op_constants
 

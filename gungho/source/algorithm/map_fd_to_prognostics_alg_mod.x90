@@ -25,7 +25,10 @@ module map_fd_to_prognostics_alg_mod
   use geometric_constants_mod,         only: get_height,          &
                                              get_coordinates,     &
                                              get_panel_id
-  use physical_op_constants_mod,       only: get_coriolis
+  use physical_op_constants_mod,       only: get_coriolis,  &
+                                             get_u_lon_map, &
+                                             get_u_lat_map, &
+                                             get_u_up_map
   use fs_continuity_mod,               only: W3, W2
   use initialization_config_mod,       only: ancil_option,                &
                                              ancil_option_aquaplanet,     &
@@ -132,35 +135,32 @@ contains
   !> @param[in] u_up Upward Wind (FD)
   subroutine set_wind(u, u_lon, u_lat, u_up)
 
-    use map_u_kernel_mod,            only: map_u_kernel_type
     use enforce_bc_kernel_mod,       only: enforce_bc_kernel_type
     use mass_matrix_solver_alg_mod,  only: mass_matrix_solver_alg
+    use matrix_vector_kernel_mod,    only: matrix_vector_kernel_type
     implicit none
 
     type( field_type ), intent( inout ) :: u
-    type( field_type ), intent( in ) :: u_lat, u_lon, u_up
+    type( field_type ), intent( in )    :: u_lat, u_lon, u_up
 
-    type( quadrature_xyoz_type )          :: qr
-    type( quadrature_rule_gaussian_type ) :: quadrature_rule
     type( field_type )                    :: r_u
-    type( field_type ), pointer           :: chi(:) => null()
-    type( field_type ), pointer           :: panel_id => null()
-
-    integer(kind=i_def) :: mesh_id
+    type( operator_type ), pointer        :: u_lon_map => null()
+    type( operator_type ), pointer        :: u_lat_map => null()
+    type( operator_type ), pointer        :: u_up_map => null()
 
     if ( subroutine_timers ) call timer("set_wind")
 
     call u%copy_field_properties(r_u)
 
-    mesh_id = u%get_mesh_id()
-
-    qr = quadrature_xyoz_type(3, quadrature_rule)
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
-    call invoke( setval_c( u,   0.0_r_def ),      &
-                 setval_c( r_u, 0.0_r_def ),      &
-                 map_u_kernel_type( r_u, u_lon, u_lat, u_up, &
-                                    chi, panel_id, qr ), &
+    u_lon_map => get_u_lon_map()
+    u_lat_map => get_u_lat_map()
+    u_up_map => get_u_up_map()
+    call log_event( "Gungho: Setting Winds! :)", LOG_LEVEL_INFO )
+    call invoke( setval_c( u,   0.0_r_def ),                       &
+                 setval_c( r_u, 0.0_r_def ),                       &
+                 matrix_vector_kernel_type(r_u, u_lon, u_lon_map), &
+                 matrix_vector_kernel_type(r_u, u_lat, u_lat_map), &
+                 matrix_vector_kernel_type(r_u, u_up, u_up_map),   &
                  enforce_bc_kernel_type( r_u ) )
     call mass_matrix_solver_alg(u, r_u)
 

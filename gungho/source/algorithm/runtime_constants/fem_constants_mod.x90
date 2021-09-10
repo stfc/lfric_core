@@ -114,8 +114,8 @@ module fem_constants_mod
   type(field_type),    allocatable, dimension(:), target :: w2_normalisation
   type(field_type),    allocatable, dimension(:), target :: detj_at_w2
 
-  ! Miscellaneous
-  type( quadrature_xyoz_type ),                   target :: qr
+  ! Quadrature objects
+  type( quadrature_xyoz_type ),target                    :: qr
   type( quadrature_rule_gaussian_type )                  :: quadrature_rule
 
   ! Public functions to create and access the module contents
@@ -139,7 +139,6 @@ module fem_constants_mod
   public :: get_multiplicity
   public :: get_rmultiplicity
   public :: get_detj_at_w2
-
 
 contains
   !>@brief Subroutine to create the finite element constants
@@ -223,7 +222,7 @@ contains
              nodal_rmultiplicity_w2(num_meshes),  &
              nodal_multiplicity_w1(num_meshes),   &
              w2_normalisation(num_meshes),        &
-             detj_at_w2(num_meshes)               )
+             detj_at_w2(num_meshes))
 
     !======================== Create quadrature object ========================!
 
@@ -876,7 +875,7 @@ contains
     mesh_index = find_mesh_index(mesh_id)
     detj => detj_at_w2(mesh_index)
 
-  end function get_detj_at_w2
+   end function get_detj_at_w2
 
   !> @brief Explicitly reclaim memory from module scope variables
   !
