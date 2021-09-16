@@ -6,7 +6,8 @@
 class gen_planar_mod::gen_planar_type {
 
   -mesh_name: string
-  -mesh_class: string
+  -geometry: integer
+  -topology: integer
   -coord_sys: integer
   -coord_units_x: string
   -coord_units_y: string

@@ -159,7 +159,9 @@ abstract interface
   !>
   !> @param[in,out] self                   The ugrid file strategy object.
   !> @param[in]     mesh_name              Name of mesh to read
-  !> @param[out]    mesh_class             Primitive class of mesh.
+  !> @param[out]    geometry               Domain geometry enumeration key
+  !> @param[out]    topology               Domain topology enumeration key
+  !> @param[out]    coord_sys              Co-ordinate sys enumeration key
   !> @param[out]    periodic_x             Periodic in E-W direction.
   !> @param[out]    periodic_y             Periodic in N-S direction.
   !> @param[out]    constructor_inputs     Inputs to the ugrid_generator used to
@@ -176,8 +178,10 @@ abstract interface
   !> @param[out]    target_mesh_names      Mesh(es) that this mesh has maps for
   !-----------------------------------------------------------------------------
 
-  subroutine read_mesh_interface( self, mesh_name, mesh_class,    &
+  subroutine read_mesh_interface( self, mesh_name,                &
+                                  geometry, topology, coord_sys,  &
                                   periodic_x, periodic_y,         &
+                                  max_stencil_depth,              &
                                   constructor_inputs,             &
                                   node_coordinates,               &
                                   face_coordinates,               &
@@ -188,7 +192,8 @@ abstract interface
                                   face_face_connectivity,         &
                                   num_targets, target_mesh_names )
 
-    import :: ugrid_file_type, i_def, r_def, str_def, str_longlong, l_def
+    import :: ugrid_file_type, i_def, r_def, str_def, str_longlong, &
+              l_def
 
     implicit none
 
@@ -196,9 +201,13 @@ abstract interface
     class(ugrid_file_type), intent(inout) :: self
 
     character(str_def), intent(in)  :: mesh_name
-    character(str_def), intent(out) :: mesh_class
+
+    character(str_def), intent(out) :: geometry
+    character(str_def), intent(out) :: topology
+    character(str_def), intent(out) :: coord_sys
     logical(l_def),     intent(out) :: periodic_x
     logical(l_def),     intent(out) :: periodic_y
+    integer(i_def),     intent(out) :: max_stencil_depth
 
     character(str_longlong), intent(out) :: constructor_inputs
 
@@ -220,7 +229,9 @@ abstract interface
   !>
   !> @param[inout]   self                    The ugrid file strategy object.
   !> @param[in]      mesh_name               Name of this mesh instance
-  !> @param[in]      mesh_class              Primitive class of mesh
+  !> @param[in]      geometry                Domain geometry enumeration key
+  !> @param[in]      topology                Domain topology enumeration key
+  !> @param[in]      coord_sys               Co-ordinate sys enumeration key
   !> @param[in]      periodic_x              Periodic in E-W direction.
   !> @param[in]      periodic_y              Periodic in N-S direction.
   !> @param[in]      constructor_inputs      Inputs used to generate mesh
@@ -240,20 +251,18 @@ abstract interface
   !> @param[in]      target_mesh_maps        Mesh maps from this mesh to target mesh(es)
   !-----------------------------------------------------------------------------
 
-  subroutine write_mesh_interface( self, mesh_name, mesh_class,     &
-                                   periodic_x, periodic_y,          &
-                                   constructor_inputs,              &
-                                   num_nodes, num_edges, num_faces, &
-                                   node_coordinates,                &
-                                   face_coordinates,                &
-                                   coord_units_x,                   &
-                                   coord_units_y,                   &
-                                   face_node_connectivity,          &
-                                   edge_node_connectivity,          &
-                                   face_edge_connectivity,          &
-                                   face_face_connectivity,          &
-                                   num_targets,                     &
-                                   target_mesh_names,               &
+  subroutine write_mesh_interface( self, mesh_name, geometry, topology, coord_sys, &
+                                   periodic_x, periodic_y, max_stencil_depth,      &
+                                   constructor_inputs,                             &
+                                   num_nodes, num_edges, num_faces,                &
+                                   node_coordinates, face_coordinates,             &
+                                   coord_units_x, coord_units_y,                   &
+                                   face_node_connectivity,                         &
+                                   edge_node_connectivity,                         &
+                                   face_edge_connectivity,                         &
+                                   face_face_connectivity,                         &
+                                   num_targets,                                    &
+                                   target_mesh_names,                              &
                                    target_mesh_maps )
 
     import :: ugrid_file_type, i_def, r_def, str_def, str_longlong, l_def, &
@@ -265,9 +274,14 @@ abstract interface
     class(ugrid_file_type), intent(inout) :: self
 
     character(str_def), intent(in) :: mesh_name
-    character(str_def), intent(in) :: mesh_class
+
+    character(str_def), intent(in) :: geometry
+    character(str_def), intent(in) :: topology
+    character(str_def), intent(in) :: coord_sys
     logical(l_def),     intent(in) :: periodic_x
     logical(l_def),     intent(in) :: periodic_y
+
+    integer(i_def),     intent(in) :: max_stencil_depth
 
     character(str_longlong), intent(in) :: constructor_inputs
 

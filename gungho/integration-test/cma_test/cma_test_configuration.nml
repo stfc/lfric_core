@@ -2,7 +2,7 @@
   filename        = 'mesh_C12.nc'
   geometry        = 'spherical'
   partitioner     = 'cubedsphere'
-  prime_mesh_name = 'dynamics'
+  prime_mesh_name = 'unit_test'
   topology        = 'fully_periodic'
   fplane          = .false.
   f_lat_deg       = 45.0

@@ -12,7 +12,7 @@
                                "target_grid_levs"   : "38",
                                "target_grid_type"   : "global",
                                "source_dump"        : "$BIG_DATA_DIR/start_dumps/aquaplanet/Llama/aquaplanet_N48L38_C48L38.nc",
-                               "lfric_mesh"         : {"file":"$BIG_DATA_DIR/meshes/pre-Nyala/mesh_C48.nc", "name":"dynamics"},
+                               "lfric_mesh"         : {"file":"$BIG_DATA_DIR/meshes/HEAD/mesh_C48.nc", "name":"dynamics"},
                              },
 
 }) %}

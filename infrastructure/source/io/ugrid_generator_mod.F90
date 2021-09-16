@@ -10,7 +10,8 @@
 
 module ugrid_generator_mod
 
-use constants_mod, only : r_def, i_def, str_def, str_long, l_def, str_longlong
+use constants_mod,                  only: r_def, i_def, str_def, l_def, &
+                                          str_longlong, i_native
 use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
 
 implicit none
@@ -77,7 +78,9 @@ abstract interface
   !>
   !> @param[in]             self               The generator strategy object.
   !> @param[out, optional]  mesh_name          Name of mesh instance to generate
-  !> @param[out, optional]  mesh_class         Primitive shape, i.e. sphere, plane
+  !> @param[out, optional]  geometry           Domain geometry enumeration key
+  !> @param[out, optional]  topology           Domain topology enumeration key
+  !> @param[out, optional]  coord_sys          Co-ordinate sys enumeration key
   !> @param[out, optional]  periodic_x         Periodic in E-W direction.
   !> @param[out, optional]  periodic_y         Periodic in N-S direction.
   !> @param[out, optional]  npanels            Number of panels use to describe mesh
@@ -95,9 +98,10 @@ abstract interface
   !> @param[out, optional]  maps_edge_cells_y  Number of panel edge cells (y-axis) of
   !>                                           target mesh(es) to create map(s) for.
   !-----------------------------------------------------------------------------
-  subroutine get_metadata_interface ( self, mesh_name, mesh_class,           &
+  subroutine get_metadata_interface ( self, mesh_name,                       &
+                                      geometry, topology, coord_sys,         &
                                       periodic_x, periodic_y, npanels,       &
-                                      coord_sys, edge_cells_x, edge_cells_y, &
+                                      edge_cells_x, edge_cells_y,            &
                                       constructor_inputs, nmaps,             &
                                       target_mesh_names,                     &
                                       maps_edge_cells_x, maps_edge_cells_y )
@@ -107,8 +111,11 @@ abstract interface
     implicit none
 
     class(ugrid_generator_type),  intent(in)  :: self
+
     character(str_def), optional, intent(out) :: mesh_name
-    character(str_def), optional, intent(out) :: mesh_class
+    character(str_def), optional, intent(out) :: geometry
+    character(str_def), optional, intent(out) :: topology
+    character(str_def), optional, intent(out) :: coord_sys
     logical(l_def),     optional, intent(out) :: periodic_x
     logical(l_def),     optional, intent(out) :: periodic_y
 
@@ -122,7 +129,6 @@ abstract interface
                     optional, intent(out) :: maps_edge_cells_y(:)
 
     integer(i_def), optional, intent(out) :: npanels
-    integer(i_def), optional, intent(out) :: coord_sys
     integer(i_def), optional, intent(out) :: nmaps
     integer(i_def), optional, intent(out) :: edge_cells_x
     integer(i_def), optional, intent(out) :: edge_cells_y

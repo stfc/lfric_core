@@ -58,7 +58,7 @@ contains
   procedure, public :: get_ntarget_cells_per_source_y
   !>
   !> Gets the target cells ids mapped to the requested source cell
-  !> @param [in]  source_lid Local ID of requested source cell
+  !> @param [in]  cell Local ID of requested source cell
   !> @return map  Pointer to array of local IDs of cells in target
   !>              mesh which overlap with the requested local ID
   !>              in source mesh. Argument should be of rank-1 array

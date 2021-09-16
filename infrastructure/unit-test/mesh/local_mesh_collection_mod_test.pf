@@ -110,7 +110,7 @@ contains
     integer(i_def) :: local_mesh_id
     integer(i_def) :: unit_test_local_mesh_id
 
-    filename = 'data/mesh_BiP8x8-6000x2000.nc'
+    filename = 'data/mesh_BiP8x8-750x250.nc'
     mesh_name = 'unit_test'
     npanels  = 1
     call ugrid_mesh_data%read_from_file(trim(filename), mesh_name)

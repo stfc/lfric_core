@@ -64,8 +64,12 @@ type, extends(ugrid_file_type), public :: ncdf_quad_type
   integer(i_def)              :: ncid       !< NetCDF file ID
   character(str_max_filename) :: file_name  !< Filename
   character(nf90_max_name)    :: mesh_name
-  character(str_def)          :: mesh_class !< Primitive class of mesh,
-                                            !< i.e. sphere, plane
+
+  character(nf90_max_name)    :: geometry
+  character(nf90_max_name)    :: topology
+  character(nf90_max_name)    :: coord_sys
+  integer(i_def)              :: max_stencil_depth
+
   logical(l_def)              :: periodic_x !< Periodic in E-W direction
   logical(l_def)              :: periodic_y !< Periodic in N-S direction
 
@@ -533,11 +537,32 @@ subroutine assign_attributes(self)
   ierr = nf90_put_att( self%ncid, id, trim(attname), 'mesh_topology')
   call check_err(ierr, routine, cmess)
 
-  attname = 'mesh_class'
+  attname = 'geometry'
   cmess   = 'Adding attribute "'//trim(attname)// &
             '" to variable "'//trim(var_name)//'"'
   ierr = nf90_put_att( self%ncid, id, trim(attname), &
-                       trim(self%mesh_class))
+                       trim(self%geometry))
+  call check_err(ierr, routine, cmess)
+
+  attname = 'topology'
+  cmess   = 'Adding attribute "'//trim(attname)// &
+            '" to variable "'//trim(var_name)//'"'
+  ierr = nf90_put_att( self%ncid, id, trim(attname), &
+                       trim(self%topology))
+  call check_err(ierr, routine, cmess)
+
+  attname = 'coord_sys'
+  cmess   = 'Adding attribute "'//trim(attname)// &
+            '" to variable "'//trim(var_name)//'"'
+  ierr = nf90_put_att( self%ncid, id, trim(attname), &
+                       trim(self%coord_sys) )
+  call check_err(ierr, routine, cmess)
+
+  attname = 'max_stencil_depth'
+  cmess   = 'Adding attribute "'//trim(attname)// &
+            '" to variable "'//trim(var_name)//'"'
+  ierr = nf90_put_att( self%ncid, id, trim(attname), &
+                       self%max_stencil_depth )
   call check_err(ierr, routine, cmess)
 
   attname = 'periodic_x'
@@ -774,14 +799,14 @@ subroutine assign_attributes(self)
   !===================================================================
   ! 6.0 Add attributes for mesh node coordinate variables
   !===================================================================
-  select case (trim(self%mesh_class))
-  case ('sphere','lam')
+  select case (trim(self%coord_sys))
+  case ('ll')
     std_x_name  = 'longitude'
     std_y_name  = 'latitude'
     long_x_name = 'longitude of 2D mesh nodes.'
     long_y_name = 'latitude of 2D mesh nodes.'
 
-  case ('plane','lbc')
+  case ('xyz')
     std_x_name  = 'projection_x_coordinate'
     std_y_name  = 'projection_y_coordinate'
     long_x_name = 'x coordinate of 2D mesh nodes.'
@@ -843,13 +868,13 @@ subroutine assign_attributes(self)
   !===================================================================
   ! 7.0 Add attributes for mesh face coordinate variables
   !===================================================================
-  select case (trim(self%mesh_class))
-  case ('sphere','lam')
+  select case (trim(self%coord_sys))
+  case ('ll')
     std_x_name  = 'longitude'
     std_y_name  = 'latitude'
     long_x_name = 'longitude of 2D face centres'
     long_y_name = 'latitude of 2D face centres'
-  case ('plane','lbc')
+  case ('xyz')
     std_x_name  = 'projection_x_coordinate'
     std_y_name  = 'projection_y_coordinate'
     long_x_name = 'x coordinate of 2D face centres'
@@ -1238,12 +1263,17 @@ end subroutine get_dimensions
 !>  @details Reads coordinate and connectivity information from the NetCDF file.
 !>
 !>  @param[in,out]  self                     The NetCDF file object.
-!>  @param[in]      mesh_name                Name of the mesh topology
-!>  @param[out]     mesh_class               Primitive class of mesh
+!>  @param[in]      mesh_name                Name of the mesh topology.
+!>  @param[out]     geometry                 Mesh domain geometry.
+!>  @param[out]     topology                 Indicates layout of mesh connectivity
+!>  @param[out]     coord_sys                Co-ordinate system used to convey
+!>                                           node locations.
 !>  @param[out]     periodic_x               Periodic in E-W direction.
 !>  @param[out]     periodic_y               Periodic in N-S direction.
+!>  @param[out]     max_stencil_depth        The max stencil depth that this
+!>                                           mesh supports.
 !>  @param[out]     constructor_inputs       Inputs to the ugrid_generator to
-!>                                           generate mesh
+!>                                           generate mesh.
 !>  @param[out]     node_coordinates         Coordinates of each node.
 !>  @param[out]     face_coordinates         Coordinates of each face.
 !>  @param[out]     coord_units_x            Units of x coordinates.
@@ -1252,16 +1282,17 @@ end subroutine get_dimensions
 !>  @param[out]     edge_node_connectivity   Nodes adjoining each edge.
 !>  @param[out]     face_edge_connectivity   Edges adjoining each face.
 !>  @param[out]     face_face_connectivity   Faces adjoining each face (links).
-!>  @param[out]     num_targets              Number of mesh maps from mesh
-!>  @param[out]     target_mesh_names        Mesh(es) that this mesh has maps for
+!>  @param[out]     num_targets              Number of mesh maps from mesh.
+!>  @param[out]     target_mesh_names        Mesh(es) that this mesh has maps for.
 !-------------------------------------------------------------------------------
 
-subroutine read_mesh( self, mesh_name, mesh_class,                     &
-                      periodic_x, periodic_y, constructor_inputs,      &
-                      node_coordinates, face_coordinates,              &
-                      coord_units_x, coord_units_y,                    &
-                      face_node_connectivity, edge_node_connectivity,  &
-                      face_edge_connectivity, face_face_connectivity,  &
+subroutine read_mesh( self, mesh_name, geometry, topology, coord_sys, &
+                      periodic_x, periodic_y, max_stencil_depth,      &
+                      constructor_inputs,                             &
+                      node_coordinates, face_coordinates,             &
+                      coord_units_x, coord_units_y,                   &
+                      face_node_connectivity, edge_node_connectivity, &
+                      face_edge_connectivity, face_face_connectivity, &
                       num_targets, target_mesh_names )
   implicit none
 
@@ -1269,9 +1300,13 @@ subroutine read_mesh( self, mesh_name, mesh_class,                     &
   class(ncdf_quad_type),  intent(inout) :: self
 
   character(str_def),  intent(in)  :: mesh_name
-  character(str_def),  intent(out) :: mesh_class
+  character(str_def),  intent(out) :: geometry
+  character(str_def),  intent(out) :: topology
+  character(str_def),  intent(out) :: coord_sys
   logical(l_def),      intent(out) :: periodic_x
   logical(l_def),      intent(out) :: periodic_y
+
+  integer(i_def),      intent(out) :: max_stencil_depth
 
   character(str_longlong), intent(out) :: constructor_inputs
 
@@ -1322,10 +1357,22 @@ subroutine read_mesh( self, mesh_name, mesh_class,                     &
 
   call inquire_ids(self, mesh_name)
 
-  ! Mesh class
-  cmess = 'Getting attribute, "mesh_class"'
+  ! Mesh geometry
+  cmess = 'Getting attribute, "geometry"'
   ierr = nf90_get_att( self%ncid, self%mesh_id, &
-                       'mesh_class', mesh_class )
+                       'geometry', geometry )
+  call check_err(ierr, routine, cmess)
+
+  ! Mesh topology
+  cmess = 'Getting attribute, "topology"'
+  ierr = nf90_get_att( self%ncid, self%mesh_id, &
+                       'topology', topology )
+  call check_err(ierr, routine, cmess)
+
+  ! Coordinate system
+  cmess = 'Getting attribute, "coord_sys"'
+  ierr = nf90_get_att( self%ncid, self%mesh_id, &
+                       'coord_sys', coord_sys )
   call check_err(ierr, routine, cmess)
 
   ! Periodic in E-W direction
@@ -1341,6 +1388,13 @@ subroutine read_mesh( self, mesh_name, mesh_class,                     &
                        'periodic_y', lchar_py )
   call check_err(ierr, routine, cmess)
   read(lchar_py, '(L8)') periodic_y
+
+  ! Max stencil depth
+  cmess = 'Getting attribute, "max_stencil_depth"'
+  ierr = nf90_get_att( self%ncid, self%mesh_id, &
+                       'max_stencil_depth',     &
+                       max_stencil_depth )
+  call check_err(ierr, routine, cmess)
 
   ! Ugrid mesh constructor inputs
   cmess = 'Getting attribute, "constructor_inputs"'
@@ -1616,9 +1670,14 @@ end subroutine read_map
 !>
 !>  @param[in,out]  self                     The NetCDF file object.
 !>  @param[in]      mesh_name                Name of the mesh topology.
-!>  @param[in]      mesh_class               Primitive class of mesh.
+!>  @param[in]      geometry                 Mesh domain geometry.
+!>  @param[in]      topology                 Indicates layout of mesh connectivity
+!>  @param[in]      coord_sys                Co-ordinate system used to convey
+!>                                           node locations.
 !>  @param[in]      periodic_x               Periodic in E-W direction.
 !>  @param[in]      periodic_y               Periodic in N-S direction.
+!>  @param[in]      max_stencil_depth        The max stencil depth that this
+!>                                           mesh supports.
 !>  @param[in]      constructor_inputs       Inputs used to create this mesh
 !>                                           from the ugrid_generator
 !>  @param[in]      num_nodes                The number of nodes on the mesh.
@@ -1637,8 +1696,9 @@ end subroutine read_map
 !>  @param[in]      target_mesh_maps         Mesh maps from this mesh to target mesh(es)
 !-------------------------------------------------------------------------------
 
-subroutine write_mesh( self, mesh_name, mesh_class,                       &
-                       periodic_x, periodic_y, constructor_inputs,        &
+subroutine write_mesh( self, mesh_name, geometry, topology, coord_sys,    &
+                       periodic_x, periodic_y, max_stencil_depth,         &
+                       constructor_inputs,                                &
                        num_nodes, num_edges, num_faces,                   &
                        node_coordinates, face_coordinates,                &
                        coord_units_x, coord_units_y,                      &
@@ -1651,9 +1711,14 @@ subroutine write_mesh( self, mesh_name, mesh_class,                       &
   class(ncdf_quad_type),  intent(inout) :: self
 
   character(str_def),  intent(in) :: mesh_name
-  character(str_def),  intent(in) :: mesh_class
+
+  character(str_def),  intent(in) :: geometry
+  character(str_def),  intent(in) :: topology
+  character(str_def),  intent(in) :: coord_sys
   logical(l_def),      intent(in) :: periodic_x
   logical(l_def),      intent(in) :: periodic_y
+
+  integer(i_def),      intent(in) :: max_stencil_depth
 
   character(str_longlong), intent(in) :: constructor_inputs
 
@@ -1708,9 +1773,13 @@ subroutine write_mesh( self, mesh_name, mesh_class,                       &
   face_coordinates_ncdf(:,:) =  real( face_coordinates(:,:), kind=r_ncdf )
 
   self%mesh_name     = mesh_name
-  self%mesh_class    = mesh_class
+  self%geometry      = geometry
+  self%topology      = topology
+  self%coord_sys     = coord_sys
   self%periodic_x    = periodic_x
   self%periodic_y    = periodic_y
+
+  self%max_stencil_depth  = max_stencil_depth
   self%constructor_inputs = constructor_inputs
 
   self%nmesh_nodes   = num_nodes
@@ -1864,7 +1933,14 @@ end function is_mesh_present
 !>
 !>  @param[in,out]  self                     The NetCDF file object.
 !>  @param[in]      mesh_name                Name of the mesh topology
-!>  @param[in]      mesh_class               Primitive class of mesh.
+!>  @param[in]      geometry                 Mesh domain geometry.
+!>  @param[in]      topology                 Indicates layout of mesh connectivity
+!>  @param[in]      coord_sys                Co-ordinate system used to convey
+!>                                           node locations.
+!>  @param[in]      periodic_x               Periodic in E-W direction.
+!>  @param[in]      periodic_y               Periodic in N-S direction.
+!>  @param[in]      max_stencil_depth        The max stencil depth that this
+!>                                           mesh supports.
 !>  @param[in]      constructor_inputs       Inputs used to create this mesh
 !>                                           from the ugrid_generator
 !>  @param[in]      num_nodes                The number of nodes on the mesh.
@@ -1881,11 +1957,10 @@ end function is_mesh_present
 !>  @param[in]      num_targets              Number of mesh maps from mesh
 !>  @param[in]      target_mesh_names        Mesh(es) that this mesh has maps for
 !>  @param[in]      target_mesh_maps         Mesh maps from this mesh to target mesh(es)
-!>  @param[in]      periodic_x               Periodic in E-W direction.
-!>  @param[in]      periodic_y               Periodic in N-S direction.
 !-------------------------------------------------------------------------------
-subroutine append_mesh( self, mesh_name, mesh_class,                       &
-                        periodic_x, periodic_y, constructor_inputs,        &
+subroutine append_mesh( self, mesh_name, geometry, topology, coord_sys,    &
+                        periodic_x, periodic_y, max_stencil_depth,         &
+                        constructor_inputs,                                &
                         num_nodes, num_edges, num_faces,                   &
                         node_coordinates, face_coordinates,                &
                         coord_units_x, coord_units_y,                      &
@@ -1896,25 +1971,30 @@ subroutine append_mesh( self, mesh_name, mesh_class,                       &
 
   ! Arguments
   class(ncdf_quad_type), intent(inout) :: self
-  character(str_def),    intent(in)    :: mesh_class
-  logical(l_def),        intent(in)    :: periodic_x
-  logical(l_def),        intent(in)    :: periodic_y
-  character(str_def),    intent(in)    :: mesh_name
-  character(str_longlong),   intent(in)    :: constructor_inputs
-  integer(i_def),        intent(in)    :: num_nodes
-  integer(i_def),        intent(in)    :: num_edges
-  integer(i_def),        intent(in)    :: num_faces
-  real(r_def),           intent(in)    :: node_coordinates(:,:)
-  real(r_def),           intent(in)    :: face_coordinates(:,:)
-  character(str_def),    intent(in)    :: coord_units_x
-  character(str_def),    intent(in)    :: coord_units_y
-  integer(i_def),        intent(in)    :: face_node_connectivity(:,:)
-  integer(i_def),        intent(in)    :: edge_node_connectivity(:,:)
-  integer(i_def),        intent(in)    :: face_edge_connectivity(:,:)
-  integer(i_def),        intent(in)    :: face_face_connectivity(:,:)
-  integer(i_def),        intent(in)    :: num_targets
-  character(str_def),    intent(in),      &
-                         allocatable   :: target_mesh_names(:)
+
+  character(str_def),      intent(in)  :: mesh_name
+  character(str_def),      intent(in)  :: geometry
+  character(str_def),      intent(in)  :: topology
+  character(str_def),      intent(in)  :: coord_sys
+  logical(l_def),          intent(in)  :: periodic_x
+  logical(l_def),          intent(in)  :: periodic_y
+  integer(i_def),          intent(in)  :: max_stencil_depth
+  character(str_longlong), intent(in)  :: constructor_inputs
+  integer(i_def),          intent(in)  :: num_nodes
+  integer(i_def),          intent(in)  :: num_edges
+  integer(i_def),          intent(in)  :: num_faces
+  real(r_def),             intent(in)  :: node_coordinates(:,:)
+  real(r_def),             intent(in)  :: face_coordinates(:,:)
+  character(str_def),      intent(in)  :: coord_units_x
+  character(str_def),      intent(in)  :: coord_units_y
+  integer(i_def),          intent(in)  :: face_node_connectivity(:,:)
+  integer(i_def),          intent(in)  :: edge_node_connectivity(:,:)
+  integer(i_def),          intent(in)  :: face_edge_connectivity(:,:)
+  integer(i_def),          intent(in)  :: face_face_connectivity(:,:)
+  integer(i_def),          intent(in)  :: num_targets
+
+  character(str_def),      intent(in),    &
+                           allocatable :: target_mesh_names(:)
   type(global_mesh_map_collection_type),  &
                          intent(in)    :: target_mesh_maps
 
@@ -1939,9 +2019,12 @@ subroutine append_mesh( self, mesh_name, mesh_class,                       &
 
   call self%write_mesh(                                &
       mesh_name  = mesh_name,                          &
-      mesh_class = mesh_class,                         &
+      geometry   = geometry,                           &
+      topology   = topology,                           &
+      coord_sys  = coord_sys,                          &
       periodic_x = periodic_x,                         &
       periodic_y = periodic_y,                         &
+      max_stencil_depth = max_stencil_depth,           &
       constructor_inputs = constructor_inputs,         &
       num_nodes  = num_nodes,                          &
       num_edges  = num_edges,                          &

@@ -16,8 +16,8 @@
 program planar_mesh_generator
 
   use cli_mod,           only: get_initial_filename
-  use constants_mod,     only: i_def, l_def, r_def, str_def, &
-                               cmdi, imdi
+  use constants_mod,     only: i_def, l_def, r_def, str_def, i_native, &
+                               cmdi, imdi, emdi
   use configuration_mod, only: read_configuration, final_configuration
   use gen_lbc_mod,       only: gen_lbc_type
   use gen_planar_mod,    only: gen_planar_type,          &
@@ -49,7 +49,17 @@ program planar_mesh_generator
   use mesh_config_mod,         only: mesh_filename, rotate_mesh, &
                                      n_meshes, mesh_names,       &
                                      mesh_maps, n_partitions,    &
-                                     coord_sys, key_from_coord_sys
+                                     coord_sys, coord_sys_ll,    &
+                                     coord_sys_xyz,              &
+                                     key_from_coord_sys,         &
+                                     topology,                   &
+                                     topology_non_periodic,      &
+                                     topology_periodic,          &
+                                     topology_channel,      &
+                                     key_from_topology,          &
+                                     geometry, geometry_planar,  &
+                                     geometry_spherical,         &
+                                     key_from_geometry
   use partitioning_config_mod, only: max_stencil_depth
   use planar_mesh_config_mod,  only: edge_cells_x, edge_cells_y, &
                                      periodic_x, periodic_y,     &
@@ -119,7 +129,8 @@ program planar_mesh_generator
   character(str_def)  :: lat_str
 
   ! Counters
-  integer(i_def) :: i, j, k, l, n_voids
+  integer(i_def)    :: i, j, k, l, n_voids
+  integer(i_native) :: log_level
 
   !===================================================================
   ! 1.0 Set the logging level for the run, should really be able
@@ -164,46 +175,140 @@ program planar_mesh_generator
   !===================================================================
   ! 4.0 Perform some error checks on the namelist inputs
   !===================================================================
-  ! 4.1 Check the number of meshes requested.
+  ! 4.1a Check the namelist file enumeration: geometry
+  log_level = LOG_LEVEL_ERROR
+  select case (geometry)
+
+  case (geometry_spherical, geometry_planar)
+
+  case (emdi)
+    write(log_scratch_space,'(A)') &
+        'Enumeration key for geometry has not been set.'
+    call log_event(log_scratch_space, log_level)
+  case default
+    write(log_scratch_space,'(A)')                     &
+        'Unrecognised enumeration key for geometry:'// &
+        trim(key_from_geometry(geometry))
+    call log_event(log_scratch_space, log_level)
+  end select
+
+
+  ! 4.1b Check the namelist file enumeration: topology
+  log_level = LOG_LEVEL_ERROR
+  select case (topology)
+
+  case ( topology_periodic, &
+         topology_channel,  &
+         topology_non_periodic )
+
+    select case (topology)
+
+    case (topology_periodic)
+      if (geometry == geometry_planar) then
+        if (.not. (periodic_x .and. periodic_y)) then
+          write(log_scratch_space,'(A)')                  &
+              'A periodic planar regional mesh should '// &
+              'have all boundaries as periodic.'
+          call log_event(log_scratch_space, log_level)
+        end if
+      else
+         write(log_scratch_space,'(A)')                 &
+             'A periodic spherical regional mesh is '// &
+             'unsupported by this generator.'
+          call log_event(log_scratch_space, log_level)
+      end if
+
+    case (topology_channel)
+      if ( periodic_x .eqv. periodic_y ) then
+        write(log_scratch_space,'(A)')                    &
+            'A channel regional mesh should only have '// &
+            'a single periodic axis.'
+        call log_event(log_scratch_space, log_level)
+      end if
+
+    case (topology_non_periodic)
+      if ( periodic_x .or. periodic_y ) then
+        write(log_scratch_space,'(A)')                   &
+            'A non-periodic regional mesh should not '// &
+            'have any periodic boundaries.'
+        call log_event(log_scratch_space, log_level)
+      end if
+
+    end select
+
+  case (emdi)
+    write(log_scratch_space,'(A)') &
+        'Enumeration key for topology has not been set.'
+    call log_event(log_scratch_space, log_level)
+
+  case default
+    write(log_scratch_space,'(A)')                      &
+        'Unrecognised enumeration key for topology: '// &
+        key_from_topology(topology)
+    call log_event(log_scratch_space, log_level)
+  end select
+
+
+  ! 4.1c Check the namelist file enumeration: coord_sys
+  log_level = LOG_LEVEL_ERROR
+  select case (coord_sys)
+
+  case (coord_sys_ll, coord_sys_xyz)
+
+  case (emdi)
+    write(log_scratch_space,'(A)') &
+        'Enumeration key for coord_sys has not been set.'
+    call log_event(log_scratch_space, log_level)
+
+  case default
+    write(log_scratch_space,'(A)')                      &
+        'Unrecognised enumeration key for coord_sys:'// &
+        trim(key_from_coord_sys(coord_sys))
+    call log_event(log_scratch_space, log_level)
+
+  end select
+
+
+  ! 4.2 Check the number of meshes requested.
   if (n_meshes < 1) then
     write(log_scratch_space,'(A,I0,A)') &
         'Invalid number of meshes requested, (',n_meshes,')'
     call log_event(log_scratch_space,LOG_LEVEL_ERROR)
   end if
 
-  ! 4.2 Check that there are enough entries of edge cells
+  ! 4.3 Check that there are enough entries of edge cells
   !     to match the number of meshes requested.
   if ( size(edge_cells_x) < n_meshes .or. &
        size(edge_cells_y) < n_meshes ) then
-    write(log_scratch_space,'(A,I0,A)')                     &
-       'Not enough data in edge_cells_x/edge_cells_y for ', &
-       n_meshes,' meshe(s).'
+    write(log_scratch_space,'(A,I0,A)')                      &
+        'Not enough data in edge_cells_x/edge_cells_y for ', &
+        n_meshes,' meshe(s).'
     call log_event(log_scratch_space,LOG_LEVEL_ERROR)
   end if
 
-  ! 4.3 Check for missing data.
+  ! 4.4 Check for missing data.
   if ( any(edge_cells_x == imdi) .or. &
        any(edge_cells_y == imdi) ) then
     write(log_scratch_space,'(A)') &
-       'Missing data in namelist variable, edge_cells_x/edge_cells_y'
+        'Missing data in namelist variable, edge_cells_x/edge_cells_y'
     call log_event(log_scratch_space,LOG_LEVEL_ERROR)
   end if
 
-  ! 4.4 Check that all meshes requested have unique names.
+  ! 4.5 Check that all meshes requested have unique names.
   any_duplicate_names = any_duplicates(mesh_names)
   if (any_duplicate_names)  then
-    write(log_scratch_space,'(A)')          &
-       'Duplicate mesh names found, '// &
-       'all requested meshes must have unique names.'
+    write(log_scratch_space,'(A)')       &
+        'Duplicate mesh names found, '// &
+        'all requested meshes must have unique names.'
     call log_event(log_scratch_space, LOG_LEVEL_ERROR)
   end if
 
-  ! 4.5 Check that all mesh map requests are unique.
+  ! 4.6 Check that all mesh map requests are unique.
   any_duplicate_names = any_duplicates(mesh_maps)
   if (any_duplicate_names)  then
     write(log_scratch_space,'(A)')          &
-       'Duplicate mesh requests found, '//  &
-       'please remove duplicate requests.'
+        'Duplicate mesh requests found, '// &
+        'please remove duplicate requests.'
     call log_event(log_scratch_space, LOG_LEVEL_ERROR)
   end if
 
@@ -235,7 +340,7 @@ program planar_mesh_generator
         end if
       end do
 
-      ! 4.6 Check that mesh names in the map request exist.
+      ! 4.7 Check that mesh names in the map request exist.
       do j=1, size(check_mesh)
 
         l_found = .false.
@@ -247,37 +352,37 @@ program planar_mesh_generator
 
         if ( .not. l_found ) then
           write(log_scratch_space,'(A)')      &
-             'Mesh "'//trim(check_mesh(j))//&
-             '" not configured for this file.'
+              'Mesh "'//trim(check_mesh(j))// &
+              '" not configured for this file.'
           call log_event( trim(log_scratch_space), LOG_LEVEL_ERROR )
         end if
       end do
 
-      ! 4.7 Check the map request is not mapping at mesh
+      ! 4.8 Check the map request is not mapping at mesh
       !     to itself.
       if (trim(first_mesh) == trim(second_mesh)) then
-        write(log_scratch_space,'(A)')               &
-           'Found identical adjacent mesh names "'// &
+        write(log_scratch_space,'(A)')                &
+            'Found identical adjacent mesh names "'// &
            trim(mesh_maps(i))//'", requested for mapping.'
         call log_event( trim(log_scratch_space), LOG_LEVEL_ERROR )
       end if
 
-      ! 4.8 Check that the number of edge cells of the meshes
+      ! 4.9 Check that the number of edge cells of the meshes
       !     are not the same.
       if ( (first_mesh_edge_cells_x == second_mesh_edge_cells_x ) .and. &
             first_mesh_edge_cells_y == second_mesh_edge_cells_y ) then
-        write(log_scratch_space,'(A,I0,A)')                    &
-           'Found identical adjacent mesh edge cells, (',      &
-           first_mesh_edge_cells_x,',',first_mesh_edge_cells_y,&
-           '), requested for mapping "'// &
-           trim(first_mesh)//'"-"'//trim(second_mesh)//'".'
+        write(log_scratch_space,'(A,I0,A)')                      &
+            'Found identical adjacent mesh edge cells, (',       &
+            first_mesh_edge_cells_x,',',first_mesh_edge_cells_y, &
+            '), requested for mapping "'// &
+            trim(first_mesh)//'"-"'//trim(second_mesh)//'".'
         call log_event( trim(log_scratch_space), LOG_LEVEL_ERROR )
       end if
 
     end do
   end if
 
-  ! 4.9 Check the requested lbc parent lam exists
+  ! 4.10 Check the requested lbc parent lam exists
   if (create_lbc_mesh) then
     l_found = .false.
     do i=1, n_meshes
@@ -287,8 +392,8 @@ program planar_mesh_generator
       end if
     end do
     if ( .not. l_found ) then
-      write( log_scratch_space, '(A)')                        &
-          'The parent mesh, '// trim(lbc_parent_mesh)//       &
+      write( log_scratch_space, '(A)')                  &
+          'The parent mesh, '// trim(lbc_parent_mesh)// &
           ' specified for LBC mesh generation does not exist.'
       call log_event( trim(log_scratch_space), LOG_LEVEL_ERROR )
     end if
@@ -318,15 +423,37 @@ program planar_mesh_generator
   !===================================================================
   ! 6.0 Report/Check what the code thinks is requested by user
   !===================================================================
-  call log_event( "Generating planar mesh(es):", &
-                  LOG_LEVEL_INFO )
-  write(log_scratch_space, '(A,L1)') '  Periodic in x-axis: ', periodic_x
-  call log_event( log_scratch_space, LOG_LEVEL_INFO )
-  write(log_scratch_space, '(A,L1)') '  Periodic in y-axis: ', periodic_y
-  call log_event( log_scratch_space, LOG_LEVEL_INFO )
-  write(log_scratch_space, '(A)')    '   Coordinate system: '// &
-      trim(key_from_coord_sys(coord_sys))
-  call log_event( log_scratch_space, LOG_LEVEL_INFO )
+  log_level=LOG_LEVEL_INFO
+
+  write(log_scratch_space, '(A)')    &
+      '===================================================================='
+  call log_event( log_scratch_space, log_level )
+
+  write(log_scratch_space, '(A)')    &
+      'Mesh geometry: ' // trim(key_from_geometry(geometry))
+  call log_event( log_scratch_space, log_level )
+
+  write(log_scratch_space,'(A)')     &
+      'Mesh topology: ' // trim(key_from_topology(topology))
+  call log_event( log_scratch_space, log_level )
+
+  write(log_scratch_space, '(A)')    &
+      'Co-ordinate system: '// trim(key_from_coord_sys(coord_sys))
+  call log_event( log_scratch_space, log_level )
+
+  write(log_scratch_space, '(A,L1)') &
+      'Periodic in x-axis: ', periodic_x
+  call log_event( log_scratch_space, log_level )
+
+  write(log_scratch_space, '(A,L1)') &
+      'Periodic in y-axis: ', periodic_y
+  call log_event( log_scratch_space, log_level )
+
+
+  write(log_scratch_space, '(A)')    &
+      '===================================================================='
+  call log_event( log_scratch_space, log_level )
+  call log_event( "Generating mesh(es):", log_level )
 
   ! 6.1 Generate objects which know how to generate each requested
   !     unique mesh.
@@ -402,19 +529,15 @@ program planar_mesh_generator
     ! 6.4 Call generation strategy
     if (n_targets == 0 .or. n_meshes == 1 ) then
 
-      mesh_gen(i) = gen_planar_type(                         &
-                        reference_element = cube_element,    &
-                        mesh_name         = mesh_names(i),   &
-                        edge_cells_x      = edge_cells_x(i), &
-                        edge_cells_y      = edge_cells_y(i), &
-                        domain_x          = domain_x,        &
-                        domain_y          = domain_y,        &
-                        periodic_x        = periodic_x,      &
-                        periodic_y        = periodic_y,      &
-                        coord_sys         = coord_sys,       &
-                        rotate_mesh       = rotate_mesh,     &
-                        target_pole       = target_pole,     &
-                        first_node        = first_node )
+      mesh_gen(i) = gen_planar_type(                      &
+                        cube_element, mesh_names(i),      &
+                        geometry, topology, coord_sys,    &
+                        edge_cells_x(i), edge_cells_y(i), &
+                        periodic_x, periodic_y,           &
+                        domain_x, domain_y,               &
+                        rotate_mesh = rotate_mesh,        &
+                        target_pole = target_pole,        &
+                        first_node  = first_node )
 
     else if (n_meshes > 1) then
 
@@ -441,21 +564,18 @@ program planar_mesh_generator
       call log_event( trim(log_scratch_space), LOG_LEVEL_INFO)
 
       mesh_gen(i) = gen_planar_type(                               &
-                        reference_element   = cube_element,        &
-                        mesh_name           = mesh_names(i),       &
-                        edge_cells_x        = edge_cells_x(i),     &
-                        edge_cells_y        = edge_cells_y(i),     &
-                        domain_x            = domain_x,            &
-                        domain_y            = domain_y,            &
-                        periodic_x          = periodic_x,          &
-                        periodic_y          = periodic_y,          &
-                        coord_sys           = coord_sys,           &
+                        cube_element, mesh_names(i),               &
+                        geometry, topology, coord_sys,             &
+                        edge_cells_x(i), edge_cells_y(i),          &
+                        periodic_x, periodic_y,                    &
+                        domain_x, domain_y,                        &
                         target_mesh_names   = target_mesh_names,   &
                         target_edge_cells_x = target_edge_cells_x, &
                         target_edge_cells_y = target_edge_cells_y, &
                         rotate_mesh         = rotate_mesh,         &
                         target_pole         = target_pole,         &
                         first_node          = first_node )
+
     else
       write(log_scratch_space, "(A,I0,A)") &
          '  Number of meshes is negative [', n_meshes,']'
@@ -472,6 +592,9 @@ program planar_mesh_generator
   end do
 
   call log_event( "...generation complete.", LOG_LEVEL_INFO )
+  write(log_scratch_space, '(A)') &
+      '===================================================================='
+  call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
   !=================================================================
   ! 7.0 Partitioning
@@ -492,7 +615,7 @@ program planar_mesh_generator
 
       ! 7.3 Create global mesh partitions
       do j=0,n_partitions-1
-        partition = partition_type( global_mesh_ptr,  &
+        partition = partition_type( global_mesh_ptr,   &
                                     partitioner_ptr,   &
                                     xproc, yproc,      &
                                     max_stencil_depth, &

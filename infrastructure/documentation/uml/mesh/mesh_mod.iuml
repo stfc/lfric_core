@@ -110,4 +110,11 @@ class mesh_mod::mesh_type {
   +get_colours( <<out>>ncolours: integer, <<out>>ncells_per_colour: integer[:] <<pointer>>, <<out>>colour_map: integer[::] <<pointer>> )
   +get_colour_map() : integer <<pointer>>
   +is_coloured() : logical
+  +is_geometry_spherical(): logical
+  +is_geometry_planar(): logical
+  +is_topology_non_periodic(): logical
+  +is_topology_channel(): logical
+  +is_topology_periodic(): logical
+  +is_coord_sys_xyz(): logical
+  +is_coord_sys_ll(): logical
 }

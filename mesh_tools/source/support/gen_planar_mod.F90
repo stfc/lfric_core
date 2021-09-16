@@ -15,8 +15,8 @@ module gen_planar_mod
 
   use calc_global_cell_map_mod,       only: calc_global_cell_map
   use constants_mod,                  only: r_def, i_def, l_def, str_def, &
-                                            str_long, imdi, rmdi,         &
-                                            str_longlong,                 &
+                                            str_long, imdi, rmdi, emdi,   &
+                                            str_longlong, i_native,       &
                                             radians_to_degrees,           &
                                             degrees_to_radians
   use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
@@ -24,6 +24,8 @@ module gen_planar_mod
   use log_mod,                        only: log_event, log_scratch_space, &
                                             LOG_LEVEL_ERROR, LOG_LEVEL_INFO
   use mesh_config_mod,                only: key_from_coord_sys, &
+                                            key_from_geometry,  &
+                                            key_from_topology,  &
                                             coord_sys_ll, coord_sys_xyz
   use reference_element_mod,          only: reference_element_type, &
                                             reference_cube_type,    &
@@ -40,9 +42,11 @@ module gen_planar_mod
   public :: NON_PERIODIC_ID, NPANELS
 
   ! set Cartesian axis for north
-  real(r_def), parameter    :: TRUE_NORTH(3) = (/0._r_def, 0._r_def, 1._r_def/)
+  real(r_def), parameter    :: TRUE_NORTH(3) = (/0._r_def, 0._r_def,&
+       & 1._r_def/)
 
-  ! Mesh Vertex directions: local aliases for reference_element_mod values
+  ! Mesh Vertex directions: local aliases for reference_element_mod
+  ! values
   integer(i_def), parameter :: NW = NWB
   integer(i_def), parameter :: NE = NEB
   integer(i_def), parameter :: SE = SEB
@@ -60,9 +64,6 @@ module gen_planar_mod
 
   ! Prefix for error messages
   character(len=*),   parameter :: PREFIX = "[Planar Mesh] "
-  ! TODO: Change these options to use geometry and topology in #2693
-  character(str_def), parameter :: MESH_CLASS_PLANE = "plane"
-  character(str_def), parameter :: MESH_CLASS_LAM = "lam"
 
   ! Flag to print out mesh data for debugging purposes
   logical(l_def),     parameter :: DEBUG = .false.
@@ -74,7 +75,11 @@ module gen_planar_mod
     logical(l_def)     :: generated = .false.
 
     character(str_def) :: mesh_name
-    character(str_def) :: mesh_class
+
+    integer(i_native)  :: geometry
+    integer(i_native)  :: topology
+    integer(i_native)  :: coord_sys = emdi
+
     character(str_def) :: coord_units_x
     character(str_def) :: coord_units_y
 
@@ -97,7 +102,6 @@ module gen_planar_mod
     real(r_def)    :: first_node(2)  = rmdi
     real(r_def)    :: rotation_angle = rmdi
     logical(l_def) :: rotate_mesh    = .false.
-    integer(i_def) :: coord_sys      = imdi
 
     integer(i_def), allocatable :: north_cells(:)
     integer(i_def), allocatable :: east_cells(:)
@@ -199,10 +203,12 @@ contains
 !-------------------------------------------------------------------------------
 function gen_planar_constructor( reference_element,          &
                                  mesh_name,                  &
+                                 geometry,                   &
+                                 topology,                   &
+                                 coord_sys,                  &
                                  edge_cells_x, edge_cells_y, &
                                  periodic_x, periodic_y,     &
                                  domain_x, domain_y,         &
-                                 coord_sys,                  &
                                  target_mesh_names,          &
                                  target_edge_cells_x,        &
                                  target_edge_cells_y,        &
@@ -216,10 +222,13 @@ function gen_planar_constructor( reference_element,          &
   class(reference_element_type), intent(in) :: reference_element
 
   character(str_def), intent(in) :: mesh_name
+  integer(i_native),  intent(in) :: geometry
+  integer(i_native),  intent(in) :: topology
+  integer(i_native),  intent(in) :: coord_sys
   integer(i_def),     intent(in) :: edge_cells_x, edge_cells_y
   logical(l_def),     intent(in) :: periodic_x, periodic_y
   real(r_def),        intent(in) :: domain_x, domain_y
-  integer(i_def),     intent(in) :: coord_sys
+
 
   logical,            optional, intent(in) :: rotate_mesh
   real(r_def),        optional, intent(in) :: target_pole(2)
@@ -239,6 +248,8 @@ function gen_planar_constructor( reference_element,          &
   character(str_def)  :: lchar_periodic_x
   character(str_def)  :: lchar_periodic_y
   character(str_def)  :: lchar_coord_sys
+  character(str_def)  :: lchar_geometry
+  character(str_def)  :: lchar_topology
 
   character(str_def)  :: lon_str
   character(str_def)  :: lat_str
@@ -285,13 +296,9 @@ function gen_planar_constructor( reference_element,          &
     call log_event( PREFIX//"Invalid dimension choices.", LOG_LEVEL_ERROR )
   end if
 
-  if (coord_sys == coord_sys_xyz) then
-    self%mesh_class = trim(MESH_CLASS_PLANE)
-  else
-    self%mesh_class = trim(MESH_CLASS_LAM)
-  end if
-
   self%mesh_name    = trim(mesh_name)
+  self%geometry     = geometry
+  self%topology     = topology
   self%edge_cells_x = edge_cells_x
   self%edge_cells_y = edge_cells_y
   self%npanels      = NPANELS
@@ -335,20 +342,25 @@ function gen_planar_constructor( reference_element,          &
 
   end select
 
+  ! Construct input string
   write(lchar_periodic_x,'(L8)')    periodic_x
   write(lchar_periodic_y,'(L8)')    periodic_y
   write(lchar_coord_sys, '(A)')     trim(key_from_coord_sys(self%coord_sys))
+  write(lchar_geometry,  '(A)')     trim(key_from_geometry(self%geometry))
+  write(lchar_topology,  '(A)')     trim(key_from_topology(self%topology))
   write(rchar_domain_x,  '(F10.2)') domain_x
   write(rchar_domain_y,  '(F10.2)') domain_y
 
-  write(self%constructor_inputs,'(2(A,I0),(A))')           &
+  write(self%constructor_inputs,'(A,2(A,I0),(A))')         &
+    'geometry='  // trim(adjustl(lchar_geometry))//  ';'// &
+    'topology='  // trim(adjustl(lchar_topology))//  ';'// &
+    'coord_sys=' // trim(adjustl(lchar_coord_sys))// ';',  &
     'edge_cells_x=', self%edge_cells_x,              ';'// &
     'edge_cells_y=', self%edge_cells_y,              ';'// &
     'periodic_x='//trim(adjustl(lchar_periodic_x))// ';'// &
     'periodic_y='//trim(adjustl(lchar_periodic_y))// ';'// &
     'domain_x='//trim(adjustl(rchar_domain_x))//     ';'// &
-    'domain_y='//trim(adjustl(rchar_domain_y))//     ';'// &
-    'coord_sys='//trim(adjustl(lchar_coord_sys))
+    'domain_y='//trim(adjustl(rchar_domain_y))
 
   if (self%coord_sys == coord_sys_ll) then
 
@@ -1865,32 +1877,35 @@ end subroutine calc_global_mesh_maps
 !> @brief Returns mesh metadata information.
 !> @details This subroutine is provided as a means to request specific metadata
 !>          from the current mesh configuration.
-!> @param[out]  mesh_name          [optional] Name of mesh instance to generate
-!> @param[out]  mesh_class         [optional] Primitive shape, i.e. sphere, plane
-!> @param[out]  periodic_x         [optional] Periodic in E-W direction.
-!> @param[out]  periodic_y         [optional] Periodic in N-S direction.
-!> @param[out]  npanels            [optional] Number of panels use to describe mesh
-!> @param[out]  coord_sys          [optional] Coordinate system to position nodes.
-!> @param[out]  edge_cells_x       [optional] Number of panel edge cells (x-axis).
-!> @param[out]  edge_cells_y       [optional] Number of panel edge cells (y-axis).
-!> @param[out]  constructor_inputs [optional] Inputs used to create this mesh from
+!>
+!> @param[out, optional]  mesh_name           Name of mesh instance to generate
+!> @param[out, optional]  geometry            Mesh domain surface type.
+!> @param[out, optional]  topology            Mesh boundary/connectivity type
+!> @param[out, optional]  coord_sys           Coordinate system to position nodes.
+!> @param[out, optional]  periodic_x          Periodic in E-W direction.
+!> @param[out, optional]  periodic_y          Periodic in N-S direction.
+!> @param[out, optional]  npanels             Number of panels use to describe mesh
+!> @param[out, optional]  edge_cells_x        Number of panel edge cells (x-axis).
+!> @param[out, optional]  edge_cells_y        Number of panel edge cells (y-axis).
+!> @param[out, optional]  constructor_inputs  Inputs used to create this mesh from
 !>                                            the mesh_generator
-!> @param[out]  nmaps              [optional] Number of maps to create with this mesh
+!> @param[out, optional]  nmaps               Number of maps to create with this mesh
 !>                                            as source mesh
-!> @param[out]  target_mesh_names  [optional] Mesh names of the target meshes that
+!> @param[out, optional]  target_mesh_names   Mesh names of the target meshes that
 !>                                            this mesh has maps for.
-!> @param[out]  maps_edge_cells_x  [optional] Number of panel edge cells (x-axis) of
+!> @param[out, optional]  maps_edge_cells_x   Number of panel edge cells (x-axis) of
 !>                                            target mesh(es) to create map(s) for.
-!> @param[out]  maps_edge_cells_y  [optional] Number of panel edge cells (y-axis) of
+!> @param[out, optional]  maps_edge_cells_y   Number of panel edge cells (y-axis) of
 !>                                            target mesh(es) to create map(s) for.
 !-----------------------------------------------------------------------------
 subroutine get_metadata( self,               &
                          mesh_name,          &
-                         mesh_class,         &
+                         geometry,           &
+                         topology,           &
+                         coord_sys,          &
                          periodic_x,         &
                          periodic_y,         &
                          npanels,            &
-                         coord_sys,          &
                          edge_cells_x,       &
                          edge_cells_y,       &
                          constructor_inputs, &
@@ -1902,11 +1917,13 @@ subroutine get_metadata( self,               &
 
   class(gen_planar_type),        intent(in)  :: self
   character(str_def),  optional, intent(out) :: mesh_name
-  character(str_def),  optional, intent(out) :: mesh_class
+  character(str_def),  optional, intent(out) :: geometry
+  character(str_def),  optional, intent(out) :: topology
+  character(str_def),  optional, intent(out) :: coord_sys
   logical(l_def),      optional, intent(out) :: periodic_x
   logical(l_def),      optional, intent(out) :: periodic_y
+
   integer(i_def),      optional, intent(out) :: npanels
-  integer(i_def),      optional, intent(out) :: coord_sys
   integer(i_def),      optional, intent(out) :: edge_cells_x
   integer(i_def),      optional, intent(out) :: edge_cells_y
   integer(i_def),      optional, intent(out) :: nmaps
@@ -1917,16 +1934,18 @@ subroutine get_metadata( self,               &
   integer(i_def),     optional, allocatable, intent(out) :: maps_edge_cells_x(:)
   integer(i_def),     optional, allocatable, intent(out) :: maps_edge_cells_y(:)
 
-  if (present(mesh_name))          mesh_name          = self%mesh_name
-  if (present(mesh_class))         mesh_class         = self%mesh_class
-  if (present(periodic_x))         periodic_x         = self%periodic_x
-  if (present(periodic_y))         periodic_y         = self%periodic_y
-  if (present(npanels))            npanels            = self%npanels
-  if (present(coord_sys))          coord_sys          = self%coord_sys
-  if (present(edge_cells_x))       edge_cells_x       = self%edge_cells_x
-  if (present(edge_cells_y))       edge_cells_y       = self%edge_cells_y
+  if (present(mesh_name))    mesh_name    = self%mesh_name
+  if (present(geometry))     geometry     = key_from_geometry(self%geometry)
+  if (present(topology))     topology     = key_from_topology(self%topology)
+  if (present(coord_sys))    coord_sys    = key_from_coord_sys(self%coord_sys)
+  if (present(periodic_x))   periodic_x   = self%periodic_x
+  if (present(periodic_y))   periodic_y   = self%periodic_y
+  if (present(npanels))      npanels      = self%npanels
+  if (present(edge_cells_x)) edge_cells_x = self%edge_cells_x
+  if (present(edge_cells_y)) edge_cells_y = self%edge_cells_y
+  if (present(nmaps))        nmaps        = self%nmaps
+
   if (present(constructor_inputs)) constructor_inputs = trim(self%constructor_inputs)
-  if (present(nmaps))              nmaps              = self%nmaps
 
   if (self%nmaps > 0) then
     if (present(target_mesh_names)) target_mesh_names = self%target_mesh_names
@@ -2022,15 +2041,17 @@ subroutine write_mesh(self)
 
   write(stdout,'(A)')    "====DEBUG INFO===="
   write(stdout,'(A)')    "Mesh name: "// trim(self%mesh_name)
-  write(stdout,'(A)')    "Class:     "// trim(self%mesh_class)
+  write(stdout,'(A)')    "Geometry:  "// trim(key_from_geometry(self%geometry))
+  write(stdout,'(A)')    "Topology:  "// trim(key_from_topology(self%topology))
+  write(stdout,'(A,L1)') "Periodic in x-axis: ", self%periodic_x
+  write(stdout,'(A,L1)') "Periodic in y-axis: ", self%periodic_y
   write(stdout,'(A,I0)') "Panels:    ", self%npanels
   write(stdout,'(A,I0)') "Panel edge cells (x): ", self%edge_cells_x
   write(stdout,'(A,I0)') "Panel edge cells (y): ", self%edge_cells_y
-  write(stdout,'(A,L1)') "Periodic in x-axis: ", self%periodic_x
-  write(stdout,'(A,L1)') "Periodic in y-axis: ", self%periodic_y
   write(stdout,'(A,I0)') 'Number of nodes: ', self%n_nodes
   write(stdout,'(A,I0)') 'Number of edges: ', self%n_edges
   write(stdout,'(A,I0)') 'Number of cells: ', self%n_faces
+  write(stdout,'(A)')    "Coord_sys:  "// trim(key_from_coord_sys(self%coord_sys))
   write(stdout,'(A)')    "Co-ord (x) units: "// trim(self%coord_units_x)
   write(stdout,'(A)')    "Co-ord (y) units: "// trim(self%coord_units_y)
   write(stdout,'(A,I0)') "Mappings to other meshes: ", self%nmaps

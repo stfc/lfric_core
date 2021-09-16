@@ -38,10 +38,14 @@ program summarise_ugrid
   character(str_def), allocatable :: mesh_names(:)
 
   character(str_def) :: mesh_name
-  character(str_def) :: mesh_class
+  character(str_def) :: geometry
+  character(str_def) :: coord_sys
+  character(str_def) :: topology
+
   logical(l_def)     :: periodic_x
   logical(l_def)     :: periodic_y
 
+  integer(i_def)     :: max_stencil_depth
   character(str_longlong) :: constructor_inputs
   character(str_long)     :: target_mesh_names_str
   character(str_def), allocatable :: target_mesh_names(:)
@@ -95,7 +99,10 @@ program summarise_ugrid
       ! Extract data on the current mesh in the ugrid file object
       call infile%get_metadata(                                &
                       mesh_name          = mesh_name,          &
-                      mesh_class         = mesh_class,         &
+                      geometry           = geometry,           &
+                      topology           = topology,           &
+                      coord_sys          = coord_sys,          &
+                      max_stencil_depth  = max_stencil_depth,  &
                       constructor_inputs = constructor_inputs, &
                       nmaps              = nmaps,              &
                       target_mesh_names  = target_mesh_names,  &
@@ -104,7 +111,10 @@ program summarise_ugrid
     else
       call infile%get_metadata(                                &
                       mesh_name          = mesh_name,          &
-                      mesh_class         = mesh_class,         &
+                      geometry           = geometry,           &
+                      topology           = topology,           &
+                      coord_sys          = coord_sys,          &
+                      max_stencil_depth  = max_stencil_depth,  &
                       constructor_inputs = constructor_inputs, &
                       periodic_x         = periodic_x,         &
                       periodic_y         = periodic_y )
@@ -121,7 +131,15 @@ program summarise_ugrid
 
     fmt_str='(A,T24,A)'
     write ( log_scratch_space, fmt_str ) &
-        '  Class: ', trim(mesh_class)
+        '  Geometry: ', trim(geometry)
+    call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
+
+    write ( log_scratch_space, fmt_str ) &
+        '  Topology: ', trim(topology)
+    call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
+
+    write ( log_scratch_space, fmt_str ) &
+        '  Co-ordinate system: ', trim(coord_sys)
     call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
 
     fmt_str='(A,T24,L1)'

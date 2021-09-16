@@ -23,6 +23,14 @@ module ugrid_mesh_data_mod
   type, public :: ugrid_mesh_data_type
     !> Name of ugrid mesh topology
     character(str_def) :: global_mesh_name
+
+    !> Domain geometry of global mesh.
+    character(str_def) :: geometry
+    character(str_def) :: topology
+    character(str_def) :: coord_sys
+
+    integer(i_def) :: max_stencil_depth
+
     !> Total number of nodes (vertices) in the full domain
     integer(i_def) :: nnode
     !> total number of cells in full domain
@@ -37,8 +45,6 @@ module ugrid_mesh_data_mod
     integer(i_def) :: num_edges_per_face
     !> Maximum number of cells around a node (vertex)
     integer(i_def) :: max_num_faces_per_node
-    !> Type of mesh that the global mesh describes
-    character(str_def) :: mesh_class
     !> Periodic in E-W direction
     logical(l_def) :: periodic_x
     !> Periodic in N-S direction
@@ -109,14 +115,16 @@ contains
   !>        can be used to construct a global mesh object
   !>
   !> @param[out] mesh_name Name of ugrid mesh topology
-  !> @param[out] nnodes Total number of vertices in the full domain
-  !> @param[out] nedges Total number of edges in the full domain
-  !> @param[out] ncells total number of cells in full domain
-  !> @param[out] nnodes_per_cell Number of vertices on each cell
-  !> @param[out] nnodes_per_edge Number of vertices on each edge
-  !> @param[out] nedges_per_cell Number of edges on each cell
-  !> @param[out] max_cells_per_vertex Maximum number of cells around a vertex
-  !> @param[out] mesh_class Type of mesh that the global mesh describes
+  !> @param[out] geometry   Domain surface geometry
+  !> @param[out] topology   Domain topology
+  !> @param[out] coord_sys  Coordinate system used to position nodes
+  !> @param[out] nnode Total number of nodes in the full domain
+  !> @param[out] nedge Total number of edges in the full domain
+  !> @param[out] nface total number of faces in full domain
+  !> @param[out] nnodes_per_face Number of nodes on each face
+  !> @param[out] nnodes_per_edge Number of nodes on each edge
+  !> @param[out] nedges_per_face Number of edges on each cell
+  !> @param[out] max_faces_per_node Maximum number of faces around a node
   !> @param[out] periodic_x Periodic in E-W direction
   !> @param[out] periodic_y Periodic in N-S direction
   !> @param[out] ntarget_meshes Number of target global mesh name
@@ -126,17 +134,20 @@ contains
   !> @param[out] face_next_2d Full domain cell to cell connectivities
   !> @param[out] node_on_face_2d Full domain vertices on a cell
   !> @param[out] edge_on_face_2d Full domain edges on a cell
+  !> @param[out] max_stencil_depth Max stencil depth supported by this mesh
   !>
-  subroutine get_data( self, &
+  subroutine get_data( self,      &
                        mesh_name, &
-                       nnode, &
-                       nedge, &
-                       nface, &
+                       geometry,  &
+                       topology,  &
+                       coord_sys, &
+                       nnode,     &
+                       nedge,     &
+                       nface,     &
                        nnodes_per_face, &
                        nnodes_per_edge, &
                        nedges_per_face, &
                        max_faces_per_node, &
-                       mesh_class, &
                        periodic_x, &
                        periodic_y, &
                        ntarget_meshes, &
@@ -145,11 +156,16 @@ contains
                        face_coords, &
                        face_next_2d, &
                        node_on_face_2d, &
-                       edge_on_face_2d )
+                       edge_on_face_2d, &
+                       max_stencil_depth )
     implicit none
 
     class (ugrid_mesh_data_type), intent(in) :: self
     character(str_def), intent(out) :: mesh_name
+    character(str_def), intent(out) :: geometry
+    character(str_def), intent(out) :: topology
+    character(str_def), intent(out) :: coord_sys
+
     integer(i_def), intent(out) :: nnode
     integer(i_def), intent(out) :: nedge
     integer(i_def), intent(out) :: nface
@@ -157,7 +173,7 @@ contains
     integer(i_def), intent(out) :: nnodes_per_edge
     integer(i_def), intent(out) :: nedges_per_face
     integer(i_def), intent(out) :: max_faces_per_node
-    character(str_def), intent(out) :: mesh_class
+
     logical(l_def), intent(out) :: periodic_x
     logical(l_def), intent(out) :: periodic_y
     integer(i_def), intent(out) :: ntarget_meshes
@@ -168,7 +184,14 @@ contains
     integer(i_def), intent(out), allocatable :: node_on_face_2d(:,:)
     integer(i_def), intent(out), allocatable :: edge_on_face_2d(:,:)
 
+    ! Only valid if the ugrid file contains a local mesh
+    integer(i_def), optional, intent(out) :: max_stencil_depth
+
     mesh_name = self%global_mesh_name
+    geometry  = self%geometry
+    topology  = self%topology
+    coord_sys = self%coord_sys
+
     nnode = self%nnode
     nedge = self%nedge
     nface = self%nface
@@ -176,10 +199,13 @@ contains
     nnodes_per_edge = self%num_nodes_per_edge
     nedges_per_face = self%num_edges_per_face
     max_faces_per_node = self%max_num_faces_per_node
-    mesh_class = self%mesh_class
+
+    if (present(max_stencil_depth)) max_stencil_depth = self%max_stencil_depth
+
     periodic_x = self%periodic_x
     periodic_y = self%periodic_y
     ntarget_meshes = self%ntarget_meshes
+
     if ( ntarget_meshes > 0 ) then
       target_global_mesh_names = self%target_global_mesh_names
     end if
@@ -250,9 +276,12 @@ contains
 
     call ugrid_2d%get_metadata                             &
             ( mesh_name         = self%global_mesh_name,   &
-              mesh_class        = self%mesh_class,         &
+              geometry          = self%geometry,           &
+              topology          = self%topology,           &
+              coord_sys         = self%coord_sys,          &
               periodic_x        = self%periodic_x,         &
               periodic_y        = self%periodic_y,         &
+              max_stencil_depth = self%max_stencil_depth,  &
               nmaps             = self%ntarget_meshes,     &
               target_mesh_names = self%target_global_mesh_names )
 

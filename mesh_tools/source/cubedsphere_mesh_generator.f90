@@ -15,8 +15,8 @@
 program cubedsphere_mesh_generator
 
   use cli_mod,           only: get_initial_filename
-  use constants_mod,     only: i_def, l_def, r_def, str_def, &
-                               cmdi, imdi
+  use constants_mod,     only: i_def, l_def, r_def, str_def, i_native, &
+                               cmdi, imdi, emdi
   use configuration_mod, only: read_configuration, final_configuration
   use gencube_ps_mod,    only: gencube_ps_type,          &
                                set_partition_parameters, &
@@ -28,7 +28,7 @@ program cubedsphere_mesh_generator
   use log_mod,           only: initialise_logging, finalise_logging, &
                                log_event, log_set_level,             &
                                log_scratch_space, LOG_LEVEL_INFO,    &
-                               LOG_LEVEL_ERROR
+                               LOG_LEVEL_ERROR, LOG_LEVEL_WARNING
   use mpi_mod,           only: initialise_comm, store_comm,  &
                                finalise_comm, get_comm_size, &
                                get_comm_rank
@@ -46,7 +46,17 @@ program cubedsphere_mesh_generator
   use mesh_config_mod,             only: mesh_filename, rotate_mesh, &
                                          n_meshes, mesh_names,       &
                                          mesh_maps, n_partitions,    &
-                                         coord_sys
+                                         coord_sys, coord_sys_ll,    &
+                                         coord_sys_xyz,              &
+                                         key_from_coord_sys,         &
+                                         topology,                   &
+                                         topology_periodic,          &
+                                         topology_non_periodic,      &
+                                         topology_channel,           &
+                                         key_from_topology,          &
+                                         geometry, geometry_planar,  &
+                                         geometry_spherical,         &
+                                         key_from_geometry
   use partitioning_config_mod,     only: max_stencil_depth
   use rotation_config_mod,         only: target_pole, rotation_angle
 
@@ -66,7 +76,6 @@ program cubedsphere_mesh_generator
   integer(i_def) :: fsize
   integer(i_def) :: max_res
 
-  integer(i_def) :: nsmooth
   integer(i_def) :: xproc, yproc
   integer(i_def) :: n_mesh_maps = 0
   integer(i_def) :: n_targets
@@ -110,13 +119,14 @@ program cubedsphere_mesh_generator
   character(str_def) :: temp_str
 
   ! Counters
-  integer(i_def) :: i, j, k, l, n_voids
+  integer(i_def)    :: i, j, k, l, n_voids
+  integer(i_native) :: log_level
 
   !===================================================================
   ! 1.0 Set the logging level for the run, should really be able
   !     to set it from the command line as an option
   !===================================================================
-  call log_set_level(LOG_LEVEL_INFO)
+  call log_set_level(LOG_LEVEL_INFO )
 
   !===================================================================
   ! 2.0 Start up
@@ -150,10 +160,87 @@ program cubedsphere_mesh_generator
   !===================================================================
   ! 4.0 Perform some error checks on the namelist inputs
   !===================================================================
-  ! 4.1 Check the number of meshes requested.
+  ! 4.1a Check the namelist file enumeration: geometry
+  log_level = LOG_LEVEL_ERROR
+  select case (geometry)
+
+  case (geometry_spherical)
+
+  case (geometry_planar)
+    write(log_scratch_space,'(A)') &
+        'Invalid domain geometry, Cubed-sphere geometry is spherical '
+    call log_event(log_scratch_space, log_level)
+
+  case (emdi)
+    write(log_scratch_space,'(A)') &
+        'Enumeration key for geometry has not been set.'
+    call log_event(log_scratch_space, log_level)
+
+  case default
+    write(log_scratch_space,'(A)')                      &
+        'Unrecognised enumeration key for geometry:' // &
+        trim(key_from_geometry(geometry))
+    call log_event(log_scratch_space, log_level)
+
+  end select
+
+
+
+  ! 4.1b Check the namelist file enumeration: topology
+  log_level = LOG_LEVEL_ERROR
+  select case (topology)
+
+  case (topology_periodic)
+
+  case (topology_channel, topology_non_periodic)
+    write(log_scratch_space,'(A)') &
+        'Cubed-sphere topology should be periodic.'
+    call log_event(log_scratch_space, log_level)
+
+  case (emdi)
+    write(log_scratch_space,'(A)') &
+        'Enumeration key for topology has not been set.'
+    call log_event(log_scratch_space, log_level)
+
+  case default
+    write(log_scratch_space,'(A)')                      &
+        'Unrecognised enumeration key for topology:' // &
+        trim(key_from_topology(topology))
+    call log_event(log_scratch_space, log_level)
+
+  end select
+
+
+  ! 4.1c Check the namelist file enumeration: coord_sys
+  log_level = LOG_LEVEL_ERROR
+  select case (coord_sys)
+
+  case (coord_sys_ll)
+
+  case (coord_sys_xyz)
+    write(log_scratch_space,'(A)') 'Cartesian co-ordinate space ' //   &
+                                   'currently unsupported for cubed-sphere'
+    call log_event(log_scratch_space, log_level)
+
+  case (emdi)
+    write(log_scratch_space,'(A)') 'Enumeration key for coord_sys ' // &
+                                   'has not been set.'
+
+  case default
+    write(log_scratch_space,'(A)') 'Unrecognised enumeration key ' //  &
+                                   'for coord_sys:' //                 &
+                                   trim(key_from_coord_sys(coord_sys))
+
+    call log_event(log_scratch_space, log_level)
+
+  end select
+
+
+
+  ! 4.2 Check the number of meshes requested.
   if (n_meshes < 1) then
-    write(log_scratch_space,'(A,I0,A)') &
-       'Invalid number of meshes requested, (n_meshes = ',&
+    write(log_scratch_space,'(A,I0,A)')                    &
+       'Invalid number of meshes requested, (n_meshes = ', &
        n_meshes,')'
     call log_event(log_scratch_space,LOG_LEVEL_ERROR)
   end if
@@ -166,14 +253,14 @@ program cubedsphere_mesh_generator
     call log_event(log_scratch_space,LOG_LEVEL_ERROR)
   end if
 
-  ! 4.2 Check for missing data.
+  ! 4.3 Check for missing data.
   if (ANY(edge_cells == imdi)) then
     write(log_scratch_space,'(A)') &
        'Missing data in namelist variable, edge_cells'
     call log_event(log_scratch_space,LOG_LEVEL_ERROR)
   end if
 
-  ! 4.3 Check that all meshes requested have unique names.
+  ! 4.4 Check that all meshes requested have unique names.
   any_duplicate_names = any_duplicates(mesh_names)
   if (any_duplicate_names)  then
     write(log_scratch_space,'(A)')          &
@@ -182,7 +269,7 @@ program cubedsphere_mesh_generator
     call log_event(log_scratch_space, LOG_LEVEL_ERROR)
   end if
 
-  ! 4.4 Check that all mesh map requests are unique.
+  ! 4.5 Check that all mesh map requests are unique.
   any_duplicate_names = any_duplicates(mesh_maps)
   if (any_duplicate_names)  then
     write(log_scratch_space,'(A)')          &
@@ -218,7 +305,7 @@ program cubedsphere_mesh_generator
         end if
       end do
 
-      ! 4.4 Check that there is a ':' in the map specification.
+      ! 4.6 Check that there is a ':' in the map specification.
       if (count(':' == map_spec ) /= 1) then
         write(log_scratch_space,'(A)')                               &
            '['//trim(adjustl(map_entry))//'] '//                     &
@@ -228,7 +315,7 @@ program cubedsphere_mesh_generator
       end if
       deallocate(map_spec)
 
-      ! 4.4 Check that mesh names in the map request exist.
+      ! 4.7 Check that mesh names in the map request exist.
       do j=1, size(check_mesh)
 
         l_found = .false.
@@ -247,7 +334,7 @@ program cubedsphere_mesh_generator
         end if
       end do
 
-      ! 4.5 Check the map request is not mapping at mesh
+      ! 4.8 Check the map request is not mapping at mesh
       !     to itself.
       if (trim(first_mesh) == trim(second_mesh)) then
         write(log_scratch_space,'(A)')               &
@@ -257,7 +344,7 @@ program cubedsphere_mesh_generator
         call log_event( trim(log_scratch_space), LOG_LEVEL_ERROR )
       end if
 
-      ! 4.6 Check that the number of edge cells of the meshes
+      ! 4.9 Check that the number of edge cells of the meshes
       !     are not the same.
       if (first_mesh_edge_cells == second_mesh_edge_cells) then
         write(log_scratch_space,'(A,I0,A)')                    &
@@ -268,8 +355,8 @@ program cubedsphere_mesh_generator
         call log_event( trim(log_scratch_space), LOG_LEVEL_ERROR )
       end if
 
-      ! 4.7 Check that the number of edge cells for one mesh is a
-      !     factor of the number of edges cells on the other mesh.
+      ! 4.10 Check that the number of edge cells for one mesh is a
+      !      factor of the number of edges cells on the other mesh.
       if ( mod(first_mesh_edge_cells, second_mesh_edge_cells) /= 0 .and. &
            mod(second_mesh_edge_cells, first_mesh_edge_cells) /= 0 ) then
         write(log_scratch_space, '(2(A,I0))')                            &
@@ -308,8 +395,44 @@ program cubedsphere_mesh_generator
   ! 6.0 Generate each mesh and any maps associated with it
   !     where the mesh is that source.
   !===================================================================
-  call log_event( "Generating cubed-sphere mesh(es):", LOG_LEVEL_INFO )
+  log_level=LOG_LEVEL_INFO
+  write(log_scratch_space, '(A)')    &
+      '===================================================================='
+  call log_event( log_scratch_space, log_level )
 
+  write(log_scratch_space, '(A)')    &
+      'Mesh geometry: ' // trim(key_from_geometry(geometry))
+  call log_event( log_scratch_space, log_level )
+
+  write(log_scratch_space,'(A)')     &
+      'Mesh topology: ' // trim(key_from_topology(topology))
+  call log_event( log_scratch_space, log_level )
+
+  write(log_scratch_space, '(A)')    &
+      'Co-ordinate system: '// trim(key_from_coord_sys(coord_sys))
+  call log_event( log_scratch_space, log_level )
+
+  write(log_scratch_space, '(A)')    &
+      '===================================================================='
+  call log_event( log_scratch_space, log_level )
+  call log_event( 'Additional transformations', log_level )
+
+  write(log_scratch_space, '(A,I0)') &
+      '  Smoothing passes: ', smooth_passes
+  call log_event( log_scratch_space, log_level )
+
+  if (smooth_passes > 0) then
+    write(log_scratch_space, '(A,I0)')                &
+        '  Smoothing on meshes for intergrid maps '// &
+        'may result in non-colocated nodes.'
+    call log_event( log_scratch_space, LOG_LEVEL_WARNING )
+  end if
+
+  if (stretch_factor >= 0.0_r_def) then
+    write(log_scratch_space, '(A,F4.2)') &
+      '  Stretch factor:   ', stretch_factor
+    call log_event( log_scratch_space, log_level )
+  end if
 
   ! 6.1 Generate objects which know how to generate each requested
   !     unique mesh.
@@ -327,7 +450,6 @@ program cubedsphere_mesh_generator
     allocate( target_edge_cells_tmp(n_mesh_maps*2) )
   end if
 
-
   if (rotate_mesh) then
     write(log_scratch_space, '(A)') &
         '  Rotation of mesh requested with: '
@@ -336,43 +458,29 @@ program cubedsphere_mesh_generator
     write(lon_str,'(F10.2)') target_pole(1)
     write(lat_str,'(F10.2)') target_pole(2)
     write(log_scratch_space,'(A)')       &
-        '  Target pole [lon,lat]: ['  // &
-        trim(adjustl(lon_str)) // ',' // &
+        '    Target pole [lon,lat]: ['// &
+        trim(adjustl(lon_str)) // ','//  &
         trim(adjustl(lat_str)) // ']'
     call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
 
     write(temp_str,'(F10.2)') rotation_angle
     write(log_scratch_space, '(A)') &
-        '  Rotation about pole:  ' // trim(adjustl(temp_str))
+        '    Rotation about pole:   '// trim(adjustl(temp_str))
     call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
   end if
 
-
+  write(log_scratch_space, '(A)') &
+      '===================================================================='
+  call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
+  call log_event( "Generating mesh(es):", log_level )
   do i=1, n_meshes
     cpp(i)    = edge_cells(i)*edge_cells(i)
     ncells(i) = cpp(i)*NPANELS
 
-    ! Only smooth this mesh if it is the mesh with the highest
-    ! number of cells in the chain.
-
-    ! NOTE: Do not consider smoothing unless all requested
-    !       mesh edge cells are a factor of the maximum requested
-    !       mesh edge cell.
-    if (edge_cells(i) == max_res) then
-      nsmooth = smooth_passes
-    else
-      nsmooth = 0
-    end if
-
     write(log_scratch_space,'(2(A,I0),A)')           &
         '  Creating Mesh: '// trim(mesh_names(i)) // &
         '(',edge_cells(i),',',edge_cells(i),')'
-    call log_event( trim(log_scratch_space), LOG_LEVEL_INFO)
-
-    write(log_scratch_space,'(A,I0)') &
-        '    Smoothing passes: ', nsmooth
-    call log_event( trim(log_scratch_space), LOG_LEVEL_INFO)
-
+    call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
 
 
     ! 6.3 Get any target mappings requested for this mesh
@@ -404,7 +512,7 @@ program cubedsphere_mesh_generator
       ! No mesh maps required for this mesh
       mesh_gen(i) = gencube_ps_type( mesh_name=mesh_names(i),       &
                                      edge_cells=edge_cells(i),      &
-                                     nsmooth=nsmooth,               &
+                                     nsmooth=smooth_passes,         &
                                      coord_sys=coord_sys,           &
                                      rotate_mesh=rotate_mesh,       &
                                      target_pole=target_pole,       &
@@ -427,14 +535,14 @@ program cubedsphere_mesh_generator
               trim(target_mesh_names(j))//&
               '(',target_edge_cells(j),',',target_edge_cells(j),')'
       end do
-      call log_event( trim(log_scratch_space), LOG_LEVEL_INFO)
+      call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
 
       mesh_gen(i) = gencube_ps_type(                         &
                         mesh_name=mesh_names(i),             &
                         edge_cells=edge_cells(i),            &
                         target_mesh_names=target_mesh_names, &
                         target_edge_cells=target_edge_cells, &
-                        nsmooth=nsmooth,                     &
+                        nsmooth=smooth_passes,               &
                         coord_sys=coord_sys,                 &
                         rotate_mesh=rotate_mesh,             &
                         target_pole=target_pole,             &
@@ -458,6 +566,9 @@ program cubedsphere_mesh_generator
   if ( allocated(ncells)            ) deallocate(ncells)
 
   call log_event( "...generation complete.", LOG_LEVEL_INFO )
+  write(log_scratch_space, '(A)') &
+      '===================================================================='
+  call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
 
   !=================================================================
   ! 7.0 Partitioning

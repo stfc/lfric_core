@@ -4,9 +4,11 @@
 
 class gencube_ps_mod::gencube_ps_type {
   -mesh_name: string
-  -mesh_class: string
-  -constructor_inputs: string
+
+  -geometry:  integer
+  -topology:  integer
   -coord_sys: integer
+  -constructor_inputs: string
   -coord_units_x: string
   -coord_units_y: string
   -edge_cells: integer

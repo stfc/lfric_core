@@ -566,7 +566,7 @@
             {{DIRECTIVE}}
 {%-         endfor %}
         [[[job]]]
-            execution retry delays = 2*PT5S, 5*PT10S, 9*PT1M, 5*PT10M, 3*PT1H
+            execution retry delays = 2*PT5S
 {%-       endif %}
 
 {# #############################################################################}

@@ -212,6 +212,15 @@ module mesh_mod
     procedure, public :: is_vertex_owned
     procedure, public :: is_edge_owned
     procedure, public :: is_cell_owned
+
+    procedure, public :: is_geometry_spherical
+    procedure, public :: is_geometry_planar
+    procedure, public :: is_topology_non_periodic
+    procedure, public :: is_topology_channel
+    procedure, public :: is_topology_periodic
+    procedure, public :: is_coord_sys_xyz
+    procedure, public :: is_coord_sys_ll
+
     procedure, public :: get_num_edges_owned_2d
     procedure, public :: get_num_verts_owned_2d
     procedure, public :: get_inner_depth
@@ -231,14 +240,14 @@ module mesh_mod
     procedure, public :: get_last_halo_cell_any
     procedure, public :: get_last_halo_cell_deepest
     generic           :: get_last_halo_cell => &
-                            get_last_halo_cell_any, &
-                            get_last_halo_cell_deepest
+                           get_last_halo_cell_any, &
+                           get_last_halo_cell_deepest
 
     procedure, public :: get_last_halo_cell_per_colour_any
     procedure, public :: get_last_halo_cell_per_colour_deepest
     generic           :: get_last_halo_cell_per_colour => &
-                            get_last_halo_cell_per_colour_any, &
-                            get_last_halo_cell_per_colour_deepest
+                           get_last_halo_cell_per_colour_any, &
+                           get_last_halo_cell_per_colour_deepest
 
     procedure, public :: get_num_cells_ghost
     procedure, public :: get_gid_from_lid
@@ -325,9 +334,9 @@ contains
     ! Surface Coordinates in [long, lat, radius] (Units: Radians/metres)
     real(r_def), allocatable :: vertex_coords_2d(:,:)
 
-    ! is_spherical = True: vertex_coords_2d is in lat,lon coords,
-    !                  False: vertex_coords_2d is in x,y coords
-    logical(l_def) :: is_spherical
+    ! ll_coords = True: vertex_coords_2d is in lat,lon coords,
+    !             False: vertex_coords_2d is in x,y coords
+    logical(l_def) :: ll_coords
 
     character(str_def):: name
 
@@ -338,7 +347,7 @@ contains
     if (present(mesh_name)) then
       name = mesh_name
     else
-      name =  local_mesh%get_mesh_name()
+      name = local_mesh%get_mesh_name()
     end if
 
     self%mesh_name = name
@@ -361,6 +370,7 @@ contains
     self%nedges_per_2d_cell = local_mesh%get_nedges_per_cell()
 
     self%local_mesh           => local_mesh
+
     self%ncells_2d            = local_mesh%get_num_cells_in_layer()
     self%ncells_2d_with_ghost = self%ncells_2d &
                                  + local_mesh%get_num_cells_ghost()
@@ -430,10 +440,9 @@ contains
       call local_mesh%get_vert_coords(i,vertex_coords_2d(:,i))
     end do
 
-    is_spherical = .false.
-    ! TODO: Change these options to use geometry and topology in #2693
-    if ( trim(local_mesh%get_mesh_class()) == "sphere" ) is_spherical = .true.
-    if ( trim(local_mesh%get_mesh_class()) == "lam" )    is_spherical = .true.
+    ll_coords = .false.
+    if ( local_mesh%is_coord_sys_ll() ) ll_coords = .true.
+
 
     ! Set base surface height
     vertex_coords_2d(3,:) = self%domain_bottom
@@ -455,7 +464,7 @@ contains
                         cell_next_2d,                                 &
                         vert_on_cell_2d,                              &
                         vertex_coords_2d,                             &
-                        is_spherical,                                 &
+                        ll_coords,                                    &
                         self%nverts_per_2d_cell,                      &
                         self%nedges_per_2d_cell,                      &
                         self%nverts_2d,                               &
@@ -481,8 +490,8 @@ contains
                             self%reference_element )
 
     call set_domain_size( self%domain_size, self%domain_top, &
-                          self%vertex_coords, self%nverts, &
-                          is_spherical, self%domain_bottom )
+                          self%vertex_coords, self%nverts,   &
+                          ll_coords, self%domain_bottom )
 
     deallocate (vert_on_cell_2d)
     deallocate (edge_on_cell_2d)
@@ -1946,6 +1955,138 @@ contains
     mesh_name = self%mesh_name
 
   end function get_mesh_name
+
+
+  !============================================================================
+  !> @brief  Queries if mesh was created from a spherical surface
+  !>         geometry
+  !> @return answer .true. for a spherical local mesh geometry
+  !>
+  function is_geometry_spherical( self ) result ( answer )
+
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    logical (l_def) :: answer
+
+    answer = self%local_mesh%is_geometry_spherical()
+
+  end function is_geometry_spherical
+
+
+  !============================================================================
+  !> @brief  Queries if mesh was created from a planar surface
+  !>         geometry
+  !> @return answer .true. for a planar local mesh geometry
+  !>
+  function is_geometry_planar( self ) result ( answer )
+
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    logical (l_def) :: answer
+
+    answer = self%local_mesh%is_geometry_planar()
+
+  end function is_geometry_planar
+
+
+  !============================================================================
+  !> @brief  Queries if mesh was created from a non-periodic
+  !>         global mesh domain where all the boundaries are closed.
+  !>
+  !> @return answer .true. for a non-periodic global domain.
+  !>
+  function is_topology_non_periodic( self ) result ( answer )
+
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    logical (l_def) :: answer
+
+    answer = self%local_mesh%is_topology_periodic()
+
+  end function is_topology_non_periodic
+
+
+  !============================================================================
+  !> @brief  Queries if mesh was created from a channel
+  !>         global mesh domain, which contained a single pair
+  !>         of periodic boundaries.
+  !>
+  !> @return answer .true. for a global channel domain.
+  !>
+  function is_topology_channel( self ) result ( answer )
+
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    logical (l_def) :: answer
+
+    answer = self%local_mesh%is_topology_channel()
+
+  end function is_topology_channel
+
+  !============================================================================
+  !> @brief  Queries if mesh was created from a periodic
+  !>         global mesh domain
+  !>
+  !> @return answer .true. for a periodic global domain.
+  !>
+  function is_topology_periodic( self ) result ( answer )
+
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    logical (l_def) :: answer
+
+    answer = self%local_mesh%is_topology_periodic()
+
+  end function is_topology_periodic
+
+
+  !============================================================================
+  !> @brief  Queries if the mesh nodes are specified using Cartesian
+  !>         co-ordinates (x,y,z).
+  !>
+  !> @return answer .true. if nodes are specified in Cartesian co-ordinates
+  !>
+  function is_coord_sys_xyz( self ) result ( answer )
+
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    logical (l_def) :: answer
+
+    answer = self%local_mesh%is_coord_sys_xyz()
+
+  end function is_coord_sys_xyz
+
+
+  !============================================================================
+  !> @brief  Queries if the local mesh nodes are specified using Spherical
+  !>         co-ordinates (longitude, latitude).
+  !>
+  !> @return answer .true. if nodes are specified in spherical co-ordinates
+  !>
+  function is_coord_sys_ll( self ) result ( answer )
+
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    logical (l_def) :: answer
+
+    answer = self%local_mesh%is_coord_sys_ll()
+
+  end function is_coord_sys_ll
+
 
   !-----------------------------------------------------------------------------
   !  Function to clear up objects - called by destructor

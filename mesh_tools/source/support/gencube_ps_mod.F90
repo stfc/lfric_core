@@ -27,16 +27,24 @@ module gencube_ps_mod
 
   use calc_global_cell_map_mod,       only: calc_global_cell_map
   use constants_mod,                  only: r_def, i_def, str_def, l_def,     &
-                                            str_long, PI, radians_to_degrees, &
+                                            i_native, str_long, str_longlong, &
+                                            PI, radians_to_degrees,           &
                                             degrees_to_radians, rmdi, imdi,   &
-                                            str_longlong
+                                            emdi
   use coord_transform_mod,            only: ll2xyz, xyz2ll
   use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
   use log_mod,                        only: log_event, log_scratch_space, &
                                             LOG_LEVEL_ERROR, LOG_LEVEL_INFO
-  use mesh_config_mod,                only: coord_sys_ll, coord_sys_xyz
   use reference_element_mod,          only: W, S, E, N, SWB, SEB, NWB, NEB
   use ugrid_generator_mod,            only: ugrid_generator_type
+
+
+  use mesh_config_mod,                only: coord_sys_ll, coord_sys_xyz, &
+                                            key_from_geometry,           &
+                                            key_from_topology,           &
+                                            key_from_coord_sys,          &
+                                            geometry_spherical,          &
+                                            topology_periodic
 
   implicit none
 
@@ -61,7 +69,6 @@ module gencube_ps_mod
 
   ! Prefix for error messages
   character(*),       parameter :: PREFIX = "[Cubed-Sphere Mesh] "
-  character(str_def), parameter :: MESH_CLASS = "sphere"
 
   ! flag to print out mesh data for debugging purposes
   logical(l_def),     parameter :: DEBUG = .false.
@@ -75,13 +82,16 @@ module gencube_ps_mod
     character(str_longlong)  :: constructor_inputs
 
     character(str_def)  :: mesh_name
-    character(str_def)  :: mesh_class
+
+    integer(i_native)   :: geometry = geometry_spherical
+    integer(i_native)   :: topology = topology_periodic
+
     character(str_def)  :: coord_units_x
     character(str_def)  :: coord_units_y
 
     integer(i_def)      :: edge_cells
     integer(i_def)      :: nsmooth
-    integer(i_def)      :: npanels
+    integer(i_def)      :: npanels = 6
     integer(i_def)      :: nmaps
 
     integer(i_def)      :: max_num_faces_per_node
@@ -91,7 +101,7 @@ module gencube_ps_mod
     real(r_def)         :: target_pole(2) = rmdi
     real(r_def)         :: rotation_angle = rmdi
     logical(l_def)      :: rotate_mesh    = .false.
-    integer(i_def)      :: coord_sys      = imdi
+    integer(i_native)   :: coord_sys      = emdi
 
     character(str_def), allocatable :: target_mesh_names(:)
     integer(i_def),     allocatable :: target_edge_cells(:)
@@ -188,7 +198,6 @@ contains
   character(str_long) :: target_edge_cells_str
 
   self%mesh_name  = trim(mesh_name)
-  self%mesh_class = trim(MESH_CLASS)
   self%edge_cells = edge_cells
   self%nsmooth    = nsmooth
   self%npanels    = NPANELS
@@ -1480,9 +1489,11 @@ subroutine write_mesh(self)
 
   write(stdout,'(A)')    "====DEBUG INFO===="
   write(stdout,'(A)')    "Mesh name: "// trim(self%mesh_name)
-  write(stdout,'(A)')    "Class:     "// trim(self%mesh_class)
+  write(stdout,'(A)')    "Geometry:  "// trim(key_from_geometry(self%geometry))
+  write(stdout,'(A)')    "Topology:  "// trim(key_from_topology(self%topology))
   write(stdout,'(A,I0)') "Panels:    ", self%npanels
   write(stdout,'(A,I0)') "Panel edge cells: ", self%edge_cells
+  write(stdout,'(A)')    "Coord_sys:  "// trim(key_from_coord_sys(self%coord_sys))
   write(stdout,'(A)')    "Co-ord (x) units: "// trim(self%coord_units_x)
   write(stdout,'(A)')    "Co-ord (y) units: "// trim(self%coord_units_y)
   write(stdout,'(A,I0)') "Smoothing iterations:     ", self%nsmooth
@@ -1824,9 +1835,9 @@ end subroutine calc_cell_centres
 !-----------------------------------------------------------------------------
 !> @brief Returns mesh metadata information.
 !>
-!> @param[in]             self               The generator strategy object.
 !> @param[out, optional]  mesh_name          Name of mesh instance to generate
-!> @param[out, optional]  mesh_class         Primitive shape, i.e. sphere, plane
+!> @param[out, optional]  geometry           Mesh domain surface type.
+!> @param[out, optional]  topology           Mesh boundary/connectivity type
 !> @param[out, optional]  npanels            Number of panels use to describe mesh
 !> @param[out, optional]  coord_sys          Coordinate system to position nodes.
 !> @param[out, optional]  edge_cells_x       Number of panel edge cells (x-axis).
@@ -1844,11 +1855,12 @@ end subroutine calc_cell_centres
 !-----------------------------------------------------------------------------
 subroutine get_metadata( self,               &
                          mesh_name,          &
-                         mesh_class,         &
+                         geometry,           &
+                         topology,           &
+                         coord_sys,          &
                          periodic_x,         &
                          periodic_y,         &
                          npanels,            &
-                         coord_sys,          &
                          edge_cells_x,       &
                          edge_cells_y,       &
                          constructor_inputs, &
@@ -1857,16 +1869,21 @@ subroutine get_metadata( self,               &
                          maps_edge_cells_x,  &
                          maps_edge_cells_y )
 
+
   implicit none
 
   class(gencube_ps_type), intent(in)  :: self
+
   character(str_def), optional, intent(out) :: mesh_name
-  character(str_def), optional, intent(out) :: mesh_class
-  logical(l_def), optional, intent(out)     :: periodic_x
-  logical(l_def), optional, intent(out)     :: periodic_y
+  character(str_def), optional, intent(out) :: geometry
+  character(str_def), optional, intent(out) :: topology
+  character(str_def), optional, intent(out) :: coord_sys
+
+  logical(l_def), optional, intent(out) :: periodic_x
+  logical(l_def), optional, intent(out) :: periodic_y
 
   integer(i_def), optional, intent(out) :: npanels
-  integer(i_def), optional, intent(out) :: coord_sys
+
   integer(i_def), optional, intent(out) :: edge_cells_x
   integer(i_def), optional, intent(out) :: edge_cells_y
 
@@ -1877,16 +1894,19 @@ subroutine get_metadata( self,               &
   integer(i_def),     allocatable, optional,intent(out) :: maps_edge_cells_x(:)
   integer(i_def),     allocatable, optional,intent(out) :: maps_edge_cells_y(:)
 
-  if (present(mesh_name))    mesh_name    = trim(self%mesh_name)
-  if (present(mesh_class))   mesh_class   = trim(self%mesh_class)
-  if (present(npanels))      npanels      = self%npanels
+  if (present(mesh_name)) mesh_name = trim(self%mesh_name)
+  if (present(geometry))  geometry  = key_from_geometry(self%geometry)
+  if (present(topology))  topology  = key_from_topology(self%topology)
+  if (present(coord_sys)) coord_sys = key_from_coord_sys(self%coord_sys)
+  if (present(npanels))   npanels   = self%npanels
+
   if (present(edge_cells_x)) edge_cells_x = self%edge_cells
   if (present(edge_cells_y)) edge_cells_y = self%edge_cells
 
   if (present(constructor_inputs)) constructor_inputs = trim(self%constructor_inputs)
   if (present(nmaps)) nmaps = self%nmaps
 
-  if (present(coord_sys)) coord_sys = self%coord_sys
+
 
   if (self%nmaps > 0) then
     if (present(target_mesh_names)) target_mesh_names  = self%target_mesh_names

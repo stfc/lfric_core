@@ -1,6 +1,6 @@
 &base_mesh
 f_lat_deg=45.0,
-filename='mesh_BiP4x4-10000x10000.nc',
+filename='mesh_BiP4x4-2500x2500.nc',
 fplane=.false.,
 geometry='planar',
 partitioner='planar',

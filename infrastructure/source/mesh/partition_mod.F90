@@ -68,6 +68,8 @@ module partition_mod
   ! Number of panels in the 3D mesh
     integer(i_def)              :: npanels
 
+    integer(i_def)              :: max_stencil_depth
+
   contains
 
     procedure, public :: get_global_cell_id
@@ -82,6 +84,7 @@ module partition_mod
     procedure, public :: get_last_halo_cell
     procedure, public :: get_num_cells_ghost
     procedure, public :: get_num_panels_global_mesh
+    procedure, public :: get_max_stencil_depth
     procedure, public :: partition_type_assign
     procedure, public :: clear
 
@@ -194,10 +197,11 @@ contains
   integer(i_def) :: i
   integer(i_def) :: last
 
-  self%halo_depth = max_stencil_depth + 1
+  self%max_stencil_depth = max_stencil_depth
+  self%halo_depth = self%max_stencil_depth + 1
   allocate( self%num_halo(self%halo_depth) )
   allocate( self%last_halo_cell(self%halo_depth) )
-  self%inner_depth = max_stencil_depth + 1
+  self%inner_depth = self%max_stencil_depth + 1
   allocate( self%num_inner(self%inner_depth) )
   allocate( self%last_inner_cell(self%inner_depth) )
   self%global_num_cells = global_mesh%get_ncells()
@@ -209,7 +213,7 @@ contains
                     xproc, yproc, &
                     local_rank, &
                     total_ranks, &
-                    max_stencil_depth, &
+                    self%max_stencil_depth, &
                     self%global_cell_id, &
                     self%num_inner, &
                     self%num_edge, &
@@ -1260,6 +1264,23 @@ contains
     halo_depth = self%halo_depth
 
   end function get_halo_depth
+
+  !---------------------------------------------------------------------------
+  !> @brief Gets the maximum stencil depth supported by this partition.
+  !>
+  !> @return Maximum supported stencil depth.
+  !>
+  function get_max_stencil_depth( self ) result ( max_stencil_depth )
+
+    implicit none
+
+    class(partition_type), intent(in) :: self
+
+    integer(i_def) :: max_stencil_depth
+
+    max_stencil_depth = self%max_stencil_depth
+
+  end function get_max_stencil_depth
 
 
   !---------------------------------------------------------------------------

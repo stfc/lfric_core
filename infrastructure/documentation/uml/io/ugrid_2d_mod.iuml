@@ -5,7 +5,9 @@
 class ugrid_2d_mod::ugrid_2d_type {
 
   -mesh_name: string
-  -mesh_class: string
+  -geometry: string
+  -topology: string
+  -coord_sys: string
   -periodic_x: logical
   -periodic_y: logical
   -constructor_inputs: string
@@ -21,6 +23,7 @@ class ugrid_2d_mod::ugrid_2d_type {
   -num_nodes_per_edge: integer
   -num_edges_per_face: integer
   -max_num_faces_per_node: integer
+  -max_stencil_depth: integer
   -node_coordinates: real[::] <<allocatable>>
   -face_coordinates: real[::] <<allocatable>>
   -face_node_connectivity: integer[::] <<allocatable>>
@@ -48,7 +51,7 @@ class ugrid_2d_mod::ugrid_2d_type {
   +set_from_file_read( <<in>>mesh_name: string, <<in>> filename: string )
   +write_to_file( <<in>> filename: string )
   +append_to_file( <<in>> filename: string )
-  +get_metadata( <<out,optional>> mesh_name: string, <<out,optional>> mesh_class: string, <<out,optional>> periodic_x: logical, <<out,optional>> periodic_y: logical, <<out,optional>> edge_cells_x: integer, <<out,optional>> edge_cells_y: integer, <<out,optional>> constructor_inputs: string, <<out,optional>> nmaps: integer, <<out,optional,allocatable>> target_mesh_names: string )
+  +get_metadata(\n\t<<out,optional>> mesh_name: string,\n\t <<out,optional>> geometry: string,\n\t <<out,optional>> topology: string,\n\t <<out,optional>> coord_sys: string,\n\t <<out,optional>> periodic_x: logical,\n\t <<out,optional>> periodic_y: logical,\n\t <<out,optional>> edge_cells_x: integer,\n\t <<out,optional>> edge_cells_y: integer,\n\t <<out,optional>> constructor_inputs: string,\n\t <<out,optional>> nmaps: integer,\n\t <<out,optional,allocatable>> target_mesh_names: string )
 
   +get_coord_units( <<out>> coords_units_x: string, <<out>> coord_units_y: string )
   +get_node_coords( <<out>> node_coords: real[::] )

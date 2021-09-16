@@ -15,7 +15,7 @@ module gen_lbc_mod
 !-------------------------------------------------------------------------------
 
   use constants_mod,                  only: r_def, i_def, l_def, str_def, &
-                                            str_longlong, imdi
+                                            str_longlong, imdi, i_native
   use gen_planar_mod,                 only: gen_planar_type
   use global_mesh_map_mod,            only: global_mesh_map_type
   use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
@@ -24,6 +24,14 @@ module gen_lbc_mod
   use reference_element_mod,          only: W, S, E, N, &
                                             SWB, SEB, NWB, NEB
   use ugrid_generator_mod,            only: ugrid_generator_type
+
+  use mesh_config_mod,                only: geometry_from_key,  &
+                                            coord_sys_from_key, &
+                                            key_from_geometry,  &
+                                            key_from_topology,  &
+                                            key_from_coord_sys, &
+                                            topology_non_periodic
+
 
   implicit none
 
@@ -185,9 +193,13 @@ module gen_lbc_mod
     private
 
     character(str_def) :: mesh_name
-    character(str_def) :: mesh_class
+    character(str_def) :: mesh_parent
     character(str_def) :: coord_units_x
     character(str_def) :: coord_units_y
+
+    integer(i_native)  :: geometry
+    integer(i_native)  :: topology
+    integer(i_native)  :: coord_sys
 
     character(str_longlong) :: constructor_inputs
 
@@ -213,8 +225,6 @@ module gen_lbc_mod
     integer(i_def), allocatable :: nodes_on_edge(:,:) ! (2, edge_cells_x*edge_cells_y)
     real(r_def),    allocatable :: node_coords(:,:)   ! (2, edge_cells_x*edge_cells_y)
     real(r_def),    allocatable :: cell_coords(:,:)   ! (2, edge_cells_x*edge_cells_y)
-
-    integer(i_def) :: coord_sys
 
     ! Hold variables from the reference element.
     ! Done because the available Cray compiler has internal compiler errors
@@ -308,6 +318,10 @@ function gen_lbc_constructor( lam_strategy, rim_depth ) result( self )
 
   type(gen_lbc_type) :: self
 
+
+  character(str_def) :: geometry_key
+  character(str_def) :: coord_sys_key
+
   integer(i_def) :: lam_n_nodes
   integer(i_def) :: lam_n_edges
   integer(i_def) :: lam_n_faces
@@ -331,14 +345,21 @@ function gen_lbc_constructor( lam_strategy, rim_depth ) result( self )
                                 max_num_faces_per_node =                  &
                                              self%max_num_faces_per_node )
 
-  call lam_strategy%get_metadata                                    &
-                        ( mesh_name    = self%target_mesh_names(1), &
-                          edge_cells_x = self%outer_cells_x,        &
-                          edge_cells_y = self%outer_cells_y,        &
-                          coord_sys    = self%coord_sys )
+  call lam_strategy%get_metadata                                         &
+                        ( mesh_name         = self%target_mesh_names(1), &
+                          edge_cells_x      = self%outer_cells_x,        &
+                          edge_cells_y      = self%outer_cells_y,        &
+                          geometry          = geometry_key,              &
+                          coord_sys         = coord_sys_key )
 
-  self%mesh_name  =  trim(self%target_mesh_names(1))//'-lbc'
-  self%mesh_class = 'lbc'
+  self%mesh_parent =  trim(self%target_mesh_names(1))
+  self%mesh_name   =  trim(self%mesh_parent)//'-lbc'
+
+  self%coord_sys   =  coord_sys_from_key(coord_sys_key)
+  self%geometry    =  geometry_from_key(geometry_key)
+  self%topology    =  topology_non_periodic
+
+
 
   ! 2.0 Check the rim depth is valid
   !----------
@@ -706,11 +727,12 @@ end subroutine generate
 !-----------------------------------------------------------------------------
 subroutine get_metadata( self,               &
                          mesh_name,          &
-                         mesh_class,         &
+                         geometry,           &
+                         topology,           &
+                         coord_sys,          &
                          periodic_x,         &
                          periodic_y,         &
                          npanels,            &
-                         coord_sys,          &
                          edge_cells_x,       &
                          edge_cells_y,       &
                          constructor_inputs, &
@@ -723,11 +745,13 @@ subroutine get_metadata( self,               &
   class(gen_lbc_type), intent(in) :: self
 
   character(str_def), optional, intent(out) :: mesh_name
-  character(str_def), optional, intent(out) :: mesh_class
+  character(str_def), optional, intent(out) :: geometry
+  character(str_def), optional, intent(out) :: topology
+  character(str_def), optional, intent(out) :: coord_sys
+
   logical(l_def),     optional, intent(out) :: periodic_x
   logical(l_def),     optional, intent(out) :: periodic_y
   integer(i_def),     optional, intent(out) :: npanels
-  integer(i_def),     optional, intent(out) :: coord_sys
   integer(i_def),     optional, intent(out) :: edge_cells_x
   integer(i_def),     optional, intent(out) :: edge_cells_y
   integer(i_def),     optional, intent(out) :: nmaps
@@ -738,8 +762,11 @@ subroutine get_metadata( self,               &
   integer(i_def),     optional, intent(out), allocatable :: maps_edge_cells_x(:)
   integer(i_def),     optional, intent(out), allocatable :: maps_edge_cells_y(:)
 
-  if (present(mesh_name))  mesh_name  = self%mesh_name
-  if (present(mesh_class)) mesh_class = self%mesh_class
+  if (present(mesh_name)) mesh_name  = self%mesh_name
+  if (present(geometry))  geometry   = key_from_geometry(self%geometry)
+  if (present(topology))  topology   = key_from_topology(self%topology)
+  if (present(coord_sys)) coord_sys  = key_from_coord_sys(self%coord_sys)
+
   if (present(periodic_x)) periodic_x = .false.
   if (present(periodic_y)) periodic_y = .false.
 
@@ -749,12 +776,10 @@ subroutine get_metadata( self,               &
     call log_event(log_scratch_space, LOG_LEVEL_WARNING)
   end if
 
-  if (present(coord_sys)) coord_sys = self%coord_sys
-
   if (present(constructor_inputs)) constructor_inputs = self%constructor_inputs
 
-  if (present(edge_cells_x)) edge_cells_x = self%outer_cells_y
-  if (present(edge_cells_y)) edge_cells_y = self%outer_cells_x
+  if (present(edge_cells_x)) edge_cells_x = self%outer_cells_x
+  if (present(edge_cells_y)) edge_cells_y = self%outer_cells_y
   if (present(nmaps))        nmaps        = self%nmaps
 
   if (self%nmaps > 0) then

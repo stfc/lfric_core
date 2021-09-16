@@ -50,7 +50,7 @@ module global_mesh_collection_mod_test
   character(str_max_filename), parameter :: &
       CubedSphereFile = 'data/mesh_C4.nc'
   character(str_max_filename), parameter :: &
-      BiPeriodicFile  = 'data/mesh_BiP8x8-6000x2000.nc'
+      BiPeriodicFile  = 'data/mesh_BiP8x8-750x250.nc'
 
 contains
 

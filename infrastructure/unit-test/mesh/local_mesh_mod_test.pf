@@ -8,14 +8,15 @@
 !>
 module local_mesh_mod_test
 
-  use constants_mod,              only: i_def, i_native, r_def, &
+  use constants_mod,              only: i_def, i_native, r_def, l_def, &
                                         str_max_filename, str_def
   use global_mesh_collection_mod, only: global_mesh_collection_type, &
                                         global_mesh_collection
   use global_mesh_mod,            only: global_mesh_type
   use local_mesh_map_mod,         only: local_mesh_map_type
   use local_mesh_mod,             only: local_mesh_type
-  use mpi_mod,                    only: store_comm, clear_comm, get_comm_size, get_comm_rank
+  use mpi_mod,                    only: store_comm, clear_comm, &
+                                        get_comm_size, get_comm_rank
   use partition_mod,              only: partition_type, &
                                         partitioner_planar, &
                                         partitioner_cubedsphere_serial, &
@@ -102,8 +103,8 @@ contains
     procedure (partitioner_interface), pointer :: partitioner_ptr => null()
     type(partition_type) :: partition
     type(local_mesh_type) :: local_mesh
+
     character(str_def) :: name
-    character(str_def) :: mesh_class
 
     integer(i_def) :: nverts_per_edge
     integer(i_def) :: nedges_per_cell
@@ -136,11 +137,13 @@ contains
     real(r_def)    :: vert_coords(2)
     real(r_def)    :: known_vert_coords(2)
 
+    logical(l_def) :: answer
+
     ! Create a local mesh from partitioning a global mesh on 1 and 4 processors
 
     num_processes = this%context%getNumProcesses()
 
-    filename = 'data/mesh_BiP8x8-6000x2000.nc'
+    filename = 'data/mesh_BiP8x8-750x250.nc'
     mesh_name = 'unit_test'
     npanels  = 1
     call ugrid_mesh_data%read_from_file(trim(filename), mesh_name)
@@ -177,8 +180,14 @@ contains
     @assertEqual( trim(mesh_name), trim(name) )
 
     ! Check the local mesh has the correct class
-    mesh_class = local_mesh%get_mesh_class()
-    @assertEqual( "plane", trim(mesh_class) )
+    answer = local_mesh%is_geometry_planar()
+    @assertEqual( .true., answer )
+
+    answer = local_mesh%is_topology_periodic()
+    @assertEqual( .true., answer )
+
+    answer = local_mesh%is_coord_sys_xyz()
+    @assertEqual( .true., answer )
 
     ! Check the local_mesh has the correct properties
     nverts_per_edge = local_mesh%get_nverts_per_edge()

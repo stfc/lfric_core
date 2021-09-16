@@ -52,8 +52,8 @@ contains
   !>                                 cell.
   !> @param[in]  vert_on_cell_2d     List of vertices on each 2D cell.
   !> @param[in]  vertex_coords_2d    Local 2d cell connectivity.
-  !> @param[in]  is_spherical     True: vertex_coords_2d is in lat,lon coords
-  !>                                 False: vertex_coords_2d is in x,y coords
+  !> @param[in]  ll_coords           True:  vertex_coords_2d in lon,lat coords
+  !>                                 False: vertex_coords_2d in x,y coords
   !> @param[in]  nverts_per_2d_cell  Number of vertices per cell of the 2D
   !>                                 layer.
   !> @param[in]  nedges_per_2d_cell  Number of edges per cell of the 2D layer.
@@ -73,7 +73,7 @@ contains
                             cell_next_2d,       &
                             vert_on_cell_2d,    &
                             vertex_coords_2d,   &
-                            is_spherical,       &
+                            ll_coords,          &
                             nverts_per_2d_cell, &
                             nedges_per_2d_cell, &
                             nverts_2d,          &
@@ -104,7 +104,7 @@ contains
     integer(i_def), intent(in)  :: vert_on_cell_2d(nverts_per_2d_cell, &
                                                    ncells_2d)
     real(r_def),    intent(in)  :: vertex_coords_2d( 3, nverts_2d )
-    logical(l_def), intent(in)  :: is_spherical
+    logical(l_def), intent(in)  :: ll_coords
     real(r_def),    intent(in)  :: dz( nlayers )
     integer(i_def), intent(out) :: cell_next( nfaces, ncells_3d )
     integer(i_def), intent(out) :: vert_on_cell( nverts, ncells_3d )
@@ -189,7 +189,7 @@ contains
       end do
     end do
 
-    if ( is_spherical ) then
+    if ( ll_coords ) then
 
       ! Convert (long,lat,r) -> (x,y,z)
       ! long,lat in radians
@@ -483,7 +483,7 @@ contains
   !>
   subroutine set_domain_size( domain_size, domain_top, &
                               vertex_coords, nverts, &
-                              is_spherical, scaled_radius )
+                              ll_coords, scaled_radius )
 
     implicit none
 
@@ -491,10 +491,10 @@ contains
     real(r_def),            intent(in)  :: domain_top
     integer(i_def),         intent(in)  :: nverts
     real(r_def),            intent(in)  :: vertex_coords(3,nverts)
-    logical(l_def),         intent(in)  :: is_spherical
+    logical(l_def),         intent(in)  :: ll_coords
     real(r_def),            intent(in)  :: scaled_radius
 
-    if ( is_spherical ) then
+    if ( ll_coords ) then
       domain_size%minimum%x   =  0.0_r_def
       domain_size%maximum%x   =  2.0_r_def*PI
       domain_size%minimum%y   = -0.5_r_def*PI

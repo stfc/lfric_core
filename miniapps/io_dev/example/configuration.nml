@@ -50,8 +50,8 @@
 /
 
 &base_mesh
-  filename        = 'mesh_C12.nc'
-  prime_mesh_name = 'dynamics'
+  filename        = 'mesh_C3.nc'
+  prime_mesh_name = 'C3'
   geometry        = 'spherical'
   partitioner     = 'cubedsphere'
   topology        = 'fully_periodic'

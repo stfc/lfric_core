@@ -1,8 +1,10 @@
 "dynamics":
-  Class:               plane
+  Geometry:            planar
+  Topology:            channel
+  Co-ordinate system:  xyz
   Periodic X:          F
   Periodic Y:          T
-  Constructor inputs:  edge_cells_x=1;edge_cells_y=8;periodic_x=F;periodic_y=T;domain_x=400.00;domain_y=1600.00;coord_sys=xyz
+  Constructor inputs:  geometry=planar;topology=channel;coord_sys=xyz;edge_cells_x=1;edge_cells_y=8;periodic_x=F;periodic_y=T;domain_x=400.00;domain_y=1600.00
   Nodes:               16
   Edges:               24
   Faces:               8

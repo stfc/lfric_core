@@ -1,5 +1,7 @@
 "dynamics":
-  Class:               sphere
+  Geometry:            spherical
+  Topology:            periodic
+  Co-ordinate system:  ll
   Periodic X:          F
   Periodic Y:          F
   Constructor inputs:  edge_cells=4;smooth_passes=0;target_mesh_names=['physics'];target_edge_cells=[12]
@@ -12,7 +14,9 @@
   Max. faces per node: 4
   Maps to:             "physics"
 "physics":
-  Class:               sphere
+  Geometry:            spherical
+  Topology:            periodic
+  Co-ordinate system:  ll
   Periodic X:          F
   Periodic Y:          F
   Constructor inputs:  edge_cells=12;smooth_passes=0;target_mesh_names=['dynamics'];target_edge_cells=[4]

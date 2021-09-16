@@ -12,7 +12,9 @@
 module global_mesh_mod
 
   use constants_mod,                  only: r_def, i_def, str_max_filename, &
-                                            str_def, degrees_to_radians, l_def
+                                            str_def, degrees_to_radians,    &
+                                            l_def, i_native, emdi
+
   use global_mesh_map_mod,            only: global_mesh_map_type
   use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
   use linked_list_data_mod,           only: linked_list_data_type
@@ -23,14 +25,29 @@ module global_mesh_mod
 
   private
 
+  integer(i_native), parameter :: spherical_domain = 301
+  integer(i_native), parameter :: planar_domain    = 302
+
+  integer(i_native), parameter :: non_periodic_domain = 401
+  integer(i_native), parameter :: channel_domain      = 402
+  integer(i_native), parameter :: periodic_domain     = 403
+
+  integer(i_native), parameter :: lon_lat_coords = 501
+  integer(i_native), parameter :: xyz_coords     = 502
+
+
   type, extends(linked_list_data_type), public :: global_mesh_type
 
     private
 
   ! Tag name of mesh
     character(str_def) :: mesh_name
-  ! Type of mesh that the global mesh describes
-    character(str_def) :: mesh_class
+  ! Domain surface geometry
+    integer(i_native)  :: geometry = emdi
+  ! Domain boundaries topology
+    integer(i_native)  :: topology = emdi
+  ! Co-ordinate system used to specify node locations
+    integer(i_native)  :: coord_sys = emdi
   ! Periodic in E-W direction
     logical(l_def)     :: periodic_x
   ! Periodic in N-S direction
@@ -78,7 +95,6 @@ module global_mesh_mod
   contains
     procedure, public :: get_mesh_name
     procedure, public :: get_npanels
-    procedure, public :: get_mesh_class
     procedure, public :: get_mesh_periodicity
     procedure, public :: get_cell_id
     procedure, public :: get_cell_on_vert
@@ -103,6 +119,15 @@ module global_mesh_mod
     procedure, public :: get_global_mesh_map
     procedure, public :: get_target_mesh_names
     procedure, public :: get_nmaps
+
+    procedure, public :: is_geometry_spherical
+    procedure, public :: is_geometry_planar
+    procedure, public :: is_topology_non_periodic
+    procedure, public :: is_topology_channel
+    procedure, public :: is_topology_periodic
+    procedure, public :: is_coord_sys_xyz
+    procedure, public :: is_coord_sys_ll
+
     procedure, public :: clear
 
     final :: global_mesh_destructor
@@ -150,10 +175,17 @@ contains
 
     type(global_mesh_type) :: self
 
+    character(str_def) :: geometry
+    character(str_def) :: topology
+    character(str_def) :: coord_sys
+
     ! loop counter over entities (vertices or edges)
     integer(i_def) :: ientity
 
     call ugrid_mesh_data%get_data( self%mesh_name, &
+                                   geometry, &
+                                   topology, &
+                                   coord_sys, &
                                    self%nverts, &
                                    self%nedges, &
                                    self%ncells, &
@@ -161,7 +193,6 @@ contains
                                    self%nverts_per_edge, &
                                    self%nedges_per_cell, &
                                    self%max_cells_per_vertex, &
-                                   self%mesh_class, &
                                    self%periodic_x, &
                                    self%periodic_y, &
                                    self%ntarget_meshes,  &
@@ -178,13 +209,49 @@ contains
 
     call self%set_id(global_mesh_id_counter)
 
+
+    select case (trim(geometry))
+
+    case ('spherical')
+      self%geometry = spherical_domain
+
+    case ('planar')
+      self%geometry = planar_domain
+
+    end select
+
+
+    select case (trim(topology))
+
+    case ('non_periodic')
+      self%topology = non_periodic_domain
+
+    case ('channel')
+      self%topology = channel_domain
+
+    case ('periodic')
+      self%topology = periodic_domain
+
+    end select
+
+
+    select case (trim(coord_sys))
+
+    case ('ll')
+      self%coord_sys = lon_lat_coords
+
+    case ('xyz')
+      self%coord_sys = xyz_coords
+
+    end select
+
+
+
     ! CF Standard for longitude/latitude is in degrees
     ! though many functions assume radians. Convert
     ! coords to radians before going any further into
     ! code
-    ! TODO: Change these options to use geometry and topology in #2693
-    if ( (trim(self%mesh_class) == 'sphere') .or. &
-         (trim(self%mesh_class) == 'lam') ) then
+    if (self%coord_sys == lon_lat_coords) then
       self%vert_coords(:,:) = self%vert_coords(:,:) * degrees_to_radians
       self%cell_coords(:,:) = self%cell_coords(:,:) * degrees_to_radians
     end if
@@ -249,8 +316,10 @@ contains
 
     ! The feigner in the mesh unit test sets geometry to spherical,
     ! so make the global mesh used in the mesh unit tests consistent
-    self%mesh_class = 'sphere'
-    self%mesh_name  = 'cubed-sphere:unit-test'
+    self%geometry  = spherical_domain
+    self%topology  = non_periodic_domain
+    self%coord_sys = lon_lat_coords
+    self%mesh_name = 'planar:unit-test'
 
     ! Returns global_mesh_object of size 3x3 quad reference cell.
     ! As per reference cell, direction of numbering is anti-clockwise
@@ -519,23 +588,126 @@ contains
 
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !> @brief  Returns string identifying the class of mesh.
+  !> @brief  Queries if the global mesh domain geometry is spherical
+  !> @return answer .true. for a spherical domain surface
   !>
-  !> @details Currently only 'sphere', 'plane' or 'lbc' mesh classes recognised.
-  !>
-  !> @return mesh_class Type of mesh_class this global_mesh describes.
-  !>
-  function get_mesh_class( self ) result ( mesh_class )
+  function is_geometry_spherical( self ) result ( answer )
 
     implicit none
 
     class(global_mesh_type), intent(in) :: self
 
-    character(str_def) :: mesh_class
+    logical (l_def) :: answer
 
-    mesh_class = self%mesh_class
+    answer = ( self%geometry == spherical_domain )
 
-  end function get_mesh_class
+  end function is_geometry_spherical
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief  Queries if the global mesh domain geometry is a flat surface.
+  !> @return answer .true. for a flat domain surface
+  !>
+  function is_geometry_planar( self ) result ( answer )
+
+    implicit none
+
+    class(global_mesh_type), intent(in) :: self
+
+    logical (l_def) :: answer
+
+    answer = ( self%geometry == planar_domain )
+
+  end function is_geometry_planar
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief  Queries if the global mesh topology specifies a domain where all the
+  !>         boundaries are closed.
+  !> @return answer .true. for a domain which is non-periodic
+  !>
+  function is_topology_non_periodic( self ) result ( answer )
+
+    implicit none
+
+    class(global_mesh_type), intent(in) :: self
+
+    logical (l_def) :: answer
+
+    answer = ( self%topology == non_periodic_domain )
+
+  end function is_topology_non_periodic
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief  Queries if the global mesh topology specifies a domain where
+  !>         there is a single pair of periodic boundaries.
+  !> @return answer .true. for a channel domain
+  !>
+  function is_topology_channel( self ) result ( answer )
+
+    implicit none
+
+    class(global_mesh_type), intent(in) :: self
+
+    logical (l_def) :: answer
+
+    answer = ( self%topology == channel_domain )
+
+  end function is_topology_channel
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief  Queries if the global mesh topology specifies a domain where all
+  !>         domain boundaries are open with periodicity.
+  !> @return answer .true. for a fully periodic domain
+  !>
+  function is_topology_periodic( self ) result ( answer )
+
+    implicit none
+
+    class(global_mesh_type), intent(in) :: self
+
+    logical (l_def) :: answer
+
+    answer = ( self%topology == periodic_domain )
+
+  end function is_topology_periodic
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief  Queries if the global mesh nodes are specified using Cartesian
+  !>         co-ordinates (x,y,z).
+  !> @return answer .true. if nodes are specified in Cartesian co-ordinates
+  !>
+  function is_coord_sys_xyz( self ) result ( answer )
+
+    implicit none
+
+    class(global_mesh_type), intent(in) :: self
+
+    logical (l_def) :: answer
+
+    answer = ( self%coord_sys == xyz_coords )
+
+  end function is_coord_sys_xyz
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief  Queries if the global mesh nodes are specified using Spherical
+  !>         co-ordinates (longitude, latitude).
+  !> @return answer .true. if nodes are specified in spherical co-ordinates
+  !>
+  function is_coord_sys_ll( self ) result ( answer )
+
+    implicit none
+
+    class(global_mesh_type), intent(in) :: self
+
+    logical (l_def) :: answer
+
+    answer = ( self%coord_sys == lon_lat_coords )
+
+  end function is_coord_sys_ll
 
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

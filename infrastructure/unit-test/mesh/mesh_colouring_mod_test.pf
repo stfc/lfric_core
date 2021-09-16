@@ -211,7 +211,7 @@ subroutine test_compute_colours_biperiodic(this)
   integer(i_def)  :: err
 
   npanels = 1
-  filename = "data/mesh_BiP8x8-6000x2000.nc"
+  filename = "data/mesh_BiP8x8-750x250.nc"
   call ugrid_mesh_data%read_from_file(trim(filename), mesh_name)
   global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
   call ugrid_mesh_data%clear()

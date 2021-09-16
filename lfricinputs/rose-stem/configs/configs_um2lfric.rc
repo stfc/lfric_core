@@ -15,7 +15,7 @@
                                "target_grid_levs"   : "38",
                                "target_grid_type"   : "global",
                                "source_dump"        : "$UMDIR/standard_jobs/lfricinputs/inputs/aquaplanet_llama.n48",
-                               "lfric_mesh"         : {"file":"$BIG_DATA_DIR/meshes/pre-Nyala/mesh_"~C_NUM~".nc", "name":"dynamics"},
+                               "lfric_mesh"         : {"file":"$BIG_DATA_DIR/meshes/HEAD/mesh_"~C_NUM~".nc", "name":"dynamics"},
                              },
 
 
@@ -29,7 +29,7 @@
                                "target_grid_levs"   : "70",
                                "target_grid_type"   : "global",
                                "source_dump"        : "$UMDIR/standard_jobs/lfricinputs/inputs/basic_gal_n96l70.astart",
-                               "lfric_mesh"         : {"file":"$BIG_DATA_DIR/meshes/Quagga/mesh_"~C_NUM~".nc", "name":"dynamics"},
+                               "lfric_mesh"         : {"file":"$BIG_DATA_DIR/meshes/HEAD/mesh_"~C_NUM~".nc", "name":"dynamics"},
                              },
 
 }) %}
@@ -47,7 +47,7 @@
                                "target_grid_levs"   : "70",
                                "target_grid_type"   : "regional",
                                "source_dump"        : "$UMDIR/standard_jobs/lfricinputs/inputs/RA2M_astart",
-                               "lfric_mesh"         : {"file":"$BIG_DATA_DIR/meshes/Quagga/aquaplanet_lam.nc", "name":"dynamics"},
+                               "lfric_mesh"         : {"file":"$BIG_DATA_DIR/meshes/HEAD/aquaplanet_lam.nc", "name":"dynamics"},
                              },
 
 "aquaplanet_lbc"           : {
@@ -60,7 +60,7 @@
                                "target_grid_levs"   : "70",
                                "target_grid_type"   : "regional",
                                "source_dump"        : "$UMDIR/standard_jobs/lfricinputs/inputs/aquaplanet.lbc.ff",
-                               "lfric_mesh"         : {"file":"$UMDIR/standard_jobs/lfricinputs/meshes/aquaplanet_lam.nc", "name":"dynamics"},
+                               "lfric_mesh"         : {"file":"$BIG_DATA_DIR/meshes/HEAD/aquaplanet_lam.nc", "name":"dynamics"},
                              },
 
 }) %}

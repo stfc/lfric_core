@@ -4,7 +4,9 @@
 
 class local_mesh_mod::local_mesh_type {
   -mesh_name: string
-  -mesh_class: string
+  -geometry: integer
+  -topology: integer
+  -coord_sys: integer
   -nverts_per_cell: integer
   -nverts_per_edge: integer
   -nedges_per_cell: integer
@@ -44,7 +46,15 @@ class local_mesh_mod::local_mesh_type {
   +init_cell_owner()
   +clear()
   +get_mesh_name(): string
-  +get_mesh_class(): string
+
+  +is_geometry_spherical(): logical
+  +is_geometry_planar(): logical
+  +is_topology_non_periodic(): logical
+  +is_topology_channel(): logical
+  +is_topology_periodic(): logical
+  +is_coord_sys_xyz(): logical
+  +is_coord_sys_ll(): logical
+
   +get_nverts_per_cell(): integer
   +get_nverts_per_edge(): integer
   +get_nedges_per_cell(): integer

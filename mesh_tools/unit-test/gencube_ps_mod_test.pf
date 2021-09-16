@@ -71,12 +71,11 @@ contains
     integer(i_def)         :: nodes_per_edge
     integer(i_def)         :: max_faces_per_node
 
-    character(str_def)  :: test_mesh_name
-    character(str_def)  :: test_mesh_class
+    character(str_def)      :: test_str(5)
+    character(str_longlong) :: big_test_str
+
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
-
-    character(str_longlong) :: test_constructor_inputs
 
     integer(i_def)      :: test_npanels
     integer(i_def)      :: test_edge_cells_x
@@ -108,18 +107,23 @@ contains
     csgen = gencube_ps_type( mesh_name, edge_cells, nsmooth, coord_sys=coord_sys_ll )
 
     ! Test metadata retrieval
-    call csgen%get_metadata( mesh_name          = test_mesh_name,          &
-                             mesh_class         = test_mesh_class,         &
-                             constructor_inputs = test_constructor_inputs, &
-                             npanels            = test_npanels,            &
-                             edge_cells_x       = test_edge_cells_x,       &
-                             edge_cells_y       = test_edge_cells_y,       &
+    call csgen%get_metadata( mesh_name          = test_str(1),       &
+                             geometry           = test_str(2),       &
+                             topology           = test_str(3),       &
+                             coord_sys          = test_str(4),       &
+                             constructor_inputs = big_test_str,      &
+                             npanels            = test_npanels,      &
+                             edge_cells_x       = test_edge_cells_x, &
+                             edge_cells_y       = test_edge_cells_y, &
                              nmaps              = test_nmaps )
 
 
-    @assertEqual( mesh_name, trim(test_mesh_name) )
-    @assertEqual( 'sphere', trim(test_mesh_class) )
-    @assertEqual( "edge_cells=1;smooth_passes=0", trim(test_constructor_inputs) )
+    @assertEqual( mesh_name,   trim(test_str(1)) )
+    @assertEqual( 'spherical', trim(test_str(2)) )
+    @assertEqual( 'periodic',  trim(test_str(3)) )
+    @assertEqual( 'll',        trim(test_str(4)) )
+
+    @assertEqual( "edge_cells=1;smooth_passes=0", trim(big_test_str) )
     @assertEqual( npanels, test_npanels )
     @assertEqual( edge_cells, test_edge_cells_x )
     @assertEqual( edge_cells, test_edge_cells_y )
@@ -225,12 +229,13 @@ contains
     integer(i_def)         :: nodes_per_edge
     integer(i_def)         :: max_faces_per_node
 
-    character(str_def)  :: test_mesh_name
-    character(str_def)  :: test_mesh_class
+    character(str_def)      :: test_str(5)
+    character(str_longlong) :: big_test_str
+
     character(str_def)  :: test_coord_units_x
     character(str_def)  :: test_coord_units_y
 
-    character(str_longlong) :: test_constructor_inputs
+
 
     integer(i_def)      :: test_npanels
     integer(i_def)      :: test_edge_cells_x
@@ -262,18 +267,22 @@ contains
     csgen = gencube_ps_type( mesh_name, edge_cells, nsmooth, coord_sys=coord_sys_ll )
 
     ! Test metadata retrieval
-    call csgen%get_metadata( mesh_name          = test_mesh_name,          &
-                             mesh_class         = test_mesh_class,         &
-                             constructor_inputs = test_constructor_inputs, &
-                             npanels            = test_npanels,            &
-                             edge_cells_x       = test_edge_cells_x,       &
-                             edge_cells_y       = test_edge_cells_y,       &
+    call csgen%get_metadata( mesh_name          = test_str(1),  &
+                             geometry           = test_str(2),  &
+                             topology           = test_str(3),  &
+                             coord_sys          = test_str(4),  &
+                             constructor_inputs = big_test_str, &
+                             npanels            = test_npanels,      &
+                             edge_cells_x       = test_edge_cells_x, &
+                             edge_cells_y       = test_edge_cells_y, &
                              nmaps              = test_nmaps )
 
 
-    @assertEqual( mesh_name, trim(test_mesh_name) )
-    @assertEqual( 'sphere', trim(test_mesh_class) )
-    @assertEqual( "edge_cells=2;smooth_passes=0", trim(test_constructor_inputs) )
+    @assertEqual( mesh_name,   trim(test_str(1)) )
+    @assertEqual( 'spherical', trim(test_str(2)) )
+    @assertEqual( 'periodic',  trim(test_str(3)) )
+    @assertEqual( 'll',        trim(test_str(4)) )
+    @assertEqual( "edge_cells=2;smooth_passes=0", trim(big_test_str) )
     @assertEqual( npanels, test_npanels )
     @assertEqual( edge_cells, test_edge_cells_x )
     @assertEqual( edge_cells, test_edge_cells_y )
@@ -282,9 +291,9 @@ contains
     ! Generate the mesh and connectivity
     call csgen%generate()
     ! Retrieve calculated dimensions
-    call csgen%get_dimensions(nodes, edges, faces, nodes_per_face, &
-                              edges_per_face, nodes_per_edge,      &
-                              max_faces_per_node )
+    call csgen%get_dimensions( nodes, edges, faces, nodes_per_face, &
+                               edges_per_face, nodes_per_edge,      &
+                               max_faces_per_node )
 
     ! Mesh has correct dimensions for arguments
     @assertEqual(nodes, 6*edge_cells*edge_cells+2, "Incorrect number of vertices for mesh dimensions")

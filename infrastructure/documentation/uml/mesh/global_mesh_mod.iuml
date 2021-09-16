@@ -4,7 +4,9 @@
 
 class global_mesh_mod::global_mesh_type {
   -mesh_name: string
-  -mesh_class: string
+  -geometry: integer
+  -topology: integer
+  -coord_sys: integer
   -periodic_x: logical
   -periodic_y: logical
   -cell_coords: real[::] <<allocatable>>
@@ -34,6 +36,15 @@ class global_mesh_mod::global_mesh_type {
 
   +get_mesh_name(): string
   +get_npanels(): integer
+
+  +is_geometry_spherical(): logical
+  +is_geometry_planar(): logical
+  +is_topology_non_periodic(): logical
+  +is_topology_channel(): logical
+  +is_topology_periodic(): logical
+  +is_coord_sys_xyz(): logical
+  +is_coord_sys_ll(): logical
+
   +get_target_mesh_names(): string[] <<allocatable>>
   +get_nmaps(): integer
   +get_all_cells_next(): integer[::]
@@ -46,7 +57,6 @@ class global_mesh_mod::global_mesh_type {
   +get_edge_cell_owner( <<in>>edge: integer ): integer
   +get_edge_on_cell( <<in>>cell_gid: integer, <<out>>edges: integer[] )
   +get_max_cells_per_vertex(): integer
-  +get_mesh_class(): string
   +get_mesh_periodicity( <<out>>periodic_x: logical, <<out>>periodic_y: logical )
   +get_ncells(): integer
   +get_nedges(): integer

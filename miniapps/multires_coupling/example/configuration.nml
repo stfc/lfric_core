@@ -5,7 +5,7 @@ fplane=.false.,
 geometry='spherical',
 topology= 'fully_periodic',
 partitioner='cubedsphere',
-prime_mesh_name='dynamics',
+prime_mesh_name='C24',
 /
 
 &boundaries
@@ -84,10 +84,10 @@ wind_time_period=0.0
 /
 
 &multires_coupling
-  multires_coupling_mesh_tags = 'dynamics'
-  output_mesh_name= 'dynamics'
-  dynamics_mesh_name= 'dynamics'
-  physics_mesh_name= 'dynamics'
+  multires_coupling_mesh_tags = 'C24'
+  output_mesh_name= 'C24'
+  dynamics_mesh_name= 'C24'
+  physics_mesh_name= 'C24'
   multires_coupling_mode='test'
 /
 

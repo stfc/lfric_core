@@ -25,9 +25,9 @@ OPERATE_ON ?= infrastructure                             \
               miniapps/solver_miniapp                    \
               miniapps/io_dev                            \
               miniapps/lfric_coupled                     \
-              miniapps/transport												 \
-							miniapps/multires_coupling								 \
-							lfricinputs
+              miniapps/transport                         \
+              miniapps/multires_coupling                 \
+              lfricinputs
 
 export SUITE_GROUP ?= developer
 export SUITE_GROUP_NAME ?= $(notdir $(realpath $(shell pwd)))-.*

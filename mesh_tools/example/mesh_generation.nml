@@ -25,15 +25,15 @@
 !     respectively
 !===================================================================
 &mesh
-  mesh_filename  = 'planar_test.nc'
-  n_meshes       = 1
-  mesh_names     = 'planar_test'
+  mesh_filename  = 'mesh.nc'
+  geometry       = 'spherical'
+  topology       = 'periodic'
+  n_meshes       = 2
+  mesh_names     = 'C16','C8'
+  mesh_maps      = 'C16:C8'
   n_partitions   = 0
   coord_sys      = 'll'
   rotate_mesh    = .false.
-  target_pole    = 0.0, 90.0
-  rotation_angle = 0.0
-
 /
 
 !==================================================================
@@ -48,7 +48,7 @@
 ! intergrid mesh maps) is advised to be left as 0 for general use.
 
 &cubedsphere_mesh
-  edge_cells     = 24, 12, 6, 3
+  edge_cells     = 16, 8
   smooth_passes  = 0
   stretch_factor = 1.0
 /
@@ -85,4 +85,9 @@
   panel_xproc=1
   panel_yproc=1
   max_stencil_depth=1
+/
+
+&rotation
+  rotation_angle = 0.0
+  target_pole    = 0.0, 90.0
 /

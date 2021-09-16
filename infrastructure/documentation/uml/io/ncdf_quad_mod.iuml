@@ -7,7 +7,10 @@ class ncdf_quad_mod::ncdf_quad_type {
   -ncid: integer
   -file_name: string
   -mesh_name: string
-  -mesh_class: string
+  -geometry: string
+  -topology: string
+  -coord_sys: string
+  -max_stencil_depth: integer
   -periodic_x: logical
   -periodic_y: logical
   -constructor_inputs: string

@@ -4,7 +4,7 @@ filename='mesh_C24.nc',
 fplane=.false.,
 geometry='spherical',
 partitioner='cubedsphere',
-prime_mesh_name='dynamics',
+prime_mesh_name='C24',
 topology='fully_periodic',
 /
 

@@ -84,10 +84,16 @@ contains
     integer(i_def) :: nnodes_per_edge
     integer(i_def) :: nedges_per_face
     integer(i_def) :: max_faces_per_node
-    character(str_def) :: mesh_class
+
+    character(str_def) :: geometry
+    character(str_def) :: topology
+    character(str_def) :: coord_sys
+
     logical(l_def) :: periodic_x
     logical(l_def) :: periodic_y
     integer(i_def) :: ntarget_meshes
+    integer(i_def) :: max_stencil_depth
+
     character(str_def), allocatable :: target_global_mesh_names(:)
     real(r_def), allocatable :: node_coords(:,:)
     real(r_def), allocatable :: face_coords(:,:)
@@ -100,10 +106,13 @@ contains
     !-------------------------------------
 
     mesh_name_in = 'unit_test'
-    filename = 'data/mesh_BiP8x8-6000x2000.nc'
+    filename = 'data/mesh_BiP8x8-750x250.nc'
     call ugrid_mesh_data%read_from_file(trim(filename), mesh_name_in)
 
     call ugrid_mesh_data%get_data( mesh_name_out, &
+                              geometry,  &
+                              topology,  &
+                              coord_sys, &
                               nnode, &
                               nedge, &
                               nface, &
@@ -111,7 +120,6 @@ contains
                               nnodes_per_edge, &
                               nedges_per_face, &
                               max_faces_per_node, &
-                              mesh_class, &
                               periodic_x, &
                               periodic_y, &
                               ntarget_meshes, &
@@ -120,7 +128,8 @@ contains
                               face_coords, &
                               face_next_2d, &
                               node_on_face_2d, &
-                              edge_on_face_2d )
+                              edge_on_face_2d,&
+                              max_stencil_depth )
 
     @assertEqual(mesh_name_in, mesh_name_out)
     @assertEqual(64_i_def, nnode)
@@ -130,10 +139,14 @@ contains
     @assertEqual(2_i_def, nnodes_per_edge)
     @assertEqual(4_i_def, nedges_per_face)
     @assertEqual(4_i_def, max_faces_per_node)
-    @assertEqual('plane', trim(mesh_class))
+    @assertEqual('planar',    trim(geometry))
+    @assertEqual('periodic', trim(topology))
+    @assertEqual('xyz',       trim(coord_sys))
+    @assertEqual(0,max_stencil_depth)
+
     @assertTrue(periodic_x)
     @assertTrue(periodic_y)
-    @assertEqual(1_i_def, ntarget_meshes)
+    @assertEqual(0_i_def, ntarget_meshes)
 
     @assertEqual( [-3000.0_r_def,   750.0_r_def], node_coords(:,1), 1.0e-2_r_def)
     @assertEqual( [ -750.0_r_def,  1000.0_r_def], node_coords(:,8), 1.0e-2_r_def)

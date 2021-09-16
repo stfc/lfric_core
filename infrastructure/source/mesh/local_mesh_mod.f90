@@ -10,13 +10,15 @@
 !>
 module local_mesh_mod
 
-  use constants_mod,                  only: r_def, i_def, i_halo_index, &
-                                            l_def, str_def, integer_type
-  use global_mesh_mod,                only: global_mesh_type
+  use constants_mod,   only: r_def, i_def, i_halo_index,   &
+                             l_def, str_def, integer_type, &
+                             i_native, emdi
+  use global_mesh_mod, only: global_mesh_type
+
   use linked_list_data_mod,           only: linked_list_data_type
   use local_mesh_map_collection_mod,  only: local_mesh_map_collection_type
   use local_mesh_map_mod,             only: local_mesh_map_type
-  use log_mod,                        only: log_event, log_scratch_space, &
+  use log_mod,                        only: log_event, log_scratch_space,     &
                                             LOG_LEVEL_ERROR, LOG_LEVEL_TRACE, &
                                             LOG_LEVEL_INFO
   use partition_mod,                  only: partition_type
@@ -25,12 +27,28 @@ module local_mesh_mod
 
   private
 
+  integer(i_native), parameter :: spherical_domain = 601
+  integer(i_native), parameter :: planar_domain    = 602
+
+  integer(i_native), parameter :: non_periodic_domain = 701
+  integer(i_native), parameter :: channel_domain      = 702
+  integer(i_native), parameter :: periodic_domain     = 703
+
+  integer(i_native), parameter :: lon_lat_coords = 801
+  integer(i_native), parameter :: xyz_coords     = 802
+
   type, extends(linked_list_data_type), public :: local_mesh_type
+
     private
+
   ! Tag name of mesh
     character(str_def) :: mesh_name
-  ! Type of mesh that the global mesh describes
-    character(str_def) :: mesh_class
+  ! Domain surface geometry
+    integer(i_native)  :: geometry = emdi
+  ! Domain boundaries topology
+    integer(i_native)  :: topology = emdi
+  ! Co-ordinate system used to specify node locations
+    integer(i_native)  :: coord_sys = emdi
   ! number of vertices on each cell
     integer(i_def)     :: nverts_per_cell
   ! number of vertices on each edge
@@ -96,8 +114,13 @@ module local_mesh_mod
                                    local_mesh_map_collection
   ! Number of panels in the global mesh
     integer(i_def)              :: npanels
+
   ! Number of cells in the global mesh
     integer(i_def)              :: ncells_global_mesh
+
+  ! Max stencil depth supported by this mesh partition
+    integer(i_def)              :: max_stencil_depth
+
   contains
     procedure, public  :: initialise_full
     procedure, public  :: initialise_unit_test
@@ -105,8 +128,8 @@ module local_mesh_mod
                                         initialise_unit_test
     procedure, public  :: init_cell_owner
     procedure, public  :: clear
+
     procedure, public  :: get_mesh_name
-    procedure, public  :: get_mesh_class
     procedure, public  :: get_nverts_per_cell
     procedure, public  :: get_nverts_per_edge
     procedure, public  :: get_nedges_per_cell
@@ -133,10 +156,20 @@ module local_mesh_mod
     procedure, public  :: get_cell_owner
     procedure, public  :: get_num_panels_global_mesh
     procedure, public  :: get_ncells_global_mesh
+    procedure, public  :: get_max_stencil_depth
     procedure, public  :: get_gid_from_lid
     procedure, public  :: get_lid_from_gid
     procedure, public  :: add_local_mesh_map
     procedure, public  :: get_local_mesh_map
+
+    procedure, public :: is_geometry_spherical
+    procedure, public :: is_geometry_planar
+    procedure, public :: is_topology_non_periodic
+    procedure, public :: is_topology_channel
+    procedure, public :: is_topology_periodic
+    procedure, public :: is_coord_sys_xyz
+    procedure, public :: is_coord_sys_ll
+
     final :: local_mesh_destructor
   end type local_mesh_type
 
@@ -161,9 +194,9 @@ contains
   !>                           the global mesh name it is based on will be used.
   !> @return New local_mesh_type object.
   !>
-  subroutine initialise_full ( self, &
-                               global_mesh,   &
-                               partition,     &
+  subroutine initialise_full ( self,        &
+                               global_mesh, &
+                               partition,   &
                                mesh_name )
     implicit none
     class(local_mesh_type), intent(out)          :: self
@@ -189,10 +222,31 @@ contains
     if (present(mesh_name)) then
       self%mesh_name = mesh_name
     else
-      self%mesh_name =  global_mesh%get_mesh_name()
+      self%mesh_name = global_mesh%get_mesh_name()
     end if
 
-    self%mesh_class = global_mesh%get_mesh_class()
+
+    ! Inherit mesh properties from the parent global mesh
+    if (global_mesh%is_geometry_spherical()) then
+      self%geometry = spherical_domain
+    else if (global_mesh%is_geometry_planar()) then
+      self%geometry = planar_domain
+    end if
+
+    if (global_mesh%is_topology_non_periodic()) then
+      self%topology = non_periodic_domain
+    else if (global_mesh%is_topology_channel()) then
+      self%topology = channel_domain
+    else if (global_mesh%is_topology_periodic()) then
+      self%topology = periodic_domain
+    end if
+
+    if (global_mesh%is_coord_sys_xyz()) then
+      self%coord_sys = xyz_coords
+    else if (global_mesh%is_coord_sys_ll()) then
+      self%coord_sys = lon_lat_coords
+    end if
+
 
     ! Extract the info that makes up a local mesh from the
     ! global mesh and partition
@@ -203,6 +257,7 @@ contains
     self%nverts_per_edge = global_mesh%get_nverts_per_edge()
     self%nedges_per_cell = global_mesh%get_nedges_per_cell()
     self%num_cells_in_layer = partition%get_num_cells_in_layer()
+    self%max_stencil_depth  = partition%get_max_stencil_depth()
 
     allocate( self%global_cell_id(self%num_cells_in_layer) )
     self%global_cell_id = partition%get_global_cell_id()
@@ -350,8 +405,10 @@ contains
   !> @return New local_mesh_type object.
   !>
   subroutine initialise_unit_test ( self )
+
     implicit none
-    class(local_mesh_type), intent(out)          :: self
+
+    class(local_mesh_type), intent(out) :: self
 
     ! Hard-coded simple local mesh for use in unit testing.
     ! Unfortunately it has to be consistent with the unit test version of
@@ -375,7 +432,10 @@ contains
     !    1---2---2---5---5---8---1
 
     self%mesh_name = 'unit_test'
-    self%mesh_class = 'plane'
+
+    self%geometry  = planar_domain
+    self%topology  = periodic_domain
+    self%coord_sys = xyz_coords
 
     local_mesh_id_counter = local_mesh_id_counter + 1
     call self%set_id( local_mesh_id_counter )
@@ -582,24 +642,136 @@ contains
 
   end function get_mesh_name
 
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !> @brief Returns string identifying the class of mesh.
+
+  !---------------------------------------------------------------------------
+  !> @brief  Queries if the local mesh domain geometry is spherical
   !>
-  !> @details Currently only 'sphere', 'plane' or 'lbc' mesh classes recognised
+  !> @return answer .true. for a spherical domain surface
   !>
-  !> @return mesh_class Type of mesh_class this local_mesh describes
-  !>
-  function get_mesh_class( self ) result ( mesh_class )
+  function is_geometry_spherical( self ) result ( answer )
 
     implicit none
 
     class(local_mesh_type), intent(in) :: self
 
-    character(str_def) :: mesh_class
+    logical (l_def) :: answer
 
-    mesh_class = self%mesh_class
+    answer = ( self%geometry == spherical_domain )
 
-  end function get_mesh_class
+  end function is_geometry_spherical
+
+
+  !---------------------------------------------------------------------------
+  !> @brief  Queries if the local mesh domain geometry is a flat surface.
+  !>
+  !> @return answer .true. for a flat domain surface
+  !>
+  function is_geometry_planar( self ) result ( answer )
+
+    implicit none
+
+    class(local_mesh_type), intent(in) :: self
+
+    logical (l_def) :: answer
+
+    answer = ( self%geometry == planar_domain )
+
+  end function is_geometry_planar
+
+
+  !---------------------------------------------------------------------------
+  !> @brief  Queries if the local mesh topology specifies a domain where all the
+  !>         boundaries are closed.
+  !>
+  !> @return answer .true. for a domain which is non-periodic
+  !>
+  function is_topology_non_periodic( self ) result ( answer )
+
+    implicit none
+
+    class(local_mesh_type), intent(in) :: self
+
+    logical (l_def) :: answer
+
+    answer = ( self%topology == non_periodic_domain )
+
+  end function is_topology_non_periodic
+
+
+  !---------------------------------------------------------------------------
+  !> @brief  Queries if the local mesh topology specifies a domain where there
+  !>         is only one pair of entry/exit boundaries
+  !>
+  !> @return answer .true. for a domain which forms a channel.
+  !>
+  function is_topology_channel( self ) result ( answer )
+
+    implicit none
+
+    class(local_mesh_type), intent(in) :: self
+
+    logical (l_def) :: answer
+
+    answer = ( self%topology == channel_domain )
+
+  end function is_topology_channel
+
+
+  !---------------------------------------------------------------------------
+  !> @brief  Queries if the local mesh topology specifies a domain where all
+  !>         domain boundaries are periodic.
+  !>
+  !> @return answer .true. for a domain which is periodic
+  !>
+  function is_topology_periodic( self ) result ( answer )
+
+    implicit none
+
+    class(local_mesh_type), intent(in) :: self
+
+    logical (l_def) :: answer
+
+    answer = ( self%topology == periodic_domain )
+
+  end function is_topology_periodic
+
+
+  !---------------------------------------------------------------------------
+  !> @brief  Queries if the local mesh nodes are specified using Cartesian
+  !>         co-ordinates (x,y,z).
+  !>
+  !> @return answer .true. if nodes are specified in Cartesian co-ordinates
+  !>
+  function is_coord_sys_xyz( self ) result ( answer )
+
+    implicit none
+
+    class(local_mesh_type), intent(in) :: self
+
+    logical (l_def) :: answer
+
+    answer = ( self%coord_sys == xyz_coords )
+
+  end function is_coord_sys_xyz
+
+  !---------------------------------------------------------------------------
+  !> @brief  Queries if the local mesh nodes are specified using Spherical
+  !>         co-ordinates (longitude, latitude).
+  !>
+  !> @return answer .true. if nodes are specified in spherical co-ordinates
+  !>
+  function is_coord_sys_ll( self ) result ( answer )
+
+    implicit none
+
+    class(local_mesh_type), intent(in) :: self
+
+    logical (l_def) :: answer
+
+    answer = ( self%coord_sys == lon_lat_coords )
+
+  end function is_coord_sys_ll
+
 
   !---------------------------------------------------------------------------
   !> @brief Gets the number of vertices per 2D-cell.
@@ -1087,6 +1259,24 @@ contains
     number_of_panels = self%npanels
 
   end function get_num_panels_global_mesh
+
+
+  !---------------------------------------------------------------------------
+  !> @brief Gets the maximum stencil depth supported by this partition.
+  !>
+  !> @return Maximum supported stencil depth.
+  !>
+  function get_max_stencil_depth( self ) result ( max_stencil_depth )
+
+    implicit none
+
+    class(local_mesh_type), intent(in) :: self
+
+    integer(i_def) :: max_stencil_depth
+
+    max_stencil_depth = self%max_stencil_depth
+
+  end function get_max_stencil_depth
 
   !---------------------------------------------------------------------------
   !> @brief Gets the number cells in the global mesh.

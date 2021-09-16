@@ -1,8 +1,10 @@
 "dynamics":
-  Class:               lam
+  Geometry:            planar
+  Topology:            non_periodic
+  Co-ordinate system:  ll
   Periodic X:          F
   Periodic Y:          F
-  Constructor inputs:  edge_cells_x=5;edge_cells_y=4;periodic_x=F;periodic_y=F;domain_x=100.00;domain_y=30.00;coord_sys=ll;rotate_mesh=T;target_pole=[10.00,45.00];first_node=[-20.00,-10.00];target_mesh_names=['physics'];target_edge_cells_x=[10];target_edge_cells_y=[8]
+  Constructor inputs:  geometry=planar;topology=non_periodic;coord_sys=ll;edge_cells_x=5;edge_cells_y=4;periodic_x=F;periodic_y=F;domain_x=100.00;domain_y=30.00;rotate_mesh=T;target_pole=[10.00,45.00];first_node=[-20.00,-10.00];target_mesh_names=['physics'];target_edge_cells_x=[10];target_edge_cells_y=[8]
   Nodes:               30
   Edges:               49
   Faces:               20
@@ -12,10 +14,12 @@
   Max. faces per node: 4
   Maps to:             "physics"
 "physics":
-  Class:               lam
+  Geometry:            planar
+  Topology:            non_periodic
+  Co-ordinate system:  ll
   Periodic X:          F
   Periodic Y:          F
-  Constructor inputs:  edge_cells_x=10;edge_cells_y=8;periodic_x=F;periodic_y=F;domain_x=100.00;domain_y=30.00;coord_sys=ll;rotate_mesh=T;target_pole=[10.00,45.00];first_node=[-20.00,-10.00];target_mesh_names=['dynamics'];target_edge_cells_x=[5];target_edge_cells_y=[4]
+  Constructor inputs:  geometry=planar;topology=non_periodic;coord_sys=ll;edge_cells_x=10;edge_cells_y=8;periodic_x=F;periodic_y=F;domain_x=100.00;domain_y=30.00;rotate_mesh=T;target_pole=[10.00,45.00];first_node=[-20.00,-10.00];target_mesh_names=['dynamics'];target_edge_cells_x=[5];target_edge_cells_y=[4]
   Nodes:               99
   Edges:               178
   Faces:               80

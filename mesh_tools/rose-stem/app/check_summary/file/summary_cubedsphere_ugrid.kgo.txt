@@ -1,5 +1,7 @@
 "dynamics":
-  Class:               sphere
+  Geometry:            spherical
+  Topology:            periodic
+  Co-ordinate system:  ll
   Periodic X:          F
   Periodic Y:          F
   Constructor inputs:  edge_cells=4;smooth_passes=0

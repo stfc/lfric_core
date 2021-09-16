@@ -31,6 +31,15 @@ module create_mesh_mod
   use ugrid_mesh_data_mod,        only: ugrid_mesh_data_type
   use ugrid_file_mod,             only: ugrid_file_type
 
+  use base_mesh_config_mod,       only: filename, prime_mesh_name, &
+                                        key_from_geometry,         &
+                                        key_from_topology,         &
+                                        geometry,                  &
+                                        geometry_spherical,        &
+                                        geometry_planar,           &
+                                        topology,                  &
+                                        topology_fully_periodic,   &
+                                        topology_non_periodic
   implicit none
 
   private
@@ -84,7 +93,6 @@ subroutine init_mesh( local_rank, total_ranks,       &
                       multires_coupling_mesh_tags,   &
                       use_multires_coupling )
 
-  use base_mesh_config_mod,       only: prime_mesh_name
   use finite_element_config_mod,  only: cellshape,          &
                                         key_from_cellshape, &
                                         cellshape_triangle, &
@@ -343,10 +351,6 @@ subroutine set_partition_parameters( total_ranks,       &
                                      max_stencil_depth, &
                                      partitioner_ptr )
 
-  use base_mesh_config_mod,       only: geometry,           &
-                                        geometry_spherical, &
-                                        topology,           &
-                                        topology_fully_periodic
   use partitioning_config_mod,    only: panel_decomposition,        &
                                         panel_xproc, panel_yproc,   &
                                         PANEL_DECOMPOSITION_AUTO,   &
@@ -542,10 +546,6 @@ subroutine create_all_base_meshes( local_rank, total_ranks,     &
                                    create_multigrid,            &
                                    multires_coupling_mesh_tags )
 
-
-  use base_mesh_config_mod,   only: prime_mesh_name, &
-                                    geometry, geometry_spherical, &
-                                    topology, topology_fully_periodic
   use multigrid_config_mod,   only: chain_mesh_tags
 
   implicit none
@@ -625,8 +625,6 @@ subroutine create_base_meshes( mesh_names, n_panels,    &
                                max_stencil_depth,       &
                                partitioner_ptr )
 
-  use base_mesh_config_mod,       only: filename
-
   implicit none
 
   character(str_def), intent(in) :: mesh_names(:)
@@ -647,12 +645,61 @@ subroutine create_base_meshes( mesh_names, n_panels,    &
   integer(i_def)                  :: local_mesh_id
   integer(i_def)                  :: i
 
+  logical(l_def) :: valid_geometry
+  logical(l_def) :: valid_topology
+
+
   do i=1, size(mesh_names)
     if (.not. global_mesh_collection%check_for(mesh_names(i))) then
+
       ! Load mesh data into global_mesh
       call ugrid_mesh_data%read_from_file(trim(filename), mesh_names(i))
+
       global_mesh = global_mesh_type( ugrid_mesh_data, n_panels )
       call ugrid_mesh_data%clear()
+
+
+      ! Check mesh has valid domain geometry
+      valid_geometry = .false.
+      select case(geometry)
+
+      case(geometry_spherical)
+        if ( global_mesh%is_geometry_spherical() ) valid_geometry = .true.
+
+      case(geometry_planar)
+        if ( global_mesh%is_geometry_planar() ) valid_geometry = .true.
+
+      end select
+
+      if ( .not. valid_geometry) then
+        write(log_scratch_space, '(A)')        &
+            'Mesh (' // trim(mesh_names(i)) // &
+            ') in file is not valid as a '  // &
+             trim(key_from_geometry(geometry))//' domain geometry'
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR )
+      end if
+
+
+      ! Check mesh has valid topology
+      valid_topology = .false.
+      select case(topology)
+
+      case(topology_fully_periodic)
+        if ( global_mesh%is_topology_periodic() ) valid_topology = .true.
+
+      case(topology_non_periodic)
+        if ( global_mesh%is_topology_non_periodic() ) valid_topology = .true.
+
+      end select
+
+      if ( .not. valid_topology) then
+        write(log_scratch_space, '(A)')           &
+            'Mesh (' // trim(mesh_names(i)) //    &
+            ') in file does not have a valid ' // &
+             trim(key_from_topology(topology))//' topology'
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR )
+      end if
+
       call global_mesh_collection%add_new_global_mesh ( global_mesh )
       global_mesh_ptr => global_mesh_collection%get_global_mesh( mesh_names(i) )
 
@@ -686,8 +733,6 @@ end subroutine create_base_meshes
 !>          assign them to the correct global mesh object.
 !===============================================================================
 subroutine create_mesh_maps()
-
-  use base_mesh_config_mod,       only: filename
 
   implicit none
 
@@ -808,7 +853,6 @@ subroutine create_all_3D_meshes( local_rank, total_ranks,         &
                                  create_multires_coupling_meshes, &
                                  multires_coupling_mesh_tags )
 
-  use base_mesh_config_mod,    only: prime_mesh_name
   use extrusion_config_mod,    only: domain_top
   use gungho_extrusion_mod,    only: create_extrusion,         &
                                      create_shifted_extrusion, &
