@@ -108,7 +108,6 @@ subroutine pc2_conv_coupling_code( nlayers,                                    &
     !---------------------------------------
 
     use nlsizes_namelist_mod,       only: row_length, rows, model_levels
-    use gen_phys_inputs_mod,        only: l_mr_physics
     use pc2_hom_conv_mod,           only: pc2_hom_conv
     use cloud_inputs_mod,           only: dbsdtbs_turb_0
     use planet_constants_mod,       only: p_zero, kappa
@@ -144,17 +143,18 @@ subroutine pc2_conv_coupling_code( nlayers,                                    &
     real(kind=r_def), intent(in) :: dt
 
     ! Local variables
-    real(r_um), dimension(row_length,rows,model_levels) ::                     &
+    real(r_um), dimension(row_length,rows) ::                                  &
+                p_theta_levels,                                                &
                 ! Work arrays
                 qv_work,  qcl_work, qcf_work,                                  &
                 bcf_work, cfl_work, cff_work, t_work,                          &
+                ! Forcings
+                t_forcing, qv_forcing, cfl_forcing,                            &
                 ! Increments
                 qv_incr,  qcl_incr, qcf_incr,                                  &
                 bcf_incr, cfl_incr, cff_incr, t_incr,                          &
-                ! Forcings
-                t_forcing, qv_forcing, cfl_forcing,                            &
                 ! Other
-                p_theta_levels, zeros
+                zeros
 
     integer(i_um) :: k
 
@@ -165,78 +165,71 @@ subroutine pc2_conv_coupling_code( nlayers,                                    &
     do k = 1, model_levels
 
       ! Pressure at centre of theta levels
-      p_theta_levels(1,1,k) = p_zero*(exner_wth(map_wth(1) + k))               &
+      p_theta_levels(1,1) = p_zero*(exner_wth(map_wth(1) + k))                 &
                                       **(1.0_r_def/kappa)
       ! Temperature
-      t_work(1,1,k)     = theta_wth(map_wth(1) + k) * exner_wth(map_wth(1) + k)
+      t_work(1,1)     = theta_wth(map_wth(1) + k) * exner_wth(map_wth(1) + k)
 
       ! Moist prognostics
-      qv_work(1,1,k)    = mv_wth(map_wth(1) + k)
-      qcl_work(1,1,k )  = ml_wth(map_wth(1) + k)
-      qcf_work(1,1,k)   = mi_wth(map_wth(1) + k)
+      qv_work(1,1)    = mv_wth(map_wth(1) + k)
+      qcl_work(1,1 )  = ml_wth(map_wth(1) + k)
+      qcf_work(1,1)   = mi_wth(map_wth(1) + k)
 
       ! Cloud fractions
-      cfl_work(1,1,k)   = cfl_wth(map_wth(1) + k)
-      cff_work(1,1,k)   = cff_wth(map_wth(1) + k)
-      bcf_work(1,1,k)   = bcf_wth(map_wth(1) + k)
+      cfl_work(1,1)   = cfl_wth(map_wth(1) + k)
+      cff_work(1,1)   = cff_wth(map_wth(1) + k)
+      bcf_work(1,1)   = bcf_wth(map_wth(1) + k)
 
       ! Forcings
-      t_forcing(1,1,k)  = dt_conv_wth(map_wth(1) + k)
-      qv_forcing(1,1,k) = dmv_conv_wth(map_wth(1) + k)
-      cfl_forcing(1,1,k)= dcfl_conv_wth(map_wth(1) + k)
+      t_forcing(1,1)  = dt_conv_wth(map_wth(1) + k)
+      qv_forcing(1,1) = dmv_conv_wth(map_wth(1) + k)
+      cfl_forcing(1,1)= dcfl_conv_wth(map_wth(1) + k)
 
       ! Increments
-      t_incr(1,1,k)     = 0.0_r_um
-      qv_incr(1,1,k)    = 0.0_r_um
-      qcl_incr(1,1,k)   = 0.0_r_um
-      qcf_incr(1,1,k)   = 0.0_r_um
-      cfl_incr(1,1,k)   = 0.0_r_um
-      cff_incr(1,1,k)   = 0.0_r_um
-      bcf_incr(1,1,k)   = 0.0_r_um
+      t_incr(1,1)     = 0.0_r_um
+      qv_incr(1,1)    = 0.0_r_um
+      qcl_incr(1,1)   = 0.0_r_um
+      qcf_incr(1,1)   = 0.0_r_um
+      cfl_incr(1,1)   = 0.0_r_um
+      cff_incr(1,1)   = 0.0_r_um
+      bcf_incr(1,1)   = 0.0_r_um
 
-    end do ! k
+      call pc2_hom_conv( p_theta_levels,   & ! Pressure
+                        dt,               & ! Model timestep in seconds
+                        ! Variables
+                        t_work,           & ! Temperature
+                        qv_work,          & ! Water vapour
+                        qcl_work,         & ! Liquid water content
+                        bcf_work,         & ! Bulk cloud fraction
+                        cfl_work,         & ! Liquid cloud fraction
+                        cff_work,         & ! Ice cloud fraction
+                        ! Forcings
+                        t_forcing,        & ! Forcing of temperature
+                        qv_forcing,       & ! Forcing of water vapour
+                        zeros,            & ! Dummy dqclin forcing LWC
+                        zeros,            & ! Dummy dpdt   forcing pressure
+                        cfl_forcing,      & ! dcflin forcing lid cloud frac
+                        zeros,            & ! Dummy dqcl_mp
+                        ! Output variables
+                        t_incr,           & ! Response to temperature
+                        qv_incr,          & ! Response to water vapour
+                        qcl_incr,         & ! Response to liquid water content
+                        bcf_incr,         & ! Response to bulk cloud fraction
+                        cfl_incr,         & ! Response liquid cloud fraction
+                        ! Input variables (other quantities)
+                        dbsdtbs_turb_0,   & ! pc2mixingrate dbsdtbs_turb_0
+                        0.0_r_um,         & ! dbsdtbs1      dbsdtbs_turb_1
+                        ! Model switches
+                        l_pc2_prod_qcl_mp ) ! Logical turb production of LWC
 
-    call pc2_hom_conv( p_theta_levels,   & ! Pressure
-                       model_levels,     & ! Number of levels in vertical
-                       dt,               & ! Model timestep in seconds
-                       ! Variables
-                       t_work,           & ! Temperature
-                       qv_work,          & ! Water vapour
-                       qcl_work,         & ! Liquid water content
-                       bcf_work,         & ! Bulk cloud fraction
-                       cfl_work,         & ! Liquid cloud fraction
-                       cff_work,         & ! Ice cloud fraction
-                       ! Forcings
-                       t_forcing,        & ! Forcing of temperature
-                       qv_forcing,       & ! Forcing of water vapour
-                       zeros,            & ! Dummy dqclin forcing LWC
-                       zeros,            & ! Dummy dpdt   forcing pressure
-                       cfl_forcing,      & ! dcflin forcing lid cloud frac
-                       zeros,            & ! Dummy cf_above
-                       zeros,            & ! Dummy cf_below
-                       zeros,            & ! Dummy dqcl_mp
-                       ! Output variables
-                       t_incr,           & ! Response to temperature
-                       qv_incr,          & ! Response to water vapour
-                       qcl_incr,         & ! Response to liquid water content
-                       bcf_incr,         & ! Response to bulk cloud fraction
-                       cfl_incr,         & ! Response liquid cloud fraction
-                       ! Input variables (other quantities)
-                       dbsdtbs_turb_0,   & ! pc2mixingrate dbsdtbs_turb_0
-                       0.0_r_um,         & ! dbsdtbs1      dbsdtbs_turb_1
-                       ! Model switches
-                       l_mr_physics,     & ! Mixing ratio logical
-                       l_pc2_prod_qcl_mp ) ! Logical turb production of LWC
-
-    ! Recast back to LFRic space
-    do k = 1, model_levels
-      dt_conv_wth  (map_wth(1) + k) = dt_conv_wth (map_wth(1) + k)  + t_incr(1,1,k)
-      dmv_conv_wth (map_wth(1) + k) = dmv_conv_wth(map_wth(1) + k)  + qv_incr   (1,1,k)
-      dmcl_conv_wth(map_wth(1) + k) = dmcl_conv_wth(map_wth(1) + k) + qcl_incr  (1,1,k)
-      dmcf_conv_wth(map_wth(1) + k) = dmcf_conv_wth(map_wth(1) + k) + qcf_incr  (1,1,k)
-      dcfl_conv_wth(map_wth(1) + k) = dcfl_conv_wth(map_wth(1) + k) + cfl_incr  (1,1,k)
-      dcff_conv_wth(map_wth(1) + k) = dcff_conv_wth(map_wth(1) + k) + cff_incr  (1,1,k)
-      dbcf_conv_wth(map_wth(1) + k) = dbcf_conv_wth(map_wth(1) + k) + bcf_incr  (1,1,k)
+      ! Recast back to LFRic space
+      dt_conv_wth  (map_wth(1) + k) = dt_conv_wth (map_wth(1) + k)  + t_incr(1,1)
+      dmv_conv_wth (map_wth(1) + k) = dmv_conv_wth(map_wth(1) + k)  + qv_incr   (1,1)
+      dmcl_conv_wth(map_wth(1) + k) = dmcl_conv_wth(map_wth(1) + k) + qcl_incr  (1,1)
+      dmcf_conv_wth(map_wth(1) + k) = dmcf_conv_wth(map_wth(1) + k) + qcf_incr  (1,1)
+      dcfl_conv_wth(map_wth(1) + k) = dcfl_conv_wth(map_wth(1) + k) + cfl_incr  (1,1)
+      dcff_conv_wth(map_wth(1) + k) = dcff_conv_wth(map_wth(1) + k) + cff_incr  (1,1)
+      dbcf_conv_wth(map_wth(1) + k) = dbcf_conv_wth(map_wth(1) + k) + bcf_incr  (1,1)
     end do
 
     ! Set level 0 increment such that theta increment will equal level 1

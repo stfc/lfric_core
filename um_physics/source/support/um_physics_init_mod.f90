@@ -234,7 +234,7 @@ contains
         l_mphys_nonshallow
     use pc2_constants_mod, only: i_cld_off, i_cld_smith, i_cld_pc2,        &
          i_cld_bimodal, rhcpt_off, acf_off, real_shear, rhcpt_tke_based,   &
-         pc2eros_exp_rh,pc2eros_hybrid_allfaces,pc2eros_hybrid_sidesonly,  &
+         pc2eros_exp_rh,pc2eros_hybrid_sidesonly,                          &
          original_but_wrong, acf_cusack, cbl_and_cu, pc2init_smith,        &
          pc2init_logic_original, pc2init_bimodal, i_pc2_homog_g_cf
     use rad_input_mod, only: two_d_fsd_factor
