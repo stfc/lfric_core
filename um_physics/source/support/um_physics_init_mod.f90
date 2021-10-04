@@ -200,6 +200,7 @@ contains
          mdet_opt_dp, mdet_opt_md, mid_cnv_pmin, mparwtr, qlmin,           &
          n_conv_calls,                                                     &
          qstice, r_det, sh_pert_opt,t_melt_snow, termconv, tice,           &
+         thpixs_mid,                                                       &
          tower_factor,ud_factor, fdet_opt, anv_opt, cape_timescale,        &
          cca2d_dp_opt,cca2d_md_opt,cca2d_sh_opt,                           &
          cca_dp_knob,cca_md_knob,cca_sh_knob,                              &
@@ -586,6 +587,7 @@ contains
         t_melt_snow         = 274.15_r_um
         termconv            = 1
         tice                = 263.1500_r_um
+        thpixs_mid          = 0.2_r_um
         tower_factor        = 1.0000_r_um
         ud_factor           = 1.0000_r_um
 
