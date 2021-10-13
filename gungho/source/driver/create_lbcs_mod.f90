@@ -21,8 +21,7 @@ module create_lbcs_mod
   use lfric_xios_time_axis_mod,   only : time_axis_type,        &
                                          update_interface
   use lfric_xios_read_mod,        only : read_field_time_var
-  use init_time_axis_mod,         only : init_time_axis,        &
-                                         setup_field
+  use init_time_axis_mod,         only : setup_field
   use initialization_config_mod,  only : lbc_option,            &
                                          lbc_option_analytic,   &
                                          lbc_option_file
@@ -105,8 +104,8 @@ module create_lbcs_mod
       ! Set pointer to time axis read behaviour
       tmp_update_ptr => read_field_time_var
 
-      call init_time_axis( "lbc_time", lbc_time_axis, axis_id, &
-                           cyclic, interp_flag )
+      call lbc_time_axis%initialise( "lbc_time", yearly=cyclic, &
+                                     interp_flag = interp_flag )
 
       call setup_field( lbc_fields, depository, prognostic_fields, &
          "lbc_theta", Wtheta, mesh_id, checkpoint_restart_flag,       &

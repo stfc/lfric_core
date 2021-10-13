@@ -21,7 +21,6 @@ module init_gungho_lbcs_alg_mod
   use lfric_xios_read_mod,             only: read_state
   use variable_fields_mod,             only: init_variable_fields,  &
                                              update_variable_fields
-  use lfric_xios_time_axis_mod,        only: time_axis_type
   use linked_list_mod,                 only: linked_list_type
   use mr_indices_mod,                  only: nummr,             &
                                              mr_names

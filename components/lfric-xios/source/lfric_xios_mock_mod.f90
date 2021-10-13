@@ -101,14 +101,12 @@ type(xios_mock_data_type), public :: mock_xios_data
 
   !> Unused dummy routine required by read_time_data
   !> @param[in] field_id The ID of the field to be tested (unused)
-  !> @param[in] unit     The units of the test field (unused)
   !> @param[in] axis_ref The axis reference of the test field (unused)
-  subroutine xios_get_field_attr(field_id, unit, axis_ref)
+  subroutine xios_get_field_attr(field_id, axis_ref)
 
     implicit none
 
     character(len=*),       intent(in)    :: field_id
-    character(str_def),     intent(inout) :: unit
     character(str_def),     intent(inout) :: axis_ref
 
   end subroutine xios_get_field_attr

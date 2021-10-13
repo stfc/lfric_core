@@ -15,7 +15,6 @@ module init_time_axis_mod
   use function_space_collection_mod, &
                                   only : function_space_collection
   use lfric_xios_time_axis_mod,   only : time_axis_type
-  use lfric_xios_read_mod,        only : read_time_data
   use pure_abstract_field_mod,    only : pure_abstract_field_type
   use field_parent_mod,           only : write_interface,            &
                                          checkpoint_write_interface, &
@@ -27,45 +26,9 @@ module init_time_axis_mod
 
   implicit none
 
-  public :: init_time_axis, &
-            setup_field
+  public :: setup_field
 
   contains
-
-  !> @details    Initialises a time_axis object for time-varying input data
-  !> @param[in]  time_axis_name The name of the time axis (also the XIOS id of
-  !!                            the time data)
-  !> @param[out] time_axis      The resulting time_axis object
-  !> @param[in]  axis_id        The XIOS id of the time axis e.g. monthly/lbc
-  !> @param[in]  cyclic         True if the data set is cyclic e.g climatology
-  !> @param[in]  interp_flag    True if we apply time interpolation
-  subroutine init_time_axis( time_axis_name, time_axis, axis_id, cyclic, interp_flag )
-
-    implicit none
-
-    character(len=*),     intent(in)  :: time_axis_name
-    type(time_axis_type), intent(out) :: time_axis
-    character(len=*),     intent(in)  :: axis_id
-    logical(l_def),       intent(in)  :: cyclic
-    logical(l_def),       intent(in)  :: interp_flag
-
-    ! Local/derived variables for time axis initialisation
-    real(dp_xios),  allocatable :: time_data_dpxios(:)
-    real(r_def),    allocatable :: time_data(:)
-
-    ! Read time data from file, then cast to r_def
-    call read_time_data( time_axis_name, time_data_dpxios )
-    allocate( time_data( size(time_data_dpxios) ) )
-    time_data = real(time_data_dpxios, kind=r_def)
-
-    ! Initialise time axis
-    call time_axis%initialise( time_data, time_axis_name, axis_id, &
-                               cyclic=cyclic, interp_flag=interp_flag )
-
-    deallocate(time_data)
-    deallocate(time_data_dpxios)
-
-  end subroutine init_time_axis
 
   !> @brief Add a field to the depository, add pointers to the
   !!        field collection and prognostic fields, and set its write,

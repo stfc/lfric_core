@@ -1,7 +1,7 @@
 !=======================  IO_Dev configuration namelist =======================
 &io_dev
   field_initialisation  = 'analytic'
-  time_variation        = 'none'
+  time_variation        = 'analytic'
   ancil_update_freq     = 1
   field_kind            = 'real'
 /
@@ -13,6 +13,7 @@
   start_dump_filename       = 'real/IODev_dump_C12'
   start_dump_directory      = '../data'
   time_varying_input_path   = 'time_var_input'
+  time_data_path            = 'time_data'
 /
 
 &io
@@ -31,7 +32,7 @@
 &time
  calendar='timestep'
  timestep_start='1'
- timestep_end='1'
+ timestep_end='10'
 /
 
 &timestepping
@@ -50,8 +51,8 @@
 /
 
 &base_mesh
-  filename        = 'mesh_C3.nc'
-  prime_mesh_name = 'C3'
+  filename        = 'mesh_io_dev.nc'
+  prime_mesh_name = 'C12'
   geometry        = 'spherical'
   partitioner     = 'cubedsphere'
   topology        = 'fully_periodic'

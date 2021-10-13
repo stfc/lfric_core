@@ -4,7 +4,7 @@
   <!-- In this version we have ONE context  -->
   <context id = "io_dev">
 
-    <calendar type = "d360" start_date = "2016-01-01 15:00:00" />
+    <calendar type = "Gregorian" start_date = "2016-01-01 15:00:00" time_origin = "2016-01-01 15:00:00" />
 
    <axis_definition>
     <axis id="vert_axis_half_levels" name="half_levels"/>
@@ -63,6 +63,9 @@
         <field id="W3_field" name="W3_field" long_name="Field on W3 function space" unit="1" grid_ref="half_level_face_grid" />
         <field id="W3_2D_field" name="W3_2D_field" long_name="Two dimensional field on W3 function space" unit="1" domain_ref="face" />
         <field id="multi_data_field" name="multi_data_field" long_name="Multi-data (ndata=5) field on W3, 2D function space" unit="1" domain_ref="face" axis_ref="multi_data_axis"/>
+        <field id="seconds_field" name="W3_2D_seconds_field" long_name="Two dimensional field on W3 function space - time unit seconds" unit="1" domain_ref="face" />
+        <field id="days_field" name="W3_2D_days_field" long_name="Two dimensional field on W3 function space - time unit days" unit="1" domain_ref="face" />
+        <field id="months_field" name="W3_2D_months_field" long_name="Two dimensional field on W3 function space - time unit months" unit="1" domain_ref="face" />
       </field_group>
 
       <!-- Checkpoint group -->
@@ -114,6 +117,9 @@
         <field id="W3_2D_field_data" name="W3_2D_field" long_name="Time-varying, single-level field on W3 function space" unit="1" operation="instant" axis_ref="monthly_axis" domain_ref="face" />
         <field id="multi_data_field_data" name="multi_data_field" long_name="Time-varying, multi-data (ndata=5) field on W3, 2D function space" unit="1" operation="instant" grid_ref="multi_data_monthly_single_level_face_grid" />
         <field id="W3_field_data" name="W3_field" long_name="Time-varying field on W3 function space" unit="1" operation="instant" grid_ref="monthly_half_level_face_grid" />
+        <field id="seconds_field_data" name="W3_2D_field" unit="1" operation="instant" axis_ref="monthly_axis" domain_ref="face" />
+        <field id="days_field_data" name="W3_2D_field" unit="1" operation="instant" axis_ref="monthly_axis" domain_ref="face" />
+        <field id="months_field_data" name="W3_2D_field" unit="1" operation="instant" axis_ref="monthly_axis" domain_ref="face" />
       </file>
 
       <!-- File definition for checkpoint write -->
@@ -134,6 +140,13 @@
       <!-- File definition for output dump fields -->
       <file id="io_dev_diag" name="io_dev_diag" mode="write" output_freq="1ts" convention="UGRID" enabled=".TRUE." timeseries="both" ts_prefix="time_">
         <field_group group_ref="core_fields" />
+      </file>
+
+      <!-- File definition for output dump fields -->
+      <file id="io_dev_times" name="time_data" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+        <field id="time_seconds" name="time_seconds" long_name="Time axis in seconds" unit="seconds" axis_ref="monthly_axis" operation="instant" />
+        <field id="time_days" name="time_days" long_name="Time axis in days" unit="days" axis_ref="monthly_axis" operation="instant" />
+        <field id="time_months" name="time_months" long_name="Time axis in months" unit="months" axis_ref="monthly_axis" operation="instant" />
       </file>
 
     </file_definition>

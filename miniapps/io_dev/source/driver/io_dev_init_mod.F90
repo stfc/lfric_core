@@ -10,7 +10,7 @@
 module io_dev_init_mod
 
   ! Infrastructure
-  use constants_mod,                  only : r_def, i_def, l_def
+  use constants_mod,                  only : r_def, i_def, l_def, str_def
   use field_parent_mod,               only : field_parent_type, read_interface, write_interface
   use field_mod,                      only : field_type
   use integer_field_mod,              only : integer_field_type
@@ -80,11 +80,9 @@ module io_dev_init_mod
     type(linked_list_type),      intent(inout) :: variable_times_list
 
     ! Local variables
-    type(time_axis_type), save  :: time_varying_fields_axis
-    real(r_def)                 :: time_data(12)
+    type(time_axis_type), save  :: seconds_axis, days_axis, months_axis
     logical(l_def)              :: interp_flag = .true.
     integer(i_def), parameter   :: n_multi_data = 5
-    character(len=*), parameter :: axis_id='monthly_axis'
 
     ! Pointers
     class(pure_abstract_field_type), pointer :: tmp_field_ptr => null()
@@ -124,33 +122,47 @@ module io_dev_init_mod
         ! Set pointer to time axis read behaviour
         tmp_update_ptr => read_field_time_var
 
-        ! Manually initialise time axis data (days in 360D calendar)
-        time_data = (/ 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0 /)
-        time_data = ( (time_data*30.0_r_def) - 15.0_r_def ) * 86400_r_def
-        call time_varying_fields_axis%initialise( time_data, &
-                                                "variable_field_times", &
-                                                axis_id,                &
-                                                input_units = 'seconds', &
-                                                upper_limit = 360.0_r_def*86400_r_def, &
-                                                interp_flag = interp_flag, &
-                                                update_freq = ancil_update_freq )
+        ! Initialise time axis objects for time comparison
+        ! Time unit in seconds
+        call seconds_axis%initialise( "seconds_axis", xios_id="time_seconds", &
+                                      interp_flag = interp_flag,              &
+                                      update_freq = ancil_update_freq )
 
         call core_fields%remove_field( "W3_2D_field" )
         call create_real_field( core_fields, "W3_2D_field", mesh_id, twod_mesh_id, W3, &
-                           time_axis=time_varying_fields_axis, twod=.true. )
+                           time_axis=seconds_axis, twod=.true. )
 
         call core_fields%remove_field( "W3_field" )
         call create_real_field( core_fields, "W3_field", mesh_id, twod_mesh_id, W3, &
-                           time_axis=time_varying_fields_axis )
+                           time_axis=seconds_axis )
 
         call core_fields%remove_field( "multi_data_field" )
         call create_real_field( core_fields, "multi_data_field", mesh_id, twod_mesh_id, W3, &
-                           ndata=5, time_axis=time_varying_fields_axis, twod=.true. )
+                           ndata=5, time_axis=seconds_axis, twod=.true. )
 
-        call time_varying_fields_axis%set_update_behaviour( tmp_update_ptr )
+        call create_real_field( core_fields, "seconds_field", mesh_id, twod_mesh_id, W3, &
+                                time_axis=seconds_axis, twod=.true. )
 
-        ! Insert the created time axis object(s) into a list
-        call variable_times_list%insert_item(time_varying_fields_axis)
+        call seconds_axis%set_update_behaviour( tmp_update_ptr )
+        call variable_times_list%insert_item(seconds_axis)
+
+        ! Time unit in days
+        call days_axis%initialise( "days_axis", xios_id="time_days", &
+                                   interp_flag = interp_flag,        &
+                                   update_freq = ancil_update_freq )
+        call create_real_field( core_fields, "days_field", mesh_id, twod_mesh_id, W3, &
+                                time_axis=days_axis, twod=.true. )
+        call days_axis%set_update_behaviour( tmp_update_ptr )
+        call variable_times_list%insert_item(days_axis)
+
+        ! Time unit in months
+        call months_axis%initialise( "months_axis", xios_id="time_months", &
+                                      interp_flag = interp_flag,           &
+                                      update_freq = ancil_update_freq )
+        call create_real_field( core_fields, "months_field", mesh_id, twod_mesh_id, W3, &
+                                time_axis=months_axis, twod=.true. )
+        call months_axis%set_update_behaviour( tmp_update_ptr )
+        call variable_times_list%insert_item(months_axis)
 
       end if ! Time axis intialisation
 

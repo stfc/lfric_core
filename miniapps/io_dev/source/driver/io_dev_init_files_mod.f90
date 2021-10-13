@@ -20,7 +20,8 @@ module io_dev_init_files_mod
                                            checkpoint_stem_name,      &
                                            start_dump_filename,       &
                                            start_dump_directory,      &
-                                           time_varying_input_path
+                                           time_varying_input_path,   &
+                                           time_data_path
   use io_dev_config_mod,             only: field_initialisation,            &
                                            field_initialisation_start_dump, &
                                            time_variation,                  &
@@ -50,7 +51,7 @@ module io_dev_init_files_mod
     character(len=str_max_filename) :: checkpoint_write_fname, &
                                        checkpoint_read_fname,  &
                                        dump_fname,             &
-                                       ancil_fname
+                                       input_fname
 
     ! Setup diagnostic output file
     if ( write_diag ) then
@@ -108,10 +109,16 @@ module io_dev_init_files_mod
 
     ! Setup time-varying input files
     if ( time_variation == time_variation_ancil ) then
-      ! Set land area ancil filename from namelist
-      write(ancil_fname,'(A)') trim(start_dump_directory)//'/'// &
+      ! Set time-varying input filename from namelist
+      write(input_fname,'(A)') trim(start_dump_directory)//'/'// &
                                trim(time_varying_input_path)
-      call tmp_file%init_xios_file("io_dev_time_varying_input", path=ancil_fname)
+      call tmp_file%init_xios_file("io_dev_time_varying_input", path=input_fname)
+      call files_list%insert_item(tmp_file)
+
+      ! Set time data input filename from namelist
+      write(input_fname,'(A)') trim(start_dump_directory)//'/'// &
+                               trim(time_data_path)
+      call tmp_file%init_xios_file("io_dev_times", path=input_fname)
       call files_list%insert_item(tmp_file)
 
     end if

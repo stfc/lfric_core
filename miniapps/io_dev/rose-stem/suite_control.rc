@@ -108,7 +108,8 @@
     'check_compilers("io_dev", "default", "fast-debug",
                      resolution=("C12", 3.0))',
     'check_compilers("io_dev", "default", "full-debug",
-                     resolution=("C12", 3.0))' ],
+                     resolution=("C12", 3.0))',
+    'canned_test("io_dev")'],
 'nightly': [
     'validate_rose_meta_graph("io_dev",appName="io_dev")',
     'run_application("io_dev", "default",
