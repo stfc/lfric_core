@@ -125,7 +125,7 @@ function get_mesh_by_name( self, mesh_name ) result( mesh )
   implicit none
 
   class(mesh_collection_type), intent(in) :: self
-  character(str_def),          intent(in) :: mesh_name
+  character(*),                intent(in) :: mesh_name
 
   type(mesh_type), pointer :: mesh
 
@@ -230,7 +230,7 @@ function check_for(self, mesh_name) result(answer)
   implicit none
 
   class(mesh_collection_type), intent(in) :: self
-  character(str_def),          intent(in) :: mesh_name
+  character(*),                intent(in) :: mesh_name
 
   type(mesh_type), pointer :: mesh => null()
 
@@ -339,7 +339,7 @@ function get_mesh_id( self, mesh_name ) result( mesh_id )
   implicit none
 
   class(mesh_collection_type), intent(in) :: self
-  character(str_def),          intent(in) :: mesh_name
+  character(*),                intent(in) :: mesh_name
 
   integer(i_def) :: mesh_id
   integer(i_def) :: n_meshes

@@ -81,8 +81,8 @@ module mesh_mod_test
   character(str_max_filename), parameter :: filename = &
                                      'data/mesh_C32_MG.nc'
   character(str_def), parameter :: mesh_names(2) = &
-                                    [ 'C4',  &! 4x4 panel
-                                      'C8']   ! 8x8 panel
+                                    [ character(str_def) :: 'C4',  &! 4x4 panel
+                                                            'C8']   ! 8x8 panel
 
   character(str_def), parameter :: source_mesh_name = 'C4'
   character(str_def), parameter :: target_mesh_name = 'C8'
