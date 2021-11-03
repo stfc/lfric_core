@@ -4,7 +4,7 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-!>  @brief    Module for IO subroutines for the lfric-XIOS interface
+!> @brief    Module for IO subroutines for the LFRic-XIOS interface.
 !>
 module lfric_xios_io_mod
 
@@ -88,7 +88,7 @@ module lfric_xios_io_mod
     !> @todo This is a workaround for GCC bug id 61767 - when this bug is
     !>       fixed, the integer can be removed.
     !>
-    integer, allocatable :: dummy_for_gcc
+    integer(kind=i_def), allocatable :: dummy_for_gcc
   contains
     private
     procedure, public :: initialise => initialise_setup_xios
@@ -128,8 +128,8 @@ contains
     implicit none
 
     class(setup_xios_type), intent(inout)       :: this
-    integer,                intent(in)          :: mesh_id
-    integer,                intent(in)          :: twod_mesh_id
+    integer(kind=i_def),    intent(in)          :: mesh_id
+    integer(kind=i_def),    intent(in)          :: twod_mesh_id
     class(field_type),      intent(in), target  :: chi(:)
     class(field_type),      intent(in), target  :: panel_id
     procedure(populate_filelist_if), &
@@ -175,19 +175,19 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Performs XIOS context, dimension and file initialisation.
   !>
-  !> @param[out] context           I/O context to be initialised.
-  !> @param[in]  identifier        The XIOS context ID.
-  !> @param[in]  communicator      MPI communicator used by the XIOS context.
-  !> @param[in]  mesh_id           Mesh ID.
-  !> @param[in]  twod_mesh_id      2D Mesh ID.
-  !> @param[in]  chi               Coordinate field.
-  !> @param[in]  panel_id          Field containing IDs of mesh panels.
-  !> @param[in]  start_step        The starting model timestep.
-  !> @param[in]  end_step          The final model timestep.
-  !> @param[in]  spinup_period     The number of timesteps taken for spin up.
-  !> @param[in]  seconds_per_step  Seconds per model timestep.
-  !> @param[in]  timer_flag        Flag for use of subroutine timers.
-  !> @param[in]  populate_filelist Optional procedure to build file list.
+  !> @param[out]  context            I/O context to be initialised
+  !> @param[in]   identifier         The XIOS context ID
+  !> @param[in]   communicator       MPI communicator used by the XIOS context
+  !> @param[in]   mesh_id            Mesh ID
+  !> @param[in]   twod_mesh_id       2D Mesh ID
+  !> @param[in]   chi                Coordinate field
+  !> @param[in]   panel_id           Field containing IDs of mesh panels
+  !> @param[in]   start_step         The starting model timestep
+  !> @param[in]   end_step           The final model timestep
+  !> @param[in]   spinup_period      The number of timesteps taken for spin up
+  !> @param[in]   seconds_per_step   Seconds per model timestep
+  !> @param[in]   timer_flag         Flag for use of subroutine timers
+  !> @param[in]   populate_filelist  Optional procedure to build file list
   !>
   subroutine initialise_xios( context,          &
                               identifier,       &
@@ -205,21 +205,20 @@ contains
 
     implicit none
 
-    class(io_context_type),   intent(out), allocatable :: context
-    character(*),             intent(in)               :: identifier
-    integer,                  intent(in)               :: communicator
-    integer(i_def),           intent(in)               :: mesh_id
-    integer(i_def),           intent(in)               :: twod_mesh_id
-    class(field_type),        intent(in)               :: chi(:)
-    class(field_type),        intent(in)               :: panel_id
-    character(*),             intent(in)               :: start_step
-    character(*),             intent(in)               :: end_step
-    real(r_second),           intent(in)               :: spinup_period
-    real(r_second),           intent(in)               :: seconds_per_step
-    logical(l_def), optional, intent(in)               :: timer_flag
+    class(io_context_type),        intent(out), allocatable :: context
+    character(len=*),              intent(in)               :: identifier
+    integer(kind=i_def),           intent(in)               :: communicator
+    integer(kind=i_def),           intent(in)               :: mesh_id
+    integer(kind=i_def),           intent(in)               :: twod_mesh_id
+    class(field_type),             intent(in)               :: chi(:)
+    class(field_type),             intent(in)               :: panel_id
+    character(len=*),              intent(in)               :: start_step
+    character(len=*),              intent(in)               :: end_step
+    real(r_second),                intent(in)               :: spinup_period
+    real(r_second),                intent(in)               :: seconds_per_step
+    logical(kind=l_def), optional, intent(in)               :: timer_flag
     procedure(populate_filelist_if), &
-                            intent(in), optional, pointer &
-                                                  :: populate_filelist
+                optional, pointer, intent(in)               :: populate_filelist
 
     procedure(populate_filelist_if), pointer :: dummy_pointer
 
@@ -254,55 +253,55 @@ contains
   end subroutine initialise_xios
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !>  @brief    Performs XIOS domain and axis initialisation.
-  !>  @details  Calculates the coordinates and bounds for the different kinds
-  !>            of XIOS dimensionality (domains, axes, etc) and initialised the
-  !>            corresponding XIOS objects.
+  !> @brief    Performs XIOS domain and axis initialisation.
+  !> @details  Calculates the coordinates and bounds for the different kinds
+  !!           of XIOS dimensionality (domains, axes, etc) and initialised the
+  !!           corresponding XIOS objects.
   !>
-  !>  @param[in]  mesh_id       Mesh id
-  !>  @param[in]  twod_mesh_id  2D Mesh id
-  !>  @param[in]  chi           Coordinate field
-  !>  @param[in]  panel_id      Field with IDs of mesh panels
+  !> @param[in]  mesh_id       Mesh id
+  !> @param[in]  twod_mesh_id  2D Mesh id
+  !> @param[in]  chi           Coordinate field
+  !> @param[in]  panel_id      Field with IDs of mesh panels
   !>
   subroutine init_xios_dimensions(mesh_id, twod_mesh_id, chi, panel_id)
 
     implicit none
 
     ! Arguments
-    integer(i_def),   intent(in) :: mesh_id
-    integer(i_def),   intent(in) :: twod_mesh_id
-    type(field_type), intent(in) :: chi(:)
-    type(field_type), intent(in) :: panel_id
+    integer(kind=i_def), intent(in) :: mesh_id
+    integer(kind=i_def), intent(in) :: twod_mesh_id
+    type(field_type),    intent(in) :: chi(:)
+    type(field_type),    intent(in) :: panel_id
 
     ! Local variables
-    integer(i_def) :: i
+    integer(kind=i_def) :: i
 
     ! Node domain (W0)
-    integer(i_def)             :: coord_dim_full
-    integer(i_def)             :: coord_dim_owned
-    real(r_def),allocatable    :: nodes_lon_full(:)
-    real(r_def),allocatable    :: nodes_lat_full(:)
-    real(dp_xios),allocatable  :: nodes_lon(:)
-    real(dp_xios),allocatable  :: nodes_lat(:)
-    real(dp_xios),allocatable  :: bnd_nodes_lon(:,:)
-    real(dp_xios),allocatable  :: bnd_nodes_lat(:,:)
+    integer(kind=i_def)           :: coord_dim_full
+    integer(kind=i_def)           :: coord_dim_owned
+    real(kind=r_def), allocatable :: nodes_lon_full(:)
+    real(kind=r_def), allocatable :: nodes_lat_full(:)
+    real(dp_xios),    allocatable :: nodes_lon(:)
+    real(dp_xios),    allocatable :: nodes_lat(:)
+    real(dp_xios),    allocatable :: bnd_nodes_lon(:,:)
+    real(dp_xios),    allocatable :: bnd_nodes_lat(:,:)
 
     ! Face domain (W3)
-    real(dp_xios),allocatable  :: bnd_faces_lon(:,:)
-    real(dp_xios),allocatable  :: bnd_faces_lat(:,:)
+    real(dp_xios),allocatable :: bnd_faces_lon(:,:)
+    real(dp_xios),allocatable :: bnd_faces_lat(:,:)
 
     ! Edge domain on half levels (W2H)
-    real(dp_xios),allocatable  :: bnd_edges_lon(:,:)
-    real(dp_xios),allocatable  :: bnd_edges_lat(:,:)
+    real(dp_xios),allocatable :: bnd_edges_lon(:,:)
+    real(dp_xios),allocatable :: bnd_edges_lat(:,:)
 
     ! Levels variables
-    integer(i_def)             :: nfull_levels
+    integer(kind=i_def) :: nfull_levels
 
     ! Checkpoint domain parameters
-    character(len=str_def)       :: domain_name, domain_fs_name
-    integer(i_native), parameter :: domain_function_spaces(5) &
-                                     = (/W0, W1, W2, W3, Wtheta/)
-    integer(i_native) :: fs_index
+    character(len=str_def)            :: domain_name, domain_fs_name
+    integer(kind=i_native), parameter :: domain_function_spaces(5) &
+                                          = (/W0, W1, W2, W3, Wtheta/)
+    integer(kind=i_native) :: fs_index
 
     ! Variables needed to compute output domain coordinates in lat-long
     type( field_type ) :: sample_chi(3)
@@ -313,22 +312,22 @@ contains
 
     ! Variables for local and global mesh information
     type(mesh_type), pointer :: mesh => null()
-    integer(i_def)           :: num_face_local
-    integer(i_def)           :: nodes_per_edge
-    integer(i_def)           :: nodes_per_face
-    integer(i_def)           :: num_edge_local
+    integer(kind=i_def)      :: num_face_local
+    integer(kind=i_def)      :: nodes_per_edge
+    integer(kind=i_def)      :: nodes_per_face
+    integer(kind=i_def)      :: num_edge_local
 
     type(function_space_type), pointer :: output_field_fs   => null()
     type(function_space_type), pointer :: w2h_fs   => null()
 
     ! Variables for the gather to determine global domain sizes
     ! from the local partitioned ones
-    integer(i_def), allocatable   :: local_undf(:)
-    integer(i_def) :: use_i_index(2) = (/ W3, Wtheta /)
+    integer(kind=i_def), allocatable :: local_undf(:)
+    integer(kind=i_def) :: use_i_index(2) = (/ W3, Wtheta /)
 
     ! Factor to convert coords from radians to degrees if needed
     ! set as 1.0 for planar mesh
-    real(r_def)                :: r2d
+    real(kind=r_def) :: r2d
 
     if ( geometry == geometry_spherical ) then
      r2d = radians_to_degrees
@@ -461,11 +460,11 @@ contains
     type(linked_list_type), intent(in) :: files_list
     type(clock_type),       intent(in) :: clock
 
-    type(xios_file)       :: file_hdl
-    type(xios_duration)   :: file_freq
-    type(xios_fieldgroup) :: field_group_hdl
-    character(str_def)    :: field_group_id
-    character(str_def)    :: file_mode
+    type(xios_file)        :: file_hdl
+    type(xios_duration)    :: file_freq
+    type(xios_fieldgroup)  :: field_group_hdl
+    character(len=str_def) :: field_group_id
+    character(len=str_def) :: file_mode
 
     type(linked_list_item_type), pointer :: loop  => null()
     type(xios_file_type),        pointer :: file  => null()
@@ -547,35 +546,36 @@ contains
 
     implicit none
 
-    type(mesh_type), pointer, intent(in) :: mesh
-    type(field_type),   intent(in)       :: nodal_coords(3)
-    type(field_type),   intent(in)       :: chi(:)
-    integer(i_def),     intent(in)       :: nlayers
-    integer(i_def),     intent(in)       :: ncells
-    real(kind=r_def),   intent(out)      :: lon_coords(:), lat_coords(:)
-    real(kind=dp_xios), intent(inout)    :: face_bnds_lon_coords(:,:)
-    real(kind=dp_xios), intent(inout)    :: face_bnds_lat_coords(:,:)
-    real(kind=dp_xios), intent(inout)    :: edge_bnds_lon_coords(:,:)
-    real(kind=dp_xios), intent(inout)    :: edge_bnds_lat_coords(:,:)
+    type(mesh_type), pointer, intent(in)    :: mesh
+    type(field_type),         intent(in)    :: nodal_coords(3)
+    type(field_type),         intent(in)    :: chi(:)
+    integer(kind=i_def),      intent(in)    :: nlayers
+    integer(kind=i_def),      intent(in)    :: ncells
+    real(kind=r_def),         intent(out)   :: lon_coords(:), lat_coords(:)
+    real(kind=dp_xios),       intent(inout) :: face_bnds_lon_coords(:,:)
+    real(kind=dp_xios),       intent(inout) :: face_bnds_lat_coords(:,:)
+    real(kind=dp_xios),       intent(inout) :: edge_bnds_lon_coords(:,:)
+    real(kind=dp_xios),       intent(inout) :: edge_bnds_lat_coords(:,:)
 
     type(field_proxy_type) :: x_p(3), chi_p(3)
 
-    integer(i_def)            :: cell, edge_count
-    integer(i_def)            :: ndf_chi, ndf_x
-    integer(i_def)            :: dim_chi
-    integer, pointer          :: map_chi(:)   => null()
-    integer, pointer          :: map_x(:)     => null()
-    real(kind=r_def), pointer :: nodes_x(:,:) => null()
-    real(kind=r_def)          :: xyz(3)
-    real(kind=r_def)          :: llr(3)
+    integer(kind=i_def) :: cell, edge_count
+    integer(kind=i_def) :: ndf_chi, ndf_x
+    integer(kind=i_def) :: dim_chi
+    integer(kind=i_def) :: df_x, df_chi, i
+    integer(kind=i_def) :: edge1, edge2
+    real(kind=r_def)    :: xyz(3)
+    real(kind=r_def)    :: llr(3)
 
-    real(kind=r_def), allocatable  :: basis_chi(:,:,:)
-    integer(i_def)                 :: df_x, df_chi, i
-    integer(i_def)                 :: edge1, edge2
+    integer(kind=i_def), pointer :: map_chi(:)   => null()
+    integer(kind=i_def), pointer :: map_x(:)     => null()
+    real(kind=r_def),    pointer :: nodes_x(:,:) => null()
+
+    real(kind=r_def), allocatable :: basis_chi(:,:,:)
 
     ! Factor to convert coords from radians to degrees if needed
     ! set as 1.0 for planar mesh
-    real(r_def) :: r2d
+    real(kind=r_def) :: r2d
 
     edge_count = 0
 
@@ -699,24 +699,24 @@ contains
     implicit none
 
     ! Arguments
-    integer(i_def),           intent(in) :: fs_id
-    character(len=*),         intent(in) :: domain_name
-    integer(i_def),           intent(in) :: mesh_id
-    type(field_type),         intent(in) :: chi(3)
-    logical,                  intent(in) :: use_index
-    integer(i_def), optional, intent(in) :: k_order
+    integer(kind=i_def),           intent(in) :: fs_id
+    character(len=*),              intent(in) :: domain_name
+    integer(kind=i_def),           intent(in) :: mesh_id
+    type(field_type),              intent(in) :: chi(3)
+    logical(kind=l_def),           intent(in) :: use_index
+    integer(kind=i_def), optional, intent(in) :: k_order
 
     ! Local variables
-    integer(i_def)    :: i
-    integer(i_def)    :: k_ord
+    integer(kind=i_def) :: i
+    integer(kind=i_def) :: k_ord
 
     ! Checkpoint domain
-    integer(i_def)                     :: ibegin_checkpoint
-    real(dp_xios), allocatable         :: checkpoint_lon(:)
-    real(dp_xios), allocatable         :: checkpoint_lat(:)
-    real(dp_xios), allocatable         :: bnd_checkpoint_lon(:,:)
-    real(dp_xios), allocatable         :: bnd_checkpoint_lat(:,:)
-    integer(i_halo_index), allocatable :: domain_index(:)
+    integer(kind=i_def)                     :: ibegin_checkpoint
+    real(dp_xios), allocatable              :: checkpoint_lon(:)
+    real(dp_xios), allocatable              :: checkpoint_lat(:)
+    real(dp_xios), allocatable              :: bnd_checkpoint_lon(:,:)
+    real(dp_xios), allocatable              :: bnd_checkpoint_lat(:,:)
+    integer(kind=i_halo_index), allocatable :: domain_index(:)
 
 
     ! Variables needed to compute output domain coordinates in lat-long
@@ -726,13 +726,13 @@ contains
 
     ! Variables for the gather to determine global domain sizes
     ! from the local partitioned ones
-    integer(i_def)                :: global_undf_checkpoint
-    integer(i_def), allocatable   :: local_undf(:)
-    integer(i_def), allocatable   :: all_undfs_checkpoint_domain(:)
+    integer(kind=i_def)              :: global_undf_checkpoint
+    integer(kind=i_def), allocatable :: local_undf(:)
+    integer(kind=i_def), allocatable :: all_undfs_checkpoint_domain(:)
 
     ! Factor to convert coords from radians to degrees if needed
     ! set as 1.0 for planar mesh
-    real(r_def) :: r2d
+    real(kind=r_def) :: r2d
 
     if ( geometry == geometry_spherical ) then
      r2d = radians_to_degrees
@@ -870,10 +870,10 @@ contains
 
     implicit none
 
-    character(len=*),            intent(in) :: domain_id
-    integer(i_def),              intent(in) :: mesh_id
-    integer(i_native),           intent(in) :: fs_id
-    type(field_type),            intent(in) :: chi(:)
+    character(len=*),       intent(in) :: domain_id
+    integer(kind=i_def),    intent(in) :: mesh_id
+    integer(kind=i_native), intent(in) :: fs_id
+    type(field_type),       intent(in) :: chi(:)
 
     type(function_space_type), pointer :: domain_fs   => null()
 
@@ -882,18 +882,18 @@ contains
 
     ! Variables for the gather to determine global domain sizes
     ! from the local partitioned ones
-    integer(i_def)              :: global_undf, n_levels, i, ibegin, local_domain_size
-    integer(i_def), allocatable :: local_undf(:), all_undfs(:)
-    real(dp_xios),  allocatable :: dp_levels(:)
-    real(dp_xios),  allocatable :: lat_data(:)
-    real(dp_xios),  allocatable :: lon_data(:)
-    real(dp_xios),  allocatable :: lat_bounds(:,:)
-    real(dp_xios),  allocatable :: lon_bounds(:,:)
-    integer(i_def), allocatable :: domain_index(:)
+    integer(kind=i_def)              :: global_undf, n_levels, i, ibegin, local_domain_size
+    integer(kind=i_def), allocatable :: local_undf(:), all_undfs(:)
+    real(dp_xios),       allocatable :: dp_levels(:)
+    real(dp_xios),       allocatable :: lat_data(:)
+    real(dp_xios),       allocatable :: lon_data(:)
+    real(dp_xios),       allocatable :: lat_bounds(:,:)
+    real(dp_xios),       allocatable :: lon_bounds(:,:)
+    integer(kind=i_def), allocatable :: domain_index(:)
 
     ! Factor to convert coords from radians to degrees if needed
     ! set as 1.0 for planar mesh
-    real(r_def)                :: r2d
+    real(kind=r_def) :: r2d
 
     if ( geometry == geometry_spherical ) then
       r2d = radians_to_degrees
@@ -1012,13 +1012,13 @@ contains
 
     implicit none
 
-    character(len=*),            intent(in) :: axis_id
-    integer(i_def),              intent(in) :: mesh_id
-    integer(i_native),           intent(in) :: fs_id
+    character(len=*),       intent(in) :: axis_id
+    integer(kind=i_def),    intent(in) :: mesh_id
+    integer(kind=i_native), intent(in) :: fs_id
 
-    type(function_space_type), pointer :: domain_fs   => null()
+    type(function_space_type), pointer :: domain_fs => null()
     real(dp_xios), allocatable         :: dp_levels(:)
-    integer(i_def)                     :: n_levels
+    integer(kind=i_def)                :: n_levels
 
     domain_fs => function_space_collection%get_fs( mesh_id,       &
                                                    element_order, &

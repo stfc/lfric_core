@@ -77,7 +77,7 @@ subroutine checkpoint_read_xios(xios_field_name, file_name, field_proxy)
   select type(field_proxy)
 
     type is (field_proxy_type)
-    call xios_recv_field(xios_field_name, field_proxy%data(1:undf))
+    call xios_recv_field("restart_"//trim(xios_field_name), field_proxy%data(1:undf))
 
     class default
     call log_event( "Invalid type for input field proxy", LOG_LEVEL_ERROR )
@@ -581,8 +581,8 @@ subroutine read_checkpoint(state, timestep, checkpoint_stem_name)
        if ( fld%can_checkpoint() ) then
 
           call log_event( 'Reading checkpoint file to restart '// &
-               trim(adjustl(fld%get_name())), LOG_LEVEL_INFO)
-          call fld%read_checkpoint( "restart_"//trim(adjustl(fld%get_name())), &
+               trim(adjustl(fld%get_name())), LOG_LEVEL_INFO )
+          call fld%read_checkpoint( trim(adjustl(fld%get_name())), &
                trim(ts_fname(checkpoint_stem_name, "",    &
                trim(adjustl(fld%get_name())),timestep,"")) )
        else if ( fld%can_read() ) then
@@ -597,8 +597,8 @@ subroutine read_checkpoint(state, timestep, checkpoint_stem_name)
     type is (integer_field_type)
        if ( fld%can_checkpoint() ) then
           call log_event( 'Reading checkpoint file to restart '// &
-               trim(adjustl(fld%get_name())), LOG_LEVEL_INFO)
-          call fld%read_checkpoint( "restart_"//trim(adjustl(fld%get_name())), &
+               trim(adjustl(fld%get_name())), LOG_LEVEL_INFO )
+          call fld%read_checkpoint( trim(adjustl(fld%get_name())), &
                trim(ts_fname(checkpoint_stem_name, "",    &
                trim(adjustl(fld%get_name())),timestep,"")) )
        else if ( fld%can_read() ) then

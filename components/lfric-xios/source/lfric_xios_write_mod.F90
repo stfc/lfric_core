@@ -92,7 +92,7 @@ subroutine checkpoint_write_xios(xios_field_name, file_name, field_proxy)
 
   end select
 
-  call xios_send_field(xios_field_name, reshape (send_field, (/1, undf/)))
+  call xios_send_field("checkpoint_"//trim(xios_field_name), reshape (send_field, (/1, undf/)))
 
 end subroutine checkpoint_write_xios
 
@@ -520,8 +520,7 @@ subroutine write_checkpoint( state, clock, checkpoint_stem_name )
            write(log_scratch_space,'(2A)') &
                 "Checkpointing ", trim(adjustl(fld%get_name()))
            call log_event(log_scratch_space, LOG_LEVEL_INFO)
-           call fld%write_checkpoint( "checkpoint_" //                    &
-                                      trim(adjustl(fld%get_name())),      &
+           call fld%write_checkpoint( trim(adjustl(fld%get_name())),      &
                                       trim(ts_fname(checkpoint_stem_name, &
                                       "",                                 &
                                       trim(adjustl(fld%get_name())),      &
@@ -541,13 +540,12 @@ subroutine write_checkpoint( state, clock, checkpoint_stem_name )
            write(log_scratch_space,'(2A)') &
                 "Checkpointing ", trim(adjustl(fld%get_name()))
            call log_event(log_scratch_space, LOG_LEVEL_INFO)
-           call fld%write_checkpoint( "checkpoint_"                      &
-                                     // trim(adjustl(fld%get_name())),   &
-                                     trim(ts_fname(checkpoint_stem_name, &
-                                     "",                                 &
-                                     trim(adjustl(fld%get_name())),      &
-                                     clock%get_step(),                   &
-                                     "")) )
+           call fld%write_checkpoint( trim(adjustl(fld%get_name()) ),     &
+                                      trim(ts_fname(checkpoint_stem_name, &
+                                      "",                                 &
+                                      trim(adjustl(fld%get_name())),      &
+                                      clock%get_step(),                   &
+                                      "")) )
         else if ( fld%can_write() ) then
            write(log_scratch_space,'(2A)') &
                 "Writing checkpoint for ", trim(adjustl(fld%get_name()))
