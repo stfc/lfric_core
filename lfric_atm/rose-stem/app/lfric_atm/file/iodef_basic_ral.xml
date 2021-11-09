@@ -741,8 +741,74 @@
       </file>
 
       <file id="lfric_diag" name="lfric_diag" output_freq="6h" convention="UGRID" enabled=".TRUE.">
-        <field_group group_ref="derived_fields" />
-        <field_group group_ref="diagnostic_fields" />
+	<field field_ref="theta"/>
+	<field field_ref="m_v"/>
+	<field field_ref="m_cl"/>
+	<field field_ref="m_ci"/>
+	<field field_ref="m_r"/>
+	<field field_ref="u1"/>
+	<field field_ref="u2"/>
+	<field field_ref="w_physics"/>
+	<field field_ref="u1_in_w3"/>
+	<field field_ref="u2_in_w3"/>
+	<field field_ref="u3_in_w3"/>
+	<field field_ref="rho"/>
+	<field field_ref="exner"/>
+	<field field_ref="exner_in_wth"/>
+	<field field_ref="ice_fraction"/>
+	<field field_ref="liquid_fraction"/>
+	<field field_ref="bulk_fraction"/>
+	<field field_ref="conv_rain"/>
+	<field field_ref="conv_snow"/>
+	<field field_ref="ls_rain"/>
+	<field field_ref="ls_snow"/>
+	<field field_ref="tile_heat_flux"/>
+	<field field_ref="tile_moisture_flux"/>
+	<field field_ref="tile_fraction"/>
+	<field field_ref="tile_temperature"/>
+	<field field_ref="sw_down_surf"/>
+	<field field_ref="sw_heating_rate"/>
+	<field field_ref="cloud_cover_rts"/>
+	<field field_ref="cloud_fraction_rts"/>
+	<field field_ref="cloud_droplet_re_rts"/>
+	<field field_ref="lw_down_surf"/>
+	<field field_ref="trop_level"/>
+	<field field_ref="h2o2"/>
+	<field field_ref="dms"/>
+	<field field_ref="so2"/>
+	<field field_ref="h2so4"/>
+	<field field_ref="dmso"/>
+	<field field_ref="monoterpene"/>
+	<field field_ref="secondary_organic"/>
+	<field field_ref="n_nuc_sol"/>
+	<field field_ref="n_ait_sol"/>
+	<field field_ref="n_acc_sol"/>
+	<field field_ref="n_cor_sol"/>
+	<field field_ref="n_ait_ins"/>
+	<field field_ref="n_acc_ins"/>
+	<field field_ref="n_cor_ins"/>
+	<field field_ref="nuc_sol_su"/>
+	<field field_ref="nuc_sol_om"/>
+	<field field_ref="ait_sol_su"/>
+	<field field_ref="ait_sol_bc"/>
+	<field field_ref="ait_sol_om"/>
+	<field field_ref="acc_sol_su"/>
+	<field field_ref="acc_sol_bc"/>
+	<field field_ref="acc_sol_om"/>
+	<field field_ref="acc_sol_ss"/>
+	<field field_ref="acc_sol_du"/>
+	<field field_ref="cor_sol_su"/>
+	<field field_ref="cor_sol_bc"/>
+	<field field_ref="cor_sol_om"/>
+	<field field_ref="cor_sol_ss"/>
+	<field field_ref="cor_sol_du"/>
+	<field field_ref="ait_ins_bc"/>
+	<field field_ref="ait_ins_om"/>
+	<field field_ref="acc_ins_du"/>
+	<field field_ref="cor_ins_du"/>
+	<field field_ref="cloud_drop_no_conc"/>
+	<field field_ref="sw_aer_optical_depth_rts"/>
+	<field field_ref="lw_aer_optical_depth_rts"/>
       </file>
 
       <file id="lfric_averages" name="lfric_averages" output_freq="12h" convention="UGRID" enabled=".TRUE.">
