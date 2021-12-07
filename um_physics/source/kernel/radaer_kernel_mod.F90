@@ -32,10 +32,11 @@ implicit none
 
 type, public, extends(kernel_type) :: radaer_kernel_type
   private
-  type(arg_type) :: meta_args(71) = (/                &
+  type(arg_type) :: meta_args(68) = (/                &
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! theta_in_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! exner_in_wth
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & !trop_level
+       !trop_level
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! n_ait_sol
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! ait_sol_su
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! ait_sol_bc
@@ -77,9 +78,6 @@ type, public, extends(kernel_type) :: radaer_kernel_type
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_wat_ait_sol
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_wat_acc_sol
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_wat_cor_sol
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_wat_ait_ins
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_wat_acc_ins
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_wat_cor_ins
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_su_ait_sol
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_bc_ait_sol
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_om_ait_sol
@@ -168,9 +166,6 @@ contains
 !> @param[in]     pvol_wat_ait_sol   Partial volume of water (Ait_Sol)
 !> @param[in]     pvol_wat_acc_sol   Partial volume of water (Acc_Sol)
 !> @param[in]     pvol_wat_cor_sol   Partial volume of water (Cor_Sol)
-!> @param[in]     pvol_wat_ait_ins   Partial volume of water (Ait_Ins)
-!> @param[in]     pvol_wat_acc_ins   Partial volume of water (Acc_Ins)
-!> @param[in]     pvol_wat_cor_ins   Partial volume of water (Cor_Ins)
 !> @param[in]     pvol_su_ait_sol    Partial volume (Ait_Sol h2so4)
 !> @param[in]     pvol_bc_ait_sol    Partial volume (Ait_Sol black carbon)
 !> @param[in]     pvol_om_ait_sol    Partial volume (Ait_Sol organic matter)
@@ -259,9 +254,6 @@ subroutine radaer_code( nlayers,                                               &
                         pvol_wat_ait_sol,                                      &
                         pvol_wat_acc_sol,                                      &
                         pvol_wat_cor_sol,                                      &
-                        pvol_wat_ait_ins,                                      &
-                        pvol_wat_acc_ins,                                      &
-                        pvol_wat_cor_ins,                                      &
                         pvol_su_ait_sol,                                       &
                         pvol_bc_ait_sol,                                       &
                         pvol_om_ait_sol,                                       &
@@ -395,9 +387,6 @@ subroutine radaer_code( nlayers,                                               &
   real(kind=r_def), intent(in),    dimension(undf_wth)   :: pvol_wat_ait_sol
   real(kind=r_def), intent(in),    dimension(undf_wth)   :: pvol_wat_acc_sol
   real(kind=r_def), intent(in),    dimension(undf_wth)   :: pvol_wat_cor_sol
-  real(kind=r_def), intent(in),    dimension(undf_wth)   :: pvol_wat_ait_ins
-  real(kind=r_def), intent(in),    dimension(undf_wth)   :: pvol_wat_acc_ins
-  real(kind=r_def), intent(in),    dimension(undf_wth)   :: pvol_wat_cor_ins
   real(kind=r_def), intent(in),    dimension(undf_wth)   :: pvol_su_ait_sol
   real(kind=r_def), intent(in),    dimension(undf_wth)   :: pvol_bc_ait_sol
   real(kind=r_def), intent(in),    dimension(undf_wth)   :: pvol_om_ait_sol
@@ -654,22 +643,19 @@ subroutine radaer_code( nlayers,                                               &
                                               pvol_ss_cor_sol( map_wth(1) + k)+&
                                               pvol_du_cor_sol( map_wth(1) + k)
 
-    ukca_modal_vol_um(1,k,(mode_ait_insol-1))=pvol_wat_ait_ins(map_wth(1) + k)+&
-                                              pvol_bc_ait_ins( map_wth(1) + k)+&
+    ukca_modal_vol_um(1,k,(mode_ait_insol-1))=pvol_bc_ait_ins( map_wth(1) + k)+&
                                               pvol_om_ait_ins( map_wth(1) + k)
 
-    ukca_modal_vol_um(1,k,(mode_acc_insol-1))=pvol_wat_acc_ins(map_wth(1) + k)+&
-                                              pvol_du_acc_ins( map_wth(1) + k)
+    ukca_modal_vol_um(1,k,(mode_acc_insol-1))=pvol_du_acc_ins( map_wth(1) + k)
 
-    ukca_modal_vol_um(1,k,(mode_cor_insol-1))=pvol_wat_cor_ins(map_wth(1) + k)+&
-                                              pvol_du_cor_ins( map_wth(1) + k)
+    ukca_modal_vol_um(1,k,(mode_cor_insol-1))=pvol_du_cor_ins( map_wth(1) + k)
 
     ukca_modal_wtv_um(1,k,(mode_ait_sol-1))   = pvol_wat_ait_sol(map_wth(1) + k)
     ukca_modal_wtv_um(1,k,(mode_acc_sol-1))   = pvol_wat_acc_sol(map_wth(1) + k)
     ukca_modal_wtv_um(1,k,(mode_cor_sol-1))   = pvol_wat_cor_sol(map_wth(1) + k)
-    ukca_modal_wtv_um(1,k,(mode_ait_insol-1)) = pvol_wat_ait_ins(map_wth(1) + k)
-    ukca_modal_wtv_um(1,k,(mode_acc_insol-1)) = pvol_wat_acc_ins(map_wth(1) + k)
-    ukca_modal_wtv_um(1,k,(mode_cor_insol-1)) = pvol_wat_cor_ins(map_wth(1) + k)
+    ukca_modal_wtv_um(1,k,(mode_ait_insol-1)) = 0.0_r_um
+    ukca_modal_wtv_um(1,k,(mode_acc_insol-1)) = 0.0_r_um
+    ukca_modal_wtv_um(1,k,(mode_cor_insol-1)) = 0.0_r_um
 
     ukca_wet_diam_um(1,k,(mode_ait_sol-1))    = wetdp_ait_sol(map_wth(1) + k)
     ukca_wet_diam_um(1,k,(mode_acc_sol-1))    = wetdp_acc_sol(map_wth(1) + k)

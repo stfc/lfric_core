@@ -13,6 +13,7 @@ module glomap_aerosol_alg_mod
   use io_config_mod,                   only: subroutine_timers,                &
                                              use_xios_io,                      &
                                              write_diag
+  use mr_indices_mod,                  only: imr_ci, imr_v, nummr
   use timer_mod,                       only: timer
 
   implicit none
@@ -27,12 +28,16 @@ contains
   !>             1) CDNC ( via Jones method doi:10.1038/370450a0 )
   !>             2) Coming soon - Fields required by RADAER
   !>@param[in,out] aerosol_fields        glomap_aerosol related fields
+  !>@param[in]     cloud_fields          humidity related fields
   !>@param[in]     theta_in_wth          Potential temperature (theta) wth space
   !>@param[in]     exner_in_wth          Exner Pressure in theta space
+  !>@param[in]     mr                    Mixing ratios at time level n
 
-  subroutine glomap_aerosol_alg(aerosol_fields,                           &
-                                theta_in_wth,                             &
-                                exner_in_wth)
+  subroutine glomap_aerosol_alg( aerosol_fields,                               &
+                                 cloud_fields,                                 &
+                                 theta_in_wth,                                 &
+                                 exner_in_wth,                                 &
+                                 mr_n )
 
     use glomap_aerosol_kernel_mod, only: glomap_aerosol_kernel_type
 
@@ -40,8 +45,16 @@ contains
 
     ! Arguments
     type( field_collection_type ), intent( inout ) :: aerosol_fields
+    type( field_collection_type ), intent( in    ) :: cloud_fields
     type( field_type ), intent( in ) :: theta_in_wth
     type( field_type ), intent( in ) :: exner_in_wth
+    type( field_type ), intent( in ) :: mr_n(nummr)
+
+    ! Temporary unpacked fields from collection cloud_fields
+
+    type( field_type ), pointer :: cf_bulk => null()
+    type( field_type ), pointer :: cf_liquid => null()
+    type( field_type ), pointer :: rh_crit => null()
 
     ! Temporary unpacked fields from collection aerosol_fields
     type( field_type ), pointer :: n_nuc_sol => null()
@@ -56,17 +69,64 @@ contains
     type( field_type ), pointer :: acc_sol_bc => null()
     type( field_type ), pointer :: acc_sol_om => null()
     type( field_type ), pointer :: acc_sol_ss => null()
+    type( field_type ), pointer :: acc_sol_du => null()
     type( field_type ), pointer :: n_cor_sol => null()
     type( field_type ), pointer :: cor_sol_su => null()
     type( field_type ), pointer :: cor_sol_bc => null()
     type( field_type ), pointer :: cor_sol_om => null()
     type( field_type ), pointer :: cor_sol_ss => null()
+    type( field_type ), pointer :: cor_sol_du => null()
     type( field_type ), pointer :: n_ait_ins => null()
     type( field_type ), pointer :: ait_ins_bc => null()
     type( field_type ), pointer :: ait_ins_om => null()
+    type( field_type ), pointer :: n_acc_ins => null()
+    type( field_type ), pointer :: acc_ins_du => null()
+    type( field_type ), pointer :: n_cor_ins => null()
+    type( field_type ), pointer :: cor_ins_du => null()
+    type( field_type ), pointer :: drydp_ait_sol => null()
+    type( field_type ), pointer :: drydp_acc_sol => null()
+    type( field_type ), pointer :: drydp_cor_sol => null()
+    type( field_type ), pointer :: drydp_ait_ins => null()
+    type( field_type ), pointer :: drydp_acc_ins => null()
+    type( field_type ), pointer :: drydp_cor_ins => null()
+    type( field_type ), pointer :: wetdp_ait_sol => null()
+    type( field_type ), pointer :: wetdp_acc_sol => null()
+    type( field_type ), pointer :: wetdp_cor_sol => null()
+    type( field_type ), pointer :: rhopar_ait_sol => null()
+    type( field_type ), pointer :: rhopar_acc_sol => null()
+    type( field_type ), pointer :: rhopar_cor_sol => null()
+    type( field_type ), pointer :: rhopar_ait_ins => null()
+    type( field_type ), pointer :: rhopar_acc_ins => null()
+    type( field_type ), pointer :: rhopar_cor_ins => null()
+    type( field_type ), pointer :: pvol_wat_ait_sol => null()
+    type( field_type ), pointer :: pvol_wat_acc_sol => null()
+    type( field_type ), pointer :: pvol_wat_cor_sol => null()
+    type( field_type ), pointer :: pvol_su_ait_sol => null()
+    type( field_type ), pointer :: pvol_bc_ait_sol => null()
+    type( field_type ), pointer :: pvol_om_ait_sol => null()
+    type( field_type ), pointer :: pvol_su_acc_sol => null()
+    type( field_type ), pointer :: pvol_bc_acc_sol => null()
+    type( field_type ), pointer :: pvol_om_acc_sol => null()
+    type( field_type ), pointer :: pvol_ss_acc_sol => null()
+    type( field_type ), pointer :: pvol_du_acc_sol => null()
+    type( field_type ), pointer :: pvol_su_cor_sol => null()
+    type( field_type ), pointer :: pvol_bc_cor_sol => null()
+    type( field_type ), pointer :: pvol_om_cor_sol => null()
+    type( field_type ), pointer :: pvol_ss_cor_sol => null()
+    type( field_type ), pointer :: pvol_du_cor_sol => null()
+    type( field_type ), pointer :: pvol_bc_ait_ins => null()
+    type( field_type ), pointer :: pvol_om_ait_ins => null()
+    type( field_type ), pointer :: pvol_du_acc_ins => null()
+    type( field_type ), pointer :: pvol_du_cor_ins => null()
     type( field_type ), pointer :: cloud_drop_no_conc => null()
 
     if ( subroutine_timers ) call timer('glomap_aerosol_alg')
+
+    ! Unpack fields from cloud_fields
+
+    cf_bulk    => cloud_fields%get_field('bulk_fraction')
+    cf_liquid  => cloud_fields%get_field('liquid_fraction')
+    rh_crit    => cloud_fields%get_field('rh_crit')
 
     ! Unpack fields from aerosol_fields
     n_nuc_sol  => aerosol_fields%get_field('n_nuc_sol')
@@ -81,18 +141,64 @@ contains
     acc_sol_bc => aerosol_fields%get_field('acc_sol_bc')
     acc_sol_om => aerosol_fields%get_field('acc_sol_om')
     acc_sol_ss => aerosol_fields%get_field('acc_sol_ss')
+    acc_sol_du => aerosol_fields%get_field('acc_sol_du')
     n_cor_sol  => aerosol_fields%get_field('n_cor_sol')
     cor_sol_su => aerosol_fields%get_field('cor_sol_su')
     cor_sol_bc => aerosol_fields%get_field('cor_sol_bc')
     cor_sol_om => aerosol_fields%get_field('cor_sol_om')
     cor_sol_ss => aerosol_fields%get_field('cor_sol_ss')
+    cor_sol_du => aerosol_fields%get_field('cor_sol_du')
     n_ait_ins  => aerosol_fields%get_field('n_ait_ins')
     ait_ins_bc => aerosol_fields%get_field('ait_ins_bc')
     ait_ins_om => aerosol_fields%get_field('ait_ins_om')
+    n_acc_ins  => aerosol_fields%get_field('n_acc_ins')
+    acc_ins_du => aerosol_fields%get_field('acc_ins_du')
+    n_cor_ins  => aerosol_fields%get_field('n_cor_ins')
+    cor_ins_du => aerosol_fields%get_field('cor_ins_du')
+    drydp_ait_sol => aerosol_fields%get_field('drydp_ait_sol')
+    drydp_acc_sol => aerosol_fields%get_field('drydp_acc_sol')
+    drydp_cor_sol => aerosol_fields%get_field('drydp_cor_sol')
+    drydp_ait_ins => aerosol_fields%get_field('drydp_ait_ins')
+    drydp_acc_ins => aerosol_fields%get_field('drydp_acc_ins')
+    drydp_cor_ins => aerosol_fields%get_field('drydp_cor_ins')
+    wetdp_ait_sol => aerosol_fields%get_field('wetdp_ait_sol')
+    wetdp_acc_sol => aerosol_fields%get_field('wetdp_acc_sol')
+    wetdp_cor_sol => aerosol_fields%get_field('wetdp_cor_sol')
+    rhopar_ait_sol => aerosol_fields%get_field('rhopar_ait_sol')
+    rhopar_acc_sol => aerosol_fields%get_field('rhopar_acc_sol')
+    rhopar_cor_sol => aerosol_fields%get_field('rhopar_cor_sol')
+    rhopar_ait_ins => aerosol_fields%get_field('rhopar_ait_ins')
+    rhopar_acc_ins => aerosol_fields%get_field('rhopar_acc_ins')
+    rhopar_cor_ins => aerosol_fields%get_field('rhopar_cor_ins')
+    pvol_wat_ait_sol => aerosol_fields%get_field('pvol_wat_ait_sol')
+    pvol_wat_acc_sol => aerosol_fields%get_field('pvol_wat_acc_sol')
+    pvol_wat_cor_sol => aerosol_fields%get_field('pvol_wat_cor_sol')
+    pvol_su_ait_sol => aerosol_fields%get_field('pvol_su_ait_sol')
+    pvol_bc_ait_sol => aerosol_fields%get_field('pvol_bc_ait_sol')
+    pvol_om_ait_sol => aerosol_fields%get_field('pvol_om_ait_sol')
+    pvol_su_acc_sol => aerosol_fields%get_field('pvol_su_acc_sol')
+    pvol_bc_acc_sol => aerosol_fields%get_field('pvol_bc_acc_sol')
+    pvol_om_acc_sol => aerosol_fields%get_field('pvol_om_acc_sol')
+    pvol_ss_acc_sol => aerosol_fields%get_field('pvol_ss_acc_sol')
+    pvol_du_acc_sol => aerosol_fields%get_field('pvol_du_acc_sol')
+    pvol_su_cor_sol => aerosol_fields%get_field('pvol_su_cor_sol')
+    pvol_bc_cor_sol => aerosol_fields%get_field('pvol_bc_cor_sol')
+    pvol_om_cor_sol => aerosol_fields%get_field('pvol_om_cor_sol')
+    pvol_ss_cor_sol => aerosol_fields%get_field('pvol_ss_cor_sol')
+    pvol_du_cor_sol => aerosol_fields%get_field('pvol_du_cor_sol')
+    pvol_bc_ait_ins => aerosol_fields%get_field('pvol_bc_ait_ins')
+    pvol_om_ait_ins => aerosol_fields%get_field('pvol_om_ait_ins')
+    pvol_du_acc_ins => aerosol_fields%get_field('pvol_du_acc_ins')
+    pvol_du_cor_ins => aerosol_fields%get_field('pvol_du_cor_ins')
     cloud_drop_no_conc => aerosol_fields%get_field('cloud_drop_no_conc')
 
     call invoke(glomap_aerosol_kernel_type( theta_in_wth,                      &
                                             exner_in_wth,                      &
+					    cf_bulk,                           &
+                                            cf_liquid,                         &
+					    rh_crit,                           &
+                                            mr_n(imr_v),                       &
+                                            mr_n(imr_ci),                      &
                                             n_nuc_sol,                         &
                                             nuc_sol_su,                        &
                                             nuc_sol_om,                        &
@@ -105,14 +211,55 @@ contains
                                             acc_sol_bc,                        &
                                             acc_sol_om,                        &
                                             acc_sol_ss,                        &
+                                            acc_sol_du,                        &
                                             n_cor_sol,                         &
                                             cor_sol_su,                        &
                                             cor_sol_bc,                        &
                                             cor_sol_om,                        &
                                             cor_sol_ss,                        &
+                                            cor_sol_du,                        &
                                             n_ait_ins,                         &
                                             ait_ins_bc,                        &
                                             ait_ins_om,                        &
+                                            n_acc_ins,                         &
+                                            acc_ins_du,                        &
+                                            n_cor_ins,                         &
+                                            cor_ins_du,                        &
+                                            drydp_ait_sol,                     &
+                                            drydp_acc_sol,                     &
+                                            drydp_cor_sol,                     &
+                                            drydp_ait_ins,                     &
+                                            drydp_acc_ins,                     &
+                                            drydp_cor_ins,                     &
+                                            wetdp_ait_sol,                     &
+                                            wetdp_acc_sol,                     &
+                                            wetdp_cor_sol,                     &
+                                            rhopar_ait_sol,                    &
+                                            rhopar_acc_sol,                    &
+                                            rhopar_cor_sol,                    &
+                                            rhopar_ait_ins,                    &
+                                            rhopar_acc_ins,                    &
+                                            rhopar_cor_ins,                    &
+                                            pvol_wat_ait_sol,                  &
+                                            pvol_wat_acc_sol,                  &
+                                            pvol_wat_cor_sol,                  &
+                                            pvol_su_ait_sol,                   &
+                                            pvol_bc_ait_sol,                   &
+                                            pvol_om_ait_sol,                   &
+                                            pvol_su_acc_sol,                   &
+                                            pvol_bc_acc_sol,                   &
+                                            pvol_om_acc_sol,                   &
+                                            pvol_ss_acc_sol,                   &
+                                            pvol_du_acc_sol,                   &
+                                            pvol_su_cor_sol,                   &
+                                            pvol_bc_cor_sol,                   &
+                                            pvol_om_cor_sol,                   &
+                                            pvol_ss_cor_sol,                   &
+                                            pvol_du_cor_sol,                   &
+                                            pvol_bc_ait_ins,                   &
+                                            pvol_om_ait_ins,                   &
+                                            pvol_du_acc_ins,                   &
+                                            pvol_du_cor_ins,                   &
                                             cloud_drop_no_conc ))
 
     if ( subroutine_timers ) call timer('glomap_aerosol_alg')
@@ -133,14 +280,41 @@ contains
       call acc_sol_bc%write_field('acc_sol_bc')
       call acc_sol_om%write_field('acc_sol_om')
       call acc_sol_ss%write_field('acc_sol_ss')
+      call acc_sol_du%write_field('acc_sol_du')
       call n_cor_sol%write_field('n_cor_sol')
       call cor_sol_su%write_field('cor_sol_su')
       call cor_sol_bc%write_field('cor_sol_bc')
       call cor_sol_om%write_field('cor_sol_om')
       call cor_sol_ss%write_field('cor_sol_ss')
+      call cor_sol_du%write_field('cor_sol_du')
       call n_ait_ins%write_field('n_ait_ins')
       call ait_ins_bc%write_field('ait_ins_bc')
       call ait_ins_om%write_field('ait_ins_om')
+      call n_acc_ins%write_field('n_acc_ins')
+      call acc_ins_du%write_field('acc_ins_du')
+      call n_cor_ins%write_field('n_cor_ins')
+      call cor_ins_du%write_field('cor_ins_du')
+      call drydp_ait_sol%write_field('drydp_ait_sol')
+      call drydp_acc_sol%write_field('drydp_acc_sol')
+      call drydp_cor_sol%write_field('drydp_cor_sol')
+      call drydp_ait_ins%write_field('drydp_ait_ins')
+      call drydp_acc_ins%write_field('drydp_acc_ins')
+      call drydp_cor_ins%write_field('drydp_cor_ins')
+      call wetdp_ait_sol%write_field('wetdp_ait_sol')
+      call wetdp_acc_sol%write_field('wetdp_acc_sol')
+      call wetdp_cor_sol%write_field('wetdp_cor_sol')
+      call rhopar_ait_sol%write_field('rhopar_ait_sol')
+      call rhopar_acc_sol%write_field('rhopar_acc_sol')
+      call rhopar_cor_sol%write_field('rhopar_cor_sol')
+      call rhopar_ait_ins%write_field('rhopar_ait_ins')
+      call rhopar_acc_ins%write_field('rhopar_acc_ins')
+      call rhopar_cor_ins%write_field('rhopar_cor_ins')
+      call pvol_wat_ait_sol%write_field('pvol_wat_ait_sol')
+      call pvol_wat_acc_sol%write_field('pvol_wat_acc_sol')
+      call pvol_wat_cor_sol%write_field('pvol_wat_cor_sol')
+      call pvol_su_ait_sol%write_field('pvol_su_ait_sol')
+      call pvol_bc_ait_sol%write_field('pvol_bc_ait_sol')
+      call pvol_om_ait_sol%write_field('pvol_om_ait_sol')
       call cloud_drop_no_conc%write_field('cloud_drop_no_conc')
 
       if ( subroutine_timers ) call timer("glomap_aerosol_xios")

@@ -259,14 +259,21 @@
         <field id="acc_sol_bc" name="acc_sol_bc" long_name="accumulation_mode_soluble_black_carbon_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
         <field id="acc_sol_om" name="acc_sol_om" long_name="accumulation_mode_soluble_organic_matter_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
         <field id="acc_sol_ss" name="acc_sol_ss" long_name="accumulation_mode_soluble_sea_salt_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="acc_sol_du" name="acc_sol_du" long_name="accumulation_mode_soluble_dust_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
         <field id="n_cor_sol" name="n_cor_sol" long_name="coarse_mode_soluble_number" unit="particle molecule-1" grid_ref="full_level_face_grid" />
         <field id="cor_sol_su" name="cor_sol_su" long_name="coarse_mode_soluble_h2so4_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
         <field id="cor_sol_bc" name="cor_sol_bc" long_name="coarse_mode_soluble_black_carbon_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
         <field id="cor_sol_om" name="cor_sol_om" long_name="coarse_mode_soluble_organic_matter_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
         <field id="cor_sol_ss" name="cor_sol_ss" long_name="coarse_mode_soluble_sea_salt_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="cor_sol_du" name="cor_sol_du" long_name="coarse_mode_soluble_dust_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
         <field id="n_ait_ins" name="n_ait_ins" long_name="aitken_mode_insoluble_number" unit="particle molecule-1" grid_ref="full_level_face_grid" />
         <field id="ait_ins_bc" name="ait_ins_bc" long_name="aitken_mode_insoluble_black_carbon_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
         <field id="ait_ins_om" name="ait_ins_om" long_name="aitken_mode_insoluble_organic_matter_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="n_acc_ins" name="n_acc_ins" long_name="accumulation_mode_insoluble_number" unit="particle molecule-1" grid_ref="full_level_face_grid" />
+        <field id="acc_ins_du" name="acc_ins_du" long_name="accumulation_mode_insoluble_dust_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="n_cor_ins" name="n_cor_ins" long_name="coarse_mode_insoluble_number" unit="particle molecule-1" grid_ref="full_level_face_grid" />
+        <field id="cor_ins_du" name="cor_ins_du" long_name="coarse_mode_insoluble_dust_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <!-- Aerosol and cloud field -->
         <field id="cloud_drop_no_conc" name="cloud_drop_no_conc" long_name="cloud_droplet_number_concentration" unit="m-3" grid_ref="full_level_face_grid" />
         <field id="aerosol__dust_flux" name="dust_flux" long_name="dust_emissions_flux_in_size_bins" unit="kg m-2 s-1" domain_ref="face" axis_ref="dust_divisions" />
         <!-- cloud fields -->
@@ -496,6 +503,28 @@
 	<field id="fp_spt" name="fp_spt" long_name="SPT forcing pattern" unit="1" grid_ref="full_level_face_grid" />
 	<field id="dtheta_spt" name="dtheta_spt" long_name="SPT potential temperature forcing" unit="K" grid_ref="full_level_face_grid" />
 	<field id="dmv_spt" name="dmv_spt" long_name="SPT water vapour increment" unit="kg/kg" grid_ref="full_level_face_grid" />
+        <!-- Aerosol and Radiation (RADAER) fields -->
+        <field id="wetdp_ait_sol" name="wetdp_ait_sol" long_name="aitken_mode_soluble_wet_diameter" unit="m" grid_ref="full_level_face_grid" />
+        <field id="wetdp_acc_sol" name="wetdp_acc_sol" long_name="accumulation_mode_soluble_wet_diameter" unit="m" grid_ref="full_level_face_grid" />
+        <field id="wetdp_cor_sol" name="wetdp_cor_sol" long_name="coarse_mode_soluble_wet_diameter" unit="m" grid_ref="full_level_face_grid" />
+        <field id="rhopar_ait_sol" name="rhopar_ait_sol" long_name="aitken_mode_soluble_particle_mass_density" unit="kg m-3" grid_ref="full_level_face_grid" />
+        <field id="rhopar_acc_sol" name="rhopar_acc_sol" long_name="accumulation_mode_soluble_particle_mass_density" unit="kg m-3" grid_ref="full_level_face_grid" />
+        <field id="rhopar_cor_sol" name="rhopar_cor_sol" long_name="coarse_mode_soluble_particle_mass_density" unit="kg m-3" grid_ref="full_level_face_grid" />
+        <field id="rhopar_ait_ins" name="rhopar_ait_ins" long_name="aitken_mode_insoluble_particle_mass_density" unit="kg m-3" grid_ref="full_level_face_grid" />
+        <field id="rhopar_acc_ins" name="rhopar_acc_ins" long_name="accumulation_mode_insoluble_particle_mass_density" unit="kg m-3" grid_ref="full_level_face_grid" />
+        <field id="rhopar_cor_ins" name="rhopar_cor_ins" long_name="coarse_mode_insoluble_particle_mass_density" unit="kg m-3" grid_ref="full_level_face_grid" />
+        <field id="pvol_wat_ait_sol" name="pvol_wat_ait_sol" long_name="aitken_mode_soluble_partial_volume_of_aerosol_water" unit="m3" grid_ref="full_level_face_grid" />
+        <field id="pvol_wat_acc_sol" name="pvol_wat_acc_sol" long_name="accumulation_mode_soluble_partial_volume_of_aerosol_water" unit="m3" grid_ref="full_level_face_grid" />
+        <field id="pvol_wat_cor_sol" name="pvol_wat_cor_sol" long_name="coarse_mode_soluble_partial_volume_of_aerosol_water" unit="m3" grid_ref="full_level_face_grid" />
+        <field id="pvol_su_ait_sol" name="pvol_su_ait_sol" long_name="aitken_mode_soluble_h2so4_partial_volume" unit="m3" grid_ref="full_level_face_grid" />
+        <field id="pvol_bc_ait_sol" name="pvol_bc_ait_sol" long_name="aitken_mode_soluble_black_carbon_partial_volume" unit="m3" grid_ref="full_level_face_grid" />
+        <field id="pvol_om_ait_sol" name="pvol_om_ait_sol" long_name="aitken_mode_soluble_organic_matter_partial_volume" unit="m3" grid_ref="full_level_face_grid" />
+        <field id="drydp_ait_sol" name="drydp_ait_sol" long_name="aitken_mode_soluble_dry_diameter" unit="m" grid_ref="full_level_face_grid" />
+        <field id="drydp_acc_sol" name="drydp_acc_sol" long_name="accumulation_mode_soluble_dry_diameter" unit="m" grid_ref="full_level_face_grid" />
+        <field id="drydp_cor_sol" name="drydp_cor_sol" long_name="coarse_mode_soluble_dry_diameter" unit="m" grid_ref="full_level_face_grid" />
+        <field id="drydp_ait_ins" name="drydp_ait_ins" long_name="aitken_mode_insoluble_dry_diameter" unit="m" grid_ref="full_level_face_grid" />
+        <field id="drydp_acc_ins" name="drydp_acc_ins" long_name="accumulation_mode_insoluble_dry_diameter" unit="m" grid_ref="full_level_face_grid" />
+        <field id="drydp_cor_ins" name="drydp_cor_ins" long_name="coarse_mode_insoluble_dry_diameter" unit="m" grid_ref="full_level_face_grid" />
       </field_group>
 
       <!-- Initial conditions group -->
@@ -721,6 +750,53 @@
 	<field field_ref="cloud_droplet_re_rts"/>
 	<field field_ref="lw_down_surf"/>
 	<field field_ref="trop_level"/>
+	<field field_ref="n_nuc_sol"/>
+	<field field_ref="n_ait_sol"/>
+	<field field_ref="n_acc_sol"/>
+	<field field_ref="n_cor_sol"/>
+	<field field_ref="n_ait_ins"/>
+	<field field_ref="n_acc_ins"/>
+	<field field_ref="n_cor_ins"/>
+	<field field_ref="nuc_sol_su"/>
+	<field field_ref="nuc_sol_om"/>
+	<field field_ref="ait_sol_su"/>
+	<field field_ref="ait_sol_bc"/>
+	<field field_ref="ait_sol_om"/>
+	<field field_ref="acc_sol_su"/>
+	<field field_ref="acc_sol_bc"/>
+	<field field_ref="acc_sol_om"/>
+	<field field_ref="acc_sol_ss"/>
+	<field field_ref="acc_sol_du"/>
+	<field field_ref="cor_sol_su"/>
+	<field field_ref="cor_sol_bc"/>
+	<field field_ref="cor_sol_om"/>
+	<field field_ref="cor_sol_ss"/>
+	<field field_ref="cor_sol_du"/>
+	<field field_ref="ait_ins_bc"/>
+	<field field_ref="ait_ins_om"/>
+	<field field_ref="acc_ins_du"/>
+	<field field_ref="cor_ins_du"/>
+	<field field_ref="wetdp_ait_sol"/>
+	<field field_ref="wetdp_acc_sol"/>
+	<field field_ref="wetdp_cor_sol"/>
+	<field field_ref="rhopar_ait_sol"/>
+	<field field_ref="rhopar_acc_sol"/>
+	<field field_ref="rhopar_cor_sol"/>
+	<field field_ref="rhopar_ait_ins"/>
+	<field field_ref="rhopar_acc_ins"/>
+	<field field_ref="rhopar_cor_ins"/>
+	<field field_ref="pvol_wat_ait_sol"/>
+	<field field_ref="pvol_wat_acc_sol"/>
+	<field field_ref="pvol_wat_cor_sol"/>
+	<field field_ref="pvol_su_ait_sol"/>
+	<field field_ref="pvol_bc_ait_sol"/>
+	<field field_ref="pvol_om_ait_sol"/>
+	<field field_ref="drydp_ait_sol"/>
+	<field field_ref="drydp_acc_sol"/>
+	<field field_ref="drydp_cor_sol"/>
+	<field field_ref="drydp_ait_ins"/>
+	<field field_ref="drydp_acc_ins"/>
+	<field field_ref="drydp_cor_ins"/>
 	<field field_ref="cloud_drop_no_conc"/>
 	<field field_ref="sw_aer_optical_depth_rts"/>
 	<field field_ref="lw_aer_optical_depth_rts"/>

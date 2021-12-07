@@ -8,7 +8,7 @@ module slow_physics_alg_mod
 
   use clock_mod,                 only: clock_type
   use timestepping_config_mod,   only: outer_iterations
-  use cloud_config_mod,          only: scheme, scheme_pc2, scheme_bimodal,      &
+  use cloud_config_mod,          only: scheme, scheme_pc2, scheme_bimodal,     &
                                        pc2ini, pc2ini_bimodal,cld_fsd_hill
   use convection_config_mod,     only: cv_scheme, cv_scheme_lambert_lewis, &
                                        cv_scheme_gregory_rowntree
@@ -275,7 +275,14 @@ contains
         !--------------------------------------------------------------------
         ! Tropopause level
         !--------------------------------------------------------------------
-        if (sulphuric_strat_climatology .or. l_radaer) then
+
+        ! note that triggered options like l_radaer do not
+        ! necessarily default to false
+        if ( sulphuric_strat_climatology .or.                                  &
+             ( ( ( glomap_mode == glomap_mode_climatology ) .or.               &
+                 ( glomap_mode == glomap_mode_ukca ) ) .and.                   &
+               l_radaer ) ) then
+
           call locate_tropopause_alg( trop_level, theta, exner_in_wth,         &
                                       twod_mesh_id )
         end if
@@ -288,8 +295,13 @@ contains
 
           case(glomap_mode_climatology)
 
-            if ( activation_scheme == activation_scheme_jones ) then
-              call glomap_aerosol_alg ( aerosol_fields, theta, exner_in_wth )
+            if ( ( activation_scheme == activation_scheme_jones ) .or.         &
+                 ( l_radaer ) )                                   then
+              call glomap_aerosol_alg ( aerosol_fields,                        &
+                                        cloud_fields,                          &
+                                        theta,                                 &
+                                        exner_in_wth,                          &
+                                        mr_n )
             end if
 
           case(glomap_mode_ukca)
@@ -351,7 +363,10 @@ contains
       call aer_lw_scattering%initialise(vector_space)
       call aer_lw_asymmetry%initialise(vector_space)
 
-      if ( aerosol == aerosol_um .and. l_radaer ) then
+      if ( aerosol == aerosol_um .and.                                         &
+           ( ( glomap_mode == glomap_mode_climatology )  .or.                  &
+             ( glomap_mode == glomap_mode_ukca ) )      .and.                  &
+           l_radaer ) then
         call radaer_alg( aerosol_fields,                                       &
                          theta,                                                &
                          exner_in_wth,                                         &

@@ -103,9 +103,6 @@ contains
     type( field_type ), pointer :: pvol_wat_ait_sol => null()
     type( field_type ), pointer :: pvol_wat_acc_sol => null()
     type( field_type ), pointer :: pvol_wat_cor_sol => null()
-    type( field_type ), pointer :: pvol_wat_ait_ins => null()
-    type( field_type ), pointer :: pvol_wat_acc_ins => null()
-    type( field_type ), pointer :: pvol_wat_cor_ins => null()
     type( field_type ), pointer :: pvol_su_ait_sol => null()
     type( field_type ), pointer :: pvol_bc_ait_sol => null()
     type( field_type ), pointer :: pvol_om_ait_sol => null()
@@ -187,9 +184,6 @@ contains
     pvol_wat_ait_sol => aerosol_fields%get_field('pvol_wat_ait_sol')
     pvol_wat_acc_sol => aerosol_fields%get_field('pvol_wat_acc_sol')
     pvol_wat_cor_sol => aerosol_fields%get_field('pvol_wat_cor_sol')
-    pvol_wat_ait_ins => aerosol_fields%get_field('pvol_wat_ait_ins')
-    pvol_wat_acc_ins => aerosol_fields%get_field('pvol_wat_acc_ins')
-    pvol_wat_cor_ins => aerosol_fields%get_field('pvol_wat_cor_ins')
     pvol_su_ait_sol => aerosol_fields%get_field('pvol_su_ait_sol')
     pvol_bc_ait_sol => aerosol_fields%get_field('pvol_bc_ait_sol')
     pvol_om_ait_sol => aerosol_fields%get_field('pvol_om_ait_sol')
@@ -275,9 +269,6 @@ contains
                    setval_c(pvol_wat_ait_sol,      0.0_r_def), &
                    setval_c(pvol_wat_acc_sol,      0.0_r_def), &
                    setval_c(pvol_wat_cor_sol,      0.0_r_def), &
-                   setval_c(pvol_wat_ait_ins,      0.0_r_def), &
-                   setval_c(pvol_wat_acc_ins,      0.0_r_def), &
-                   setval_c(pvol_wat_cor_ins,      0.0_r_def), &
                    setval_c(pvol_su_ait_sol,       0.0_r_def), &
                    setval_c(pvol_bc_ait_sol,       0.0_r_def), &
                    setval_c(pvol_om_ait_sol,       0.0_r_def), &
@@ -366,9 +357,6 @@ contains
                    setval_c(pvol_wat_ait_sol,  1.0e-23_r_def), &
                    setval_c(pvol_wat_acc_sol,  1.0e-22_r_def), &
                    setval_c(pvol_wat_cor_sol,  1.0e-20_r_def), &
-                   setval_c(pvol_wat_ait_ins,      0.0_r_def), &
-                   setval_c(pvol_wat_acc_ins,      0.0_r_def), &
-                   setval_c(pvol_wat_cor_ins,      0.0_r_def), &
                    setval_c(pvol_su_ait_sol,   1.0e-22_r_def), &
                    setval_c(pvol_bc_ait_sol,   1.0e-22_r_def), &
                    setval_c(pvol_om_ait_sol,   1.0e-22_r_def), &

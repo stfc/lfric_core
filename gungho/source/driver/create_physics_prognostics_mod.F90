@@ -1135,15 +1135,6 @@ contains
     ! Partial volume of water Coarse mode (Solvent)
     call add_physics_field( aerosol_fields, depository, prognostic_fields,     &
       'pvol_wat_cor_sol', wtheta_space )
-    ! Partial volume of water Aitken mode (Insolvent)
-    call add_physics_field( aerosol_fields, depository, prognostic_fields,     &
-      'pvol_wat_ait_ins', wtheta_space )
-    ! Partial volume of water Accumulation mode (Insolvent)
-    call add_physics_field( aerosol_fields, depository, prognostic_fields,     &
-      'pvol_wat_acc_ins', wtheta_space )
-    ! Partial volume of water Coarse mode (Insolvent)
-    call add_physics_field( aerosol_fields, depository, prognostic_fields,     &
-      'pvol_wat_cor_ins', wtheta_space )
     ! Partial volume component Sulphate Aitken mode (Solvent)
     call add_physics_field( aerosol_fields, depository, prognostic_fields,     &
       'pvol_su_ait_sol', wtheta_space )

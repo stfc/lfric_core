@@ -223,7 +223,7 @@ contains
     use electric_inputs_mod, only: electric_method, no_lightning
     use fsd_parameters_mod, only: fsd_eff_lam, fsd_eff_phi, f_cons, f_arr
     use glomap_clim_option_mod, only: i_glomap_clim_setup,                 &
-         i_gc_sussocbc_5mode, i_gc_sussocbcdu_7mode, l_glomap_clim_aie2
+         i_gc_sussocbcdu_7mode, l_glomap_clim_aie2
     use g_wave_input_mod, only: ussp_launch_factor, wavelstar, l_add_cgw,  &
          cgw_scale_factor, i_moist, scale_aware, middle, var
     use mphys_bypass_mod, only: mphys_mod_top
@@ -253,8 +253,7 @@ contains
          rneutml_sq
     use turb_diff_mod, only: l_subfilter_horiz, l_subfilter_vert,        &
          mix_factor, turb_startlev_vert, turb_endlev_vert
-    use ukca_mode_setup, only: ukca_mode_sussbcoc_5mode,                       &
-                               ukca_mode_sussbcocdu_7mode
+    use ukca_mode_setup, only: ukca_mode_sussbcocdu_7mode
     use ukca_option_mod, only: i_mode_setup
     use um_read_radaer_lut_mod, only: um_read_radaer_lut
     use ukca_radaer_read_precalc_mod, only: ukca_radaer_read_precalc
@@ -286,15 +285,6 @@ contains
         call log_event( log_scratch_space, LOG_LEVEL_ERROR)
       end if
 
-      if ( ( glomap_mode == glomap_mode_climatology ) .and. ( l_radaer ) ) then
-        ! RADAER and GLOMAP climatology currently incompatible
-        ! GLOMAP Climatology in UM currently hardcoded for 5 mode without dust
-        ! RADAER in LFRic currently only works for 7 mode with dust
-        write(log_scratch_space,'(A)')                                         &
-                                "RADAER and GLOMAP_CLIM currently incompatible"
-        call log_event( log_scratch_space, LOG_LEVEL_ERROR)
-      end if
-
       ! Options which are bespoke to the aerosol scheme chosen
       select case (glomap_mode)
 
@@ -304,9 +294,9 @@ contains
           l_glomap_clim_aie2 = .true.
           ! Set up the correct mode and components for GLOMAP-mode:
           ! 5 mode with SU SS OM BC components
-          i_mode_setup = i_gc_sussocbc_5mode
-          i_glomap_clim_setup = i_gc_sussocbc_5mode
-          call ukca_mode_sussbcoc_5mode()
+          i_mode_setup = i_gc_sussocbcdu_7mode
+          i_glomap_clim_setup = i_gc_sussocbcdu_7mode
+          call ukca_mode_sussbcocdu_7mode
 
         case(glomap_mode_ukca)
           ! Set up the correct mode and components for GLOMAP-mode:
