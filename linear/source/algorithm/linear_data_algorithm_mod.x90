@@ -9,8 +9,11 @@ module linear_data_algorithm_mod
   use constants_mod,                  only: i_def, r_def
   use clock_mod,                      only: clock_type
   use gungho_model_data_mod,          only: model_data_type
+  use field_bundle_mod,               only: set_bundle_scalar
   use field_mod,                      only: field_type
   use field_collection_mod,           only: field_collection_type
+  use geometric_constants_mod,        only: get_coordinates, &
+                                            get_panel_id
   use linked_list_mod,                only: linked_list_type
   use lfric_xios_read_mod,            only: read_state
   use mr_indices_mod,                 only: nummr
@@ -27,11 +30,13 @@ module linear_data_algorithm_mod
   implicit none
 
   private
-  public init_ls_file_alg,        &
-         update_ls_file_alg,      &
-         combine_ls_winds,        &
-         linear_copy_model_to_ls, &
-         linear_init_pert_random
+  public init_ls_file_alg,            &
+         update_ls_file_alg,          &
+         combine_ls_winds,            &
+         linear_copy_model_to_ls,     &
+         linear_init_pert_random,     &
+         linear_init_pert_analytical, &
+         linear_init_reference_ls
 
   contains
 
@@ -101,6 +106,8 @@ module linear_data_algorithm_mod
     ls_field => ls_fields%get_field("ls_theta")
     call ls_field%log_minmax(LOG_LEVEL_DEBUG,'ls_theta')
 
+    nullify( ls_field )
+
   end subroutine update_ls_file_alg
 
   !> @brief   Combine horizontal and vertical winds.
@@ -128,6 +135,8 @@ module linear_data_algorithm_mod
 
     call invoke( combine_w2_field_kernel_type(wind, h_wind, v_wind) )
 
+    nullify( h_wind, v_wind, wind )
+
   end subroutine combine_ls_winds
 
   !> @brief Copy the prognostic fields to the LS and then zero the prognostics.
@@ -146,7 +155,7 @@ module linear_data_algorithm_mod
     type( field_type ),            pointer :: moist_dyn(:) => null()
     type( field_type ),            pointer :: l_field => null()
     type( field_type ),            pointer :: n_field => null()
-    integer(i_def) :: imr
+    integer( kind=i_def )                  :: imr
 
     write(log_scratch_space,'(A)') "Copy prognostics to ls fields"
     call log_event(log_scratch_space, LOG_LEVEL_INFO)
@@ -188,25 +197,34 @@ module linear_data_algorithm_mod
                    setval_C( moist_dyn(imr), 0.0_r_def) )
     end do
 
+    nullify( l_field, n_field, ls_mr, mr, ls_moist_dyn, moist_dyn )
+
   end subroutine linear_copy_model_to_ls
 
+  !> @brief Define the initial conditions with random data.
+  !> @details The Fortran intrinsic 'random_number' is used to assign
+  !!          random numbers to the initial conditions, with the size set
+  !!          by specified parameters such as gamma_u and gamma_rho.
+  !> @param[in]     mesh       The current 3D mesh
+  !> @param[in]     twod_mesh  The current 2D mesh
+  !> @param[in,out] model_data The working data set for the model run
   subroutine linear_init_pert_random( mesh, twod_mesh, model_data )
 
     use assign_field_random_kernel_mod, only: assign_field_random_kernel_type
 
     implicit none
 
-    type(mesh_type), intent(in), pointer :: mesh
-    type(mesh_type), intent(in), pointer :: twod_mesh
+    type( mesh_type ), intent(in), pointer :: mesh
+    type( mesh_type ), intent(in), pointer :: twod_mesh
 
     type( model_data_type ), target, intent(inout) :: model_data
 
-    integer :: i
+    integer( kind=i_def )                          :: i
     type( field_type ), pointer                    :: field => null()
     type( field_type ), pointer                    :: moist_dyn(:) => null()
     type( field_type ), pointer                    :: mr(:) => null()
-    real(r_def) :: gamma_u, gamma_rho, gamma_exner, gamma_theta
-    real(r_def) :: gamma_moist_dyn, gamma_mr
+    real( kind=r_def ) :: gamma_u, gamma_rho, gamma_exner, gamma_theta
+    real( kind=r_def ) :: gamma_moist_dyn, gamma_mr
 
     gamma_u = 1.e4
     gamma_theta = 1.e2
@@ -243,6 +261,140 @@ module linear_data_algorithm_mod
       call invoke( inc_a_times_X( gamma_mr, mr(i) ))
     end do
 
+    nullify( field, mr, moist_dyn )
+
   end subroutine linear_init_pert_random
+
+  !> @brief Define the initial conditions based on an analytical function.
+  !> @details The DCMIP gravity wave test case is used to define perturbation.
+  !> @param[in]     mesh       The current 3D mesh
+  !> @param[in]     twod_mesh  The current 2D mesh
+  !> @param[in,out] model_data The working data set for the model run
+  subroutine linear_init_pert_analytical( mesh, twod_mesh, model_data )
+
+    implicit none
+
+    type( mesh_type ), intent(in), pointer :: mesh
+    type( mesh_type ), intent(in), pointer :: twod_mesh
+    type( model_data_type ), target, intent(inout) :: model_data
+
+    type( field_type ), pointer :: u => null()
+    type( field_type ), pointer :: rho => null()
+    type( field_type ), pointer :: theta => null()
+    type( field_type ), pointer :: exner => null()
+
+    type( field_type ), pointer :: ls_u => null()
+    type( field_type ), pointer :: ls_rho => null()
+    type( field_type ), pointer :: ls_theta => null()
+    type( field_type ), pointer :: ls_exner => null()
+
+    type( field_type ), pointer :: ls_mr(:) => null()
+    type( field_type ), pointer :: ls_moist_dyn(:) => null()
+    type( field_type ), pointer :: mr(:) => null()
+    type( field_type ), pointer :: moist_dyn(:) => null()
+
+    type( field_collection_type ), pointer :: prognostic_fields => null()
+    type( field_collection_type ), pointer :: ls_fields => null()
+
+    integer( kind=i_def )  :: i
+
+    ls_fields => model_data%ls_fields
+    prognostic_fields => model_data%prognostic_fields
+
+    ls_theta => ls_fields%get_field('ls_theta')
+    ls_u => ls_fields%get_field('ls_u')
+    ls_rho => ls_fields%get_field('ls_rho')
+    ls_exner => ls_fields%get_field('ls_exner')
+
+    theta => prognostic_fields%get_field('theta')
+    u => prognostic_fields%get_field('u')
+    rho => prognostic_fields%get_field('rho')
+    exner => prognostic_fields%get_field('exner')
+
+    moist_dyn => model_data%moist_dyn
+    mr => model_data%mr
+    ls_moist_dyn => model_data%ls_moist_dyn
+    ls_mr => model_data%ls_mr
+
+    ! Subtract reference field from perturbed field to give perturbation
+    call invoke( inc_X_minus_Y( u, ls_u ) ,         &
+                 inc_X_minus_Y( exner, ls_exner ) , &
+                 inc_X_minus_Y( rho, ls_rho ) ,     &
+                 inc_X_minus_Y( theta, ls_theta ) )
+
+    do i = 1, num_moist_factors
+      call invoke( inc_X_minus_Y( moist_dyn(i), ls_moist_dyn(i) ) )
+    enddo
+    do i = 1, nummr
+      call invoke( inc_X_minus_Y( mr(i), ls_mr(i) ) )
+    enddo
+
+    nullify( theta, rho, u, exner, moist_dyn, mr )
+    nullify( ls_theta, ls_rho, ls_u, ls_exner, ls_moist_dyn, ls_mr )
+
+  end subroutine linear_init_pert_analytical
+
+  !> @brief Define the analytical reference field.
+  !> @param[in,out] model_data The working data set for the model run
+  subroutine linear_init_reference_ls( model_data )
+
+    use init_gungho_prognostics_alg_mod,  only: init_u_field,     &
+                                                init_exner_field, &
+                                                init_rho_field,   &
+                                                init_mr_fields
+    use initial_theta_ref_kernel_mod,     only: initial_theta_ref_kernel_type
+    use idealised_config_mod,             only: test
+
+    implicit none
+
+    type( model_data_type ), target, intent(inout) :: model_data
+
+    type( field_type ), pointer :: ls_u => null()
+    type( field_type ), pointer :: ls_rho => null()
+    type( field_type ), pointer :: ls_theta => null()
+    type( field_type ), pointer :: ls_exner => null()
+
+    type( field_type ), pointer :: ls_mr(:) => null()
+    type( field_type ), pointer :: ls_moist_dyn(:) => null()
+
+    type( field_collection_type ), pointer :: ls_fields => null()
+
+    integer( kind=i_def )       :: mesh_id
+    type( field_type ), pointer :: chi(:) => null()
+    type( field_type ), pointer :: panel_id => null()
+
+    real( kind=r_def )          :: initial_time
+
+    ls_fields => model_data%ls_fields
+
+    ls_theta => ls_fields%get_field('ls_theta')
+    ls_u => ls_fields%get_field('ls_u')
+    ls_rho => ls_fields%get_field('ls_rho')
+    ls_exner => ls_fields%get_field('ls_exner')
+
+    ls_moist_dyn => model_data%ls_moist_dyn
+    ls_mr => model_data%ls_mr
+
+    mesh_id = ls_theta%get_mesh_id()
+    chi => get_coordinates(mesh_id)
+    panel_id => get_panel_id(mesh_id)
+
+    ! Define reference field
+    initial_time = 0.0_r_def
+    call init_u_field( ls_u , initial_time )
+    call set_bundle_scalar( 0.0_r_def, ls_mr, nummr )
+
+    call invoke( initial_theta_ref_kernel_type( &
+                 ls_theta, chi, panel_id, test ) )
+
+    call moist_dyn_factors_alg( ls_moist_dyn, ls_mr )
+    call init_exner_field( ls_exner, ls_theta, ls_moist_dyn, initial_time )
+    call init_rho_field( ls_rho, ls_theta, ls_exner, ls_moist_dyn, initial_time )
+    call init_mr_fields( ls_mr, ls_theta, ls_exner, ls_rho, ls_moist_dyn )
+
+    nullify( ls_theta, ls_rho, ls_u, ls_exner, ls_moist_dyn, ls_mr )
+    nullify( chi, panel_id )
+
+  end subroutine linear_init_reference_ls
 
 end module linear_data_algorithm_mod

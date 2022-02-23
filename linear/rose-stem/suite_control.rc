@@ -66,7 +66,7 @@
 {#                                      "mpi_parts_xios":2} } } )'        #}
 {#========================================================================#}
 
-{%- set application_configurations = { 'linear' : [ 'runge-kutta', 'runge-kutta_lsfile', 'semi-implicit' ] } %}
+{%- set application_configurations = { 'linear' : [ 'runge-kutta', 'runge-kutta_lsfile', 'semi-implicit', 'dcmip301' ] } %}
 
 {%- set canned_configurations = ['linear'] %}
 
@@ -78,11 +78,18 @@
     'api_documentation_graph(publish=True)',
     'check_compilers("fast-debug", publish=True)',
     'run_application("linear", "runge-kutta",
-                     resolutions=[("C12",1.0)], env={"nrun":20} )',
+                     resolutions=[("C12",1.0)], env={"nrun":20}, 
+                     plotstr="linear.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR 5 linear-runge-kutta rho 120:0:3")',
     'run_application("linear", "runge-kutta_lsfile",
                      resolutions=[("C12",1.0)], env={"nrun":20} )',
     'run_application("linear", "semi-implicit",
-                     resolutions=[("C12",1.0)], env={"nrun":3} )'
+                     resolutions=[("C12",10.0)], env={"nrun":100},
+                     plotstr="linear.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR 5 linear-semi-implicit rho 120:0:3")',
+    'run_application("linear", "dcmip301",
+                     resolutions=[("C24",10.0)], env={"nrun":180,
+                                                      "directives":{"default":{"mpi_parts":6} } },
+                     plotstr="linear.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR 10 linear-dcmip theta:exner:rho:u1:u2:u3 120:0:5")'
+
   ],
   'nightly':   [
     'check_compilers("full-debug", publish=True)',

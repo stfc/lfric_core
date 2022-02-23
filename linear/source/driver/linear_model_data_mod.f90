@@ -32,8 +32,13 @@ module linear_model_data_mod
                                              update_interface
   use lfric_xios_read_mod,            only : read_field_time_var
   use init_time_axis_mod,             only : setup_field
-  use linear_data_algorithm_mod,      only : linear_copy_model_to_ls, &
-                                             linear_init_pert_random
+  use linear_data_algorithm_mod,      only : linear_copy_model_to_ls,  &
+                                             linear_init_pert_random,  &
+                                             linear_init_reference_ls, &
+                                             linear_init_pert_analytical
+  use linear_config_mod,              only : pert_option,          &
+                                             pert_option_analytic, &
+                                             pert_option_random
   use log_mod,                        only : log_event,         &
                                              log_scratch_space, &
                                              LOG_LEVEL_INFO,    &
@@ -63,8 +68,8 @@ contains
 
     type( model_data_type ), target, intent(inout) :: model_data
 
-    type(mesh_type), pointer, intent(in) :: mesh
-    type(mesh_type), pointer, intent(in) :: twod_mesh
+    type( mesh_type ), pointer, intent(in) :: mesh
+    type( mesh_type ), pointer, intent(in) :: twod_mesh
 
     type( field_collection_type ), pointer :: depository => null()
     type( field_collection_type ), pointer :: prognostics => null()
@@ -97,95 +102,99 @@ contains
 
     call ls_fields%initialise(name='ls_fields')
 
-    if ( ls_option == ls_option_analytic ) then
+    select case( ls_option )
 
-      checkpoint_restart_flag = .true.
+      case( ls_option_analytic )
 
-      call setup_field( &
-           ls_fields, depository, prognostics, "ls_rho", W3,       &
-           mesh, checkpoint_restart_flag )
-      call setup_field( &
-           ls_fields, depository, prognostics, "ls_exner", W3,     &
-           mesh, checkpoint_restart_flag )
-      call setup_field( &
-           ls_fields, depository, prognostics, "ls_theta", Wtheta, &
-           mesh, checkpoint_restart_flag )
-      call setup_field( &
-           ls_fields, depository, prognostics, "ls_u", W2,         &
-           mesh, checkpoint_restart_flag )
-
-      do imr = 1,nummr
-        name = trim('ls_' // adjustl(mr_names(imr)) )
-        call setup_field( &
-           ls_fields, depository, prognostics, name, Wtheta, &
-           mesh, checkpoint_restart_flag, mr=ls_mr, imr=imr )
-      enddo
-
-      do imr = 1, num_moist_factors
-        write(moist_dyn_name, "(A12, I1)") "ls_moist_dyn", imr
-        name = trim(moist_dyn_name)
-        call setup_field( &
-           ls_fields, depository, prognostics, name, Wtheta, &
-           mesh, checkpoint_restart_flag, mr=ls_moist_dyn, imr=imr )
-      end do
-
-    else if ( ls_option == ls_option_file ) then
-
-      checkpoint_restart_flag = .false.
-      tmp_update_ptr => read_field_time_var
-
-      call ls_time_axis%initialise( "ls_time", file_id="ls",       &
-                                     yearly=cyclic,                &
-                                     interp_flag = interp_flag )
-
-      call setup_field( &
-           ls_fields, depository, prognostics, "ls_rho", W3,       &
-           mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
-      call setup_field( &
-           ls_fields, depository, prognostics, "ls_exner", W3,     &
-           mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
-      call setup_field( &
-           ls_fields, depository, prognostics, "ls_theta", Wtheta, &
-           mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
-      call setup_field( &
-           ls_fields, depository, prognostics, "ls_h_u", W2h,      &
-           mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
-      call setup_field( &
-           ls_fields, depository, prognostics, "ls_v_u", Wtheta,   &
-           mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
-
-      call setup_field( &
-           ls_fields, depository, prognostics, "ls_u", W2,   &
-           mesh, checkpoint_restart_flag )
-
-      do imr = 1,nummr
-
-        name = trim('ls_' // adjustl(mr_names(imr)) )
+        checkpoint_restart_flag = .true.
 
         call setup_field( &
-           ls_fields, depository, prognostics, name, Wtheta,         &
-           mesh, checkpoint_restart_flag, time_axis=ls_time_axis, &
-           mr=ls_mr, imr=imr )
-      enddo
+             ls_fields, depository, prognostics, "ls_rho", W3,       &
+             mesh, checkpoint_restart_flag )
+        call setup_field( &
+             ls_fields, depository, prognostics, "ls_exner", W3,     &
+             mesh, checkpoint_restart_flag )
+        call setup_field( &
+             ls_fields, depository, prognostics, "ls_theta", Wtheta, &
+             mesh, checkpoint_restart_flag )
+        call setup_field( &
+             ls_fields, depository, prognostics, "ls_u", W2,         &
+             mesh, checkpoint_restart_flag )
 
-      do imr = 1, num_moist_factors
+        do imr = 1, nummr
+          name = trim('ls_' // adjustl(mr_names(imr)) )
+          call setup_field( &
+             ls_fields, depository, prognostics, name, Wtheta, &
+             mesh, checkpoint_restart_flag, mr=ls_mr, imr=imr )
+        enddo
 
-        write(moist_dyn_name, "(A12, I1)") "ls_moist_dyn", imr
-        name = trim(moist_dyn_name)
+        do imr = 1, num_moist_factors
+          write(moist_dyn_name, "(A12, I1)") "ls_moist_dyn", imr
+          name = trim(moist_dyn_name)
+          call setup_field( &
+             ls_fields, depository, prognostics, name, Wtheta, &
+             mesh, checkpoint_restart_flag, mr=ls_moist_dyn, imr=imr )
+        end do
+
+      case( ls_option_file )
+
+        checkpoint_restart_flag = .false.
+        tmp_update_ptr => read_field_time_var
+
+        call ls_time_axis%initialise( "ls_time", file_id="ls",       &
+                                       yearly=cyclic,                &
+                                       interp_flag = interp_flag )
 
         call setup_field( &
-           ls_fields, depository, prognostics, name, Wtheta,         &
-           mesh, checkpoint_restart_flag,  &
-           mr=ls_moist_dyn, imr=imr )
-      end do
+             ls_fields, depository, prognostics, "ls_rho", W3,       &
+             mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
+        call setup_field( &
+             ls_fields, depository, prognostics, "ls_exner", W3,     &
+             mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
+        call setup_field( &
+             ls_fields, depository, prognostics, "ls_theta", Wtheta, &
+             mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
+        call setup_field( &
+             ls_fields, depository, prognostics, "ls_h_u", W2h,      &
+             mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
+        call setup_field( &
+             ls_fields, depository, prognostics, "ls_v_u", Wtheta,   &
+             mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
 
-      call ls_time_axis%set_update_behaviour(tmp_update_ptr)
-      call ls_times_list%insert_item(ls_time_axis)
+        call setup_field( &
+             ls_fields, depository, prognostics, "ls_u", W2,   &
+             mesh, checkpoint_restart_flag )
 
-    else
-      call log_event( "LS setup not available for requested ls_option ", &
-           LOG_LEVEL_ERROR)
-    end if
+        do imr = 1, nummr
+
+          name = trim('ls_' // adjustl(mr_names(imr)) )
+
+          call setup_field( &
+             ls_fields, depository, prognostics, name, Wtheta,         &
+             mesh, checkpoint_restart_flag, time_axis=ls_time_axis, &
+             mr=ls_mr, imr=imr )
+        enddo
+
+        do imr = 1, num_moist_factors
+
+          write(moist_dyn_name, "(A12, I1)") "ls_moist_dyn", imr
+          name = trim(moist_dyn_name)
+
+          call setup_field( &
+             ls_fields, depository, prognostics, name, Wtheta,         &
+             mesh, checkpoint_restart_flag,  &
+             mr=ls_moist_dyn, imr=imr )
+        end do
+
+        call ls_time_axis%set_update_behaviour(tmp_update_ptr)
+        call ls_times_list%insert_item(ls_time_axis)
+
+      case default
+
+        call log_event( "LS setup not available for requested ls_option ", &
+                        LOG_LEVEL_ERROR)
+
+    end select
 
   end subroutine linear_create_ls
 
@@ -202,47 +211,67 @@ contains
 
     implicit none
 
-    type(mesh_type), pointer, intent(in) :: mesh
-    type(mesh_type), pointer, intent(in) :: twod_mesh
+    type( mesh_type ), pointer, intent(in) :: mesh
+    type( mesh_type ), pointer, intent(in) :: twod_mesh
 
     type( model_data_type ), target, intent(inout) :: model_data
     class(clock_type),               intent(in)    :: clock
 
-    integer :: i
-    type( field_type ), pointer                    :: ls_field => null()
+    integer(i_def)              :: i
+    type( field_type ), pointer :: ls_field => null()
+    integer(i_def), parameter   :: number_steps = 10
 
-    if (ls_option == ls_option_analytic) then
+    select case( ls_option )
 
-      ! Procedure to define the linearisation state from an analytical field:
-      ! 1. Define the analytical field in the gungho prognostics. (This
-      !    is done in initialise_model_data in tl_test_driver).
-      ! 2. Evolve the prognostic fields using gungho_step -
-      !    this avoids the linearisation state being zero.
-      ! 3. Copy the prognostic fields to the linearisation fields, and set
-      !    the prognostic fields to zero.
+      case( ls_option_analytic )
 
-      ! Evolve the prognostic fields.
-      do i=1,10
-        call gungho_step( mesh,       &
-                          twod_mesh,  &
-                          model_data, &
-                          clock )
-      end do
+        select case( pert_option )
 
-      ! Copy the prognostic fields to the LS and then zero the prognostics.
-      call linear_copy_model_to_ls( model_data )
+          case( pert_option_random )
 
-    else if (ls_option == ls_option_file) then
+            ! Procedure to define the linearisation state from an analytical
+            ! field
+            ! 1. Define the analytical field in the gungho prognostics. (This
+            !    is done in initialise_model_data in tl_test_driver).
+            ! 2. Evolve the prognostic fields using gungho_step -
+            !    this avoids the linearisation state being zero.
+            ! 3. Copy the prognostic fields to the linearisation fields, and
+            !    set the prognostic fields to zero.
 
-      call init_ls_file_alg( model_data%ls_times_list, &
-                             clock,                    &
-                             model_data%ls_fields,     &
-                             model_data%ls_mr,         &
-                             model_data%ls_moist_dyn )
+            ! Evolve the prognostic fields.
+            do i = 1, number_steps
+              call gungho_step( mesh,       &
+                                twod_mesh,  &
+                                model_data, &
+                                clock )
+            end do
 
-    else
-      call log_event('This ls_option not available', LOG_LEVEL_ERROR)
-    end if
+            ! Copy the prognostic fields to the LS and then zero the prognostics.
+            call linear_copy_model_to_ls( model_data )
+
+        case( pert_option_analytic )
+
+          call linear_init_reference_ls( model_data )
+
+        case default
+
+          call log_event("This pert_option not available", LOG_LEVEL_ERROR)
+
+        end select
+
+      case( ls_option_file )
+
+        call init_ls_file_alg( model_data%ls_times_list, &
+                               clock,                    &
+                               model_data%ls_fields,     &
+                               model_data%ls_mr,         &
+                               model_data%ls_moist_dyn )
+
+      case default
+
+        call log_event("This ls_option not available", LOG_LEVEL_ERROR)
+
+    end select
 
     ! Print the min and max values of the linearisation fields.
     ls_field => model_data%ls_fields%get_field("ls_u")
@@ -271,14 +300,30 @@ contains
 
     implicit none
 
-    type(mesh_type), pointer, intent(in) :: mesh
-    type(mesh_type), pointer, intent(in) :: twod_mesh
+    type( mesh_type ), pointer, intent(in) :: mesh
+    type( mesh_type ), pointer, intent(in) :: twod_mesh
 
     type( model_data_type ), target, intent(inout) :: model_data
 
-    call linear_init_pert_random( mesh,      &
-                                  twod_mesh, &
-                                  model_data )
+    select case( pert_option )
+
+      case( pert_option_random )
+
+        call linear_init_pert_random( mesh,      &
+                                      twod_mesh, &
+                                      model_data )
+
+      case( pert_option_analytic )
+
+        call linear_init_pert_analytical( mesh,      &
+                                          twod_mesh, &
+                                          model_data )
+
+      case default
+
+        call log_event("This pert_option not available", LOG_LEVEL_ERROR)
+
+    end select
 
   end subroutine linear_init_pert
 
