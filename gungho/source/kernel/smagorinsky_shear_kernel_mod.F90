@@ -5,17 +5,14 @@
 !-----------------------------------------------------------------------------
 
 !> @brief Calculate 3D rate of strain tensor at theta points needed for
-!>        Smagorinsky diffusion coefficient. Current code assumes a Cartesian mesh.
+!>        Smagorinsky diffusion coefficient.
 !>
 module smagorinsky_shear_kernel_mod
 
   use argument_mod,      only : arg_type,                  &
                                 GH_FIELD, GH_REAL,         &
                                 GH_READ, GH_WRITE,         &
-                                ANY_SPACE_9,               &
-                                ANY_DISCONTINUOUS_SPACE_3, &
                                 STENCIL, CROSS, CELL_COLUMN
-  use chi_transform_mod, only : chi2xyz
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2, W3, Wtheta
   use kernel_mod,        only : kernel_type
@@ -32,13 +29,12 @@ module smagorinsky_shear_kernel_mod
   !>
   type, public, extends(kernel_type) :: smagorinsky_shear_kernel_type
     private
-    type(arg_type) :: meta_args(6) = (/                                     &
+    type(arg_type) :: meta_args(5) = (/                                     &
          arg_type(GH_FIELD,   GH_REAL, GH_WRITE, Wtheta),                   &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,  W2,     STENCIL(CROSS)),   &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta, STENCIL(CROSS)),   &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3,     STENCIL(CROSS)),   &
-         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),              &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W2),                       &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                   &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3)                        &
          /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -60,20 +56,9 @@ contains
 !!                                of the column for W2
 !! @param[in] map_w2_stencil Array holding the stencil dofmap for the cell at
 !!                           the base of the column for W2
+!! @param[in] dx_at_w2 Grid length at the w2 dofs
 !! @param[in] height_wth Height of wth space levels above surface
-!! @param[in] map_wt_stencil_size Number of cells in the stencil at the base
-!!                                of the column for Wtheta
-!! @param[in] map_wt_stencil Array holding the stencil dofmap for the cell at
-!!                           the base of the column for Wtheta
 !! @param[in] height_w3 Height of w3 space levels above surface
-!! @param[in] map_w3_stencil_size Number of cells in the stencil at the base
-!!                                of the column for W3
-!! @param[in] map_w3_stencil Array holding the stencil dofmap for the cell
-!!                           at the base of the column for W3
-!! @param[in] chi1 First coordinate field
-!! @param[in] chi2 Second coordinate field
-!! @param[in] chi3 Third coordinate field
-!! @param[in] panel_id Field describing the IDs of the mesh panels
 !! @param[in] ndf_wt Number of degrees of freedom per cell for theta space
 !! @param[in] undf_wt  Number of unique degrees of freedom for theta space
 !! @param[in] map_wt Array holding the dofmap for the cell at the base of
@@ -86,28 +71,16 @@ contains
 !! @param[in] undf_w3  Number of unique degrees of freedom for W3
 !! @param[in] map_w3 Array holding the dofmap for the cell at the base of
 !!                   the column for W3
-!! @param[in] ndf_chi Number of degrees of freedom per cell for chi space
-!! @param[in] undf_chi Number of unique degrees of freedom for chi space
-!! @param[in] map_chi Array holding the dofmap for the cell at the base of
-!!                    the column for chi
-!! @param[in] ndf_pid Number of degrees of freedom per cell for panel ID
-!! @param[in] undf_pid Number of unique degrees of freedom for panel ID
-!! @param[in] map_pid Dofmap for the cell at the base of the column for panel_id
 subroutine smagorinsky_shear_code( nlayers,                                 &
                                    shear,                                   &
                                    u_n,                                     &
                                    map_w2_stencil_size, map_w2_stencil,     &
+                                   dx_at_w2,                                &
                                    height_wth,                              &
-                                   map_wt_stencil_size, map_wt_stencil,     &
                                    height_w3,                               &
-                                   map_w3_stencil_size, map_w3_stencil,     &
-                                   chi1, chi2, chi3,                        &
-                                   panel_id,                                &
                                    ndf_wt, undf_wt, map_wt,                 &
                                    ndf_w2, undf_w2, map_w2,                 &
-                                   ndf_w3, undf_w3, map_w3,                 &
-                                   ndf_chi, undf_chi, map_chi,              &
-                                   ndf_pid, undf_pid, map_pid               &
+                                   ndf_w3, undf_w3, map_w3                  &
                                   )
 
   implicit none
@@ -115,44 +88,31 @@ subroutine smagorinsky_shear_code( nlayers,                                 &
   ! Arguments
   integer(kind=i_def), intent(in) :: nlayers
   integer(kind=i_def), intent(in) :: ndf_w2, undf_w2, ndf_w3, undf_w3
-  integer(kind=i_def), intent(in) :: ndf_wt, undf_wt, ndf_chi, undf_chi
-  integer(kind=i_def), intent(in) :: ndf_pid, undf_pid
-  integer(kind=i_def), intent(in) :: map_w2_stencil_size, map_w3_stencil_size, map_wt_stencil_size
+  integer(kind=i_def), intent(in) :: ndf_wt, undf_wt
+  integer(kind=i_def), intent(in) :: map_w2_stencil_size
   integer(kind=i_def), dimension(ndf_w2,map_w2_stencil_size), intent(in)  :: map_w2_stencil
-  integer(kind=i_def), dimension(ndf_w3,map_w3_stencil_size), intent(in)  :: map_w3_stencil
-  integer(kind=i_def), dimension(ndf_wt,map_wt_stencil_size), intent(in)  :: map_wt_stencil
   integer(kind=i_def), dimension(ndf_w2),  intent(in)  :: map_w2
   integer(kind=i_def), dimension(ndf_w3),  intent(in)  :: map_w3
   integer(kind=i_def), dimension(ndf_wt),  intent(in)  :: map_wt
-  integer(kind=i_def), dimension(ndf_chi), intent(in)  :: map_chi
-  integer(kind=i_def), dimension(ndf_pid), intent(in)  :: map_pid
 
   real(kind=r_def), dimension(undf_wt),  intent(inout) :: shear
-  real(kind=r_def), dimension(undf_w2),  intent(in)    :: u_n
-  real(kind=r_def), dimension(undf_chi), intent(in)    :: chi1, chi2, chi3
-  real(kind=r_def), dimension(undf_pid), intent(in)    :: panel_id
+  real(kind=r_def), dimension(undf_w2),  intent(in)    :: u_n, dx_at_w2
   real(kind=r_def), dimension(undf_wt),  intent(in)    :: height_wth
   real(kind=r_def), dimension(undf_w3),  intent(in)    :: height_w3
 
   ! Internal variables
-  integer(kind=i_def)                      :: k, km, kp, df, ipanel
+  integer(kind=i_def)                      :: k, km, kp, df
   real(kind=r_def)                         :: weight_pl_w3, weight_min_w3
   real(kind=r_def)                         :: weight_pl_wth, weight_min_wth
   real(kind=r_def)                         :: sum_sij, ssq12k, ssq11, ssq22, ssq33
   real(kind=r_def)                         :: ssq12up, ssq12, ssq13, ssq23
-  real(kind=r_def), dimension(0:nlayers-1) :: idx, idy, idx2, idy2
+  real(kind=r_def), dimension(0:nlayers-1) :: idx2, idy2
+  real(kind=r_def), dimension(0:nlayers-1,4) :: idx_w2
   real(kind=r_def), dimension(0:nlayers-1) :: dz_w3, idz_w3, idz_w3_2
   real(kind=r_def), dimension(1:nlayers-1) :: idz_wth
-  real(kind=r_def), dimension(ndf_chi)     :: chi_x_e, chi_y_e, chi_z_e
-  real(kind=r_def)                         :: smallp=1.0e-14_r_def
+  real(kind=r_def), parameter              :: smallp=1.0e-14_r_def
 
-  !  ----------
-  !  |    |   |
-  !  |  w | i |
-  !  -----x----
-  !  |    |   |
-  !  | sw | s |
-  !  ----------
+  ! Assumed direction for derivatives in this kernel is:
   !  y
   !  ^
   !  |_> x
@@ -171,14 +131,6 @@ subroutine smagorinsky_shear_code( nlayers,                                 &
   ! df = 5 is in the centre on the bottom face
   ! df = 6 is in the centre on the top face
 
-  ! If the centre of the cell is (i-1/2, j-1/2, k-1/2):
-  ! df = 1 is  u(i-1,   j-1/2, k-1/2)
-  ! df = 2 is  v(i-1/2, j-1,   k-1/2)
-  ! df = 3 is  u(i,     j-1/2, k-1/2)
-  ! df = 4 is  v(i-1/2, j,     k-1/2)
-  ! df = 5 is  w(i-1/2, j-1/2, k-1  )
-  ! df = 6 is  w(i-1/2, j-1/2, k    )
-
   ! The layout of the cells in the stencil is:
   !
   !          -----
@@ -192,35 +144,26 @@ subroutine smagorinsky_shear_code( nlayers,                                 &
   !          | 3 |
   !          -----
   !
-  ! To get extra cells you could use the new region stencil, this is not on
-  ! trunk yet but will be as part of #1449. This would give a stencil of
-  !
-  !     ---------------
-  !     |    |   |    |
-  !     |  9 | 5 |  8 |
-  !     ---------------
-  !     |    |   |    |
-  !     |  2 | 1 |  4 |
-  !     ---------------
-  !     |    |   |    |
-  !     |  6 | 3 |  7 |
-  !     ---------------
-  !
 
-  ipanel = int(panel_id(map_pid(1)), i_def)
+  ! If the full stencil isn't available, we must be at the domain edge.
+  ! Simply set the shear to 0 for now, and exit the routine.
+  if (map_w2_stencil_size < 5_i_def) then
+    do k = 0, nlayers
+      shear(map_wt(1) + k) = 0.0_r_def
+    end do
+    return
+  end if
 
   ! Compute horizontal grid spacings:
-  ! As this implementation is for cartesian grids,
-  ! dx and dy are valid on both w3/rho and wth/theta levels
+  ! N.B. not accounting for difference between w3 and wtheta heights
   do k = 0, nlayers - 1
-    do df = 1,ndf_chi
-      call chi2xyz(chi1(map_chi(df)+k), chi2(map_chi(df)+k), chi3(map_chi(df)+k), &
-                   ipanel, chi_x_e(df), chi_y_e(df), chi_z_e(df))
+    ! At cell centre, dx and dy are average of cell face values
+    idx2(k) = (2.0_r_def/(dx_at_w2(map_w2(1)+k)+dx_at_w2(map_w2(3)+k)))**2
+    idy2(k) = (2.0_r_def/(dx_at_w2(map_w2(2)+k)+dx_at_w2(map_w2(4)+k)))**2
+    do df = 1,4
+      ! Inverse dx at cell faces
+      idx_w2(k,df) = 1.0_r_def/dx_at_w2(map_w2(df)+k)
     end do
-    idx(k) = (1.0_r_def/(maxval(chi_x_e) - minval(chi_x_e)))
-    idy(k) = (1.0_r_def/(maxval(chi_y_e) - minval(chi_y_e)))
-    idx2(k) = idx(k)*idx(k)
-    idy2(k) = idy(k)*idy(k)
   end do
 
   ! Compute vertical grid spacings:
@@ -228,7 +171,7 @@ subroutine smagorinsky_shear_code( nlayers,                                 &
   ! dz on 1st w3/rho level:
   k = 0
   kp = k + 1
-  dz_w3(k) = height_wth(map_wt_stencil(1,1) + kp) - height_wth(map_wt_stencil(1,1) + k)
+  dz_w3(k) = height_wth(map_wt(1) + kp) - height_wth(map_wt(1) + k)
   idz_w3(k) = 1.0_r_def / dz_w3(k)
   idz_w3_2(k) = idz_w3(k)*idz_w3(k)
 
@@ -237,12 +180,12 @@ subroutine smagorinsky_shear_code( nlayers,                                 &
     kp = k + 1
 
     ! dz between adjacent wth/theta levels, held on w3/rho levels
-    dz_w3(k) = height_wth(map_wt_stencil(1,1) + kp) - height_wth(map_wt_stencil(1,1) + k)
+    dz_w3(k) = height_wth(map_wt(1) + kp) - height_wth(map_wt(1) + k)
     idz_w3(k) = 1.0_r_def / dz_w3(k)
     idz_w3_2(k) = idz_w3(k)*idz_w3(k)
 
     ! dz between adjacent w3/rho levels, held on wth/theta levels
-    idz_wth(k) = 1.0_r_def / (height_w3(map_w3_stencil(1,1) + k) - height_w3(map_w3_stencil(1,1) + km))
+    idz_wth(k) = 1.0_r_def / (height_w3(map_w3(1) + k) - height_w3(map_w3(1) + km))
 
   end do
 
@@ -252,14 +195,17 @@ subroutine smagorinsky_shear_code( nlayers,                                 &
   k = 0
   ! ssq12: (du/dy + dv/dx)^2 on 1st w3 level
   ! To be averaged to wth/theta level later
-  ssq12k = ( ( idy(k) * (u_n(map_w2_stencil(1,1) + k) - u_n(map_w2_stencil(1,3) + k) ) +                &
-            idx(k) * (u_n(map_w2_stencil(2,1) + k) - u_n(map_w2_stencil(2,2) + k) ) )**2 +              &
-            ( idy(k) * (u_n(map_w2_stencil(3,1) + k) - u_n(map_w2_stencil(3,3) + k) ) +                 &
-            idx(k) * (u_n(map_w2_stencil(2,4) + k) - u_n(map_w2_stencil(2,1) + k) ) )**2 +              &
-            ( idy(k) * (u_n(map_w2_stencil(1,5) + k) - u_n(map_w2_stencil(1,1) + k) ) +                 &
-            idx(k) * (u_n(map_w2_stencil(4,1) + k) - u_n(map_w2_stencil(4,2) + k) ) )**2 +              &
-            ( idy(k) * (u_n(map_w2_stencil(3,5) + k) - u_n(map_w2_stencil(3,1) + k) ) +                 &
-            idx(k) * (u_n(map_w2_stencil(4,4) + k) - u_n(map_w2_stencil(4,1) + k) ) )**2 ) / 4
+  ssq12k = ( ( idx_w2(k,2) * (u_n(map_w2_stencil(1,1) + k) - u_n(map_w2_stencil(1,3) + k) ) +             &
+            idx_w2(k,1) * (u_n(map_w2_stencil(2,1) + k) - u_n(map_w2_stencil(2,2) + k) ) )**2 +           &
+            ( idx_w2(k,2) * (u_n(map_w2_stencil(3,1) + k) - u_n(map_w2_stencil(3,3) + k) ) +              &
+            idx_w2(k,3) * (u_n(map_w2_stencil(2,4) + k) - u_n(map_w2_stencil(2,1) + k) ) )**2 +           &
+            ( idx_w2(k,4) * (u_n(map_w2_stencil(1,5) + k) - u_n(map_w2_stencil(1,1) + k) ) +              &
+            idx_w2(k,1) * (u_n(map_w2_stencil(4,1) + k) - u_n(map_w2_stencil(4,2) + k) ) )**2 +           &
+            ( idx_w2(k,4) * (u_n(map_w2_stencil(3,5) + k) - u_n(map_w2_stencil(3,1) + k) ) +              &
+            idx_w2(k,3) * (u_n(map_w2_stencil(4,4) + k) - u_n(map_w2_stencil(4,1) + k) ) )**2 ) / 4
+
+  ! Set lowest level to 0
+  shear(map_wt(1) + 0) = 0.0_r_def
 
   do k = 1, nlayers - 1
     km = k - 1
@@ -267,10 +213,10 @@ subroutine smagorinsky_shear_code( nlayers,                                 &
 
     ! Vertical interpolation weights:
     ! Vertical interpolation of w3 to wth levels
-    weight_pl_w3 = (height_wth(map_wt_stencil(1,1) + k) - height_w3(map_w3_stencil(1,1) + km)) /             &
-                   (height_w3(map_w3_stencil(1,1) + k) - height_w3(map_w3_stencil(1,1) + km))
-    weight_min_w3 = (height_w3(map_w3_stencil(1,1) + k) - height_wth(map_wt_stencil(1,1) + k)) /             &
-                    (height_w3(map_w3_stencil(1,1) + k) - height_w3(map_w3_stencil(1,1) + km))
+    weight_pl_w3 = (height_wth(map_wt(1) + k) - height_w3(map_w3(1) + km)) /             &
+                   (height_w3(map_w3(1) + k) - height_w3(map_w3(1) + km))
+    weight_min_w3 = (height_w3(map_w3(1) + k) - height_wth(map_wt(1) + k)) /             &
+                    (height_w3(map_w3(1) + k) - height_w3(map_w3(1) + km))
 
     ! Vertical interpolation of wth to wth levels
     weight_pl_wth = dz_w3(km) / (dz_w3(km) + dz_w3(k))
@@ -294,27 +240,27 @@ subroutine smagorinsky_shear_code( nlayers,                                 &
     ! ssq13: (du/dz + dw/dx)^2 averaged to wth
     ! ssq31 = ssq13
     ssq13 = ( ( idz_wth(k) * (u_n(map_w2_stencil(1,1) + k) - u_n(map_w2_stencil(1,1) + km) ) +            &
-            idx(k) * (u_n(map_w2_stencil(5,1) + k) - u_n(map_w2_stencil(5,2) + k) ) )**2 +                &
+            idx_w2(k,1) * (u_n(map_w2_stencil(5,1) + k) - u_n(map_w2_stencil(5,2) + k) ) )**2 +           &
             ( idz_wth(k) * (u_n(map_w2_stencil(3,1) + k) - u_n(map_w2_stencil(3,1) + km) ) +              &
-            idx(k) * (u_n(map_w2_stencil(5,4) + k) - u_n(map_w2_stencil(5,1) + k) ) )**2 ) / 2
+            idx_w2(k,3) * (u_n(map_w2_stencil(5,4) + k) - u_n(map_w2_stencil(5,1) + k) ) )**2 ) / 2
 
     ! ssq23: (dw/dy + dv/dz)^2 averaged to wth
     ! ssq32 = ssq23
-    ssq23 = ( ( idy(k) * (u_n(map_w2_stencil(5,5) + k) - u_n(map_w2_stencil(5,1) + k) ) +                 &
+    ssq23 = ( ( idx_w2(k,4) * (u_n(map_w2_stencil(5,5) + k) - u_n(map_w2_stencil(5,1) + k) ) +            &
             idz_wth(k) * (u_n(map_w2_stencil(4,1) + k) - u_n(map_w2_stencil(4,1) + km) ) )**2 +           &
-            ( idy(k) * (u_n(map_w2_stencil(5,1) + k) - u_n(map_w2_stencil(5,3) + k) ) +                   &
+            ( idx_w2(k,2) * (u_n(map_w2_stencil(5,1) + k) - u_n(map_w2_stencil(5,3) + k) ) +              &
             idz_wth(k) * (u_n(map_w2_stencil(2,1) + k) - u_n(map_w2_stencil(2,1) + km) ) )**2 ) / 2
 
     ! ssq12: (du/dy + dv/dx)^2 on w3 level k
     ! ssq21 = ssq12
-    ssq12up = ( ( idy(k) * (u_n(map_w2_stencil(1,1) + k) - u_n(map_w2_stencil(1,3) + k) ) +               &
-              idx(k) * (u_n(map_w2_stencil(2,1) + k) - u_n(map_w2_stencil(2,2) + k) ) )**2 +              &
-              ( idy(k) * (u_n(map_w2_stencil(3,1) + k) - u_n(map_w2_stencil(3,3) + k) ) +                 &
-              idx(k) * (u_n(map_w2_stencil(2,4) + k) - u_n(map_w2_stencil(2,1) + k) ) )**2 +              &
-              ( idy(k) * (u_n(map_w2_stencil(1,5) + k) - u_n(map_w2_stencil(1,1) + k) ) +                 &
-              idx(k) * (u_n(map_w2_stencil(4,1) + k) - u_n(map_w2_stencil(4,2) + k) ) )**2 +              &
-              ( idy(k) * (u_n(map_w2_stencil(3,5) + k) - u_n(map_w2_stencil(3,1) + k) ) +                 &
-              idx(k) * (u_n(map_w2_stencil(4,4) + k) - u_n(map_w2_stencil(4,1) + k) ) )**2 ) / 4
+    ssq12up = ( ( idx_w2(k,2) * (u_n(map_w2_stencil(1,1) + k) - u_n(map_w2_stencil(1,3) + k) ) +          &
+              idx_w2(k,1) * (u_n(map_w2_stencil(2,1) + k) - u_n(map_w2_stencil(2,2) + k) ) )**2 +         &
+              ( idx_w2(k,2) * (u_n(map_w2_stencil(3,1) + k) - u_n(map_w2_stencil(3,3) + k) ) +            &
+              idx_w2(k,3) * (u_n(map_w2_stencil(2,4) + k) - u_n(map_w2_stencil(2,1) + k) ) )**2 +         &
+              ( idx_w2(k,4) * (u_n(map_w2_stencil(1,5) + k) - u_n(map_w2_stencil(1,1) + k) ) +            &
+              idx_w2(k,1) * (u_n(map_w2_stencil(4,1) + k) - u_n(map_w2_stencil(4,2) + k) ) )**2 +         &
+              ( idx_w2(k,4) * (u_n(map_w2_stencil(3,5) + k) - u_n(map_w2_stencil(3,1) + k) ) +            &
+              idx_w2(k,3) * (u_n(map_w2_stencil(4,4) + k) - u_n(map_w2_stencil(4,1) + k) ) )**2 ) / 4
 
     ! average ssq21 to wth level k
     ssq12 = weight_pl_w3 * ssq12up + weight_min_w3 * ssq12k
@@ -334,6 +280,9 @@ subroutine smagorinsky_shear_code( nlayers,                                 &
     shear(map_wt(1) + k) = SQRT(sum_sij)
 
   end do
+
+  ! Set model top value
+  shear(map_wt(1) + nlayers) = 0.0_r_def
 
 end subroutine smagorinsky_shear_code
 

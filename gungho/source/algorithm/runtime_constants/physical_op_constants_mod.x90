@@ -63,6 +63,7 @@ module physical_op_constants_mod
 
   type(field_collection_type) :: geopotential_collection
   type(field_collection_type) :: delta_at_wtheta_collection
+  type(field_collection_type) :: dx_at_w2_collection
   type(field_collection_type) :: dtrdz_fd2_collection
   type(field_collection_type) :: rdz_fd1_collection
   type(field_collection_type) :: dz_at_wtheta_collection
@@ -82,6 +83,7 @@ module physical_op_constants_mod
   public :: get_coriolis
   public :: get_geopotential
   public :: get_delta_at_wtheta
+  public :: get_dx_at_w2
   public :: get_dtrdz_fd2
   public :: get_rdz_fd1
   public :: get_dz_at_wtheta
@@ -155,6 +157,7 @@ contains
 
     call geopotential_collection%initialise(name="geopotential")
     call delta_at_wtheta_collection%initialise (name="delta_at_wtheta")
+    call dx_at_w2_collection%initialise(name="dx_at_w2")
     call dtrdz_fd2_collection%initialise(name="dtrdz_fd2")
     call rdz_fd1_collection%initialise(name="rdz_fd1")
     call dz_at_wtheta_collection%initialise(name="dz_at_wtheta")
@@ -221,6 +224,16 @@ contains
       !=========================== Physics objects ============================!
 
       if ( label_list(i) == primary_mesh_label ) then
+
+        field_name = trim("dx_at_w2_") // adjustl(mesh_number)
+        call dx_at_w2%initialise( vector_space = w2_k0_fs, name = field_name )
+        detj_at_w2 => get_detj_at_w2(mesh%get_id())
+        dA_at_w2 => get_dA_at_w2(mesh%get_id())
+        call invoke(X_divideby_Y(dx_at_w2, detj_at_w2, dA_at_w2))
+        call dx_at_w2_collection%add_field( dx_at_w2 )
+        nullify( detj_at_w2 )
+        nullify( dA_at_w2 )
+
         if ( use_physics ) then
 
 
@@ -237,7 +250,6 @@ contains
                                                            panel_id_list(i), qr)    )
 
           ! Quantities needed by all UM physics schemes
-          call dx_at_w2%initialise( vector_space = w2_k0_fs )
           call r_squared%initialise( vector_space = w2_k0_fs )
           field_name = trim("dtrdz_fd2_") // adjustl(mesh_number)
           call dtrdz_fd2%initialise( vector_space = w2_k0_fs, name = field_name )
@@ -250,15 +262,12 @@ contains
           field_name = trim("max_diff_wtheta_") // adjustl(mesh_number)
           call max_diff_wtheta%initialise( vector_space = wtheta_k0_fs, name = field_name )
 
-          detj_at_w2 => get_detj_at_w2(mesh%get_id())
-          dA_at_w2 => get_dA_at_w2(mesh%get_id())
           height_w1 => get_height(W1, mesh%get_id())
           height_w2 => get_height(W2, mesh%get_id())
           height_w3 => get_height(W3, mesh%get_id())
           height_wth => get_height(Wtheta, mesh%get_id())
 
           call invoke( name = "calculate_physics_geometric_objects",           &
-                       X_divideby_Y(dx_at_w2, detj_at_w2, dA_at_w2),           &
                        ! Calculate dx at wtheta points
                        calc_delta_at_wtheta_kernel_type(delta_at_wtheta,       &
                                                         dx_at_w2),             &
@@ -298,8 +307,6 @@ contains
           call dz_at_wtheta_collection%add_field( dz_at_wtheta )
           call max_diff_wtheta_collection%add_field( max_diff_wtheta )
 
-          nullify( detj_at_w2 )
-          nullify( dA_at_w2 )
           nullify( height_w1 )
           nullify( height_w2 )
           nullify( height_w3 )
@@ -375,6 +382,22 @@ contains
     delta => delta_at_wtheta_collection%get_field(field_name)
 
   end function get_delta_at_wtheta
+
+  !> @brief Returns the dx_at_w2 values at W2 DoF locations
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The dx_at_w2 field
+  function get_dx_at_w2(mesh_id) result(delta)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(field_type),       pointer :: delta
+    character(len=str_short)        :: mesh_number
+    character(len=str_def)          :: field_name
+
+    write(mesh_number, '(I8)') mesh_id
+    field_name = trim('dx_at_w2_') // adjustl(mesh_number)
+    delta => dx_at_w2_collection%get_field(field_name)
+
+  end function get_dx_at_w2
 
   !> @brief Returns the dt/(r^2 dz) values at lowest-order W2 DoF locations
   !> @param[in] mesh_id The ID of the mesh to get the object for
@@ -493,6 +516,7 @@ contains
 
     call geopotential_collection%clear()
     call delta_at_wtheta_collection%clear()
+    call dx_at_w2_collection%clear()
     call dtrdz_fd2_collection%clear()
     call rdz_fd1_collection%clear()
     call dz_at_wtheta_collection%clear()

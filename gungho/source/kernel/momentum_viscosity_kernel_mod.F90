@@ -10,11 +10,9 @@ module momentum_viscosity_kernel_mod
 
   use argument_mod,      only : arg_type,                  &
                                 GH_FIELD, GH_REAL,         &
-                                GH_READ, GH_INC,           &
-                                GH_SCALAR, ANY_SPACE_9,    &
-                                ANY_DISCONTINUOUS_SPACE_3, &
+                                GH_READ, GH_WRITE,         &
+                                GH_SCALAR,                 &
                                 STENCIL, CROSS, CELL_COLUMN
-  use chi_transform_mod, only : chi2xyz
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2
   use kernel_mod,        only : kernel_type
@@ -31,12 +29,11 @@ module momentum_viscosity_kernel_mod
   !>
   type, public, extends(kernel_type) :: momentum_viscosity_kernel_type
     private
-    type(arg_type) :: meta_args(5) = (/                                     &
-         arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),                        &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ, W2, STENCIL(CROSS)),        &
-         arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),               &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3), &
-         arg_type(GH_SCALAR,  GH_REAL, GH_READ)                             &
+    type(arg_type) :: meta_args(4) = (/                                 &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE,  W2),                  &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,   W2, STENCIL(CROSS)),  &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,   W2, STENCIL(CROSS)),  &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ)                         &
          /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -56,156 +53,128 @@ contains
 !! @param[in] u_n Input wind field
 !! @param[in] map_w2_size Number of cells in the stencil at the base of the column for w2
 !! @param[in] map_w2 Array holding the stencil dofmap for the cell at the base of the column for w2
-!! @param[in] chi1 First coordinate field
-!! @param[in] chi2 Second coordinate field
-!! @param[in] chi3 Third coordinate field
-!! @param[in] panel_id Field describing the IDs of the mesh panels
+!! @param[in] dx_at_w2 Grid length at the w2 dofs
+!! @param[in] map_dx_stencil_size Number of cells in the stencil at the base of the column for w2
+!! @param[in] map_dx_stencil Array holding the stencil dofmap for the cell at the base of the column for w2
 !! @param[in] viscosity_mu Viscosity constant
 !! @param[in] ndf_w2 Number of degrees of freedom per cell for wind space
 !! @param[in] undf_w2  Number of unique degrees of freedom  for wind_space
 !! @param[in] cell_map_w2 Array holding the dofmap for the cell at the base of the column for w2
-!! @param[in] ndf_chi Number of degrees of freedom per cell for chi space
-!! @param[in] undf_chi Number of unique degrees of freedom  for chi space
-!! @param[in] map_chi Array holding the dofmap for the cell at the base of the column for chi
-!! @param[in] ndf_pid Number of degrees of freedom per cell for panel ID
-!! @param[in] undf_pid Number of unique degrees of freedom for panel ID
-!! @param[in] map_pid Dofmap for the cell at the base of the column for panel_id
 subroutine momentum_viscosity_code(nlayers,                               &
                                    u_inc, u_n,                            &
                                    map_w2_size, map_w2,                   &
-                                   chi1, chi2, chi3,                      &
-                                   panel_id, viscosity_mu,                &
-                                   ndf_w2, undf_w2, cell_map_w2,          &
-                                   ndf_chi, undf_chi, map_chi,            &
-                                   ndf_pid, undf_pid, map_pid             )
+                                   dx_at_w2,                              &
+                                   map_dx_stencil_size, map_dx_stencil,   &
+                                   viscosity_mu,                          &
+                                   ndf_w2, undf_w2, cell_map_w2)
 
   implicit none
 
   ! Arguments
   integer(kind=i_def), intent(in) :: nlayers
   integer(kind=i_def), intent(in) :: ndf_w2, undf_w2
-  integer(kind=i_def), intent(in) :: ndf_chi, undf_chi
-  integer(kind=i_def), intent(in) :: ndf_pid, undf_pid
-  integer(kind=i_def), intent(in) :: map_w2_size
+  integer(kind=i_def), intent(in) :: map_w2_size, map_dx_stencil_size
   integer(kind=i_def), dimension(ndf_w2,map_w2_size), intent(in)  :: map_w2
-  integer(kind=i_def), dimension(ndf_chi),            intent(in)  :: map_chi
-  integer(kind=i_def), dimension(ndf_pid),            intent(in)  :: map_pid
+  integer(kind=i_def), dimension(ndf_w2,map_dx_stencil_size), intent(in)  :: map_dx_stencil
   integer(kind=i_def), dimension(ndf_w2),             intent(in)  :: cell_map_w2
 
   real(kind=r_def), dimension(undf_w2),  intent(inout) :: u_inc
-  real(kind=r_def), dimension(undf_w2),  intent(in)    :: u_n
-  real(kind=r_def), dimension(undf_chi), intent(in)    :: chi1, chi2, chi3
-  real(kind=r_def), dimension(undf_pid), intent(in)    :: panel_id
+  real(kind=r_def), dimension(undf_w2),  intent(in)    :: u_n, dx_at_w2
 
   real(kind=r_def), intent(in) :: viscosity_mu
 
   ! Internal variables
-  integer(kind=i_def)                      :: k, km, kp, df, ipanel
+  integer(kind=i_def)                      :: k, km, kp, df
   real(kind=r_def)                         :: d2dx, d2dy, d2dz
   real(kind=r_def), dimension(0:nlayers-1) :: idx2, idy2, idz2
-  real(kind=r_def), dimension(ndf_chi)     :: chi_x_e, chi_y_e, chi_z_e
+  real(kind=r_def), dimension(0:nlayers-1,4) :: idx2_w2, idy2_w2, idz2_w2
 
-  !  ----------
-  !  |    |   |
-  !  |  w | i |
-  !  -----x----
-  !  |    |   |
-  !  | sw | s |
-  !  ----------
+  ! Assumed direction for derivatives in this kernel is:
   !  y
   !  ^
   !  |_> x
   !
 
-  ipanel = int(panel_id(map_pid(1)), i_def)
+  ! If the full stencil isn't available, we must be at the domain edge.
+  ! The increment is already 0, so we just exit the routine.
+  if (map_w2_size < 5_i_def) then
+    return
+  end if
 
-  ! Compute grid spacing
-  do k = 0, nlayers - 1
-    do df = 1,ndf_chi
-      call chi2xyz(chi1(map_chi(df)+k), chi2(map_chi(df)+k), chi3(map_chi(df)+k), &
-                   ipanel, chi_x_e(df), chi_y_e(df), chi_z_e(df))
-    end do
-    idx2(k) = 1.0_r_def/(maxval(chi_x_e) - minval(chi_x_e))**2
-    idy2(k) = 1.0_r_def/(maxval(chi_y_e) - minval(chi_y_e))**2
-    idz2(k) = 1.0_r_def/(maxval(chi_z_e) - minval(chi_z_e))**2
+  ! Loop over horizontal faces of the cell for horizontal diffusion
+  do df = 1,4
+
+    ! Only calculate face if it's not already been done
+    if (u_inc(cell_map_w2(df)+1) == 0.0_r_def) then
+
+      ! Compute horizontal grid spacing
+      if (df == 1 .or. df == 3) then
+        ! For Dofs 1 & 3, dx is given by the input field,
+        ! whilst dy needs to be computed from the 4 neighbouring dy points
+        do k = 0, nlayers - 1
+          idx2_w2(k,df) = 1.0_r_def/(dx_at_w2(map_dx_stencil(df,1)+k))**2
+          idy2_w2(k,df) = (4.0_r_def/(dx_at_w2(map_dx_stencil(2,1)+k)+dx_at_w2(map_dx_stencil(4,1)+k)+ &
+                                      dx_at_w2(map_dx_stencil(2,df+1)+k)+dx_at_w2(map_dx_stencil(4,df+1)+k)))**2
+          idz2_w2(k,df) = (2.0_r_def/(dx_at_w2(map_dx_stencil(5,1)+k)+dx_at_w2(map_dx_stencil(5,df+1)+k)))**2
+        end do
+      else
+        ! For Dofs 2 & 4, dy is given by the input field,
+        ! whilst dx needs to be computed from the 4 neighbouring dx points
+        do k = 0, nlayers - 1
+          idx2_w2(k,df) = (4.0_r_def/(dx_at_w2(map_dx_stencil(1,1)+k)+dx_at_w2(map_dx_stencil(3,1)+k)+ &
+                                      dx_at_w2(map_dx_stencil(1,df+1)+k)+dx_at_w2(map_dx_stencil(3,df+1)+k)))**2
+          idy2_w2(k,df) = 1.0_r_def/(dx_at_w2(map_dx_stencil(df,1)+k))**2
+          idz2_w2(k,df) = (2.0_r_def/(dx_at_w2(map_dx_stencil(5,1)+k)+dx_at_w2(map_dx_stencil(5,df+1)+k)))**2
+        end do
+      end if
+
+      ! Horizontal Velocity diffusion
+      k = 0
+      km = k
+      kp = k+1
+
+      d2dx = (u_n(map_w2(df,2) + k)  - 2.0_r_def*u_n(map_w2(df,1) + k) + u_n(map_w2(df,4) + k) )*idx2_w2(k,df)
+      d2dy = (u_n(map_w2(df,3) + k)  - 2.0_r_def*u_n(map_w2(df,1) + k) + u_n(map_w2(df,5) + k) )*idy2_w2(k,df)
+      d2dz = (u_n(map_w2(df,1) + kp) - 2.0_r_def*u_n(map_w2(df,1) + k) + u_n(map_w2(df,1) + km))*idz2_w2(k,df)
+      u_inc(cell_map_w2(df)+k) = viscosity_mu*(d2dx + d2dy + d2dz)
+
+      do k = 1, nlayers-2
+        km = k - 1
+        kp = k + 1
+
+        d2dx = (u_n(map_w2(df,2) + k)  - 2.0_r_def*u_n(map_w2(df,1) + k) + u_n(map_w2(df,4) + k) )*idx2_w2(k,df)
+        d2dy = (u_n(map_w2(df,3) + k)  - 2.0_r_def*u_n(map_w2(df,1) + k) + u_n(map_w2(df,5) + k) )*idy2_w2(k,df)
+        d2dz = (u_n(map_w2(df,1) + kp) - 2.0_r_def*u_n(map_w2(df,1) + k) + u_n(map_w2(df,1) + km))*idz2_w2(k,df)
+        u_inc(cell_map_w2(df)+k) = viscosity_mu*(d2dx + d2dy + d2dz)
+      end do
+
+      k = nlayers-1
+      km = k - 1
+      kp = k
+
+      d2dx = (u_n(map_w2(df,2) + k)  - 2.0_r_def*u_n(map_w2(df,1) + k) + u_n(map_w2(df,4) + k) )*idx2_w2(k,df)
+      d2dy = (u_n(map_w2(df,3) + k)  - 2.0_r_def*u_n(map_w2(df,1) + k) + u_n(map_w2(df,5) + k) )*idy2_w2(k,df)
+      d2dz = (u_n(map_w2(df,1) + kp) - 2.0_r_def*u_n(map_w2(df,1) + k) + u_n(map_w2(df,1) + km))*idz2_w2(k,df)
+      u_inc(cell_map_w2(df)+k) = viscosity_mu*(d2dx + d2dy + d2dz)
+
+    end if
+
   end do
 
-  ! Velocity diffusion
-  k = 0
-  km = k
-  kp = k+1
-  ! u
-  d2dx = (u_n(map_w2(1,2) + k)  - 2.0_r_def*u_n(map_w2(1,1) + k) + u_n(map_w2(1,4) + k) )*idx2(k)
-  d2dy = (u_n(map_w2(1,3) + k)  - 2.0_r_def*u_n(map_w2(1,1) + k) + u_n(map_w2(1,5) + k) )*idy2(k)
-  d2dz = (u_n(map_w2(1,1) + kp) - 2.0_r_def*u_n(map_w2(1,1) + k) + u_n(map_w2(1,1) + km))*idz2(k)
-  u_inc(cell_map_w2(1)+k) = viscosity_mu*(d2dx + d2dy + d2dz)
-
-  ! v
-  d2dx = (u_n(map_w2(2,2) + k)  - 2.0_r_def*u_n(map_w2(2,1) + k) + u_n(map_w2(2,4) + k) )*idx2(k)
-  d2dy = (u_n(map_w2(2,3) + k)  - 2.0_r_def*u_n(map_w2(2,1) + k) + u_n(map_w2(2,5) + k) )*idy2(k)
-  d2dz = (u_n(map_w2(2,1) + kp) - 2.0_r_def*u_n(map_w2(2,1) + k) + u_n(map_w2(2,1) + km))*idz2(k)
-  u_inc(cell_map_w2(2)+k) = viscosity_mu*(d2dx + d2dy + d2dz)
-
-  ! w
-  d2dx = (u_n(map_w2(5,2) + k)  - 2.0_r_def*u_n(map_w2(5,1) + k) + u_n(map_w2(5,4) + k) )*idx2(k)
-  d2dy = (u_n(map_w2(5,3) + k)  - 2.0_r_def*u_n(map_w2(5,1) + k) + u_n(map_w2(5,5) + k) )*idy2(k)
-  d2dz = (u_n(map_w2(6,1) + k)  - 2.0_r_def*u_n(map_w2(5,1) + k) + u_n(map_w2(5,1) + km))*idz2(k)
-  u_inc(cell_map_w2(5)+k) = viscosity_mu*(d2dx + d2dy + d2dz)
-
-  do k = 1, nlayers-2
+  ! Vertical Velocity diffusion
+  do k = 1, nlayers-1
     km = k - 1
-    kp = k + 1
-    ! u
-    d2dx = (u_n(map_w2(1,2) + k)  - 2.0_r_def*u_n(map_w2(1,1) + k) + u_n(map_w2(1,4) + k) )*idx2(k)
-    d2dy = (u_n(map_w2(1,3) + k)  - 2.0_r_def*u_n(map_w2(1,1) + k) + u_n(map_w2(1,5) + k) )*idy2(k)
-    d2dz = (u_n(map_w2(1,1) + kp) - 2.0_r_def*u_n(map_w2(1,1) + k) + u_n(map_w2(1,1) + km))*idz2(k)
-    u_inc(cell_map_w2(1)+k) = viscosity_mu*(d2dx + d2dy + d2dz)
 
-    ! v
-    d2dx = (u_n(map_w2(2,2) + k)  - 2.0_r_def*u_n(map_w2(2,1) + k) + u_n(map_w2(2,4) + k) )*idx2(k)
-    d2dy = (u_n(map_w2(2,3) + k)  - 2.0_r_def*u_n(map_w2(2,1) + k) + u_n(map_w2(2,5) + k) )*idy2(k)
-    d2dz = (u_n(map_w2(2,1) + kp) - 2.0_r_def*u_n(map_w2(2,1) + k) + u_n(map_w2(2,1) + km))*idz2(k)
-    u_inc(cell_map_w2(2)+k) = viscosity_mu*(d2dx + d2dy + d2dz)
+    idx2(k) = (2.0_r_def/(dx_at_w2(map_dx_stencil(1,1)+k)+dx_at_w2(map_dx_stencil(3,1)+k)))**2
+    idy2(k) = (2.0_r_def/(dx_at_w2(map_dx_stencil(2,1)+k)+dx_at_w2(map_dx_stencil(4,1)+k)))**2
+    idz2(k) = 1.0_r_def/(dx_at_w2(map_dx_stencil(5,1)+k))**2
 
-    ! w
     d2dx = (u_n(map_w2(5,2) + k)  - 2.0_r_def*u_n(map_w2(5,1) + k) + u_n(map_w2(5,4) + k) )*idx2(k)
     d2dy = (u_n(map_w2(5,3) + k)  - 2.0_r_def*u_n(map_w2(5,1) + k) + u_n(map_w2(5,5) + k) )*idy2(k)
     d2dz = (u_n(map_w2(6,1) + k)  - 2.0_r_def*u_n(map_w2(5,1) + k) + u_n(map_w2(5,1) + km))*idz2(k)
     u_inc(cell_map_w2(5)+k) = viscosity_mu*(d2dx + d2dy + d2dz)
+
   end do
-
-  k = nlayers-1
-  km = k - 1
-  kp = k
-  ! u
-  d2dx = (u_n(map_w2(1,2) + k)  - 2.0_r_def*u_n(map_w2(1,1) + k) + u_n(map_w2(1,4) + k) )*idx2(k)
-  d2dy = (u_n(map_w2(1,3) + k)  - 2.0_r_def*u_n(map_w2(1,1) + k) + u_n(map_w2(1,5) + k) )*idy2(k)
-  d2dz = (u_n(map_w2(1,1) + kp) - 2.0_r_def*u_n(map_w2(1,1) + k) + u_n(map_w2(1,1) + km))*idz2(k)
-  u_inc(cell_map_w2(1)+k) = viscosity_mu*(d2dx + d2dy + d2dz)
-
-  ! v
-  d2dx = (u_n(map_w2(2,2) + k)  - 2.0_r_def*u_n(map_w2(2,1) + k) + u_n(map_w2(2,4) + k) )*idx2(k)
-  d2dy = (u_n(map_w2(2,3) + k)  - 2.0_r_def*u_n(map_w2(2,1) + k) + u_n(map_w2(2,5) + k) )*idy2(k)
-  d2dz = (u_n(map_w2(2,1) + kp) - 2.0_r_def*u_n(map_w2(2,1) + k) + u_n(map_w2(2,1) + km))*idz2(k)
-  u_inc(cell_map_w2(2)+k) = viscosity_mu*(d2dx + d2dy + d2dz)
-
-  ! w
-  d2dx = (u_n(map_w2(5,2) + k)  - 2.0_r_def*u_n(map_w2(5,1) + k) + u_n(map_w2(5,4) + k) )*idx2(k)
-  d2dy = (u_n(map_w2(5,3) + k)  - 2.0_r_def*u_n(map_w2(5,1) + k) + u_n(map_w2(5,5) + k) )*idy2(k)
-  d2dz = (u_n(map_w2(6,1) + k)  - 2.0_r_def*u_n(map_w2(5,1) + k) + u_n(map_w2(5,1) + km))*idz2(k)
-  u_inc(cell_map_w2(5)+k) = viscosity_mu*(d2dx + d2dy + d2dz)
-
-  k = nlayers
-  km = k - 1
-  kp = k
-  d2dx = (u_n(map_w2(5,2) + k)  - 2.0_r_def*u_n(map_w2(5,1) + k) + u_n(map_w2(5,4) + k) )*idx2(nlayers-1)
-  d2dy = (u_n(map_w2(5,3) + k)  - 2.0_r_def*u_n(map_w2(5,1) + k) + u_n(map_w2(5,5) + k) )*idy2(nlayers-1)
-  d2dz = (u_n(map_w2(5,1) + kp) - 2.0_r_def*u_n(map_w2(5,1) + k) + u_n(map_w2(5,1) + km))*idz2(nlayers-1)
-  u_inc(cell_map_w2(5)+k) = viscosity_mu*(d2dx + d2dy + d2dz)
-
-  ! Enforce zero flux boundary conditions
-  u_inc(cell_map_w2(5) )             = 0.0_r_def
-  u_inc(cell_map_w2(6) + nlayers-1 ) = 0.0_r_def
 
 end subroutine momentum_viscosity_code
 

@@ -18,7 +18,7 @@ module smagorinsky_alg_mod
   use mixing_config_mod,         only: mix_factor
 
   use tracer_smagorinsky_diff_kernel_mod, only: tracer_smagorinsky_diff_kernel_type
-  use momentum_smagorinsky_kernel_mod,    only: momentum_smagorinsky_kernel_type
+  use psykal_lite_mod,           only: invoke_momentum_smagorinsky_kernel_type
 
   use log_mod,                   only: log_event,         &
                                        LOG_LEVEL_INFO
@@ -28,10 +28,9 @@ module smagorinsky_alg_mod
   use timer_mod,                 only: timer
   use moisture_conservation_alg_mod, &
                                  only: moisture_conservation_alg
-  use geometric_constants_mod,   only: get_height, get_coordinates, &
-                                       get_panel_id
-  use physical_op_constants_mod, only: get_delta_at_wtheta
-  use fs_continuity_mod,         only: W3, Wtheta
+  use geometric_constants_mod,   only: get_height
+  use physical_op_constants_mod, only: get_delta_at_wtheta, get_dx_at_w2
+  use fs_continuity_mod,         only: W1, W2
 
   implicit none
 
@@ -74,11 +73,10 @@ subroutine smagorinsky_alg(mr, theta, u, visc_m,                   &
     type( field_type ) :: du, dtheta
 
     type( field_type ), pointer :: shear => null()
-    type( field_type ), pointer :: height_w3 => null()
-    type( field_type ), pointer :: height_wth => null()
-    type( field_type ), pointer :: chi(:) => null()
-    type( field_type ), pointer :: panel_id => null()
+    type( field_type ), pointer :: height_w2 => null()
+    type( field_type ), pointer :: height_w1 => null()
     type( field_type ), pointer :: delta => null()
+    type( field_type ), pointer :: dx_at_w2 => null()
     type( field_type ) :: dmr_v, dmr_cl
 
     type( mesh_type ), pointer :: mesh => null()
@@ -93,12 +91,13 @@ subroutine smagorinsky_alg(mr, theta, u, visc_m,                   &
     mesh => theta%get_mesh()
 
     call du%initialise( u%get_function_space() )
+    call invoke(setval_c(du,0.0_r_def))
     call dtheta%initialise( theta%get_function_space() )
 
-    height_wth => get_height(Wtheta, mesh%get_id())
-    height_w3 => get_height(W3, mesh%get_id())
-    chi => get_coordinates(mesh%get_id())
-    panel_id => get_panel_id(mesh%get_id())
+    height_w1 => get_height(W1, mesh%get_id())
+    height_w2 => get_height(W2, mesh%get_id())
+
+    dx_at_w2 => get_dx_at_w2(mesh%get_id())
 
     if ( boundary_layer == boundary_layer_um ) then
 
@@ -112,8 +111,8 @@ subroutine smagorinsky_alg(mr, theta, u, visc_m,                   &
                                                         theta,                &
                                                         smag_stencil_depth,   &
                                                         visc_h,               &
-                                                        chi,                  &
-                                                        panel_id ) )
+                                                        dx_at_w2 ) )
+
       if ( use_moisture ) then
         ! Water vapour and cloud liquid:
         call dtheta%copy_field_properties(dmr_v)
@@ -122,27 +121,22 @@ subroutine smagorinsky_alg(mr, theta, u, visc_m,                   &
                                                           mr(imr_v),          &
                                                           smag_stencil_depth, &
                                                           visc_h,             &
-                                                          chi,                &
-                                                          panel_id ),         &
+                                                          dx_at_w2 ),         &
                      tracer_smagorinsky_diff_kernel_type( dmr_cl,             &
                                                           mr(imr_cl),         &
                                                           smag_stencil_depth, &
                                                           visc_h,             &
-                                                          chi,                &
-                                                          panel_id ) )
+                                                          dx_at_w2 ) )
       end if
 
       ! Momentum:
-      call invoke( momentum_smagorinsky_kernel_type( du,                   &
+      call invoke_momentum_smagorinsky_kernel_type( du,                    &
                                                      u,                    &
-                                                     smag_stencil_depth,   &
-                                                     height_w3,            &
-                                                     smag_stencil_depth,   &
-                                                     height_wth,           &
-                                                     smag_stencil_depth,   &
+                                                     dx_at_w2,             &
+                                                     height_w2,            &
+                                                     height_w1,            &
                                                      visc_m,               &
-                                                     chi,                  &
-                                                     panel_id ) )
+                                                     smag_stencil_depth)
 
     else ! Without UM BL scheme
 
@@ -159,8 +153,8 @@ subroutine smagorinsky_alg(mr, theta, u, visc_m,                   &
                                                         theta,                &
                                                         smag_stencil_depth,   &
                                                         visc_h,               &
-                                                        chi,                  &
-                                                        panel_id ) )
+                                                        dx_at_w2 ) )
+
       if (use_moisture) then
         ! Water vapour and cloud liquid:
         call dtheta%copy_field_properties(dmr_v)
@@ -169,30 +163,25 @@ subroutine smagorinsky_alg(mr, theta, u, visc_m,                   &
                                                           mr(imr_v),          &
                                                           smag_stencil_depth, &
                                                           visc_h,             &
-                                                          chi,                &
-                                                          panel_id ),         &
+                                                          dx_at_w2 ),         &
                      tracer_smagorinsky_diff_kernel_type( dmr_cl,             &
                                                           mr(imr_cl),         &
                                                           smag_stencil_depth, &
                                                           visc_h,             &
-                                                          chi,                &
-                                                          panel_id ) )
+                                                          dx_at_w2 ) )
       end if
 
       ! Momentum:
       call invoke( a_times_X( visc_m, mix_factor, delta ),                    &
                    inc_X_powint_n( visc_m, 2 ),                               &
-                   inc_X_times_Y( visc_m, shear ),                            &
-                   momentum_smagorinsky_kernel_type( du,                      &
+                   inc_X_times_Y( visc_m, shear ))
+      call invoke_momentum_smagorinsky_kernel_type( du,                       &
                                                      u,                       &
-                                                     smag_stencil_depth,      &
-                                                     height_w3,               &
-                                                     smag_stencil_depth,      &
-                                                     height_wth,              &
-                                                     smag_stencil_depth,      &
+                                                     dx_at_w2,                &
+                                                     height_w2,               &
+                                                     height_w1,               &
                                                      visc_m,                  &
-                                                     chi,                     &
-                                                     panel_id ) )
+                                                     smag_stencil_depth)
 
     end if ! With or without BL scheme
 
@@ -208,7 +197,7 @@ subroutine smagorinsky_alg(mr, theta, u, visc_m,                   &
     if (write_conservation_diag .and. use_moisture) &
       call moisture_conservation_alg( step, rho, mr, 'After mixing' )
 
-    nullify( chi, height_w3, height_wth, panel_id )
+    nullify( height_w1, height_w2 )
 
     if ( subroutine_timers ) call timer("smagorinsky_alg")
 

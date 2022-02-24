@@ -38,8 +38,8 @@ contains
     use mixing_config_mod,             only: viscosity, smagorinsky, viscosity_mu
     use smagorinsky_alg_mod,           only: smagorinsky_alg
     use tracer_viscosity_kernel_mod,   only: tracer_viscosity_kernel_type
-    use momentum_viscosity_kernel_mod, only: momentum_viscosity_kernel_type
-    use geometric_constants_mod,       only: get_coordinates, get_panel_id
+    use psykal_lite_mod,               only: invoke_momentum_viscosity_kernel_type
+    use physical_op_constants_mod,     only: get_dx_at_w2
 
     implicit none
 
@@ -58,8 +58,7 @@ contains
     ! Increment fields
     type( field_type ) :: du, dtheta
 
-    type( field_type ), pointer :: chi(:) => null()
-    type( field_type ), pointer :: panel_id => null()
+    type( field_type ), pointer :: dx_at_w2 => null()
 
     type( mesh_type ), pointer   :: mesh => null()
 
@@ -80,14 +79,13 @@ contains
       call dtheta%initialise( theta%get_function_space() )
       call du%initialise( u%get_function_space() )
 
-      chi      => get_coordinates( mesh%get_id() )
-      panel_id => get_panel_id( mesh%get_id() )
-
-      call invoke( tracer_viscosity_kernel_type( dtheta, theta, 1, chi,       &
-                                                panel_id, viscosity_mu ),     &
-                   momentum_viscosity_kernel_type( du, u, 1, chi,             &
-                                                   panel_id, viscosity_mu ),  &
-                   inc_X_plus_bY( theta, dt, dtheta ),                        &
+      dx_at_w2 => get_dx_at_w2(mesh%get_id())
+      call invoke( setval_c(du, 0.0_r_def),                                   &
+                   tracer_viscosity_kernel_type( dtheta, theta, 1, dx_at_w2,  &
+                                                 viscosity_mu ))
+      call invoke_momentum_viscosity_kernel_type( du, u, dx_at_w2,            &
+                                                   viscosity_mu )
+      call invoke( inc_X_plus_bY( theta, dt, dtheta ),                        &
                    inc_X_plus_bY( u,     dt, du ) )
       nullify( mesh )
     end if

@@ -37,7 +37,7 @@ module tl_rk_alg_timestep_mod
                                                 copy_bundle,  &
                                                 set_bundle_scalar
   use physical_op_constants_mod,          only: get_geopotential,  &
-                                                get_coriolis
+                                                get_coriolis, get_dx_at_w2
 
   ! PsyKAl PSYClone kernels
   use enforce_bc_kernel_mod,              only: enforce_bc_kernel_type
@@ -49,7 +49,7 @@ module tl_rk_alg_timestep_mod
   use vorticity_advection_kernel_mod,     only: vorticity_advection_kernel_type
   use w2_vorticity_advection_kernel_mod,  only: w2_vorticity_advection_kernel_type
   use tracer_viscosity_kernel_mod,        only: tracer_viscosity_kernel_type
-  use momentum_viscosity_kernel_mod,      only: momentum_viscosity_kernel_type
+  use psykal_lite_mod,                    only: invoke_momentum_viscosity_kernel_type
 
   ! TL
   use tl_pressure_gradient_bd_kernel_mod,    only: tl_pressure_gradient_bd_kernel_type
@@ -254,6 +254,7 @@ contains
     type(field_type),    pointer :: geopotential => null()
     type( field_type ),  pointer :: chi(:) => null()
     type( field_type ),  pointer :: panel_id => null()
+    type( field_type ),  pointer :: dx_at_w2 => null()
     type(operator_type), pointer :: m3_inv => null(), &
                                     coriolis => null()
 
@@ -474,13 +475,13 @@ contains
     ! Apply viscosity
     if ( viscosity ) then
       call log_event( 'Applying Viscosity', LOG_LEVEL_INFO )
-      call invoke(tracer_viscosity_kernel_type(   inc(igh_t), state(igh_t), 1, &
-                                                  chi, panel_id,               &
-                                                  viscosity_mu ),              &
-                  momentum_viscosity_kernel_type( inc(igh_u), state(igh_u), 1, &
-                                                  chi, panel_id,               &
-                                                  viscosity_mu ),              &
-                  setval_c(inc(igh_d), 0.0_r_def) )
+      dx_at_w2 => get_dx_at_w2(mesh_id)
+      call invoke(setval_c(inc(igh_u), 0.0_r_def),                             &
+                  tracer_viscosity_kernel_type(   inc(igh_t), state(igh_t), 1, &
+                                                  dx_at_w2, viscosity_mu ))
+      call invoke_momentum_viscosity_kernel_type( inc(igh_u), state(igh_u),    &
+                                                  dx_at_w2, viscosity_mu )
+      call invoke(setval_c(inc(igh_d), 0.0_r_def) )
       call bundle_axpy(dt, inc, state, state, bundle_size)
     end if
 
