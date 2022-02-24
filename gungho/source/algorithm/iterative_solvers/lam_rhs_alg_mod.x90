@@ -21,7 +21,6 @@ module lam_rhs_alg_mod
                                          get_mass_matrix,       &
                                          get_dl_mass_matrix,    &
                                          get_w2_si_mass_matrix, &
-                                         get_normalisation,     &
                                          get_inverse_w3_mass_matrix
   use limited_area_constants_mod,  only: get_mask
   use fs_continuity_mod,           only: W2, W3, Wtheta
@@ -76,6 +75,9 @@ contains
   !>          be used as an additional RHS term, rhs = A(x_b). This code is
   !>          similar to the operator constructor in mixed_operator_alg_mod.x90,
   !>          but noting that x_b is only non-zero for the wind field.
+  !>          Since these terms go into the rhs no normalisation is applied here
+  !>          (in contrast to the mixed operator) since the normalisation is
+  !>          applied for the whole rhs term before the solver is called.
   !> @param[in,out] rhs        RHS term for the mixed solve, to include LBCs
   !> @param[in]     lbc_fields Field collection containing LBC data
   subroutine calc_rhs_lbc( rhs, lbc_fields )
@@ -90,9 +92,7 @@ contains
                                     mm_w3_inv  => null(), &
                                     div        => null(), &
                                     ptheta2    => null()
-    type(field_type),    pointer :: rho_at_u      => null(), &
-                                    mt_lumped_inv => null(), &
-                                    m2_diag       => null()
+    type(field_type),    pointer :: rho_at_u   => null()
     type(field_type)             :: f_star, &
                                     u_tmp,  &
                                     r_tmp
@@ -115,11 +115,9 @@ contains
     wtheta_mask => get_mask(Wtheta, mesh_id)
 
     ! Obtain operators from runtime constants
-    mm_w3_inv     => get_inverse_w3_mass_matrix(mesh_id)
-    div           => get_div(mesh_id)
-    mt_lumped_inv => get_normalisation(Wtheta, mesh_id)
-    m2_diag       => get_normalisation(W2, mesh_id)
-    mm_vel        => get_w2_si_mass_matrix(mesh_id) ! = m2 (or dl) + tau_u*dt*coriolis
+    mm_w3_inv => get_inverse_w3_mass_matrix(mesh_id)
+    div       => get_div(mesh_id)
+    mm_vel    => get_w2_si_mass_matrix(mesh_id) ! = m2 (or dl) + tau_u*dt*coriolis
 
     ! Obtain operators from SI operators
     ptheta2  => get_ptheta2()
@@ -157,11 +155,6 @@ contains
                       dg_matrix_vector_kernel_type(rhs(igh_d),     &
                                                    r_tmp,          &
                                                    mm_w3_inv ),    &
-         ! Normalise lu and lt
-                      inc_X_times_Y(               rhs(igh_u),     &
-                                                   m2_diag),       &
-                      inc_X_times_Y(               rhs(igh_t),     &
-                                                   mt_lumped_inv), &
          ! Lateral boundaries
                       inc_X_times_Y(               rhs(igh_u),     &
                                                    w2_mask),       &
@@ -172,7 +165,7 @@ contains
                       )
 
     nullify ( boundary_u, w2_mask, w3_mask, wtheta_mask )
-    nullify ( mm_w3_inv, div, mt_lumped_inv, m2_diag, mm_vel )
+    nullify ( mm_w3_inv, div, mm_vel )
     nullify ( ptheta2, rho_at_u )
 
     if ( subroutine_timers ) call timer('rhs_lbc')
