@@ -370,10 +370,10 @@
             OMP_NUM_THREADS = 1
             PREVIOUS_CYCLE =
             NEMO_RESTART_MULTI =
-            NEMO_START=
+            NEMO_START={{TARGET_BIG_DATA_DIR}}/start_dumps/basic-gc/Tamaraw/19790101/cf652o_19790101_restart.nc
             ICEBERG_RESTART_MULTI=
-            NEMO_ICEBERG_START=
-            NEMO_ICEBERGS_START=
+            NEMO_ICEBERGS_START={{TARGET_BIG_DATA_DIR}}/start_dumps/basic-gc/Tamaraw/19790101/cd986o_icebergs_19781201_restart.nc
+            SI3_START={{TARGET_BIG_DATA_DIR}}/start_dumps/basic-gc/Tamaraw/19790101/cf652o_19790101_restart_ice.nc
 
 ##############################################################################
 # COMPILE {{projectName|upper}} PROJECT

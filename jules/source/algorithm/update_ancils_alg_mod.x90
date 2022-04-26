@@ -43,7 +43,6 @@ contains
     type( field_collection_type ), intent(in) :: ancil_fields
     type( field_collection_type ), intent(in) :: surface_fields
 
-    type( field_type ), pointer :: land_area_fraction => null()
     type( field_type ), pointer :: sea_ice_fraction   => null()
     type( field_type ), pointer :: tile_fraction      => null()
 
@@ -56,7 +55,6 @@ contains
     character(str_def)                   :: axis_name
 
     if (surface == surface_jules) then
-      land_area_fraction => ancil_fields%get_field('land_area_fraction')
       sea_ice_fraction   => ancil_fields%get_field('sea_ice_fraction')
       tile_fraction      => surface_fields%get_field('tile_fraction')
 
@@ -82,10 +80,8 @@ contains
             axis_name = trim(time_axis%get_name())
 
             if (axis_name == 'sea_ice_time') then
-              call invoke(process_ssi_kernel_type( land_area_fraction,      &
-                                                   sea_ice_fraction,        &
+              call invoke(process_ssi_kernel_type( sea_ice_fraction,        &
                                                    tile_fraction))
-              call land_area_fraction%log_minmax(LOG_LEVEL_INFO, 'sum of surface tiles')
             else if (axis_name == 'sst_time') then
               call invoke(multi_insert_kernel_type(tile_temperature,         &
                                                    tstar_sea, first_sea_tile,&

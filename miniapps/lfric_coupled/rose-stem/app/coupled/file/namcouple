@@ -22,7 +22,7 @@
 # NFIELDS : total number of fields being exchanged.
 #
  $NFIELDS
-          8
+         44
  $END
 #
 ###############################################################################
@@ -48,7 +48,11 @@ T
  $END
 #
  $STRINGS
-#######################################################
+#
+######################################################
+################## ATMOS TO OCEAN ####################
+######################################################
+#
 # wind stress (lfric) X component => ocean(NEMO)
 #
  lf_taux O_OTaux1 466 3600 1 atmos_restart.nc   EXPORTED
@@ -119,14 +123,333 @@ T
  rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
 #######################################################
 #
-# Test field ocean(NEMO) => atmos(lfric)
+######################################################
+ lf_evap OTotEvap 466 3600 1 atmos_restart.nc   EXPORTED
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
 #
- S_OC_DUMMY_T r_lf_dummy_t 466 720 1 atmos_restart.nc   EXPORTED
- 1442 1207 13824 1 tor1 lfric SEQ=+1
- P  2  P  0
+ MAPPING
+##
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+######################################################
+ lf_topmelt_cat01 OTopMlt_cat01 466 3600 1 atmos_restart.nc   EXPORTED
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+##
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+######################################################
+ lf_topmelt_cat02 OTopMlt_cat02 466 3600 1 atmos_restart.nc   EXPORTED
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+##
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+######################################################
+ lf_topmelt_cat03 OTopMlt_cat03 466 3600 1 atmos_restart.nc   EXPORTED
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+##
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+######################################################
+ lf_topmelt_cat04 OTopMlt_cat04 466 3600 1 atmos_restart.nc   EXPORTED
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+##
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+######################################################
+ lf_topmelt_cat05 OTopMlt_cat05 466 3600 1 atmos_restart.nc   EXPORTED
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+##
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+######################################################
+ lf_iceheatflux_cat01 OBotMlt_cat01 466 3600 1 atmos_restart.nc   EXPORTED
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+##
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+######################################################
+ lf_iceheatflux_cat02 OBotMlt_cat02 466 3600 1 atmos_restart.nc   EXPORTED
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+##
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+######################################################
+ lf_iceheatflux_cat03 OBotMlt_cat03 466 3600 1 atmos_restart.nc   EXPORTED
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+##
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+######################################################
+ lf_iceheatflux_cat04 OBotMlt_cat04 466 3600 1 atmos_restart.nc   EXPORTED
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+##
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+######################################################
+ lf_iceheatflux_cat05 OBotMlt_cat05 466 3600 1 atmos_restart.nc   EXPORTED
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+##
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+######################################################
+ lf_sublimation_cat01 OIceEvap_cat01 466 3600 1 atmos_restart.nc   EXPORTED
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+##
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+######################################################
+ lf_sublimation_cat02 OIceEvap_cat02 466 3600 1 atmos_restart.nc   EXPORTED
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+##
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+######################################################
+ lf_sublimation_cat03 OIceEvap_cat03 466 3600 1 atmos_restart.nc   EXPORTED
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+##
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+######################################################
+ lf_sublimation_cat04 OIceEvap_cat04 466 3600 1 atmos_restart.nc   EXPORTED
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+##
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+######################################################
+ lf_sublimation_cat05 OIceEvap_cat05 466 3600 1 atmos_restart.nc   EXPORTED
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+##
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+######################################################
+ lf_iceskint_cat01 OTsfIce_cat01 466 3600 1 atmos_restart.nc   EXPORTED
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+##
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+######################################################
+ lf_iceskint_cat02 OTsfIce_cat02 466 3600 1 atmos_restart.nc   EXPORTED
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+##
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+######################################################
+ lf_iceskint_cat03 OTsfIce_cat03 466 3600 1 atmos_restart.nc   EXPORTED
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+##
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+######################################################
+ lf_iceskint_cat04 OTsfIce_cat04 466 3600 1 atmos_restart.nc   EXPORTED
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+##
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+######################################################
+ lf_iceskint_cat05 OTsfIce_cat05 466 3600 1 atmos_restart.nc   EXPORTED
+ 13824 1 1442 1207 lfric tor1 SEQ=+2
+ P  0  P  2
+#
+ MAPPING
+##
+ rmp_lfric_to_tor1_nomask_CONSERVE_DSTAREA.nc
+#
+######################################################
+############### OCEAN TO ATMOS #######################
+######################################################
+#
+ OIceFrc_cat01 lf_icefrc_cat01 466 3600 1 atmos_restart.nc   EXPORTED
+ 1442 1207 13824 1 tor1 atm3 SEQ=+1
+ P  2  P 0
 #
  MAPPING
 #
  rmp_tor1_to_lfric_CONSERVE_FRACAREA.nc
-#######################################################
+#
+############################################################################
+ OIceFrc_cat02 lf_icefrc_cat02 466 3600 1 atmos_restart.nc   EXPORTED
+ 1442 1207 13824 1 tor1 atm3 SEQ=+1
+ P  2  P 0
+#
+ MAPPING
+#
+ rmp_tor1_to_lfric_CONSERVE_FRACAREA.nc
+#
+############################################################################
+ OIceFrc_cat03 lf_icefrc_cat03 466 3600 1 atmos_restart.nc   EXPORTED
+ 1442 1207 13824 1 tor1 atm3 SEQ=+1
+ P  2  P 0
+#
+ MAPPING
+#
+ rmp_tor1_to_lfric_CONSERVE_FRACAREA.nc
+#
+############################################################################
+ OIceFrc_cat04 lf_icefrc_cat04 466 3600 1 atmos_restart.nc   EXPORTED
+ 1442 1207 13824 1 tor1 atm3 SEQ=+1
+ P  2  P 0
+#
+ MAPPING
+#
+ rmp_tor1_to_lfric_CONSERVE_FRACAREA.nc
+#
+############################################################################ 
+ OIceFrc_cat05 lf_icefrc_cat05 466 3600 1 atmos_restart.nc   EXPORTED
+ 1442 1207 13824 1 tor1 atm3 SEQ=+1
+ P  2  P 0
+#
+ MAPPING
+#
+ rmp_tor1_to_lfric_CONSERVE_FRACAREA.nc
+#
+############################################################################# 
+ OIceTck_cat01 lf_icetck_cat01 466 3600 1 atmos_restart.nc   EXPORTED
+ 1442 1207 13824 1 tor1 lfric SEQ=+1
+ P  2  P 0
+#
+ MAPPING
+##
+ rmp_tor1_to_lfric_CONSERVE_FRACAREA.nc
+#
+############################################################################# 
+ OIceTck_cat02 lf_icetck_cat02 466 3600 1 atmos_restart.nc   EXPORTED
+ 1442 1207 13824 1 tor1 lfric SEQ=+1
+ P  2  P 0
+#
+ MAPPING
+##
+ rmp_tor1_to_lfric_CONSERVE_FRACAREA.nc
+#
+############################################################################# 
+ OIceTck_cat03 lf_icetck_cat03 466 3600 1 atmos_restart.nc   EXPORTED
+ 1442 1207 13824 1 tor1 lfric SEQ=+1
+ P  2  P 0
+#
+ MAPPING
+##
+ rmp_tor1_to_lfric_CONSERVE_FRACAREA.nc
+#
+#############################################################################
+ OIceTck_cat04 lf_icetck_cat04 466 3600 1 atmos_restart.nc   EXPORTED
+ 1442 1207 13824 1 tor1 lfric SEQ=+1
+ P  2  P 0
+#
+ MAPPING
+##
+ rmp_tor1_to_lfric_CONSERVE_FRACAREA.nc
+#
+############################################################################# 
+ OIceTck_cat05 lf_icetck_cat05 466 3600 1 atmos_restart.nc   EXPORTED
+ 1442 1207 13824 1 tor1 lfric SEQ=+1
+ P  2  P 0
+#
+ MAPPING
+##
+ rmp_tor1_to_lfric_CONSERVE_FRACAREA.nc
+#
+############################################################################# 
+ O_TtiLyr_cat01 lf_icelayert_cat01 466 3600 1 atmos_restart.nc   EXPORTED
+ 1442 1207 13824 1 tor1 lfric SEQ=+1
+ P  2  P 0
+#
+ MAPPING
+##
+ rmp_tor1_to_lfric_CONSERVE_FRACAREA.nc
+#
+############################################################################# 
+ O_TtiLyr_cat02 lf_icelayert_cat02 466 3600 1 atmos_restart.nc   EXPORTED
+ 1442 1207 13824 1 tor1 lfric SEQ=+1
+ P  2  P 0
+#
+ MAPPING
+##
+ rmp_tor1_to_lfric_CONSERVE_FRACAREA.nc
+#
+############################################################################# 
+ O_TtiLyr_cat03 lf_icelayert_cat03 466 3600 1 atmos_restart.nc   EXPORTED
+ 1442 1207 13824 1 tor1 lfric SEQ=+1
+ P  2  P 0
+#
+ MAPPING
+##
+ rmp_tor1_to_lfric_CONSERVE_FRACAREA.nc
+#
+#############################################################################
+ O_TtiLyr_cat04 lf_icelayert_cat04 466 3600 1 atmos_restart.nc   EXPORTED
+ 1442 1207 13824 1 tor1 lfric SEQ=+1
+ P  2  P 0
+#
+ MAPPING
+##
+ rmp_tor1_to_lfric_CONSERVE_FRACAREA.nc
+#
+############################################################################# 
+ O_TtiLyr_cat05 lf_icelayert_cat05 466 3600 1 atmos_restart.nc   EXPORTED
+ 1442 1207 13824 1 tor1 lfric SEQ=+1
+ P  2  P 0
+#
+ MAPPING
+##
+ rmp_tor1_to_lfric_CONSERVE_FRACAREA.nc
+#
+############################################################################# 
+#
 $END

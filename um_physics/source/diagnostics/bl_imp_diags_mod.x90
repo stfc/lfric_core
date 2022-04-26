@@ -111,7 +111,6 @@ contains
   !> @param[in,out] soil_evap          Water evaporation flux from soil
   !> @param[in,out] grid_canopy_evap   water evaporation flux from canopy
   !> @param[in,out] grid_sublimation   grid surface snow sublimation rate
-  !> @param[in,out] surf_ht_flux       downward heat flux at ground level on tiles
   !> @param[in,out] soil_surf_ht_flux  downward heat flux at ground level in soil
   !> @param[in,out] surf_sw_net        surface net downward shortwave flux on tiles
   !> @param[in,out] surf_radnet        surface net downward radiative flux on tiles
@@ -139,7 +138,7 @@ contains
                                          snomlt_surf_htf, soil_evap,     &
                                          grid_canopy_evap,               &
                                          grid_sublimation,               &
-                                         surf_ht_flux, soil_surf_ht_flux,&
+                                         soil_surf_ht_flux,              &
                                          surf_sw_net, surf_radnet,       &
                                          surf_lw_up, surf_lw_down,       &
                                          grid_surface_temperature,       &
@@ -171,7 +170,7 @@ contains
     type( field_type ), intent(inout) :: snomlt_surf_htf
     type( field_type ), intent(inout) :: soil_evap, grid_canopy_evap
     type( field_type ), intent(inout) :: grid_sublimation
-    type( field_type ), intent(inout) :: surf_ht_flux, soil_surf_ht_flux
+    type( field_type ), intent(inout) :: soil_surf_ht_flux
     type( field_type ), intent(inout) :: surf_sw_net, surf_radnet
     type( field_type ), intent(inout) :: surf_lw_up, surf_lw_down
     type( field_type ), intent(inout) :: grid_surface_temperature
@@ -296,9 +295,6 @@ contains
     latent_heat_flag = .true.
     call tile_fraction%copy_field_properties(latent_heat)
 
-    surf_ht_flux_flag = .true.
-    call tile_fraction%copy_field_properties(surf_ht_flux)
-
     surf_sw_net_flag = .true.
     call tile_fraction%copy_field_properties(surf_sw_net)
 
@@ -322,7 +318,7 @@ contains
   !> @param[in]     tile_moisture_flux       surface moisture flux on tiles
   !> @param[in]     tile_temperature         surface temperature on tiles
   !> @param[in]     grid_surface_temperature Grid mean surface temperature
-  !> @param[in]     snow_sublimation         surface snow sublimation rate on tiles
+  !> @param[in]     snowice_sublimation      surface snow and ice sublimation rate on tiles
   !> @param[in]     canopy_evap              canopy evaporation on tiles
   !> @param[in]     wspd10m                  10m wind speed
   !> @param[in]     u10m                     Zonal 10m wind speed
@@ -395,7 +391,7 @@ contains
   subroutine output_diags_for_bl_imp(zh, du_bl_w2, tile_heat_flux,             &
                                      tile_moisture_flux, tile_temperature,     &
                                      grid_surface_temperature,                 &
-                                     snow_sublimation, canopy_evap,            &
+                                     snowice_sublimation, canopy_evap,         &
                                      wspd10m, u10m, v10m, wind_gust,           &
                                      wspd10m_neut, u10m_neut, v10m_neut,       &
                                      taux, tauy, tau_w2, taux_ssi, tauy_ssi,   &
@@ -438,7 +434,7 @@ contains
     ! Prognostic fields to output
     type( field_type ), intent(in)    :: zh, tile_heat_flux, tile_fraction,    &
                                          tile_moisture_flux, tile_temperature, &
-                                         snow_sublimation,                     &
+                                         snowice_sublimation,                  &
                                          canopy_evap, wspd10m, taux_ssi,       &
                                          tauy_ssi, du_bl_w2, dtheta_bl,        &
                                          heat_flux_bl, moist_flux_bl, dt_conv
@@ -501,7 +497,7 @@ contains
     call wspd10m%write_field('surface__wspd10m')
     call taux_ssi%write_field('surface__taux_ssi')
     call tauy_ssi%write_field('surface__tauy_ssi')
-    call snow_sublimation%write_field('surface__snow_sublimation')
+    call snowice_sublimation%write_field('surface__snowice_sublimation')
 
     ! Diagnostics locally computed here from other fields
     dt_bl_flag = .true.
@@ -559,8 +555,8 @@ contains
     end if
     if (grid_sublimation_flag) then
       call invoke(weighted_ave_kernel_type(grid_sublimation,                   &
-                                            snow_sublimation, tile_fraction,   &
-                                            1, n_surf_tile) )
+                                           snowice_sublimation, tile_fraction, &
+                                           1, n_surf_tile) )
       call grid_sublimation%write_field('surface__grid_sublimation')
     end if
     if (taux_flag .or. tauy_flag) then

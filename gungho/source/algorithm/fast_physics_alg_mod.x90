@@ -133,11 +133,9 @@ contains
 
 #ifdef UM_PHYSICS
     ! ...surface fields passed from BL to Jules
-    type( field_type ) :: snow_sublimation
     type( field_type ) :: surf_heat_flux
     type( field_type ) :: canopy_evap
     type( field_type ) :: water_extraction
-    type( field_type ) :: total_snowmelt
 
     ! Temporary field to unpack from field collection
     type( field_type), pointer :: dmv_conv => null()
@@ -204,9 +202,9 @@ contains
     if (boundary_layer == boundary_layer_um .and. &
         blayer_placement == blayer_placement_fast) then
       call du%copy_field_properties(du_bl)
-      call bl_imp_alg(dtheta_bl, du_bl, mr, snow_sublimation,             &
+      call bl_imp_alg(dtheta_bl, du_bl, mr,                               &
                       surf_heat_flux, canopy_evap, water_extraction,      &
-                      total_snowmelt, theta, exner, mr_n, rho,            &
+                      theta, exner, mr_n, rho,                            &
                       derived_fields, radiation_fields, orography_fields, &
                       turbulence_fields, convection_fields, cloud_fields, &
                       surface_fields, soil_fields, snow_fields,           &
@@ -220,8 +218,8 @@ contains
            outer == outer_iterations ) then
         call jules_extra_alg(microphysics_fields, convection_fields,        &
                              surface_fields, soil_fields, snow_fields,      &
-                             snow_sublimation, surf_heat_flux, canopy_evap, &
-                             water_extraction, total_snowmelt)
+                             surf_heat_flux, canopy_evap,                   &
+                             water_extraction)
       end if ! jules
     end if ! fast_bl
 

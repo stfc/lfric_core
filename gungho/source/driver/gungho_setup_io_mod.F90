@@ -74,6 +74,7 @@ module gungho_setup_io_mod
                                        orog_init_option_ancil
   use time_config_mod,           only: timestep_start,            &
                                        timestep_end
+  use derived_config_mod,        only: l_esm_couple
 #ifdef UM_PHYSICS
   use surface_config_mod,        only: sea_alb_var_chl, albedo_obs
   use aerosol_config_mod,        only: glomap_mode, glomap_mode_ukca
@@ -177,10 +178,12 @@ module gungho_setup_io_mod
       call append_file_to_list(tmp_file, files_list)
 
       ! Set sea ice ancil filename from namelist
-      write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
-                               trim(sea_ice_ancil_path)
-      call tmp_file%init_xios_file("sea_ice_ancil", path=ancil_fname)
-      call append_file_to_list(tmp_file, files_list)
+      if (.not. l_esm_couple) then
+        write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                                 trim(sea_ice_ancil_path)
+        call tmp_file%init_xios_file("sea_ice_ancil", path=ancil_fname)
+        call append_file_to_list(tmp_file, files_list)
+      end if
 
       if ( albedo_obs ) then
         ! Set albedo_vis ancil filename from namelist

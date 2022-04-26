@@ -8,8 +8,12 @@
 
 module jules_control_init_mod
 
+  ! Section choices
+  use section_choice_config_mod,  only : surface, surface_jules
+
   ! LFRic namelists which have been read
   use well_mixed_gases_config_mod, only : co2_mix_ratio
+  use surface_config_mod,          only : n_sea_ice_tile_in => n_sea_ice_tile
 
   ! Other LFRic modules used
   use constants_mod,        only : r_um, rmdi, i_def
@@ -21,10 +25,10 @@ module jules_control_init_mod
 
   integer(kind=i_def), parameter :: n_land_tile = 9
   integer(kind=i_def), parameter :: n_sea_tile  = 1
-  integer(kind=i_def), parameter :: n_sea_ice_tile = 1
 
   integer(kind=i_def), parameter :: n_surf_interp = 11
 
+  integer(kind=i_def), protected :: n_sea_ice_tile
   integer(kind=i_def), protected :: n_surf_tile
   integer(kind=i_def), protected :: first_sea_tile
   integer(kind=i_def), protected :: first_sea_ice_tile
@@ -66,6 +70,14 @@ contains
                                  v_i_length, v_j_length
 
     implicit none
+
+    ! If using the JULES surface then get the number of sea ice tiles
+    ! from the surface namelist
+    if (surface == surface_jules) then
+       n_sea_ice_tile = n_sea_ice_tile_in
+    else
+       n_sea_ice_tile = 1
+    end if
 
     ! Total number of surface tiles, used to dimension LFRic
     ! multidata fields

@@ -32,8 +32,9 @@ module create_fd_prognostics_mod
                                              ancil_option_updating,       &
                                              read_w2h_wind
   use nlsizes_namelist_mod,           only : sm_levels
-  use jules_control_init_mod,         only : n_land_tile
+  use jules_control_init_mod,         only : n_land_tile, n_sea_ice_tile
   use jules_physics_init_mod,         only : snow_lev_tile
+  use derived_config_mod,             only : l_esm_couple
 
   implicit none
   private
@@ -252,10 +253,22 @@ contains
                              twod=.true., ndata=n_land_tile)
       call setup_ancil_field("tstar_sea_ice", depository, &
                              fd_field_collection, mesh, twod_mesh, &
-                             twod=.true.)
+                             twod=.true., ndata=n_sea_ice_tile)
       call setup_ancil_field("sea_ice_temperature", depository, &
                              fd_field_collection, mesh, twod_mesh, &
-                             twod=.true.)
+                             twod=.true., ndata=n_sea_ice_tile)
+
+      ! For coupled models get the sea ice fraction and thickness from the
+      ! dump
+      if (l_esm_couple) then
+         call setup_ancil_field("sea_ice_fraction", depository, &
+                             fd_field_collection, mesh, twod_mesh, &
+                             twod=.true., ndata=n_sea_ice_tile)
+         call setup_ancil_field("sea_ice_thickness", depository, &
+                             fd_field_collection, mesh, twod_mesh, &
+                             twod=.true., ndata=n_sea_ice_tile)
+      endif
+
       ! snow fields
       call setup_ancil_field("tile_snow_mass_in", depository, &
                              fd_field_collection, mesh, twod_mesh, &

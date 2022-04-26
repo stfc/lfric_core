@@ -16,14 +16,15 @@
 
 program lfric_coupled
 
-  use cli_mod,           only : get_initial_filename
-  use gungho_driver_mod, only : initialise, run, finalise
-  use mod_wait,          only : init_wait
-  use mpi_mod,           only : initialise_comm, &
-                                finalise_comm
-  use xios,              only : xios_initialize, &
-                                xios_finalize
-  use coupler_mod,       only : cpl_initialize, cpl_finalize, l_esm_couple
+  use cli_mod,            only : get_initial_filename
+  use gungho_driver_mod,  only : initialise, run, finalise
+  use mod_wait,           only : init_wait
+  use mpi_mod,            only : initialise_comm, &
+                                 finalise_comm
+  use xios,               only : xios_initialize, &
+                                 xios_finalize
+  use derived_config_mod, only : l_esm_couple
+  use coupler_mod,        only : cpl_initialize, cpl_finalize
 
   implicit none
 

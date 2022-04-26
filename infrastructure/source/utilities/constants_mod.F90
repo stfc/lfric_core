@@ -140,7 +140,7 @@ module constants_mod
   integer, parameter :: str_def          = 128 !< Default string length for normal strings.
   integer, parameter :: str_long         = 255 !< Default length of long string.
   integer, parameter :: str_longlong     = 512 !< Default length of longer string.
-  integer, parameter :: str_max_filename = 512 !< Default maximum length of a file-name.
+  integer, parameter :: str_max_filename = 1024 !< Default maximum length of a file-name.
   !> @}
 
   !> @name Platform constants

@@ -618,7 +618,7 @@
         <field id="surface__canopy_evap" name="canopy_evaporation" long_name="water_evaporation_flux_from_canopy" unit="kg m-2 s-1" domain_ref='face' axis_ref="surface_tiles"/>
         <field id="surface__grid_canopy_evap" name="grid_canopy_evaporation" long_name="grid_water_evaporation_flux_from_canopy" unit="kg m-2 s-1" domain_ref='face' />
         <field id="surface__soil_evap" name="soil_evaporation" long_name="water_evaporation_flux_from_soil" unit="kg m-2 s-1" domain_ref='face' />
-        <field id="surface__snow_sublimation" name="snow_sublimation" long_name="surface_snow_sublimation_rate" unit="kg m-2 s-1" domain_ref='face' axis_ref="surface_tiles" />
+        <field id="surface__snowice_sublimation" name="snowice_sublimation" long_name="surface_snow_and_ice_sublimation_rate" unit="kg m-2 s-1" domain_ref='face' axis_ref="surface_tiles" />
         <field id="surface__grid_sublimation" name="grid_sublimation" long_name="grid_surface_snow_sublimation_rate" unit="kg m-2 s-1" domain_ref='face' />
         <field id="surface__snomlt_surf_htf" name="snomlt_surf_htf" long_name="surface_snow_melt_heat_flux" unit="W m-2" domain_ref='face' />
         <field id="surface__surf_ht_flux" name="surf_ht_flux" long_name="downward_heat_flux_at_ground_level" unit="W m-2" domain_ref='face' axis_ref="surface_tiles" />
@@ -634,7 +634,7 @@
 	<!-- Jules snow diagnostics -->
 	<field id="snow__snow_mass" name="snow_mass_on_tiles" long_name="surface_snow_amount" unit="kg m-2" domain_ref="face" axis_ref="surface_tiles"/>
 	<field id="snow__grid_snow_mass" name="grid_snow_mass" long_name="grid_surface_snow_amount" unit="kg m-2" domain_ref="face"/>
-	<field id="snow__total_snowmelt" name="total_snowmelt" long_name="surface_snow_melt_flux" unit="kg m-2 s-1" domain_ref="face" axis_ref="surface_tiles"/>
+	<field id="snow__snowice_melt" name="snowice_melt" long_name="surface_snow_and_ice_melt_flux" unit="kg m-2 s-1" domain_ref="face" axis_ref="surface_tiles"/>
 	<field id="snow__grid_snowmelt" name="grid_snowmelt" long_name="grid_surface_snow_melt_flux" unit="kg m-2 s-1" domain_ref="face" />
 	<field id="snow__snow_depth" name="snow_depth" long_name="snow_depth" unit="m" domain_ref="face" axis_ref="surface_tiles"/>
 	<field id="snow__tile_snow_rgrain" name="tile_snow_rgrain" long_name="tile_snow_grain_size" unit="microns" domain_ref="face" axis_ref="surface_tiles"/>

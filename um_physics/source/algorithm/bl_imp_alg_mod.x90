@@ -48,11 +48,9 @@ contains
   !>@param[in,out] dtheta_bl         Theta increment
   !>@param[in,out] du_bl             3D wind increment
   !>@param[in,out] mr                Mixing ratios
-  !>@param[out]    snow_sublimation  Sublimation of snow
   !>@param[out]    surf_heat_flux    Net surface heat flux
   !>@param[out]    canopy_evap       Canopy evaporation from land tiles
   !>@param[out]    water_extraction  Extraction of water from each soil layer
-  !>@param[out]    total_snowmelt    Surface plus canopy snowmelt rate
   !>@param[in]     theta             Theta in its native (wth) space
   !>@param[in]     exner             Exner Pressure in the w3 space
   !>@param[in]     mr_n              Mixing ratios at time level n
@@ -69,9 +67,9 @@ contains
   !>@param[in]     microphysics_fields Fields for microphysics scheme 
   !>@param[in]     outer             Outer loop counter
   !>@param[in]     clock             The clock object
-  subroutine bl_imp_alg(dtheta_bl, du_bl, mr, snow_sublimation,          &
+  subroutine bl_imp_alg(dtheta_bl, du_bl, mr,                            &
                         surf_heat_flux, canopy_evap, water_extraction,   &
-                        total_snowmelt, theta, exner, mr_n, rho,         &
+                        theta, exner, mr_n, rho,                         &
                         derived_fields, radiation_fields,                &
                         orography_fields, turbulence_fields,             &
                         convection_fields, cloud_fields, surface_fields, &
@@ -84,9 +82,8 @@ contains
     implicit none
 
     type( field_type ), intent( inout )     :: dtheta_bl, du_bl, mr(nummr)
-    type( field_type ), intent( out )       :: snow_sublimation,              &
-                                               surf_heat_flux, canopy_evap,   &
-                                               water_extraction, total_snowmelt
+    type( field_type ), intent( out )       :: surf_heat_flux, canopy_evap,   &
+                                               water_extraction
     type( field_type ), intent( in )        :: theta, exner, rho, mr_n(nummr)
 
     type( field_collection_type ), intent(in)    :: derived_fields
@@ -172,6 +169,9 @@ contains
     type( field_type ), pointer :: canopy_water        => null()
     type( field_type ), pointer :: tile_heat_flux      => null()
     type( field_type ), pointer :: tile_moisture_flux  => null()
+    type( field_type ), pointer :: snowice_melt        => null()
+    type( field_type ), pointer :: surf_ht_flux        => null()
+    type( field_type ), pointer :: snowice_sublimation => null()
     type( field_type ), pointer :: alpha1_tile         => null()
     type( field_type ), pointer :: ashtf_prime_tile    => null()
     type( field_type ), pointer :: dtstar_tile         => null()
@@ -228,7 +228,7 @@ contains
     type( field_type ) :: snomlt_surf_htf
     type( field_type ) :: soil_evap, grid_canopy_evap
     type( field_type ) :: grid_sublimation
-    type( field_type ) :: surf_ht_flux, soil_surf_ht_flux
+    type( field_type ) :: soil_surf_ht_flux
     type( field_type ) :: surf_sw_net, surf_radnet
     type( field_type ) :: surf_lw_up, surf_lw_down
     type( field_type ) :: grid_surface_temperature
@@ -320,6 +320,9 @@ contains
     canopy_water          => surface_fields%get_field('canopy_water')
     tile_heat_flux        => surface_fields%get_field('tile_heat_flux')
     tile_moisture_flux    => surface_fields%get_field('tile_moisture_flux')
+    snowice_melt          => surface_fields%get_field('snowice_melt')
+    surf_ht_flux          => surface_fields%get_field('surf_ht_flux')
+    snowice_sublimation   => surface_fields%get_field('snowice_sublimation')
     alpha1_tile           => surface_fields%get_field('alpha1_tile')
     ashtf_prime_tile      => surface_fields%get_field('ashtf_prime_tile')
     dtstar_tile           => surface_fields%get_field('dtstar_tile')
@@ -362,10 +365,8 @@ contains
     latitude   => get_latitude(mesh%get_id())
 
     ! Local surface fields that need creating
-    call tile_temperature%copy_field_properties(snow_sublimation)
     call tile_temperature%copy_field_properties(surf_heat_flux)
     call tile_temperature%copy_field_properties(canopy_evap)
-    call tile_temperature%copy_field_properties(total_snowmelt)
     call soil_temperature%copy_field_properties(water_extraction)
 
     ! Set up the BL increments
@@ -386,7 +387,7 @@ contains
                                      latent_heat, grid_latent_heat,            &
                                      snomlt_surf_htf, soil_evap,               &
                                      grid_canopy_evap, grid_sublimation,       &
-                                     surf_ht_flux, soil_surf_ht_flux,          &
+                                     soil_surf_ht_flux,                        &
                                      surf_sw_net, surf_radnet,                 &
                                      surf_lw_up, surf_lw_down,                 &
                                      grid_surface_temperature,                 &
@@ -455,8 +456,8 @@ contains
                            snow_depth, canopy_water, soil_temperature,         &
                            tile_heat_flux, tile_moisture_flux,                 &
                            sw_up_tile, sw_down_surf, lw_down_surf,             &
-                           snow_sublimation, surf_heat_flux, canopy_evap,      &
-                           water_extraction, total_snowmelt,                   &
+                           snowice_sublimation, surf_heat_flux, canopy_evap,   &
+                           water_extraction, snowice_melt,                     &
                            dtheta_bl, diss_u, diss_v, dt_conv,                 &
                            mr(imr_v), mr(imr_cl), mr(imr_ci),                  &
                            cf_area, cf_fro, cf_liq, cf_bulk, rh_crit,          &
@@ -514,7 +515,7 @@ contains
         call output_diags_for_bl_imp(zh, du_bl, tile_heat_flux,                &
                                    tile_moisture_flux, tile_temperature,       &
                                    grid_surface_temperature,                   &
-                                   snow_sublimation, canopy_evap,              &
+                                   snowice_sublimation, canopy_evap,           &
                                    wspd10m, u10m, v10m, wind_gust,             &
                                    wspd10m_neut, u10m_neut, v10m_neut,         &
                                    taux, tauy, tau_w2, taux_ssi, tauy_ssi,     &

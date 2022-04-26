@@ -105,9 +105,11 @@ module gungho_model_mod
                                          method_no_timestepping, &
                                          spinup_period
   use yaxt,                       only : xt_initialize, xt_finalize
+  use derived_config_mod,         only : l_esm_couple
 #ifdef COUPLED
-  use coupler_mod,                only : l_esm_couple, cpl_define, cpl_fields
+  use coupler_mod,                only : cpl_define, cpl_fields
 #endif
+
 #ifdef UM_PHYSICS
   use jules_control_init_mod,     only : jules_control_init
   use jules_physics_init_mod,     only : jules_physics_init
@@ -206,8 +208,8 @@ contains
 
 #ifdef UM_PHYSICS
     integer(i_def) :: ncells
-
 #endif
+
     !-------------------------------------------------------------------------
     ! Initialise aspects of the infrastructure
     !-------------------------------------------------------------------------

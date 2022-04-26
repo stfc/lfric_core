@@ -1,0 +1,47 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Process ocean and sea ice data coming through the coupler
+
+module process_o2a_algorithm_mod
+  use field_mod,                     only: field_type
+  use field_collection_mod,          only: field_collection_type
+  use process_o2a_kernel_mod,        only: process_o2a_kernel_type
+  use coupler_diagnostics_mod,       only: sea_ice_frac_raw
+
+  implicit none
+
+  public process_o2a_algorithm
+
+  contains
+
+  !> @brief Process ocean and sea ice data coming through the coupler
+  !> @param[in] dcpl_rcv field collection of all fields recieved through the coupler
+  subroutine process_o2a_algorithm(dcpl_rcv)
+   implicit none
+   type( field_collection_type ), intent(in)    :: dcpl_rcv
+
+   !local variables
+   type( field_type ), pointer                :: sea_ice_fraction_ptr => null()
+   type( field_type ), pointer                :: sea_ice_thickness_ptr => null()
+   type( field_type ), pointer                :: sea_ice_layer_t_ptr => null()
+
+   ! Get the pointers to the fields
+   sea_ice_fraction_ptr => dcpl_rcv%get_field("lf_icefrc")
+   sea_ice_thickness_ptr => dcpl_rcv%get_field("lf_icetck")
+   sea_ice_layer_t_ptr => dcpl_rcv%get_field("lf_icelayert")
+
+   ! Save raw sea ice fractions before any post processing
+   ! for use in scaling data going from atmos to ocean
+   call invoke(setval_X(sea_ice_frac_raw, sea_ice_fraction_ptr),               &
+
+      ! Process ocean and sea ice data coming through the coupler
+      process_o2a_kernel_type( sea_ice_fraction_ptr,                           &
+                                        sea_ice_thickness_ptr,                 &
+                                        sea_ice_layer_t_ptr ))
+
+  end subroutine process_o2a_algorithm
+end module process_o2a_algorithm_mod

@@ -83,11 +83,11 @@ module bl_imp_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! sw_up_tile
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! sw_down_surf
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! lw_down_surf
-         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! snow_sublimation  (kg m-2 s-1)
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! snowice_sublimation (kg m-2 s-1)
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! surf_heat_flux (W m-2)
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! canopy_evap (kg m-2 s-1)
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_5),&! water_extraction (kg m-2 s-1)
-         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! total_snowmelt (kg m-2 s-1)
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! snowice_melt (kg m-2 s-1)
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     WTHETA),                   &! dtheta_bl
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! diss_u
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! diss_v
@@ -203,11 +203,11 @@ contains
   !> @param[in]     sw_up_tile           Upwelling SW radiation on surface tiles
   !> @param[in]     sw_down_surf         Downwelling SW radiation at surface
   !> @param[in]     lw_down_surf         Downwelling LW radiation at surface
-  !> @param[in,out] snow_sublimation     Sublimation of snow
+  !> @param[in,out] snowice_sublimation  Sublimation of snow and ice
   !> @param[in,out] surf_heat_flux       Surface heat flux
   !> @param[in,out] canopy_evap          Canopy evaporation from land tiles
   !> @param[in,out] water_extraction     Extraction of water from each soil layer
-  !> @param[in,out] total_snowmelt       Surface plus canopy snowmelt rate
+  !> @param[in,out] snowice_melt         Surface, canopy and sea ice, snow and ice melt rate
   !> @param[in,out] dtheta_bl            BL theta increment
   !> @param[in]     diss_u               Zonal Molecular dissipation rate
   !> @param[in]     diss_v               Meridional Molecular dissipation rate
@@ -334,11 +334,11 @@ contains
                          sw_up_tile,                         &
                          sw_down_surf,                       &
                          lw_down_surf,                       &
-                         snow_sublimation,                   &
+                         snowice_sublimation,                &
                          surf_heat_flux,                     &
                          canopy_evap,                        &
                          water_extraction,                   &
-                         total_snowmelt,                     &
+                         snowice_melt,                       &
                          dtheta_bl,                          &
                          diss_u,                             &
                          diss_v,                             &
@@ -542,10 +542,10 @@ contains
     real(kind=r_def), intent(inout) :: tile_heat_flux(undf_tile)
     real(kind=r_def), intent(inout) :: tile_moisture_flux(undf_tile)
     real(kind=r_def), intent(in)    :: sw_up_tile(undf_tile)
-    real(kind=r_def), intent(inout)   :: snow_sublimation(undf_tile)
+    real(kind=r_def), intent(inout)   :: snowice_sublimation(undf_tile)
     real(kind=r_def), intent(inout)   :: surf_heat_flux(undf_tile)
     real(kind=r_def), intent(inout)   :: canopy_evap(undf_tile)
-    real(kind=r_def), intent(inout)   :: total_snowmelt(undf_tile)
+    real(kind=r_def), intent(inout)   :: snowice_melt(undf_tile)
 
     real(kind=r_def), intent(in) :: leaf_area_index(undf_pft)
     real(kind=r_def), intent(in) :: canopy_height(undf_pft)
@@ -1403,11 +1403,11 @@ contains
              tile_moisture_flux(map_tile(1)+first_sea_tile-1)                  &
              + fluxes%fqw_surft(1,i) * tile_fraction(map_tile(1)+i-1)
         end if
-        snow_sublimation(map_tile(1)+i-1) = real(fluxes%ei_surft(1, i), r_def)
+        snowice_sublimation(map_tile(1)+i-1) = real(fluxes%ei_surft(1, i), r_def)
         ! NB - net surface heat flux
         surf_heat_flux(map_tile(1)+i-1) = real(fluxes%surf_htf_surft(1, i), r_def)
         canopy_evap(map_tile(1)+i-1) = real(fluxes%ecan_surft(1, i), r_def)
-        total_snowmelt(map_tile(1)+i-1) = real(fluxes%melt_surft(1, i), r_def)
+        snowice_melt(map_tile(1)+i-1) = real(fluxes%melt_surft(1, i), r_def)
       end do
 
       ! Update sea tile
@@ -1420,19 +1420,10 @@ contains
       do i = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
         i_sice = i_sice + 1
         tile_temperature(map_tile(1)+i-1) = real(tstar_sice_ncat(1,1,i_sice), r_def)
-        if (ice_fract_ncat(1,1,i_sice) > 0.0_r_def) then
-          ! un-do the scaling which is done in Jules
-          tile_heat_flux(map_tile(1)+i-1) =                                    &
-               real(fluxes%ftl_sicat(1,1,i_sice)/ice_fract_ncat(1,1,i_sice), r_def)
-          tile_moisture_flux(map_tile(1)+i-1) =                                &
-               real(fluxes%fqw_sicat(1,1,i_sice)/ice_fract_ncat(1,1,i_sice), r_def)
-          snow_sublimation(map_tile(1)+i-1) =                                  &
-               real(fluxes%ei_sice(1,1,i_sice)/ice_fract_ncat(1,1,i_sice), r_def)
-        else
-          tile_heat_flux(map_tile(1)+i-1) = 0.0_r_def
-          tile_moisture_flux(map_tile(1)+i-1) = 0.0_r_def
-          snow_sublimation(map_tile(1)+i-1) = 0.0_r_def
-        end if
+        tile_heat_flux(map_tile(1)+i-1) = real(fluxes%ftl_sicat(1,1,i_sice), r_def)
+        tile_moisture_flux(map_tile(1)+i-1) = real(fluxes%fqw_sicat(1,1,i_sice), r_def)
+        snowice_melt(map_tile(1)+i-1) = real(fluxes%sice_melt(1, 1, i_sice), r_def)
+        snowice_sublimation(map_tile(1)+i-1) = real(fluxes%ei_sice(1,1,i_sice), r_def)
         canopy_evap(map_tile(1)+i-1) = 0.0_r_def
         ! Sum the fluxes over the sea-ice for use in sea point calculation
         tile_heat_flux(map_tile(1)+first_sea_tile-1) =                         &
@@ -1460,7 +1451,8 @@ contains
         tile_heat_flux(map_tile(1)+first_sea_tile-1) = 0.0_r_def
         tile_moisture_flux(map_tile(1)+first_sea_tile-1) = 0.0_r_def
       end if
-      snow_sublimation(map_tile(1)+first_sea_tile-1) = 0.0_r_def
+      snowice_sublimation(map_tile(1)+first_sea_tile-1) = 0.0_r_def
+      snowice_melt(map_tile(1)+first_sea_tile-1) = 0.0_r_def
       canopy_evap(map_tile(1)+first_sea_tile-1) = 0.0_r_def
 
       do i = 1, sm_levels
@@ -1566,7 +1558,7 @@ contains
           i_sice = i_sice + 1
           if (tile_fraction(map_tile(1)+i-1) > 0.0_r_def) then
             surf_ht_flux(map_tile(1)+i-1) =                               &
-              real(coast%surf_ht_flux_sice_sicat(1,1,i_sice)/ice_fract_ncat(1,1,i_sice), r_def)
+              real(fluxes%surf_ht_flux_sice(1,1,i_sice), r_def)
           else
             surf_ht_flux(map_tile(1)+i-1) = 0.0_r_def
           end if

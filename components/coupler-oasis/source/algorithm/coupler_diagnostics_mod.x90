@@ -22,15 +22,34 @@ module coupler_diagnostics_mod
                                            log_scratch_space
 #if defined(UM_PHYSICS)
   use cv_run_mod,                    only: l_param_conv
-  use jules_control_init_mod,        only: n_sea_tile, first_sea_tile
-  use driver_water_constants_mod,    only: latent_heat_h2o_condensation
+  use jules_control_init_mod,        only: n_sea_tile, first_sea_tile,   &
+                                           first_sea_ice_tile,           &
+                                           n_sea_ice_tile
+  use driver_water_constants_mod,    only: latent_heat_h2o_condensation, &
+                                           latent_heat_h2o_fusion
 #endif
+
+  use convert_to_celsius_kernel_mod, only: convert_to_celsius_kernel_type
+  use convert_to_marine_fraction_mod, only: convert_to_marine_fraction_type
 
   implicit none
 
   private
   ! workspace used for coupling field calculation
   type( field_type )                 :: cpl_field1, cpl_field2, cpl_field3
+  type( field_type )                 :: cpl_field1_si, cpl_field2_si,          &
+                                        cpl_field3_si
+
+  ! Raw sea ice fractions that are unaltered by post processing
+  ! for use in scaling data going from atmos to ocean
+  type( field_type )                 :: sea_ice_frac_raw
+
+  ! Sea ice fractions used in the previous timestep
+  ! (i.e. not unpaded by the coupling)
+  ! These ice fractions are stored as a fraction of
+  ! the marine portion of the grid box
+  type( field_type )                 :: sea_ice_frac_previous
+  type( field_type )                 :: sea_frac_previous
 
 #if !defined(UM_PHYSICS)
   !
@@ -42,11 +61,16 @@ module coupler_diagnostics_mod
   integer(i_def),parameter              :: n_sea_tile = imdi
   ! index of the first sea and tile
   integer(i_def), parameter             :: first_sea_tile = imdi
+  ! other indices for sea ice
+  integer(i_def), parameter             :: first_sea_ice_tile = imdi
+  integer(i_def), parameter             :: n_sea_ice_tile = imdi
   ! latent heat of condensation
   real(r_def), parameter                :: latent_heat_h2o_condensation = rmdi
 #endif
 
-  public cpl_diagnostics, cpl_reset_field, initialise_scratch_fields
+  public cpl_diagnostics, cpl_reset_field, initialise_extra_coupling_fields
+  public sea_ice_frac_raw
+  public save_sea_ice_frac_previous
   contains
 
   !> @brief assignes data to coupling fields
@@ -57,6 +81,7 @@ module coupler_diagnostics_mod
   subroutine cpl_diagnostics(fld, depository, clock, istep)
 
    use multi_extract_kernel_mod,    only: multi_extract_kernel_type
+
    implicit none
    type( field_type ), intent(inout)            :: fld
    type( field_collection_type ), intent(in)    :: depository
@@ -173,6 +198,110 @@ module coupler_diagnostics_mod
             fld_ptr1 => depository%get_field("wspd10m")
             call invoke(inc_X_plus_bY( fld, dtime, fld_ptr1 ))
             fld_ptr1 => null()
+         case ("lf_evap")
+            fld_ptr1 => depository%get_field("tile_moisture_flux")
+
+            ! Extract the oceanic evaporation from the ocean tile
+            call invoke( multi_extract_kernel_type(cpl_field1, fld_ptr1,       &
+                                             first_sea_tile, n_sea_tile ),     &
+
+               ! Convert oceanic evaporation to be as a fraction of the marine
+               ! portion of the grid box
+               ! evaporation_marine_fraction(cpl_field2) =
+               ! evaporation(cpl_field1) * sea_fraction_of_marine(sea_frac_previous)
+               X_times_Y( cpl_field2, cpl_field1, sea_frac_previous ),         &
+
+               ! Multiply by the length of the timestep as part of the
+               ! time averaging process
+               inc_X_plus_bY( fld, dtime, cpl_field2 ))
+            fld_ptr1 => null()
+
+         case ("lf_topmelt")
+            fld_ptr1 => depository%get_field("snowice_melt")
+
+            ! Extract the sea ice top melt from the snowice_melt which is on
+            ! all tiles
+            call invoke( multi_extract_kernel_type(cpl_field1_si, fld_ptr1,    &
+                                         first_sea_ice_tile, n_sea_ice_tile ), &
+
+               ! Convert top melt into an equivalent energy flux
+               ! (i.e. from kg m-2 s-1 to W m-2)
+               ! top_melt_flux(cpl_field2_si) =
+               !                latent_heat_h2o_fusion * top_melt(cpl_field1_si)
+               a_times_X( cpl_field2_si, latent_heat_h2o_fusion,               &
+                                               cpl_field1_si ),                &
+
+               ! Convert top melt to be as a fraction of the marine portion
+               ! of the grid box
+               ! top_melt_marine_fraction(cpl_field3_si) =
+               !               top_melt_flux(cpl_field2_si) *
+               !               sea_ice_fraction_of_marine(sea_ice_frac_previous)
+               X_times_Y( cpl_field3_si, cpl_field2_si,                        &
+                                                      sea_ice_frac_previous ), &
+
+               ! Multiply by the length of the timestep as part of the
+               ! time averaging process
+               inc_X_plus_bY( fld, dtime, cpl_field3_si ))
+            fld_ptr1 => null()
+
+         case ("lf_iceheatflux")
+            fld_ptr1 => depository%get_field("surf_ht_flux")
+
+            ! Extract the sea ice surface to sub-surface heat flux from the
+            ! surf_ht_flux which is on all tiles
+            call invoke( multi_extract_kernel_type(cpl_field1_si, fld_ptr1,    &
+                                         first_sea_ice_tile, n_sea_ice_tile ), &
+
+               ! Convert surface heat flux to be as a fraction of the marine
+               ! portion of the grid box.
+               ! surf_heat_marine_fraction(cpl_field2_si) =
+               !               surf_ht_flux(cpl_field1_si) *
+               !               sea_ice_fraction_of_marine(sea_ice_frac_previous)
+               X_times_Y( cpl_field2_si, cpl_field1_si,                        &
+                                                      sea_ice_frac_previous ), &
+
+               ! Multiply by the length of the timestep as part of the
+               ! time averaging process
+               inc_X_plus_bY( fld, dtime, cpl_field2_si ))
+            fld_ptr1 => null()
+
+         case ("lf_sublimation")
+            fld_ptr1 => depository%get_field("snowice_sublimation")
+
+            ! Extract the sea ice sublimation from the snowice_sublimation
+            ! which is on all tiles
+            call invoke( multi_extract_kernel_type(cpl_field1_si, fld_ptr1,    &
+                                         first_sea_ice_tile, n_sea_ice_tile ), &
+
+               ! Convert sublimation to be as a fraction of the marine
+               ! portion of the grid box
+               ! sublimation_marine_fraction(cpl_field2_si) =
+               !               sublimation(cpl_field1_si) *
+               !               sea_ice_fraction_of_marine(sea_ice_frac_previous)
+               X_times_Y( cpl_field2_si, cpl_field1_si,                        &
+                                                      sea_ice_frac_previous ), &
+
+               ! Multiply by the length of the timestep as part of the
+               ! time averaging process
+               inc_X_plus_bY( fld, dtime, cpl_field2_si ))
+            fld_ptr1 => null()
+
+         case ("lf_iceskint")
+            fld_ptr1 => depository%get_field('tile_temperature')
+
+            ! Extract the sea ice skin temperature from the tile temperature
+            call invoke( multi_extract_kernel_type(cpl_field1_si, fld_ptr1,    &
+                                         first_sea_ice_tile, n_sea_ice_tile ), &
+
+               ! Convert from Kelvin to Celsius
+               ! (NEMO is expecting the data in Celsius)
+               convert_to_celsius_kernel_type(cpl_field2_si, cpl_field1_si),   &
+
+               ! Multiply by the length of the timestep as part of the
+               ! time averaging process
+               inc_X_plus_bY( fld, dtime, cpl_field2_si ))
+            fld_ptr1 => null()
+
          case default
             lfail = .true.
             write(log_scratch_space, '(3A)' )                                  &
@@ -205,21 +334,57 @@ module coupler_diagnostics_mod
 
   end subroutine cpl_reset_field
 
-  subroutine initialise_scratch_fields(fld_cpld_fs)
+  subroutine initialise_extra_coupling_fields(fld_cpld_fs, sice_space)
   !> @brief initialises temporary coupling work fields
-  !> @param[in] fld_cpld_fs: function space
+  !> @param[in] fld_cpld_fs: 2D function space
+  !> @param[in] sice_space : sea ice function space
 
     use function_space_mod,             only: function_space_type
 
     implicit none
 
     type(function_space_type), intent(in), pointer :: fld_cpld_fs
+    type(function_space_type), intent(in), pointer :: sice_space
 
-    ! initialize scratch variables
+    ! initialize 2D scratch variables
     call cpl_field1%initialise( vector_space=fld_cpld_fs, name="cpl_field1_W3" )
     call cpl_field2%initialise( vector_space=fld_cpld_fs, name="cpl_field2_W3" )
     call cpl_field3%initialise( vector_space=fld_cpld_fs, name="cpl_field3_W3" )
 
-  end subroutine initialise_scratch_fields
+    ! initialise sea ice scratch variables
+    call cpl_field1_si%initialise( vector_space = sice_space,             &
+                                        name="cpl_field1_sea_ice_W3" )
+    call cpl_field2_si%initialise( vector_space = sice_space,             &
+                                        name="cpl_field2_sea_ice_W3" )
+    call cpl_field3_si%initialise( vector_space = sice_space,             &
+                                        name="cpl_field3_sea_ice_W3" )
+
+    ! Initialise other fields used in coupling
+    call sea_ice_frac_raw%initialise( vector_space = sice_space,             &
+                                        name="sea_ice_frac_raw" )
+    call sea_ice_frac_previous%initialise( vector_space = sice_space,        &
+                                        name="sea_ice_frac_previous" )
+    call sea_frac_previous%initialise( vector_space = fld_cpld_fs,           &
+                                        name="sea_frac_previous" )
+
+  end subroutine initialise_extra_coupling_fields
+
+  subroutine save_sea_ice_frac_previous(depository)
+  !> @brief Save the sea and sea ice fractions from the previous timestep prior
+  !> @brief to recieving a new sea ice fraction from the coupler.
+  !> @brief These are saved as a marine fraction
+  !> @brief             (rather than whole grid box fraction)
+
+    implicit none
+    type( field_collection_type ), intent(in)    :: depository
+
+    !local variables
+    type( field_type ), pointer :: tile_fraction_ptr       => null()
+
+    tile_fraction_ptr => depository%get_field('tile_fraction')
+    call invoke(convert_to_marine_fraction_type(sea_ice_frac_previous,         &
+                                          sea_frac_previous, tile_fraction_ptr))
+
+  end subroutine save_sea_ice_frac_previous
 
 end module coupler_diagnostics_mod

@@ -60,7 +60,7 @@ module jules_extra_kernel_mod
          arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! c_wet_frac
          arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! tile_temperature
          arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! net_prim_prod
-         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! snow_sublimation
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! snowice_sublimation
          arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! surf_heat_flux
          arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! canopy_evap
          arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_4), & ! water_extraction
@@ -82,7 +82,7 @@ module jules_extra_kernel_mod
          arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_5), & ! snow_layer_liq_mass
          arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_5), & ! snow_layer_temp
          arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_5), & ! snow_layer_rgrain
-         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! total_snowmelt
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! snowice_melt
          arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! soil_sat_frac
          arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! water_table
          arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! wetness_under_soil
@@ -135,7 +135,7 @@ contains
   !> @param[in]     c_wet_frac             c gridbox wet fraction
   !> @param[in]     tile_temperature       Surface tile temperatures (K)
   !> @param[in]     net_prim_prod          Net Primary Productivity (kg m-2 s-1)
-  !> @param[in]     snow_sublimation       Sublimation of snow (kg m-2 s-1)
+  !> @param[in]     snowice_sublimation    Sublimation of snow and ice (kg m-2 s-1)
   !> @param[in]     surf_heat_flux         Surface heat flux (W m-2)
   !> @param[in]     canopy_evap            Canopy evaporation from land tiles (kg m-2 s-1)
   !> @param[in]     water_extraction       Extraction of water from each soil layer (kg m-2 s-1)
@@ -157,7 +157,7 @@ contains
   !> @param[in,out] snow_layer_liq_mass    Mass of liquid in snow layers (kg m-2)
   !> @param[in,out] snow_layer_temp        Temperature of snow layer (K)
   !> @param[in,out] snow_layer_rgrain      Grain radius of snow layer (microns)
-  !> @param[in,out] total_snowmelt         Surface plus canopy snowmelt rate (kg m-2 s-1)
+  !> @param[in,out] snowice_melt           Surface, canopy and sea ice, snow and ice melt rate (kg m-2 s-1)
   !> @param[in,out] soil_sat_frac          Soil saturated fraction
   !> @param[in,out] water_table            Water table depth (m)
   !> @param[in,out] wetness_under_soil     Soil wetness below soil column
@@ -210,7 +210,7 @@ contains
                c_wet_frac,                 &
                tile_temperature,           &
                net_prim_prod,              &
-               snow_sublimation,           &
+               snowice_sublimation,        &
                surf_heat_flux,             &
                canopy_evap,                &
                water_extraction,           &
@@ -232,7 +232,7 @@ contains
                snow_layer_liq_mass,        &
                snow_layer_temp,            &
                snow_layer_rgrain,          &
-               total_snowmelt,             &
+               snowice_melt,               &
                soil_sat_frac,              &
                water_table,                &
                wetness_under_soil,         &
@@ -313,7 +313,7 @@ contains
                                                         lsca_2d, cca_2d
 
     real(kind=r_def), intent(in)    :: tile_fraction(undf_tile)
-    real(kind=r_def), intent(in)    :: snow_sublimation(undf_tile)
+    real(kind=r_def), intent(in)    :: snowice_sublimation(undf_tile)
     real(kind=r_def), intent(in)    :: surf_heat_flux(undf_tile)
     real(kind=r_def), intent(in)    :: canopy_evap(undf_tile)
     real(kind=r_def), intent(in)    :: tile_temperature(undf_tile)
@@ -350,7 +350,7 @@ contains
     real(kind=r_def), intent(inout) :: snow_depth(undf_tile)
     real(kind=r_def), intent(inout) :: snow_under_canopy(undf_tile)
     real(kind=r_def), intent(inout) :: snowpack_density(undf_tile)
-    real(kind=r_def), intent(inout) :: total_snowmelt(undf_tile)
+    real(kind=r_def), intent(inout) :: snowice_melt(undf_tile)
 
     real(kind=r_def), intent(inout) :: snow_layer_thickness(undf_snow)
     real(kind=r_def), intent(inout) :: snow_layer_ice_mass(undf_snow)
@@ -462,7 +462,7 @@ contains
     do i = 1, n_land_tile
       flandg = flandg + real(tile_fraction(map_tile(1)+i-1), r_um)
       ainfo%frac_surft(1, i)     = real(tile_fraction(map_tile(1)+i-1), r_um)
-      fluxes%ei_surft(1, i)       = real(snow_sublimation(map_tile(1)+i-1), r_um)
+      fluxes%ei_surft(1, i)       = real(snowice_sublimation(map_tile(1)+i-1), r_um)
       fluxes%surf_htf_surft(1, i) = real(surf_heat_flux(map_tile(1)+i-1), r_um)
       fluxes%ecan_surft(1, i)     = real(canopy_evap(map_tile(1)+i-1), r_um)
     end do
@@ -629,7 +629,7 @@ contains
 
     ! Snow melt
     do i = 1, n_land_tile
-      fluxes%melt_surft(1, i) = real(total_snowmelt(map_tile(1)+i-1), r_um)
+      fluxes%melt_surft(1, i) = real(snowice_melt(map_tile(1)+i-1), r_um)
     end do
 
     ! Soil saturated fraction
@@ -719,8 +719,8 @@ contains
       snow_under_canopy(map_tile(1)+i-1) = real(progs%snow_grnd_surft(1, i), r_def)
       ! Snowpack density (rho_snow_grnd_surft)
       snowpack_density(map_tile(1)+i-1) = real(progs%rho_snow_grnd_surft(1, i), r_def)
-      ! Total snowmelt
-      total_snowmelt(map_tile(1)+i-1) = real(fluxes%melt_surft(1, i), r_def)
+      ! Total snow and ice melt
+      snowice_melt(map_tile(1)+i-1) = real(fluxes%melt_surft(1, i), r_def)
       do j = 1, nsmax
         ! Thickness of snow layers
         snow_layer_thickness(map_snow(1)+i_snow) = real(progs%ds_surft(1, i, j), r_def)

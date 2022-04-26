@@ -13,13 +13,13 @@ module process_ssi_kernel_mod
                            GH_READ, GH_READWRITE,     &
                            CELL_COLUMN,               &
                            ANY_DISCONTINUOUS_SPACE_1, &
-                           ANY_DISCONTINUOUS_SPACE_2, &
-                           ANY_DISCONTINUOUS_SPACE_3
+                           ANY_DISCONTINUOUS_SPACE_2
   use constants_mod, only: r_def, i_def
   use kernel_mod,    only: kernel_type
 
   use jules_control_init_mod, only: n_sea_ice_tile, &
        first_sea_tile, first_sea_ice_tile, n_land_tile, n_surf_tile
+  use jules_physics_init_mod,               only : min_sea_ice_frac
 
   implicit none
 
@@ -28,10 +28,9 @@ module process_ssi_kernel_mod
   !> Kernel metadata for Psyclone
   type, public, extends(kernel_type) :: process_ssi_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                                        &
+    type(arg_type) :: meta_args(2) = (/                                        &
          arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_2), &
-         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_3)  &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_2)  &
          /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -43,12 +42,8 @@ module process_ssi_kernel_mod
 contains
 
   !> @param[in]     nlayers            The number of layers
-  !> @param[in]     land_area_fraction Fraction of land in grid-box
   !> @param[in]     sea_ice_fraction   Fraction of sea-ice in grid-box
   !> @param[in,out] tile_fraction      Surface tile fractions
-  !> @param[in]     ndf_2d             Number of DOFs per cell for 2d fields
-  !> @param[in]     undf_2d            Number of total DOFs for 2d fields
-  !> @param[in]     map_2d             Dofmap for cell for surface 2d fields
   !> @param[in]     ndf_sice           Number of DOFs per cell for sea ice
   !> @param[in]     undf_sice          Number of total DOFs for sea ice
   !> @param[in]     map_sice           Dofmap for cell for surface sea ice
@@ -56,10 +51,8 @@ contains
   !> @param[in]     undf_tile          Number of total DOFs for tiles
   !> @param[in]     map_tile           Dofmap for cell for surface tiles
   subroutine process_ssi_code(nlayers,                       &
-                              land_area_fraction,            &
                               sea_ice_fraction,              &
                               tile_fraction,                 &
-                              ndf_2d, undf_2d, map_2d,       &
                               ndf_sice, undf_sice, map_sice, &
                               ndf_tile, undf_tile, map_tile)
 
@@ -71,10 +64,7 @@ contains
     integer(kind=i_def), intent(in) :: map_tile(ndf_tile)
     integer(kind=i_def), intent(in) :: ndf_sice, undf_sice
     integer(kind=i_def), intent(in) :: map_sice(ndf_sice)
-    integer(kind=i_def), intent(in) :: ndf_2d, undf_2d
-    integer(kind=i_def), intent(in) :: map_2d(ndf_2d)
 
-    real(kind=r_def), intent(inout)  :: land_area_fraction(undf_2d)
     real(kind=r_def), intent(in)     :: sea_ice_fraction(undf_sice)
     real(kind=r_def), intent(inout)  :: tile_fraction(undf_tile)
 
@@ -102,7 +92,7 @@ contains
     do i = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
       i_sice = i_sice + 1
       ! Only use where field contains valid data
-      if (sea_ice_fraction(map_sice(1)+i_sice-1) > 0.1_r_def .and. &
+      if (sea_ice_fraction(map_sice(1)+i_sice-1) > min_sea_ice_frac .and. &
           tot_land < 1.0_r_def) then
         tile_fraction(map_tile(1)+i-1) = sea_ice_fraction(map_sice(1)+i_sice-1)&
                                        * (1.0_r_def - tot_land)
@@ -116,9 +106,6 @@ contains
     tile_fraction(map_tile(1)+first_sea_tile-1) = max(1.0_r_def &
                                                 - tot_land &
                                                 - tot_ice, 0.0_r_def)
-
-    ! Calculate the total fraction as a test
-    land_area_fraction(map_2d(1)) = sum(tile_fraction(map_tile(1):map_tile(1)+n_surf_tile-1))
 
   end subroutine process_ssi_code
 

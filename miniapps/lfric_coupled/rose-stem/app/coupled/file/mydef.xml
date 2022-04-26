@@ -9,13 +9,14 @@
       <axis id="vert_axis_half_levels" name="half_levels"/>
       <axis id="vert_axis_full_levels" name="full_levels"/>
       <axis id="land_tiles" name="land_tiles" n_glo="9"/>
-      <axis id="surface_tiles" name="surface_tiles" n_glo="11"/>
+      <axis id="surface_tiles" name="surface_tiles" n_glo="15"/>
       <axis id="snow_layers_and_tiles" name="snow_layers_and_tiles" n_glo="27"/>
       <axis id="soil_levels" name="soil_levels" n_glo="4"/>
       <axis id="plant_func_types" name="plant_func_types" n_glo="5"/>
       <axis id="land_tile_rad_band" name="land_tile_rad_band" n_glo="18"/>
       <axis id="monthly_axis" name="monthly_axis" n_glo="12"/>
       <axis id="bl_types" name="bl_types" n_glo="7"/>
+      <axis id="sea_ice_categories" name="sea_ice_categories" n_glo="5"/>
       <axis id="entrainment_levels" name="entrainment_levels" n_glo="3"/>
       <axis id="dust_divisions" name="dust_divisions" n_glo="6"/>
       <axis id="radiation_levels" name="radiation_levels"/>
@@ -181,8 +182,12 @@
 	<field id="checkpoint_time_since_transition" name="time_since_transition" long_name="time_since_decoupled_screen_transition" unit="s" domain_ref="face" />
 	<field id="checkpoint_canopy_water" name="tile_canopy_water" long_name="canopy_water_content_on_tiles" unit="kg m-2" domain_ref="face" axis_ref="surface_tiles" />
         <field id="checkpoint_albedo_obs_scaling" name="albedo_obs_scaling" long_name="albedo_obs_scaling" unit="1" domain_ref="face" axis_ref="land_tile_rad_band" />
-	<field id="checkpoint_sea_ice_thickness" name="sea_ice_thickness" long_name="sea_ice_thickness" unit="m" domain_ref="face" />
-	<field id="checkpoint_sea_ice_temperature" name="sea_ice_temperature" long_name="sea_ice_bulk_temperature" unit="K" domain_ref="face" />
+	<field id="checkpoint_sea_ice_thickness" name="sea_ice_thickness" long_name="sea_ice_thickness" unit="m" domain_ref="face" axis_ref="sea_ice_categories"/>
+	<field id="checkpoint_sea_ice_temperature" name="sea_ice_temperature" long_name="sea_ice_bulk_temperature" unit="K" domain_ref="face" axis_ref="sea_ice_categories"/>
+	<field id="checkpoint_tile_moisture_flux" name="tile_moisture_flux" long_name="tile_moisture_flux" unit="kg m-2 s-1" domain_ref="face" axis_ref="surface_tiles"/>
+	<field id="checkpoint_snowice_melt" name="snowice_melt" long_name="snowice_melt" unit="kg m-2 s-1" domain_ref="face" axis_ref="surface_tiles"/>
+	<field id="checkpoint_surf_ht_flux" name="surf_ht_flux" long_name="surf_ht_flux" unit="W m-2" domain_ref="face" axis_ref="surface_tiles"/>
+	<field id="checkpoint_snowice_sublimation" name="snowice_sublimation" long_name="snowice_sublimation" unit="kg m-2 s-1" domain_ref="face" axis_ref="surface_tiles"/>
 	<!-- orography fields -->
 	<field id="checkpoint_sd_orog" name="sd_orog" long_name="sd_orog"  unit="m" domain_ref="face" />
 	<field id="checkpoint_grad_xx_orog" name="grad_xx_orog" long_name="grad_xx_orog"  unit="1" domain_ref="face" />
@@ -273,6 +278,9 @@
       <field_group id="diagnostic_fields" freq_op="1ts" operation="instant" enabled=".TRUE." >
 	<!-- coupling diagnostics -->
         <field id="r_lf_dummy_t" name="r_lf_dummy_t" long_name="r_lf_dummy_t" unit="m" domain_ref="face" />
+        <field id="lf_icefrc" name="lf_icefrc" long_name="lf_icefrc" unit="1" domain_ref="face" axis_ref="sea_ice_categories" />
+        <field id="lf_icetck" name="lf_icetck" long_name="lf_icetck" unit="m" domain_ref="face" axis_ref="sea_ice_categories" />
+        <field id="lf_icelayert" name="lf_icelayert" long_name="lf_icelayert" unit="m" domain_ref="face" axis_ref="sea_ice_categories" />
         <field id="lf_taux" name="lf_taux" long_name="lf_taux" unit="m" domain_ref="face" />
         <field id="lf_tauy" name="lf_tauy" long_name="lf_tauy" unit="m" domain_ref="face" />
         <field id="lf_solar" name="lf_solar" long_name="lf_solar" unit="m" domain_ref="face" />
@@ -280,6 +288,12 @@
         <field id="lf_train" name="lf_train" long_name="lf_train" unit="m" domain_ref="face" />
         <field id="lf_tsnow" name="lf_tsnow" long_name="lf_tsnow" unit="" domain_ref="face" />
         <field id="lf_w10" name="lf_w10" long_name="lf_w10" unit="" domain_ref="face" />
+        <field id="lf_evap" name="lf_evap" long_name="lf_evap" unit="kg m-2 s-1" domain_ref="face" />
+        <field id="lf_topmelt" name="lf_topmelt" long_name="lf_topmelt" unit="W m-2" domain_ref="face" axis_ref="sea_ice_categories" />
+        <field id="lf_iceheatflux" name="lf_iceheatflux" long_name="lf_iceheatflux" unit="W m-2" domain_ref="face" axis_ref="sea_ice_categories" />
+        <field id="lf_sublimation" name="lf_sublimation" long_name="lf_sublimation" unit="kg m-2 s-1" domain_ref="face" axis_ref="sea_ice_categories" />
+        <field id="lf_iceskint" name="lf_iceskint" long_name="lf_iceskint" unit="K" domain_ref="face" axis_ref="sea_ice_categories" />
+        <field id="sea_ice_thickness" name="sea_ice_thickness" long_name="sea_ice_thickness" unit="m" domain_ref="face" axis_ref="sea_ice_categories" />
 	<!-- below as non-coupled model -->
 	<field id="theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
 	<field id="theta_in_w3" name="theta_in_w3" long_name="air_potential_temperature_at_cell_centres" unit="K" grid_ref="half_level_face_grid" />
@@ -591,7 +605,7 @@
         <field id="surface__canopy_evap" name="canopy_evaporation" long_name="water_evaporation_flux_from_canopy" unit="kg m-2 s-1" domain_ref='face' axis_ref="surface_tiles"/>
         <field id="surface__grid_canopy_evap" name="grid_canopy_evaporation" long_name="grid_water_evaporation_flux_from_canopy" unit="kg m-2 s-1" domain_ref='face' />
         <field id="surface__soil_evap" name="soil_evaporation" long_name="water_evaporation_flux_from_soil" unit="kg m-2 s-1" domain_ref='face' />
-        <field id="surface__snow_sublimation" name="snow_sublimation" long_name="surface_snow_sublimation_rate" unit="kg m-2 s-1" domain_ref='face' axis_ref="surface_tiles" />
+        <field id="surface__snowice_sublimation" name="snowice_sublimation" long_name="surface_snow_and_ice_sublimation_rate" unit="kg m-2 s-1" domain_ref='face' axis_ref="surface_tiles" />
         <field id="surface__grid_sublimation" name="grid_sublimation" long_name="grid_surface_snow_sublimation_rate" unit="kg m-2 s-1" domain_ref='face' />
         <field id="surface__snomlt_surf_htf" name="snomlt_surf_htf" long_name="surface_snow_melt_heat_flux" unit="W m-2" domain_ref='face' />
         <field id="surface__surf_ht_flux" name="surf_ht_flux" long_name="downward_heat_flux_at_ground_level" unit="W m-2" domain_ref='face' axis_ref="surface_tiles" />
@@ -607,7 +621,7 @@
 	<!-- Jules snow diagnostics -->
 	<field id="snow__snow_mass" name="snow_mass_on_tiles" long_name="surface_snow_amount" unit="kg m-2" domain_ref="face" axis_ref="surface_tiles"/>
 	<field id="snow__grid_snow_mass" name="grid_snow_mass" long_name="grid_surface_snow_amount" unit="kg m-2" domain_ref="face"/>
-	<field id="snow__total_snowmelt" name="total_snowmelt" long_name="surface_snow_melt_flux" unit="kg m-2 s-1" domain_ref="face" axis_ref="surface_tiles"/>
+	<field id="snow__snowice_melt" name="snowice_melt" long_name="surface_snow_and_ice_melt_flux" unit="kg m-2 s-1" domain_ref="face" axis_ref="surface_tiles"/>
 	<field id="snow__grid_snowmelt" name="grid_snowmelt" long_name="grid_surface_snow_melt_flux" unit="kg m-2 s-1" domain_ref="face" />
 	<field id="snow__snow_depth" name="snow_depth" long_name="snow_depth" unit="m" domain_ref="face" axis_ref="surface_tiles"/>
 	<field id="snow__tile_snow_rgrain" name="tile_snow_rgrain" long_name="tile_snow_grain_size" unit="microns" domain_ref="face" axis_ref="surface_tiles"/>
@@ -958,8 +972,12 @@
 	<field id="restart_time_since_transition" name="time_since_transition" long_name="time_since_decoupled_screen_transition" unit="s" operation="instant" domain_ref="face" />
 	<field id="restart_canopy_water" name="tile_canopy_water" long_name="canopy_water_content_on_tiles" unit="kg m-2" operation="instant" domain_ref="face" axis_ref="surface_tiles" />
         <field id="restart_albedo_obs_scaling" name="albedo_obs_scaling" long_name="albedo_obs_scaling" unit="1" operation="instant" domain_ref="face" axis_ref="land_tile_rad_band" />
-	<field id="restart_sea_ice_thickness" name="sea_ice_thickness" long_name="sea_ice_thickness" unit="m" operation="instant" domain_ref="face" />
-	<field id="restart_sea_ice_temperature" name="sea_ice_temperature" long_name="sea_ice_bulk_temperature" unit="K" operation="instant" domain_ref="face" />
+	<field id="restart_sea_ice_thickness" name="sea_ice_thickness" long_name="sea_ice_thickness" unit="m" operation="instant" domain_ref="face"  axis_ref="sea_ice_categories" />
+	<field id="restart_sea_ice_temperature" name="sea_ice_temperature" long_name="sea_ice_bulk_temperature" unit="K" operation="instant" domain_ref="face"  axis_ref="sea_ice_categories" />
+	<field id="restart_tile_moisture_flux" name="tile_moisture_flux" long_name="tile_moisture_flux" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="surface_tiles"/>
+	<field id="restart_snowice_melt" name="snowice_melt" long_name="snowice_melt" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="surface_tiles"/>
+	<field id="restart_surf_ht_flux" name="surf_ht_flux" long_name="surf_ht_flux" unit="W m-2" operation="instant" domain_ref="face" axis_ref="surface_tiles"/>
+	<field id="restart_snowice_sublimation" name="snowice_sublimation" long_name="snowice_sublimation" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="surface_tiles"/>
 	<!-- orography fields -->
 	<field id="restart_sd_orog" name="sd_orog" long_name="sd_orog"  unit="m" operation="instant" domain_ref="face" />
 	<field id="restart_grad_xx_orog" name="grad_xx_orog" long_name="grad_xx_orog"  unit="1" operation="instant" domain_ref="face" />
@@ -1163,8 +1181,10 @@
 	<field id="read_surface_conductance" name="surface_conductance" long_name="conductance" unit="m s-1" domain_ref="face" operation="once" />
 	<field id="read_can_water_in" name="tile_canopy_water" long_name="canopy_water_content_on_tiles" unit="kg m-2" domain_ref="face" operation="once" axis_ref="land_tiles"/>
 	<field id="read_land_tile_temp" name="tile_temperature" long_name="land_tile_temperature" unit="K" domain_ref="face" operation="once" axis_ref="land_tiles"/>
-	<field id="read_tstar_sea_ice" name="tstar_sea_ice" long_name="sea_ice_surface_temperature" standard_name="surface_temperature" unit="K" domain_ref="face" operation="once" />
-	<field id="read_sea_ice_temperature" name="sea_ice_temperature" long_name="sea_ice_temperature" unit="K" domain_ref="face" operation="once" />
+	<field id="read_tstar_sea_ice" name="ice_surf_temp_cat" long_name="ice_surf_temp_cat" standard_name="ice_surf_temp_cat" unit="K" domain_ref="face" operation="once" axis_ref="sea_ice_categories"/>
+	<field id="read_sea_ice_temperature" name="ice_temp_cat" long_name="ice_temp_cat" unit="K" domain_ref="face" operation="once" axis_ref="sea_ice_categories"/>
+	<field id="read_sea_ice_fraction" name="ice_conc_cat" long_name="ice_conc_cat" unit="1" domain_ref="face" operation="once" axis_ref="sea_ice_categories"/>
+        <field id="read_sea_ice_thickness" name="ice_thick_cat" long_name="ice_thick_cat" unit="m" domain_ref="face" operation="once" axis_ref="sea_ice_categories"/>
 	<field id="read_tile_snow_mass_in" name="tile_snow_mass" long_name="tile_snow_mass" unit="kg m-2" domain_ref="face" operation="once" axis_ref="land_tiles"/>
 	<field id="read_n_snow_layers_in" name="tile_n_snow_layers" long_name="number_of_snow_layers" unit="1" domain_ref="face" operation="once" axis_ref="land_tiles"/>
 	<field id="read_snow_depth_in" name="tile_snow_depth" long_name="snow_depth_on_tiles" unit="m" domain_ref="face" operation="once" axis_ref="land_tiles"/>
@@ -1202,12 +1222,6 @@
       <file id="sst_ancil" name="sst_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
 	<field id="sst_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
 	<field id="tstar_sea_data" name="surface_temperature" long_name="Sea surface temperature" unit="K" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>
-      </file>
-
-      <file id="sea_ice_ancil" name="sea_ice_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
-	<field id="sea_ice_time" name="time" unit="hours" operation="once" axis_ref="monthly_axis"/>
-	<field id="sea_ice_thickness_data" name="sea_ice_thickness" long_name="sea_ice_thickness" unit="m" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>
-	<field id="sea_ice_fraction_data" name="sea_ice_area_fraction" long_name="sea_ice_fraction" unit="1" operation="instant" domain_ref="face" axis_ref="monthly_axis"/>
       </file>
 
       <file id="albedo_vis_ancil" name="albedo_vis_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">

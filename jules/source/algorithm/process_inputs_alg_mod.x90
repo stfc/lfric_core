@@ -19,6 +19,7 @@ module process_inputs_alg_mod
                                         first_sea_tile, n_sea_tile, &
                                         first_sea_ice_tile, n_sea_ice_tile
   use multi_insert_kernel_mod,    only: multi_insert_kernel_type
+  use derived_config_mod,         only: l_esm_couple
 
   implicit none
 
@@ -95,7 +96,15 @@ contains
     if (surface == surface_jules) then
       land_area_fraction => ancil_fields%get_field('land_area_fraction')
       land_tile_fraction => ancil_fields%get_field('land_tile_fraction')
-      sea_ice_fraction   => ancil_fields%get_field('sea_ice_fraction')
+
+      ! For coupled models the sea ice fraction comes from the input
+      ! dump but for atmosphere only models they are provided by an
+      ! ancillary file
+      if (l_esm_couple) then
+        sea_ice_fraction   => fd_fields%get_field('sea_ice_fraction')
+      else
+        sea_ice_fraction   => ancil_fields%get_field('sea_ice_fraction')
+      endif
       tile_fraction      => surface_fields%get_field('tile_fraction')
 
       tstar_sea        => ancil_fields%get_field('tstar_sea')
@@ -144,8 +153,7 @@ contains
       call invoke(process_land_kernel_type( land_area_fraction,               &
                                             land_tile_fraction,               &
                                             tile_fraction),                   &
-                  process_ssi_kernel_type( land_area_fraction,                &
-                                           sea_ice_fraction,                  &
+                  process_ssi_kernel_type( sea_ice_fraction,                  &
                                            tile_fraction),                    &
                   multi_insert_kernel_type(tile_temperature, land_tile_temp,  &
                                            1, n_land_tile),                   &
@@ -190,8 +198,6 @@ contains
                                           snow_layer_liq_mass,                &
                                           snow_layer_temp, snow_layer_rgrain, &
                                           soil_temperature) )
-
-      call land_area_fraction%log_minmax(LOG_LEVEL_INFO, 'sum of surface tiles')
 
     end if
 

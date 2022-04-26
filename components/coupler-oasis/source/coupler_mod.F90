@@ -45,8 +45,30 @@ module coupler_mod
                                             checkpoint_write_interface,       &
                                             checkpoint_read_interface
   use coupler_diagnostics_mod,        only: cpl_diagnostics, cpl_reset_field, &
-                                            initialise_scratch_fields
+                                            sea_ice_frac_raw,                 &
+                                            initialise_extra_coupling_fields
+  use coupler_update_prognostics_mod, only: coupler_update_prognostics
+  use process_o2a_algorithm_mod,      only: process_o2a_algorithm
+  use derived_config_mod,             only: l_esm_couple
+  use esm_couple_config_mod,          only: l_esm_couple_test
+
+#if defined(UM_PHYSICS)
+  use jules_control_init_mod,         only: n_sea_tile, first_sea_tile
+  ! Note: n_sea_ice_tile has to be retrieved from surface_config_mod and not
+  !       jules_control_init_mod as the coupler is initialised before jules
+  use surface_config_mod,             only: n_sea_ice_tile
+#endif
+
   implicit none
+
+#if !defined(UM_PHYSICS)
+  !
+  ! Dummy variables required when NOT running with UM_PHYSICS
+  !
+  integer(i_def),parameter              :: n_sea_tile = imdi
+  integer(i_def),parameter              :: first_sea_tile = imdi
+  integer(i_def),parameter              :: n_sea_ice_tile = imdi
+#endif
 
   private
   !Max length of coupling field names.
@@ -59,17 +81,12 @@ module coupler_mod
 #ifdef MCT
   !length of the snd_field/rcv_field
   integer(i_def)                        :: icpl_size
-  !is configuration coupled - set by MCT directive
-  logical(l_def), parameter             :: l_esm_couple = .true.
   !index to sort data for sending
   integer(i_def), allocatable           :: slocal_index(:)
   !OASIS component id
   integer(i_def)                        :: il_comp_id
   !keeps info about level
   character(len=2)                      :: cpl_lev
-#else
-  !is configuration coupled - set by MCT sdirective
-  logical(l_def), parameter             :: l_esm_couple = .false.
 #endif
   !prefix for lfric fields in namcouple
   character(len=3), parameter           :: cpl_prefix = "lf_"
@@ -81,9 +98,6 @@ module coupler_mod
   character(len=6), parameter           :: cpl_fmt = "(i2.2)"
   !maximum number of components lfric can send the same data
   integer(i_def),   parameter           :: nmax = 8
-
-  !variables
-  public l_esm_couple
 
   !routines
   public cpl_finalize, cpl_initialize, cpl_define, cpl_init_fields, &
@@ -97,11 +111,14 @@ module coupler_mod
   !> @param [in]    clock model clock
   !> @param [in,out] ldfaif Failure flag for send operation
   !
-  subroutine cpl_field_send(sfield, clock, ldfail)
+  subroutine cpl_field_send(sfield, ice_frac_proxy, clock, ldfail)
    implicit none
    type( field_type), intent(in)   :: sfield
+   !proxy of the sea ice fraction field
+   type( field_proxy_type ), intent(in) :: ice_frac_proxy
    class(clock_type), intent(in)   :: clock
    logical(l_def), intent(inout)   :: ldfail
+
 #ifdef MCT
    !model time since the start of the run
    integer(i_def)                  :: mtime
@@ -132,6 +149,10 @@ module coupler_mod
    integer(i_def), dimension(nmax) :: cpl_freqs
    !number of steps between coupling
    real(r_def)                     :: isteps
+   !min,max used for printing to screen
+   real(r_def)                     :: min_value, max_value
+   !unsorted sea ice fraction data
+   real(r_def)                     :: ice_frac_data(icpl_size)
 
    sname        = trim(adjustl(sfield%get_name()))
    sfield_proxy = sfield%get_proxy()
@@ -156,19 +177,38 @@ module coupler_mod
                                  " trying to send to more than nmax components"
               call log_event( log_scratch_space, LOG_LEVEL_ERROR )
             endif
+
             !can handle only cases when coupling frequency is the same for all
             !components
             if (maxval(cpl_freqs(1:ncpl)) == minval(cpl_freqs(1:ncpl))) then
               !mean value for sending
               wdata(:) = sfield_proxy%data(k:nlev*icpl_size:nlev)/cpl_freqs(1)
+
+              ! Some fields will need to be divided by ice fraction that has
+              ! just been passed from the sea ice model before being coupled
+              ! (time travelling sea ice)
+              if( sname == 'lf_topmelt' .OR. sname == 'lf_iceheatflux'         &
+                       .OR. sname == 'lf_sublimation'                          &
+                       .OR. sname == 'ln_pensolar' ) then
+                 ice_frac_data(:) = ice_frac_proxy%data(k:nlev*icpl_size:nlev)
+                 WHERE( ice_frac_data(:) /= 0.0_r_def )
+                    wdata(:) = wdata(:) / ice_frac_data(:)
+                 END WHERE
+              endif
+
               do i = 1, icpl_size
                  sdata(i) = wdata(slocal_index(i))
               enddo
+
+              min_value = MINVAL(sdata)
+              max_value = MAXVAL(sdata)
+
               call oasis_put(svar_id, mtime, sdata(:), ierror)
-              write(log_scratch_space, '(3A)' ) &
+              write(log_scratch_space, '(3A, 2E12.3)' ) &
                                  "cpl_field_send: field ", &
                                  trim(sname), &
-                                 " sent"
+                                 " sent with min,max = ", &
+                                 min_value, max_value
               call log_event( log_scratch_space, LOG_LEVEL_INFO )
               !reset to 0 for accomultion for the next exchange
               sfield_proxy%data(k:nlev*icpl_size:nlev) = 0.0_r_def
@@ -189,6 +229,7 @@ module coupler_mod
          call log_event( log_scratch_space, LOG_LEVEL_INFO )
       endif
    enddo
+
 #else
    write(log_scratch_space, '(A)' ) &
                   "cpl_field_send: to use OASIS cpp directive MCT must be set"
@@ -202,12 +243,14 @@ module coupler_mod
   !>
   !> @param [in]    rfield field to be sent
   !> @param [in]    mtime  current model time
+  !> @param [out]   ldex field exchange flag
   !> @param [in,out] ldfail failure flag for receive operation
   !
-  subroutine cpl_field_receive( rfield, mtime, ldfail)
+  subroutine cpl_field_receive( rfield, mtime, ldex, ldfail)
    implicit none
    type(field_type), intent(inout)              ::  rfield
    integer(i_def), intent(in)                   ::  mtime
+   logical(l_def), intent(out)                  ::  ldex
    logical(l_def), intent(inout)                ::  ldfail
 #ifdef MCT
    !number of data-levels
@@ -233,6 +276,8 @@ module coupler_mod
    rfield_proxy         = rfield%get_proxy()
    nlev                 = rfield_proxy%vspace%get_ndata()
 
+   ldex = .false.
+
    do k = 1, nlev
       rvar_id = rfield%get_cpl_id(k)
       if (rvar_id /= imdi) then
@@ -242,6 +287,7 @@ module coupler_mod
                wdata(slocal_index(i)) = rdata(i)
             enddo
             rfield_proxy%data(k:icpl_size*nlev:nlev) = wdata(:)
+            ldex = .true.
             write(log_scratch_space, '(3A)' ) &
                                "cpl_field_receive: field ", &
                                trim(rname), &
@@ -263,6 +309,7 @@ module coupler_mod
 
    if (.not.ldfail) call rfield_proxy%set_dirty()
 #else
+   ldex = .false.
    write(log_scratch_space, '(A)' ) &
                 "cpl_field_receive: to use OASIS cpp directive MCT must be set"
    call log_event( log_scratch_space, LOG_LEVEL_ERROR )
@@ -369,6 +416,7 @@ module coupler_mod
    type( field_type )                          :: coord_output(3)
    !function space for coupling field
    type(function_space_type), pointer          :: fld_cpld_fs   => null()
+   type(function_space_type), pointer          :: sice_space => null()
    !global index for the mesh
    integer(i_halo_index), allocatable          :: global_index(:)
    !global index for the first mesh level
@@ -608,8 +656,11 @@ module coupler_mod
 
    call oasis_enddef (ierror)
 
-   !initialize scratch variables
-   call initialise_scratch_fields( fld_cpld_fs )
+   sice_space  => function_space_collection%get_fs(twod_mesh, 0, W3,           &
+                                                          ndata=n_sea_ice_tile)
+
+   ! Initialize extra coupling variables
+   call initialise_extra_coupling_fields( fld_cpld_fs, sice_space )
 
    nullify(field)
    deallocate(global_index)
@@ -624,8 +675,8 @@ module coupler_mod
 
   end subroutine cpl_define
 
-  !>@brief Adds coupling fields used in the model to depository and prognosic fields
-  !> collection
+  !>@brief Adds coupling fields used in the model to depository and
+  !> prognosic_fields collections
   !> @param [in]  twod_mesh    mesh on which coupling fields are defined (W3)
   !> @param [out] depository   field collection - all fields
   !> @param [out] prognostic_fields field collection - prognostic fields
@@ -639,6 +690,7 @@ module coupler_mod
    !
    !vactor space for coupling field
    type(function_space_type), pointer :: vector_space => null()
+   type(function_space_type), pointer :: sice_space => null()
    !checkpoint flag for coupling field
    logical(l_def)                     :: checkpoint_restart_flag
 
@@ -649,6 +701,8 @@ module coupler_mod
    call prognostic_fields%initialise(name="prognostics", table_len=100)
 
    vector_space=> function_space_collection%get_fs( twod_mesh, 0, W3 )
+   sice_space  => function_space_collection%get_fs( twod_mesh, 0, W3,          &
+                                                               n_sea_ice_tile )
    !coupling fields
    !sending-depository
    checkpoint_restart_flag = .false.
@@ -672,6 +726,22 @@ module coupler_mod
 
    call add_cpl_field(depository, prognostic_fields, &
         'lf_w10',   vector_space, checkpoint_restart_flag, twod=.true.)
+
+   call add_cpl_field(depository, prognostic_fields, &
+        'lf_evap',   vector_space, checkpoint_restart_flag, twod=.true.)
+
+   call add_cpl_field(depository, prognostic_fields, &
+        'lf_topmelt',   sice_space, checkpoint_restart_flag, twod=.true.)
+
+   call add_cpl_field(depository, prognostic_fields, &
+        'lf_iceheatflux',sice_space, checkpoint_restart_flag, twod=.true.)
+
+   call add_cpl_field(depository, prognostic_fields, &
+        'lf_sublimation',sice_space, checkpoint_restart_flag, twod=.true.)
+
+   call add_cpl_field(depository, prognostic_fields, &
+        'lf_iceskint',sice_space, checkpoint_restart_flag, twod=.true.)
+
    !receiving - depository
    vector_space => function_space_collection%get_fs( twod_mesh, 0, W3, ndata=1 )
 
@@ -679,11 +749,13 @@ module coupler_mod
         'r_lf_dummy_t',   vector_space, checkpoint_restart_flag, twod=.true.)
 
    call add_cpl_field(depository, prognostic_fields, &
-        'lf_ti',   vector_space, checkpoint_restart_flag, twod=.true.)
-   !
-   vector_space => function_space_collection%get_fs( twod_mesh, 0, W3, ndata=5 )
+        'lf_icefrc',   sice_space, checkpoint_restart_flag, twod=.true.)
+
    call add_cpl_field(depository, prognostic_fields, &
-        'lf_ti_cat', vector_space, checkpoint_restart_flag, twod=.true.)
+        'lf_icetck',   sice_space, checkpoint_restart_flag, twod=.true.)
+
+   call add_cpl_field(depository, prognostic_fields, &
+        'lf_icelayert',sice_space, checkpoint_restart_flag, twod=.true.)
 
   end subroutine cpl_fields
 
@@ -742,8 +814,15 @@ module coupler_mod
     logical(l_def)                               :: lfail
     !iterator
     type( field_collection_iterator_type)        :: iter
+    !pointer to sea ice fractions
+    type( field_type ),         pointer          :: ice_frac_ptr   => null()
+    !proxy of the sea ice fraction field
+    type( field_proxy_type )                     :: ice_frac_proxy
 
     lfail = .false.
+
+    ! Ice fractions are needed for some coupling exchanges
+    ice_frac_proxy = sea_ice_frac_raw%get_proxy()
 
     call iter%initialise(dcpl_snd)
     do
@@ -754,7 +833,7 @@ module coupler_mod
         type is (field_type)
           field_ptr => dcpl_snd%get_field(trim(field%get_name()))
           call cpl_diagnostics(field_ptr, depository, clock, istep)
-          call cpl_field_send(field_ptr, clock, lfail)
+          call cpl_field_send(field_ptr, ice_frac_proxy, clock, lfail)
           call field_ptr%write_field(trim(field%get_name()))
         class default
           write(log_scratch_space, '(2A)' ) "PROBLEM cpl_snd: field ", &
@@ -765,7 +844,8 @@ module coupler_mod
 
     end do
 
-    nullify(field)
+   ice_frac_ptr   => null()
+   nullify(field)
 
     if (lfail) call log_event("Errors in cpl_snd", LOG_LEVEL_ERROR )
 
@@ -775,11 +855,13 @@ module coupler_mod
   !>
   !> @param [in,out] dcpl_rcv field collection with names of the fields received
   !>                         from another component
+  !> @param [in] depository field collection - all fields
   !> @param [in] clock model clock
   !
-  subroutine cpl_rcv(dcpl_rcv, clock)
+  subroutine cpl_rcv(dcpl_rcv, depository, clock)
    implicit none
    type( field_collection_type ), intent(in)    :: dcpl_rcv
+   type( field_collection_type ), intent(in)    :: depository
    class(clock_type),             intent(in)    :: clock
    !local variables
    !pointer to a field (parent)
@@ -792,8 +874,13 @@ module coupler_mod
    integer(i_def)                               :: mtime
    !iterator
    type( field_collection_iterator_type)        :: iter
+   !logical flag for processing data that has just been exchanged
+   ! (true once data has been sucessfully passed through the coupler)
+   logical(kind=l_def)                          :: l_process_data
 
+   ! Set defaults
    lfail = .false.
+   l_process_data = .false.
 
    mtime        = int(clock%seconds_from_steps(clock%get_step()) - &
                       clock%seconds_from_steps(clock%get_first_step()), i_def)
@@ -805,8 +892,7 @@ module coupler_mod
       select type(field)
         type is (field_type)
           field_ptr => dcpl_rcv%get_field(trim(field%get_name()))
-          call cpl_field_receive(field_ptr, mtime, lfail)
-          call field_ptr%write_field(trim(field%get_name()))
+          call cpl_field_receive(field_ptr, mtime, l_process_data, lfail)
         class default
           write(log_scratch_space, '(2A)' ) "PROBLEM cpl_rcv: field ", &
                         trim(field%get_name())//" is NOT field_type"
@@ -815,9 +901,34 @@ module coupler_mod
         end select
    end do
 
-   nullify(field)
+   if(lfail) call log_event("Errors in cpl_rcv", LOG_LEVEL_ERROR )
 
-   if (lfail) call log_event("Errors in cpl_rcv", LOG_LEVEL_ERROR )
+   if (l_process_data .and. l_esm_couple_test) then
+      write(log_scratch_space, '(2A)' ) "Skipping updating of prognostics ",&
+                            "from coupler (due to l_esm_couple_test=.true.)"
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+      l_process_data=.false.
+   end if
+
+   if(l_process_data) then
+
+      ! If echange is successful then process the data that has
+      ! come through the coupler
+      call process_o2a_algorithm(dcpl_rcv)
+
+      ! Update the prognostics
+      call iter%initialise(dcpl_rcv)
+      do
+         if(.not.iter%has_next())exit
+         field => iter%next()
+         field_ptr => dcpl_rcv%get_field(trim(field%get_name()))
+         call field_ptr%write_field(trim(field%get_name()))
+         call coupler_update_prognostics(field_ptr, depository)
+      end do
+
+   end if
+
+   nullify(field)
 
   end subroutine cpl_rcv
 
@@ -867,8 +978,10 @@ module coupler_mod
    ! pointers for xios write interface
    procedure(write_interface), pointer :: write_behaviour => null()
    procedure(read_interface),  pointer :: read_behaviour => null()
-   procedure(checkpoint_write_interface), pointer :: checkpoint_write_behaviour => null()
-   procedure(checkpoint_read_interface), pointer  :: checkpoint_read_behaviour => null()
+   procedure(checkpoint_write_interface), pointer ::                           &
+                                           checkpoint_write_behaviour => null()
+   procedure(checkpoint_read_interface), pointer  ::                           &
+                                            checkpoint_read_behaviour => null()
 
    call new_field%initialise( vector_space, name=trim(name) )
 

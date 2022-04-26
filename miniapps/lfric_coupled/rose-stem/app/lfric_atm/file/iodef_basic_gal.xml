@@ -344,8 +344,8 @@
 	<field id="tile_temperature" name="tile_temperature" long_name="surface_tile_temperature" unit="K" domain_ref="face" axis_ref="surface_tiles"/>
 	<field id="canopy_evap" name="canopy_evap" long_name="canopy_evaporation" unit="kg m-2 s-1" domain_ref="face" axis_ref="surface_tiles"/>
 	<!-- snow fields -->
-	<field id="total_snowmelt" name="total_snowmelt" long_name="total_snowmelt" unit="kg m-2 s-1" domain_ref="face" axis_ref="surface_tiles"/>
-	<field id="snow_sublimation" name="snow_sublimation" long_name="snow_sublimation" unit="kg m-2 s-1" domain_ref="face" axis_ref="surface_tiles"/>
+	<field id="snowice_melt" name="snowice_melt" long_name="snowice_melt" unit="kg m-2 s-1" domain_ref="face" axis_ref="surface_tiles"/>
+	<field id="snowice_sublimation" name="snowice_sublimation" long_name="snowice_sublimation" unit="kg m-2 s-1" domain_ref="face" axis_ref="surface_tiles"/>
 	<field id="snow_depth" name="snow_depth" long_name="snow_depth" unit="m" domain_ref="face" axis_ref="surface_tiles"/>
 	<field id="tile_snow_rgrain" name="tile_snow_rgrain" long_name="tile_snow_grain_size" unit="microns" domain_ref="face" axis_ref="surface_tiles"/>
 	<field id="snowpack_density" name="snowpack_density" long_name="snowpack_density" unit="kg m-3" domain_ref="face" axis_ref="surface_tiles"/>

@@ -38,15 +38,13 @@ contains
   !> @param[in,out] surface_fields      Fields for surface scheme
   !> @param[in,out] soil_fields         Fields for soil hydrology scheme
   !> @param[in,out] snow_fields         Fields for snow scheme
-  !> @param[in]     snow_sublimation    Sublimation of snow (kg m-2 s-1)
   !> @param[in]     surf_heat_flux      Net surface heat flux (W m-2)
   !> @param[in]     canopy_evap         Canopy evaporation from land tiles (kg m-2 s-1)
   !> @param[in]     water_extraction    Extraction of water from each soil layer (kg m-2 s-1)
-  !> @param[in,out] total_snowmelt      Surface plus canopy snowmelt rate (kg m-2 s-1)
   subroutine jules_extra_alg(microphysics_fields, convection_fields,      &
                              surface_fields, soil_fields, snow_fields,    &
-                             snow_sublimation, surf_heat_flux,            &
-                             canopy_evap, water_extraction, total_snowmelt)
+                             surf_heat_flux,                              &
+                             canopy_evap, water_extraction)
 
     use jules_extra_kernel_mod, only: jules_extra_kernel_type
 
@@ -58,11 +56,9 @@ contains
     type( field_collection_type ), intent(inout) :: soil_fields
     type( field_collection_type ), intent(inout) :: snow_fields
 
-    type( field_type ), intent (in) :: snow_sublimation
     type( field_type ), intent (in) :: surf_heat_flux
     type( field_type ), intent (in) :: canopy_evap
     type( field_type ), intent (in) :: water_extraction
-    type( field_type ), intent (inout) :: total_snowmelt
 
     ! Temporary fields: unpacked fields from collections
     type( field_type ), pointer :: ls_rain                => null()
@@ -78,6 +74,8 @@ contains
     type( field_type ), pointer :: tile_temperature       => null()
     type( field_type ), pointer :: net_prim_prod          => null()
     type( field_type ), pointer :: canopy_water           => null()
+    type( field_type ), pointer :: snowice_melt           => null()
+    type( field_type ), pointer :: snowice_sublimation    => null()
 
     type( field_type ), pointer :: soil_moist_wilt        => null()
     type( field_type ), pointer :: soil_moist_crit        => null()
@@ -144,6 +142,8 @@ contains
     tile_temperature       => surface_fields%get_field('tile_temperature')
     net_prim_prod          => surface_fields%get_field('net_prim_prod')
     canopy_water           => surface_fields%get_field('canopy_water')
+    snowice_melt           => surface_fields%get_field('snowice_melt')
+    snowice_sublimation    => surface_fields%get_field('snowice_sublimation')
 
     ! Soil fields
     soil_moist_wilt        => soil_fields%get_field('soil_moist_wilt')
@@ -209,7 +209,7 @@ contains
                            soil_carbon_content, soil_roughness,                &
                            mean_topog_index, a_sat_frac, c_sat_frac,           &
                            a_wet_frac, c_wet_frac, tile_temperature,           &
-                           net_prim_prod, snow_sublimation, surf_heat_flux,    &
+                           net_prim_prod, snowice_sublimation, surf_heat_flux, &
                            canopy_evap, water_extraction,                      &
                            thermal_cond_wet_soil, soil_respiration,            &
                            soil_temperature, soil_moisture,                    &
@@ -218,7 +218,7 @@ contains
                            n_snow_layers, snow_depth, snow_under_canopy,       &
                            snowpack_density, snow_layer_thickness,             &
                            snow_layer_ice_mass, snow_layer_liq_mass,           &
-                           snow_layer_temp, snow_layer_rgrain, total_snowmelt, &
+                           snow_layer_temp, snow_layer_rgrain, snowice_melt,   &
                            soil_sat_frac, water_table, wetness_under_soil,     &
                            soil_moisture_content, grid_snow_mass,              &
                            throughfall, surface_runoff,                        &
@@ -230,7 +230,7 @@ contains
 
       ! Output the jules snow diagnostics
       call output_diags_for_jules_snow(tile_fraction, tile_snow_mass,          &
-                                     total_snowmelt,                           &
+                                     snowice_melt,                             &
                                      snow_depth, tile_snow_rgrain,             &
                                      snowpack_density, snow_layer_temp,        &
                                      snow_layer_thickness, snow_layer_ice_mass,&

@@ -42,13 +42,15 @@ module gungho_driver_mod
                                          log_scratch_space
   use mesh_collection_mod,        only : mesh_collection
   use mesh_mod,                   only : mesh_type
+  use derived_config_mod,         only : l_esm_couple
 #ifdef UM_PHYSICS
   use variable_fields_mod,        only : update_variable_fields
   use update_ancils_alg_mod,      only : update_ancils_alg
 #endif
 #ifdef COUPLED
   use esm_couple_config_mod,      only : l_esm_couple_test
-  use coupler_mod,                only : l_esm_couple, cpl_snd, cpl_rcv
+  use coupler_mod,                only : cpl_snd, cpl_rcv
+  use coupler_diagnostics_mod,    only : save_sea_ice_frac_previous
 #endif
 
   implicit none
@@ -141,12 +143,13 @@ contains
     write(log_scratch_space,'(A)') 'Running '//program_name//' ...'
     call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
 
-#ifdef COUPLED
     if(l_esm_couple) then
-      write(log_scratch_space,'(A)') 'Configuration is coupled'
+      write(log_scratch_space,'(A)') 'Configuration is coupled to ocean'
+      call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
+    else
+      write(log_scratch_space,'(A)') 'Configuration is not coupled to ocean'
       call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
     endif
-#endif
 
     clock => io_context%get_clock()
     do while (clock%tick())
@@ -159,9 +162,11 @@ contains
          write(log_scratch_space, *) 'Coupling step ', cpl_step
          call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
-         call cpl_rcv(model_data%cpl_rcv, clock)
+         call save_sea_ice_frac_previous(model_data%depository)
 
-         CALL cpl_snd(model_data%cpl_snd, model_data%depository, clock, cpl_step)
+         call cpl_rcv(model_data%cpl_rcv, model_data%depository, clock)
+
+         call cpl_snd(model_data%cpl_snd, model_data%depository, clock, cpl_step)
 
       endif
 #endif

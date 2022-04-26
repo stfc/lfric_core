@@ -58,8 +58,9 @@ module gungho_model_data_mod
   use init_gungho_lbcs_alg_mod,           only : init_lbcs_file_alg,    &
                                                  init_lbcs_analytic_alg
   use init_physics_prognostics_alg_mod,   only : init_physics_prognostics_alg
+  use derived_config_mod,                 only : l_esm_couple
 #ifdef COUPLED
-  use coupler_mod,                      only : cpl_init_fields, l_esm_couple
+  use coupler_mod,                      only : cpl_init_fields
 #endif
   use moist_dyn_factors_alg_mod,        only : moist_dyn_factors_alg
   use init_fd_prognostics_mod,          only : init_fd_prognostics_dump

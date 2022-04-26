@@ -47,6 +47,7 @@ module create_physics_prognostics_mod
   use surface_config_mod,             only : albedo_obs, sea_alb_var_chl
   use spectral_gwd_config_mod,        only : add_cgw
   use microphysics_config_mod,        only : turb_gen_mixph
+  use derived_config_mod,             only : l_esm_couple
 
   implicit none
 
@@ -145,6 +146,7 @@ contains
     integer(i_def) :: theta_space
 #ifdef UM_PHYSICS
     logical(l_def) :: checkpoint_flag
+    logical(l_def) :: checkpoint_couple
     logical(l_def) :: advection_flag
 #endif
 
@@ -869,6 +871,14 @@ contains
     else
       checkpoint_flag = .false.
     end if
+
+    ! Coupling fields might need checkpointing
+    if (surface == surface_jules .and. l_esm_couple) then
+      checkpoint_couple = .true.
+    else
+      checkpoint_couple = .false.
+    end if
+
     call add_physics_field( surface_fields, depository, prognostic_fields,     &
       advected_fields, &
       'z0msea',  twod_space, checkpoint_flag=checkpoint_flag, twod=.true. )
@@ -926,9 +936,6 @@ contains
       'tile_heat_flux', surft_space, twod=.true. )
     call add_physics_field( surface_fields, depository, prognostic_fields,     &
       advected_fields, &
-      'tile_moisture_flux', surft_space, twod=.true. )
-    call add_physics_field( surface_fields, depository, prognostic_fields,     &
-      advected_fields, &
       'alpha1_tile', surft_space, twod=.true. )
     call add_physics_field( surface_fields, depository, prognostic_fields,     &
       advected_fields, &
@@ -960,6 +967,20 @@ contains
     call add_physics_field( surface_fields, depository, prognostic_fields,     &
       advected_fields, &
       'gc_tile', surft_space, twod=.true. )
+
+   ! Fields on surface tiles used by coupler, need checkpointing in coupled models
+    call add_physics_field( surface_fields, depository, prognostic_fields,     &
+      advected_fields, &
+      'tile_moisture_flux', surft_space, checkpoint_flag=checkpoint_couple, twod=.true. )
+    call add_physics_field( surface_fields, depository, prognostic_fields,     &
+      advected_fields, &
+      'snowice_melt', surft_space, checkpoint_flag=checkpoint_couple, twod=.true. )
+    call add_physics_field( surface_fields, depository, prognostic_fields,     &
+      advected_fields, &
+      'surf_ht_flux', surft_space, checkpoint_flag=checkpoint_couple, twod=.true. )
+    call add_physics_field( surface_fields, depository, prognostic_fields,     &
+      advected_fields, &
+      'snowice_sublimation', surft_space, checkpoint_flag=checkpoint_couple, twod=.true. )
 
     ! 2D fields, don't need checkpointing
     call add_physics_field( surface_fields, depository, prognostic_fields,     &

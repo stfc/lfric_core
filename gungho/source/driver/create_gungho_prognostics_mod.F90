@@ -40,9 +40,7 @@ module create_gungho_prognostics_mod
                                              write_diag,      &
                                              checkpoint_read, &
                                              checkpoint_write
-#ifdef COUPLED
-  use coupler_mod,                    only : l_esm_couple
-#endif
+  use derived_config_mod,             only : l_esm_couple
   implicit none
 
   private
@@ -100,13 +98,11 @@ contains
 !>       when cpl_define can be called in any place in the code.
 !>       See #2710 test branch for details.
 
-    create_depository = .true.
-
-#ifdef COUPLED
     if(l_esm_couple) then
       create_depository = .false.
+    else
+      create_depository = .true.
     endif
-#endif
 
     if (create_depository) then
        call depository%initialise(name='depository', table_len=100)

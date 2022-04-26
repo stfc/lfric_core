@@ -9,7 +9,7 @@
 module jules_physics_init_mod
 
   ! Other LFRic modules used
-  use constants_mod,          only : r_um, i_def
+  use constants_mod,          only : r_um, i_def, r_def
   use jules_control_init_mod, only : n_sea_ice_tile, n_land_tile
   use jules_surface_config_mod, only :                                         &
                                      cor_mo_iter_in => cor_mo_iter,            &
@@ -129,6 +129,7 @@ module jules_physics_init_mod
 ! use veg3_parm_mod,           only: in_dev
 ! use veg3_field_mod,          only: in_dev
   use jules_chemvars_mod,      only: chemvars_assoc
+  use derived_config_mod,      only: l_esm_couple
 
   implicit none
 
@@ -141,8 +142,13 @@ module jules_physics_init_mod
   ! (n_land_tile)
   integer(kind=i_def), protected :: snow_lev_tile
 
+  ! The minimum sea ice fraction
+  ! This is 0.0 for coupled models and 0.1 for atmosphere only models
+  real(kind=r_def)                     :: min_sea_ice_frac
+
   private
-  public :: jules_physics_init, decrease_sath_cond, snow_lev_tile
+  public :: jules_physics_init, decrease_sath_cond, snow_lev_tile,    &
+            min_sea_ice_frac
 
 contains
 
@@ -447,6 +453,14 @@ contains
     l_land_ice_imp  = .true.
     l_vary_z0m_soil = l_variable_soil_z0m
     orog_drag_param = 0.15_r_um
+
+    ! The minimum sea ice fraction
+    ! This is 0.0 for coupled models and 0.1 for atmosphere only models
+    if( l_esm_couple ) then
+       min_sea_ice_frac = 0.0_r_def
+    else
+       min_sea_ice_frac = 0.1_r_def
+    endif
 
     ! Check the contents of the Jules surface parameters module
     call check_jules_surface()

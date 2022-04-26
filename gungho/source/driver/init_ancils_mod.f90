@@ -36,6 +36,7 @@ module init_ancils_mod
   use aerosol_config_mod,             only : glomap_mode, glomap_mode_ukca
   use jules_surface_config_mod,       only : l_vary_z0m_soil
   use surface_config_mod,             only : sea_alb_var_chl, albedo_obs
+  use derived_config_mod,             only : l_esm_couple
 
   implicit none
 
@@ -147,14 +148,16 @@ contains
     call ancil_times_list%insert_item(sst_time_axis)
 
     !=====  SEA ICE ANCILS  =====
-    call sea_ice_time_axis%initialise("sea_ice_time", file_id="sea_ice_ancil", &
+    if (.not. l_esm_couple) then
+      call sea_ice_time_axis%initialise("sea_ice_time", file_id="sea_ice_ancil", &
                                       interp_flag=interp_flag, pop_freq="daily")
-    call setup_ancil_field("sea_ice_thickness", depository, ancil_fields, &
+      call setup_ancil_field("sea_ice_thickness", depository, ancil_fields, &
                 mesh, twod_mesh, twod=.true., time_axis=sea_ice_time_axis)
-    call setup_ancil_field("sea_ice_fraction", depository, ancil_fields, &
+      call setup_ancil_field("sea_ice_fraction", depository, ancil_fields, &
                 mesh, twod_mesh, twod=.true., time_axis=sea_ice_time_axis)
-    call sea_ice_time_axis%set_update_behaviour(tmp_update_ptr)
-    call ancil_times_list%insert_item(sea_ice_time_axis)
+      call sea_ice_time_axis%set_update_behaviour(tmp_update_ptr)
+      call ancil_times_list%insert_item(sea_ice_time_axis)
+    endif
 
     !=====  RADIATION ANCILS  =====
     if ( albedo_obs ) then

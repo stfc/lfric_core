@@ -7,13 +7,22 @@
 !!        that cant yet be computed in namelist code
 module derived_config_mod
 
-use constants_mod,     only: i_def
+use constants_mod,     only: i_def, l_def
 
   implicit none
 
   private
   integer(i_def), public, protected :: bundle_size
-  public :: set_derived_config
+
+  ! Determine if this model is a coupled ocean-atmosphere model
+  ! by using the MCT directive
+#ifdef MCT
+  logical(l_def), parameter             :: l_esm_couple = .true.
+#else
+  logical(l_def), parameter             :: l_esm_couple = .false.
+#endif
+
+  public :: set_derived_config, l_esm_couple
 
 contains
 

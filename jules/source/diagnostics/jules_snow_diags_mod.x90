@@ -59,7 +59,7 @@ contains
   !> @brief Output diagnostics from jules_extra_alg
   !> @param[in]     tile_fraction            Fraction of surface tiles
   !> @param[in]     tile_snow_mass           Snow mass on tiles
-  !> @param[in]     total_snowmelt           Total snowmelt on tiles
+  !> @param[in]     snowice_melt             Total snow and ice melt on tiles
   !> @param[in]     snow_depth               Depth of snow on tiles
   !> @param[in]     tile_snow_rgrain         Snow grain size on tiles
   !> @param[in]     snowpack_density         Density of snow pack on tiles
@@ -72,7 +72,7 @@ contains
   !> @param[in,out] grid_snowmelt            Grid snowmelt
 
   subroutine output_diags_for_jules_snow(tile_fraction, tile_snow_mass,        &
-                                     total_snowmelt,                           &
+                                     snowice_melt,                             &
                                      snow_depth, tile_snow_rgrain,             &
                                      snowpack_density, snow_layer_temp,        &
                                      snow_layer_thickness, snow_layer_ice_mass,&
@@ -85,7 +85,7 @@ contains
 
     ! Prognostic fields to output
     type( field_type ), intent(in)    :: tile_fraction, tile_snow_mass,        &
-                                         total_snowmelt,                       &
+                                         snowice_melt,                         &
                                          snow_depth, tile_snow_rgrain,         &
                                          snowpack_density, snow_layer_temp,    &
                                          snow_layer_thickness,                 &
@@ -104,7 +104,7 @@ contains
 
     ! Prognostic fields
     call tile_snow_mass%write_field('snow__snow_mass')
-    call total_snowmelt%write_field('snow__total_snowmelt')
+    call snowice_melt%write_field('snow__snowice_melt')
     call snow_depth%write_field('snow__snow_depth')
     call tile_snow_rgrain%write_field('snow__tile_snow_rgrain')
     call snowpack_density%write_field('snow__snowpack_density')
@@ -116,7 +116,7 @@ contains
 
     ! Diagnostics locally computed here from other fields
     if (grid_snowmelt_flag) then
-      call invoke(weighted_ave_kernel_type(grid_snowmelt, total_snowmelt,     &
+      call invoke(weighted_ave_kernel_type(grid_snowmelt, snowice_melt,      &
                                             tile_fraction, 1, n_land_tile) )
       call grid_snowmelt%write_field('snow__grid_snowmelt')
     end if
