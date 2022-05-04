@@ -34,30 +34,21 @@ contains
   !>          to be variable in the UM and therefore declared as such in the
   !>          UM modules which contains it).
   !> @param[in] mesh    Mesh
-  !> @param[in] ncells  The number of cells in the horizontal domain that
-  !>                    the UM code should loop over (i.e. not including halos)
-  subroutine um_control_init( mesh, ncells)
+  subroutine um_control_init( mesh )
 
     ! UM modules containing things that need setting
-    use atm_fields_bounds_mod, only: atm_fields_bounds_init
-    use atm_step_local, only: rhc_row_length, rhc_rows
     use cderived_mod, only: delta_lambda, delta_phi
     use dynamics_input_mod, only: numcycles
     use gen_phys_inputs_mod, only: l_mr_physics
-    use level_heights_mod, only: r_theta_levels, r_rho_levels, eta_theta_levels
+    use level_heights_mod, only: eta_theta_levels
     use model_domain_mod, only: model_type, mt_single_column
     use nlsizes_namelist_mod, only: model_levels, cloud_levels, n_cca_lev, &
-         row_length, rows, tr_vars
-    use timestep_mod, only: timestep
-    use trignometric_mod, only: cos_theta_latitude
-
+         tr_vars
     use mesh_mod, only: mesh_type
-
 
     implicit none
 
     type(mesh_type),  intent(in), pointer :: mesh
-    integer(i_def),   intent(in)          :: ncells
 
     ! Local variables
     type(field_type), pointer       :: delta => null() ! Horizontal edge length
@@ -72,21 +63,9 @@ contains
     model_levels = number_of_layers
     cloud_levels = number_of_layers
     n_cca_lev    = number_of_layers
-    ! Horizontal dimensions set to the value passed into this routine.
-    ! This needs to match the number of cells passed to physics kernels.
-    row_length = int( ncells, i_um )
-    rows       = 1
     ! Number of tracer variables - not implemented in LFRic so fixed at 0.
     ! This may change if we implement tracers ever.
     tr_vars = 0
-
-    ! ----------------------------------------------------------------
-    ! More model dimensions, this time from atm_step_local
-    ! ----------------------------------------------------------------
-    ! Dimensions of critical relative humidity array. Again, needs to
-    ! match number of points passed to kernels.
-    rhc_row_length = int( ncells, i_um )
-    rhc_rows       = 1
 
     ! ----------------------------------------------------------------
     ! Model type - contained in UM module model_domain_mod
@@ -94,14 +73,6 @@ contains
     ! Currently set to single column, as the physics kernels are called 1
     ! cell at a time. This may change if we pass multiple cells to kernels.
     model_type = mt_single_column
-
-    ! Set the field bounds which are used by the UM code based on the
-    ! information above.
-    ! Hard-wired zeros are halo-sizes in UM code.
-    ! Currently set to zero as we don't pass a stencil into the kernels
-    ! but may change if we ever do.
-    call atm_fields_bounds_init( 0_i_um, 0_i_um, 0_i_um, &
-                                 0_i_um, row_length, rows, rows)
 
     ! Number of outer iterations of the dynamics - contained in UM
     ! dynamics_input_mod.
@@ -119,22 +90,8 @@ contains
     ! in any kernel whos external code uses the variables.
     ! Ideally the UM code will be changed so that they are passed in
     ! through the argument list.
-    if(allocated(r_theta_levels))deallocate(r_theta_levels)
-    allocate(r_theta_levels(row_length,rows,0:number_of_layers), source=rmdi)
-    if(allocated(r_rho_levels))deallocate(r_rho_levels)
-    allocate(r_rho_levels(row_length,rows,number_of_layers), source=rmdi)
-    if(allocated(eta_theta_levels))deallocate(eta_theta_levels)
     allocate(eta_theta_levels(0:number_of_layers), source=rmdi)
-
-
     call mesh%get_eta(eta_theta_levels)
-
-    ! The following are used in the calculation of grid-box size in
-    ! UM parametrizations.
-    ! As the grid here should be quasi-uniform, we'll assume that the
-    ! average value is representative of all grid-points
-    if(allocated(cos_theta_latitude))deallocate(cos_theta_latitude)
-    allocate(cos_theta_latitude(row_length,rows), source=1.0_r_um)
 
     ! This is a temporary method of calculating
     ! the global mean of a field - once psyclone#489 is live,

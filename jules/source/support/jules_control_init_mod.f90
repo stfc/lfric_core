@@ -18,9 +18,6 @@ module jules_control_init_mod
   ! Other LFRic modules used
   use constants_mod,        only : r_um, rmdi, i_def
 
-  ! UM modules used
-  use nlsizes_namelist_mod, only : row_length, rows
-
   implicit none
 
   integer(kind=i_def), parameter :: n_land_tile = 9
@@ -54,10 +51,8 @@ contains
 
     ! UM/Jules modules containing things that need setting
     use ancil_info, only: jules_dim_cs1 => dim_cs1, land_pts, nsurft
-    use atm_fields_bounds_mod, only: tdims, udims, vdims
     use atm_step_local, only: co2_dim_len, co2_dim_row, &
         dim_cs1
-    use dyn_coriolis_mod, only: f3_at_u
     use jules_soil_mod, only: jules_sm_levels => sm_levels
     use jules_surface_types_mod, only: nnpft, npft, nnvg, ntype, brd_leaf, &
          ndl_leaf, c3_grass, c4_grass, shrub, urban, lake, soil, ice
@@ -65,9 +60,6 @@ contains
     use jules_model_environment_mod, only: lsm_id, jules
     use nlsizes_namelist_mod, only: land_field, ntiles, sm_levels
     use rad_input_mod, only: co2_mmr
-    use theta_field_sizes, only: t_i_length, t_j_length, &
-                                 u_i_length, u_j_length, &
-                                 v_i_length, v_j_length
 
     implicit none
 
@@ -113,15 +105,6 @@ contains
 
     ! Product of soil levels and land tiles for water extraction
     soil_lev_tile = sm_levels * n_land_tile
-
-    ! Compute lengths in i and j direction. This is the earliest place that they
-    ! are needed. They will be kept in the module from here onward.
-    t_i_length = tdims%i_end - tdims%i_start + 1
-    t_j_length = tdims%j_end - tdims%j_start + 1
-    u_i_length = udims%i_end - udims%i_start + 1
-    u_j_length = udims%j_end - udims%j_start + 1
-    v_i_length = vdims%i_end - vdims%i_start + 1
-    v_j_length = vdims%j_end - vdims%j_start + 1
 
     ! ----------------------------------------------------------------
     ! More model dimensions, this time from atm_step_local
@@ -171,15 +154,6 @@ contains
 
     ! Initialise LSM to be JULES (other options do exist; CABLE, RIVER-EXE)
     lsm_id = jules
-
-    ! The following 2D array is used direct from modules throughout the
-    ! UM/Jules code
-    ! We must initialise it here so that it is always available
-    ! But it must be set to appropriate values for the current column
-    ! in any kernel whos external code uses it.
-    ! Ideally the UM/Jules code will be changed so that it is passed in
-    ! through the argument list
-    allocate(f3_at_u(row_length,rows), source=1.0_r_um)
 
   end subroutine jules_control_init
 

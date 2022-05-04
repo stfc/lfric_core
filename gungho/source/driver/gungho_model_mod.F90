@@ -118,6 +118,7 @@ module gungho_model_mod
   use illuminate_alg_mod,         only : illuminate_alg
   use um_clock_init_mod,          only : um_clock_init
   use um_control_init_mod,        only : um_control_init
+  use um_sizes_init_mod,          only : um_sizes_init
   use um_physics_init_mod,        only : um_physics_init
   use um_radaer_lut_init_mod,     only : um_radaer_lut_init
   use um_ukca_init_mod,           only : um_ukca_init
@@ -405,13 +406,13 @@ contains
                             clock%get_seconds_per_step())
       end if
       ! Initialisation of UM high-level variables
-      call um_control_init(mesh, ncells)
-
+      call um_control_init(mesh)
+      call um_sizes_init(ncells)
       ! Initialisation of UM clock
       call um_clock_init(clock)
 
       ! Initialisation of UM physics variables
-      call um_physics_init(ncells)
+      call um_physics_init()
       !Read all the radaer lut namelist files
       call um_radaer_lut_init()
       ! Initialisation of Jules high-level variables

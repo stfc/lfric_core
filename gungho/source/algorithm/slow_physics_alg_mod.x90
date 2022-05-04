@@ -94,10 +94,7 @@ module slow_physics_alg_mod
   use fsd_condensate_alg_mod,    only: fsd_condensate_alg
   use um_physics_init_mod,       only: sw_band_mode, lw_band_mode, mode_dimen
   use bm_tau_alg_mod,            only: bm_tau_alg
-  use mesh_collection_mod,       only: mesh_collection
-  use mesh_mod,                  only: mesh_type
-  use um_control_init_mod,       only: um_control_init
-  use um_physics_init_mod,       only: um_physics_init
+  use um_sizes_init_mod,         only: um_sizes_init
 #endif
 
   implicit none
@@ -337,15 +334,13 @@ contains
          microphysics_placement == microphysics_placement_slow) then
       ! Switch UM to running i-first on whole domain
       ncells = mesh%get_last_edge_cell()
-      call um_control_init(mesh, ncells)
-      call um_physics_init(ncells)
+      call um_sizes_init(ncells)
       call mphys_alg( mr_n, theta, rho, derived_fields, microphysics_fields, &
                       cloud_fields, aerosol_fields, turbulence_fields,       &
                       f_arr, dmr_mphys, dtheta_mphys, dcfl_pc2_mphys,        &
                       dcff_pc2_mphys, dbcf_pc2_mphys, dt )
       ! Switch UM back to columns
-      call um_control_init(mesh, 1_i_def)
-      call um_physics_init(1_i_def)
+      call um_sizes_init(1_i_def)
       microphysics_done = .true. ! Collect this increment later on
     end if
 

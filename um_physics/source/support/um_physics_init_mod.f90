@@ -135,7 +135,7 @@ module um_physics_init_mod
 
   ! UM modules used
   use cderived_mod,         only : delta_lambda, delta_phi
-  use nlsizes_namelist_mod, only : bl_levels, row_length, rows
+  use nlsizes_namelist_mod, only : bl_levels
   use level_heights_mod,    only : eta_theta_levels
 
   implicit none
@@ -160,10 +160,8 @@ contains
   !>          from the UM code.
   !>        Other parameters and switches which are genuinely input variables,
   !>         via the LFRic namelists, are also set here for the UM code.
-  !>@param[in] ncells  The number of cells in the horizontal domain that
-  !>                   the UM code should loop over (i.e. not including halos)
 
-  subroutine um_physics_init(ncells)
+  subroutine um_physics_init()
 
     ! UM modules containing things that need setting and setup routines
     use bl_option_mod, only: i_bl_vn, sbl_op, ritrans,                     &
@@ -224,12 +222,11 @@ contains
          l_twobin_dust, h_orog_limit, dust_parameters_load,                &
          dust_parameters_unload
     use electric_inputs_mod, only: electric_method, no_lightning
-    use fsd_parameters_mod, only: fsd_eff_lam, fsd_eff_phi, f_cons, f_arr
+    use fsd_parameters_mod, only: fsd_eff_lam, fsd_eff_phi, f_cons
     use glomap_clim_option_mod, only: i_glomap_clim_setup,                 &
          i_gc_sussocbcdu_7mode, l_glomap_clim_aie2
     use g_wave_input_mod, only: ussp_launch_factor, wavelstar, l_add_cgw,  &
          cgw_scale_factor, i_moist, scale_aware, middle, var
-    use leonard_incs_mod, only: thetal_inc_leonard, qw_inc_leonard
     use mphys_bypass_mod, only: mphys_mod_top
     use mphys_constants_mod, only: cx, constp
     use mphys_inputs_mod, only: ai, ar, bi, c_r_correl, ci_input, cic_input, &
@@ -252,10 +249,6 @@ contains
          l_fix_tidy_rainfracs, l_fix_zh, l_fix_incloud_qcf,                 &
          l_fix_mcr_frac_ice, l_fix_gr_autoc, l_improve_cv_cons,             &
          l_pc2_checks_sdfix
-    use tuning_segments_mod, only: bl_segment_size, precip_segment_size, &
-         ussp_seg_size, gw_seg_size
-    use turb_diff_ctl_mod, only: visc_m, visc_h, max_diff, delta_smag,   &
-         rneutml_sq
     use turb_diff_mod, only: l_subfilter_horiz, l_subfilter_vert,        &
          mix_factor, turb_startlev_vert, turb_endlev_vert, l_leonard_term
     use ukca_mode_setup, only: ukca_mode_sussbcocdu_7mode
@@ -265,7 +258,6 @@ contains
 
     implicit none
 
-    integer(i_def), intent(in) :: ncells
     integer(i_def) :: k
     logical(l_def) :: dust_loaded = .false.
 
@@ -816,8 +808,6 @@ contains
         f_cons(1)      =  0.016
         f_cons(2)      =  2.76
         f_cons(3)      = -0.09
-        if(allocated(f_arr))deallocate(f_arr)
-        allocate(f_arr(3, row_length, rows, number_of_layers))
       end if
 
     end if
@@ -868,41 +858,11 @@ contains
     l_pc2_checks_sdfix      = .true.
     l_pc2_homog_turb_q_neg  = .true.
 
-    ! ----------------------------------------------------------------
-    ! Segment sizes for UM physics - contained in tuning_segments_mod
-    ! ----------------------------------------------------------------
-    ! These are set to 1 currently because only 1 grid-cell is passed to
-    ! a kernel. However, multiple columns are passed to a kernel,
-    ! these values will need to be set depending on how many columns
-    ! a kernel is passed.
-    bl_segment_size     = 1
-    gw_seg_size         = 1
-    precip_segment_size = int( ncells, i_um )
-    ussp_seg_size       = 1
-
     !-----------------------------------------------------------------------
     ! Smagorinsky mixing options - contained in turb_diff_mod and
     !                              turb_diff_ctl_mod
     !-----------------------------------------------------------------------
     if ( smagorinsky ) then
-
-      ! The following 3D arrays are used direct from turb_diff_ctl_mod
-      ! in the UM code.
-      ! We must initialise them here so that they are available.
-      ! But they must be set to appropriate values for the current column
-      ! in any kernel whos external code uses the variables.
-      ! Ideally the UM code will be changed so that they are passed in
-      ! through the argument list.
-      if(allocated(visc_h))deallocate(visc_h)
-      allocate ( visc_h(row_length, rows, number_of_layers), source=rmdi )
-      if(allocated(visc_m))deallocate(visc_m)
-      allocate ( visc_m(row_length, rows, number_of_layers), source=rmdi )
-      if(allocated(rneutml_sq))deallocate(rneutml_sq)
-      allocate ( rneutml_sq(row_length, rows, number_of_layers), source=rmdi )
-      if(allocated(max_diff))deallocate(max_diff)
-      allocate ( max_diff  (row_length, rows), source=rmdi )
-      if(allocated(delta_smag))deallocate(delta_smag)
-      allocate ( delta_smag(row_length, rows), source=rmdi )
 
       ! The following are needed regardless of which mixing option is used
       mix_factor = real(mix_factor_in, r_um)
@@ -930,18 +890,6 @@ contains
 
     else ! not Smagorinsky
 
-      ! Allocate these to small size to avoid compiler issues
-      if(allocated(visc_h))deallocate(visc_h)
-      allocate ( visc_h(1,1,1), source=rmdi  )
-      if(allocated(visc_m))deallocate(visc_m)
-      allocate ( visc_m(1,1,1), source=rmdi  )
-      if(allocated(rneutml_sq))deallocate(rneutml_sq)
-      allocate ( rneutml_sq(1,1,1), source=rmdi  )
-      if(allocated(max_diff))deallocate(max_diff)
-      allocate ( max_diff(1,1), source=rmdi  )
-      if(allocated(delta_smag))deallocate(delta_smag)
-      allocate ( delta_smag(1,1), source=rmdi  )
-
       ! Switches for Smagorinsky being off
       blending_option   = off
       l_subfilter_horiz = .false.
@@ -950,26 +898,9 @@ contains
     end if
 
     !-----------------------------------------------------------------------
-    ! Smagorinsky mixing options - contained in turb_diff_mod and
-    !                              turb_diff_ctl_mod
+    ! Leonard terms on or off
     !-----------------------------------------------------------------------
-    if ( leonard_term ) then
-
-      if(allocated(thetal_inc_leonard))deallocate(thetal_inc_leonard)
-      allocate ( thetal_inc_leonard(row_length, rows, number_of_layers), source=rmdi )
-      if(allocated(qw_inc_leonard))deallocate(qw_inc_leonard)
-      allocate ( qw_inc_leonard(row_length, rows, number_of_layers), source=rmdi )
-      l_leonard_term = .true.
-
-     else ! not Leonard_term
-
-      if(allocated(thetal_inc_leonard))deallocate(thetal_inc_leonard)
-      allocate ( thetal_inc_leonard(1,1,1), source=rmdi )
-      if(allocated(qw_inc_leonard))deallocate(qw_inc_leonard)
-      allocate ( qw_inc_leonard(1,1,1), source=rmdi )
-      l_leonard_term = .false.
-
-   end if
+    l_leonard_term = leonard_term
 
   end subroutine um_physics_init
 
