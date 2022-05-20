@@ -198,6 +198,8 @@ contains
     lon0 = 0.0_r_def
     lat0 = 0.0_r_def
     rad0 = scaled_radius
+    panel_id(:) = 1.0_r_def
+
     cell=1
     do i = 0,2
       do j = 0,2
