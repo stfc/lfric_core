@@ -15,14 +15,13 @@ export PROJECT_NAME = coupling
 export PROJECT_DIR_NAME = components/coupler-oasis
 PROFILE ?= fast-debug
 
-export IGNORE_DEPENDENCIES = netcdf MPI yaxt pfunit_mod xios mod_wait mod_oasis
-export EXTERNAL_DYNAMIC_LIBRARIES = yaxt yaxt_c netcdff netcdf hdf5
-export EXTERNAL_STATIC_LIBRARIES = psmile.MPI1 mct mpeu scrip xios
-
 LFRIC_TARGET_PLATFORM ?= generic-x86
 
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 export ROOT_DIR    ?= ../..
+
+export INTERNAL_DEPENDENCIES = $(ROOT_DIR)/infrastructure \
+                               $(ROOT_DIR)/components/lfric-xios
 
 META_VN       ?= HEAD
 META_FILE_DIR  = $(PROJECT_DIR)/rose-meta/$(PROJECT_NAME)/$(META_VN)
@@ -55,6 +54,8 @@ test-suite: launch-suite-gscan launch-test-suite
 	$(Q)echo > /dev/null
 
 include $(ROOT_DIR)/infrastructure/build/lfric.mk
+include $(PROJECT_DIR)/build/import.mk
+include $(INTERNAL_DEPENDENCIES:=/build/import.mk)
 
 # Documentation
 #

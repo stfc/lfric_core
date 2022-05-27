@@ -31,12 +31,10 @@ PROJECT_NAME = diagnostics_infrastructure
 
 PROFILE ?= fast-debug
 
-export IGNORE_DEPENDENCIES = netcdf MPI yaxt pfunit_mod fox_sax fox_common
-export EXTERNAL_DYNAMIC_LIBRARIES = netcdff netcdf hdf5 yaxt yaxt_c
-export EXTERNAL_STATIC_LIBRARIES = FoX_sax FoX_common FoX_utils FoX_fsys
-
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 export ROOT_DIR    ?= ../..
+
+export INTERNAL_DEPENDENCIES = $(ROOT_DIR)/infrastructure
 
 export SUITE_GROUP ?= developer
 export SUITE_GROUP_NAME ?= $(notdir $(realpath $(shell pwd)/$(ROOT_DIR)))-$(PROJECT_NAME)-.*
@@ -52,6 +50,8 @@ documentation doc docs: document-uml document-api
 	$(Q)echo > /dev/null
 
 include $(ROOT_DIR)/infrastructure/build/lfric.mk
+include $(PROJECT_DIR)/build/import.mk
+include $(INTERNAL_DEPENDENCIES:=/build/import.mk)
 
 ##############################################################################
 # Documentation

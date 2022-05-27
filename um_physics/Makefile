@@ -31,12 +31,10 @@ PROJECT_NAME = um_physics
 
 PROFILE ?= fast-debug
 
-export IGNORE_DEPENDENCIES = mod_wait MPI netcdf pfunit_mod xios yaxt
-export EXTERNAL_DYNAMIC_LIBRARIES = yaxt yaxt_c
-export EXTERNAL_STATIC_LIBRARIES = 
-
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 export ROOT_DIR    ?= ..
+
+export INTERNAL_DEPENDENCIES = $(ROOT_DIR)/infrastructure
 
 .PHONY: all
 all: default
@@ -48,6 +46,7 @@ default: unit-tests
 META_VN ?= HEAD
 
 include $(ROOT_DIR)/infrastructure/build/lfric.mk
+include $(INTERNAL_DEPENDENCIES:=/build/import.mk)
 
 
 ##############################################################################

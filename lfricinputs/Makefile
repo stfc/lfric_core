@@ -15,7 +15,6 @@ export ROOT_DIR   ?= ..
 export SUITE_GROUP ?= developer
 export SUITE_GROUP_NAME ?= $(notdir $(realpath $(shell pwd)/$(ROOT_DIR)))-$(PROJECT_NAME)-.*
 
-
 include $(ROOT_DIR)/infrastructure/build/lfric.mk
 
 ##############################################################################

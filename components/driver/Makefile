@@ -31,11 +31,11 @@ PROJECT_NAME = driver
 
 PROFILE ?= fast-debug
 
-export IGNORE_DEPENDENCIES = netcdf MPI yaxt pfunit_mod xios mod_wait
-export EXTERNAL_DYNAMIC_LIBRARIES = yaxt yaxt_c netcdff netcdf hdf5
-
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 export ROOT_DIR    ?= ../..
+
+export INTERNAL_DEPENDENCIES = $(ROOT_DIR)/infrastructure \
+                               $(ROOT_DIR)/components/lfric-xios
 
 export SUITE_GROUP ?= developer
 export SUITE_GROUP_NAME ?= $(notdir $(realpath $(shell pwd)/$(ROOT_DIR)))-$(PROJECT_NAME)-.*
@@ -52,6 +52,7 @@ documentation doc docs: document-uml document-api
 	$(Q)echo > /dev/null
 
 include $(ROOT_DIR)/infrastructure/build/lfric.mk
+include $(INTERNAL_DEPENDENCIES:=/build/import.mk)
 
 ##############################################################################
 # Documentation

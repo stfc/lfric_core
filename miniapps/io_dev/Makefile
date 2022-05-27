@@ -15,15 +15,16 @@ export PROJECT_NAME = io_dev
 export PROJECT_DIR_NAME = io_dev
 PROFILE ?= fast-debug
 
-export IGNORE_DEPENDENCIES = netcdf MPI yaxt pfunit_mod xios mod_wait
-export EXTERNAL_DYNAMIC_LIBRARIES = yaxt yaxt_c netcdff netcdf hdf5
-export EXTERNAL_STATIC_LIBRARIES = xios
+export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
+export ROOT_DIR    ?= ../..
+
+export INTERNAL_DEPENDENCIES = $(ROOT_DIR)/infrastructure \
+                               $(ROOT_DIR)/components/driver \
+                               $(ROOT_DIR)/components/science \
+                               $(ROOT_DIR)/components/lfric-xios
 
 LFRIC_TARGET_PLATFORM ?= generic-x86
 export OPTIMISATION_PATH ?= $(wildcard optimisation/$(LFRIC_TARGET_PLATFORM))
-
-export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
-export ROOT_DIR    ?= ../..
 
 export SUITE_GROUP ?= developer
 export SUITE_GROUP_NAME ?= $(notdir $(realpath $(shell pwd)/$(ROOT_DIR)))-$(PROJECT_NAME)-.*
@@ -40,6 +41,7 @@ documentation doc docs: document-uml document-latex document-api
 	$(Q)echo > /dev/null
 
 include $(ROOT_DIR)/infrastructure/build/lfric.mk
+include $(INTERNAL_DEPENDENCIES:=/build/import.mk)
 
 ##############################################################################
 # Launch gscan to monitor suites from this suite-group
@@ -115,41 +117,11 @@ else
   $(error Unrecognised profile "$(PROFILE)". Must be one of full-debug, fast-debug or production)
 endif
 build: ALWAYS
-	$(call MESSAGE,===============================)
-	$(call MESSAGE,Extracting LFRic infrastructure)
-	$(call MESSAGE,===============================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
-	          SOURCE_DIR=$(LFRIC_INFRASTRUCTURE)/source
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone.mk \
-	          SOURCE_DIR=$(LFRIC_INFRASTRUCTURE)/source \
-	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)
 	$(call MESSAGE,========================================)
-	$(call MESSAGE,Extracting LFRic driver model component)
+	$(call MESSAGE,Importing internal dependencies...)
 	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
-	          SOURCE_DIR=$(ROOT_DIR)/components/driver/source
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,Extracting LFRic science model component)
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
-	          SOURCE_DIR=$(ROOT_DIR)/components/science/source
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,PSycloning LFRic science model component)
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone.mk \
-	          SOURCE_DIR=$(ROOT_DIR)/components/science/source \
-	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,Extracting LFRic-XIOS model component)
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
-	          SOURCE_DIR=$(ROOT_DIR)/components/lfric-xios/source
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,PSycloning LFRic-XIOS model component)
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone.mk \
-	          SOURCE_DIR=$(ROOT_DIR)/components/lfric-xios/source \
-	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)
+	$(Q)for SUBPROJECT in $(INTERNAL_DEPENDENCIES) ; do \
+		$(MAKE) $(QUIET_ARG) -f $$SUBPROJECT/build/import.mk ; done
 	$(call MESSAGE,==============================)
 	$(call MESSAGE,Extracting $(PROJECT_NAME))
 	$(call MESSAGE,==============================)
@@ -175,7 +147,8 @@ build: ALWAYS
 	$(call MESSAGE,=========================================================)
 	$(call MESSAGE,Compiling $(PROJECT))
 	$(call MESSAGE,=========================================================)
-	$Q$(MAKE) $(QUIET_ARG) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/compile.mk \
+	echo $(PRE_PROCESS_MACROS)
+	$Q$(MAKE) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/compile.mk \
 	         BIN_DIR=$(BIN_DIR) PROGRAMS="$(PROGRAMS)"
 
 

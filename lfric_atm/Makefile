@@ -16,17 +16,19 @@ export LFRIC_TARGET_PLATFORM ?= generic-x86
 #
 .NOTPARALLEL:
 
-export IGNORE_DEPENDENCIES = netcdf MPI yaxt pfunit_mod xios mod_wait
-export EXTERNAL_DYNAMIC_LIBRARIES = yaxt yaxt_c netcdff netcdf hdf5
-export EXTERNAL_STATIC_LIBRARIES = xios
+export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
+export ROOT_DIR    ?= ..
+
+export INTERNAL_DEPENDENCIES = $(ROOT_DIR)/infrastructure \
+                               $(ROOT_DIR)/components/driver \
+                               $(ROOT_DIR)/components/science \
+                               $(ROOT_DIR)/components/lfric-xios
 
 export UMPHYSICS_TARGETS = extract-um-physics
 export UMPHYSICS_CLEAN   = clean-um-physics
 export UM_FCM=$(UM_PHYS_DIR)/
 export OPTIMISATION_PATH ?= $(wildcard optimisation/$(LFRIC_TARGET_PLATFORM))
 
-export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
-export ROOT_DIR    ?= ..
 export SUITE_GROUP ?= developer
 export SUITE_GROUP_NAME ?= $(notdir $(realpath $(shell pwd)/$(ROOT_DIR)))-$(PROJECT_NAME)-.*
 
@@ -38,6 +40,7 @@ default: build
 	$(Q)echo > /dev/null
 
 include $(ROOT_DIR)/infrastructure/build/lfric.mk
+include $(INTERNAL_DEPENDENCIES:=/build/import.mk)
 include build/project.mk
 
 ##############################################################################
@@ -83,25 +86,10 @@ else
 endif
 build: ALWAYS
 	$(call MESSAGE,========================================)
-	$(call MESSAGE,Extracting LFRic infrastructure)
+	$(call MESSAGE,Importing internal dependencies...)
 	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
-                  SOURCE_DIR=$(LFRIC_INFRASTRUCTURE)/source
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,Extracting LFRic driver model component)
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
-	          SOURCE_DIR=$(ROOT_DIR)/components/driver/source
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,Extracting LFRic science model component)
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
-	          SOURCE_DIR=$(ROOT_DIR)/components/science/source
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,Extracting LFRic xios component)
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
-	          SOURCE_DIR=$(ROOT_DIR)/components/lfric-xios/source
+	$(Q)for SUBPROJECT in $(INTERNAL_DEPENDENCIES) ; do \
+		$(MAKE) $(QUIET_ARG) -f $$SUBPROJECT/build/import.mk ; done
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,Extracting coupler-oasis component)
 	$(call MESSAGE,========================================)
@@ -128,23 +116,6 @@ build: ALWAYS
 	$(call MESSAGE,========================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
                   SOURCE_DIR=source
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,PSycloning LFRic infrastructure)
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone.mk \
-	          SOURCE_DIR=$(LFRIC_INFRASTRUCTURE)/source
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,PSycloning LFRic science component)
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone.mk \
-	          SOURCE_DIR=$(ROOT_DIR)/components/science/source \
-	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,PSycloning LFRic xios component)
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone.mk \
-	          SOURCE_DIR=$(ROOT_DIR)/components/lfric-xios/source \
-	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,PSycloning coupler-oasis component)
 	$(call MESSAGE,========================================)

@@ -38,11 +38,10 @@ PROFILE ?= fast-debug
 #
 .NOTPARALLEL:
 
-export IGNORE_DEPENDENCIES = netcdf MPI yaxt pfunit_mod planet_constants_mod xios mod_wait
-export EXTERNAL_DYNAMIC_LIBRARIES = netcdff netcdf hdf5 yaxt yaxt_c
-
 PROJECT_DIR       := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 export ROOT_DIR   ?= ..
+
+export INTERNAL_DEPENDENCIES = $(ROOT_DIR)/infrastructure
 
 export SUITE_GROUP ?= developer
 export SUITE_GROUP_NAME ?= $(notdir $(realpath $(shell pwd)/$(ROOT_DIR)))-$(PROJECT_NAME)-.*
@@ -55,6 +54,7 @@ default: build unit-tests
 	$(Q)echo > /dev/null
 
 include $(ROOT_DIR)/infrastructure/build/lfric.mk
+include $(INTERNAL_DEPENDENCIES:=/build/import.mk)
 
 ##############################################################################
 # Launch gscan to monitor suites from this suite-group
@@ -94,22 +94,15 @@ else
 endif
 build: ALWAYS
 	$(call MESSAGE,========================================)
-	$(call MESSAGE,Extracting LFRic infrastructure)
+	$(call MESSAGE,Importing internal dependencies...)
 	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
-                  SOURCE_DIR=$(LFRIC_INFRASTRUCTURE)/source \
-                  WORKING_DIR=$(WORKING_DIR)
+	$(Q)for SUBPROJECT in $(INTERNAL_DEPENDENCIES) ; do \
+		$(MAKE) $(QUIET_ARG) -f $$SUBPROJECT/build/import.mk ; done
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,Extracting $(PROJECT_NAME))
 	$(call MESSAGE,========================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
                   SOURCE_DIR=source \
-                  WORKING_DIR=$(WORKING_DIR)
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,PSycloning LFRic infrastructure)
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone.mk \
-                  SOURCE_DIR=$(LFRIC_INFRASTRUCTURE)/source \
                   WORKING_DIR=$(WORKING_DIR)
 	$(call MESSAGE,=========================================================)
 	$(call MESSAGE,Generating $(PROJECT) namelist loaders)

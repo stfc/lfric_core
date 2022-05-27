@@ -32,9 +32,6 @@ PROJECT_NAME = infrastructure
 
 PROFILE ?= fast-debug
 
-export IGNORE_DEPENDENCIES = netcdf MPI yaxt pfunit_mod
-export EXTERNAL_DYNAMIC_LIBRARIES = netcdff netcdf hdf5 yaxt yaxt_c
-
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 export ROOT_DIR    ?= ..
 
@@ -72,6 +69,7 @@ test-suite: launch-suite-gscan launch-test-suite
 	$(Q)echo > /dev/null
 
 include build/lfric.mk
+include build/import.mk
 
 ##############################################################################
 # Documentation
