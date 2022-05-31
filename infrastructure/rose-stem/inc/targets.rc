@@ -12,7 +12,7 @@
  #}
 {#-
  #
- # Due to the prslurmoduction model illadvisedly depending on the
+ # Due to the production model illadvisedly depending on the
  # "fortran/opt/gfortran" collection it cannot be taken out of the default
  # shell profile. Thus it must be unloaded manually. We also unload the legacy
  # LFRic collection in case it is floating around in people's shell profile or
@@ -20,16 +20,41 @@
  #}
 {%- set target = {
     'user-local' : {
-        'hostname': ROSE_ORIG_HOST,
-        'batcher': 'background',
+        'hostname' : ROSE_ORIG_HOST,
+        'batcher' : 'background',
         'build_root': '/var/tmp/${USER}',
-        'queue': {
-            'tech': {
-                'launcher': '',
-                'directives': []
+        'setup' : {
+            'base' : [],
+            'build' : [],
+            'compiler' : {
+                'cray' : [],
+                'gnu' : [],
+                'intel' : []
+            },
+            'plot': [],
+            'reveal' : [],
+            'tech' : [],
+            'run' : []
+        },
+        'teardown' : {
+            'base' : []
+        },
+        'queue' : {
+            'build' : {
+                'launcher' : '',
+                'directives' : {}
+            },
+            'run' : {
+                'launcher' : '',
+                'directives' : {}
+            },
+            'tech' : {
+                'launcher' : '',
+                'directives' : {}
             }
         }
     },
+
     'meto-spice' : {
         'hostname' : ROSE_ORIG_HOST,
         'batcher' : 'slurm',
@@ -89,6 +114,7 @@
             }
         }
     },
+
     'meto-xc40' : {
         'hostname' : '$(rose host-select --rank-method=random xc)',
         'batcher' : 'pbs',
@@ -146,6 +172,7 @@
             }
         }
     },
+
     'meto-xcs' : {
         'hostname' : '$(rose host-select --rank-method=random xcsr)',
         'batcher' : 'pbs',
@@ -203,6 +230,7 @@
             }
         }
     },
+
     'monsoon-xc40' : {
         'hostname' : 'xcslc0',
         'batcher' : 'pbs',
@@ -236,6 +264,8 @@
             'build' : {
                 'launcher' : 'mpiexec',
                 'directives' : [
+                    '-A=' + get_accountname(),
+                    '-P=' + get_accountname(),
                     '-l select=1:ncpus=6:mem=6GB:tmpsize=3GB',
                     '-l walltime=00:45:00',
                     '-q=shared'
@@ -244,6 +274,8 @@
             'run' : {
                 'launcher': 'aprun',
                 'directives' : [
+                    '-A=' + get_accountname(),
+                    '-P=' + get_accountname(),
                     '-l select=1',
                     '-l walltime=00:10:00',
                     '-q=normal'
@@ -252,6 +284,8 @@
             'tech' : {
                 'launcher' : 'mpiexec',
                 'directives' : [
+                    '-A=' + get_accountname(),
+                    '-P=' + get_accountname(),
                     '-l select=1:ncpus=1:mem=1GB',
                     '-l walltime=00:15:00',
                     '-q=shared'
@@ -259,6 +293,7 @@
             }
         }
     },
+
     'nci-gadi' : {
         'hostname' : '$(rose host-select gadi.nci.org.au)',
         'batcher' : 'pbs',

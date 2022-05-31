@@ -194,11 +194,13 @@
         [[[job]]]
             batch system = {{ get_target_property(SECONDARY_TARGET,
                                                   'batcher') }}
-{{ directives(SECONDARY_TARGET, 'tech') }}
         [[[environment]]]
             SOURCE_DIRECTORY      = $SOURCE_ROOT/{{projectName}}
             DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{SECONDARY_TARGET['compiler']}}_fast-debug
             WORKING_DIR = {{ get_target_property(SECONDARY_TARGET, 'build_root') }}/{{SECONDARY_TARGET['compiler']}}_fast-debug
+
+{{ directives( SECONDARY_TARGET, 'tech' ) }}
+
 
 ##############################################################################
 {#- PRELIMINARIES                                                            #}
