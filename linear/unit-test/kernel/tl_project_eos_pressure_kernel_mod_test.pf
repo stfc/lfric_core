@@ -6,7 +6,7 @@
 
 !>@brief Test the tangent linear of the pressure projection using the equation
 !!       of state.
-module tl_project_pressure_kernel_mod_test
+module tl_project_eos_pressure_kernel_mod_test
 
   use constants_mod,                 only : i_def, r_def
   use pFUnit_Mod
@@ -15,16 +15,16 @@ module tl_project_pressure_kernel_mod_test
   implicit none
 
   private
-  public :: tl_project_pressure_test_type, test_all
+  public :: tl_project_eos_pressure_test_type, test_all
 
   @TestCase
-  type, extends(MPITestCase) :: tl_project_pressure_test_type
+  type, extends(MPITestCase) :: tl_project_eos_pressure_test_type
     private
   contains
     procedure setUp
     procedure tearDown
     procedure test_all
-  end type tl_project_pressure_test_type
+  end type tl_project_eos_pressure_test_type
 
   real(r_def), parameter :: bvf_square = 0.0001_r_def
   real(r_def), parameter :: theta_surf = 300.0_r_def
@@ -56,20 +56,19 @@ contains
 
     use base_mesh_config_mod,      only : geometry_planar,    &
                                           topology_fully_periodic
-!    use partitioning_config_mod,   only : partitioner_planar
     use finite_element_config_mod, only : cellshape_quadrilateral, &
                                           coord_system_xyz
     use feign_config_mod,          only : feign_base_mesh_config,           &
                                           feign_initial_temperature_config, &
                                           feign_finite_element_config,      &
                                           feign_planet_config
+    use mesh_mod,                  only : PLANE_BI_PERIODIC
     use initial_temperature_config_mod, &
                                    only : perturb_none
-    use mesh_mod,                  only : PLANE_BI_PERIODIC
 
     implicit none
 
-    class(tl_project_pressure_test_type), intent(inout) :: this
+    class(tl_project_eos_pressure_test_type), intent(inout) :: this
 
     ! Store the MPI communicator for later use
     call store_comm(this%getMpiCommunicator())
@@ -80,11 +79,6 @@ contains
                                  offline_partitioning=.false.,        &
                                  topology=topology_fully_periodic,    &
                                  fplane=.false., f_lat_deg=0.0_r_def )
-
- !   call feign_partitioning_config( partitioner=partitioner_planar, &
-  !                                  panel_decomposition='auto',     &
-  !                                  panel_xproc=1,                  &
-  !                                  panel_yproc=1 )
 
     call feign_finite_element_config( cellshape=cellshape_quadrilateral, &
                                       coord_order=0_i_def,               &
@@ -100,14 +94,17 @@ contains
                                            profile_data=profile_data,             &
                                            profile_heights=profile_heights )
 
+
+
     call feign_planet_config(                      &
-             gravity=gravity,                      &
-             radius=radius,                        &
-             omega=omega,                          &
-             rd=rd,                                &
-             cp=cp,                                &
-             p_zero=p_zero,                        &
-             scaling_factor=scaling )
+                              gravity=gravity,                      &
+                              radius=radius,                        &
+                              omega=omega,                          &
+                              rd=rd,                                &
+                              cp=cp,                                &
+                              p_zero=p_zero,                        &
+                              scaling_factor=scaling )
+
 
   end subroutine setUp
 
@@ -118,7 +115,7 @@ contains
 
     implicit none
 
-    class(tl_project_pressure_test_type), intent(inout) :: this
+    class(tl_project_eos_pressure_test_type), intent(inout) :: this
 
     call final_configuration()
 
@@ -131,7 +128,7 @@ contains
   @test( npes=[1] )
   subroutine test_all( this )
 
-    use tl_project_pressure_kernel_mod, only : tl_project_pressure_code
+    use tl_project_eos_pressure_kernel_mod, only : tl_project_eos_pressure_code
 
     use get_unit_test_m3x3_q3x3x3_sizes_mod, only: get_w3_m3x3_q3x3x3_size,     &
                                                    get_wtheta_m3x3_q3x3x3_size, &
@@ -151,12 +148,12 @@ contains
 
     implicit none
 
-    class(tl_project_pressure_test_type), intent(inout) :: this
+    class(tl_project_eos_pressure_test_type), intent(inout) :: this
 
     real(r_def), parameter :: tol = 1.0e-7_r_def
-    real(r_def), parameter :: dx = 1.0_r_def, &
-                              dy = 1.0_r_def, &
-                              dz = 1.0_r_def
+    real(r_def), parameter :: dx = 2.0_r_def, &
+                              dy = 2.0_r_def, &
+                              dz = 2.5_r_def
     real(r_def)            :: answer
 
     ! Required for calling kernel
@@ -261,7 +258,7 @@ contains
     ls_theta_data(:) = 300.0_r_def
     ls_moist_dyn_gas_data(:) = 1.0_r_def
 
-    call tl_project_pressure_code( cell,                  &
+    call tl_project_eos_pressure_code( cell,                  &
                                    nlayers,               &
                                    pressure_data,         &
                                    rho_data,              &
@@ -309,16 +306,19 @@ contains
 !              = 0.9558497852172915
 !     exner = m3inv * (k/(1-k)) * ls_exner * ( rho / ls_rho + theta / ls_theta )
 !           = 0.1 * (0.3/0.7) * 0.9558497852172915 * (1./1. + 301./300.)
-!           = 0.0820665315593703
+!           = 0.820665315593703
 
     k = 1
-    answer = 0.08206653155937031_r_def
+    answer = 0.8206653155937031_r_def
     @assertEqual(answer, pressure_data(map_w3(1,cell)+k), tol)
 
     deallocate(rho_data)
     deallocate(pressure_data)
     deallocate(theta_data)
     deallocate(moist_dyn_gas_data)
+    deallocate(ls_theta_data)
+    deallocate(ls_moist_dyn_gas_data)
+    deallocate(ls_rho_data)
     deallocate(map_w3)
     deallocate(map_wtheta)
     deallocate(basis_w3)
@@ -336,4 +336,4 @@ contains
 
   end subroutine test_all
 
-end module tl_project_pressure_kernel_mod_test
+end module tl_project_eos_pressure_kernel_mod_test

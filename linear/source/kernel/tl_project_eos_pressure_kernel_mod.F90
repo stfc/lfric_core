@@ -6,7 +6,7 @@
 
 !> @brief Tangent linear for computing the projection of the pressure field
 !!        into the same space as density.
-module tl_project_pressure_kernel_mod
+module tl_project_eos_pressure_kernel_mod
 
   use argument_mod,      only : arg_type, func_type,       &
                                 GH_FIELD, GH_OPERATOR,     &
@@ -29,7 +29,7 @@ module tl_project_pressure_kernel_mod
   !> The type declaration for the kernel. Contains the metadata needed by the
   !> Psy layer.
   !>
-  type, public, extends(kernel_type) :: tl_project_pressure_kernel_type
+  type, public, extends(kernel_type) :: tl_project_eos_pressure_kernel_type
     private
     type(arg_type) :: meta_args(10) = (/                                      &
          arg_type(GH_FIELD,    GH_REAL, GH_WRITE, W3),                        &
@@ -51,13 +51,13 @@ module tl_project_pressure_kernel_mod
     integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
-    procedure, nopass :: tl_project_pressure_code
+    procedure, nopass :: tl_project_eos_pressure_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public :: tl_project_pressure_code
+  public :: tl_project_eos_pressure_code
 
 contains
 
@@ -98,7 +98,7 @@ contains
 !! @param[in] nqp_v            Number of quadrature points in the vertical
 !! @param[in] wqp_h            horizontal quadrature weights
 !! @param[in] wqp_v            vertical quadrature weights
-subroutine tl_project_pressure_code(cell, nlayers,                             &
+subroutine tl_project_eos_pressure_code(cell, nlayers,                             &
                                  exner, rho, theta, moist_dyn_gas,             &
                                  ls_rho, ls_theta, ls_moist_dyn_gas,           &
                                  chi1, chi2, chi3,                             &
@@ -234,6 +234,6 @@ subroutine tl_project_pressure_code(cell, nlayers,                             &
     end do
   end do
 
-end subroutine tl_project_pressure_code
+end subroutine tl_project_eos_pressure_code
 
-end module tl_project_pressure_kernel_mod
+end module tl_project_eos_pressure_kernel_mod

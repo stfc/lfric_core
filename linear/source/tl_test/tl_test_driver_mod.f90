@@ -31,12 +31,14 @@ module tl_test_driver_mod
   use tl_test_advect_density_field_mod,    only : test_advect_density_field
   use tl_test_advect_theta_field_mod,      only : test_advect_theta_field
   use tl_test_vorticity_mod,               only : test_vorticity_advection
-  use tl_test_project_pressure_mod,        only : test_project_pressure
+  use tl_test_project_eos_pressure_mod,    only : test_project_eos_pressure
+  use tl_test_sample_eos_pressure_mod,     only : test_sample_eos_pressure
   use tl_test_hydrostatic_mod,             only : test_hydrostatic
   use tl_test_pressure_grad_bd_mod,        only : test_pressure_gradient_bd
   use tl_test_rk_alg_mod,                  only : test_rk_alg
   use tl_test_transport_control_mod,       only : test_transport_control
-  use tl_test_rhs_eos_mod,                 only : test_rhs_eos
+  use tl_test_rhs_sample_eos_mod,          only : test_rhs_sample_eos
+  use tl_test_rhs_project_eos_mod,         only : test_rhs_project_eos
   use tl_test_rhs_alg_mod,                 only : test_rhs_alg
   use tl_test_semi_imp_alg_mod,            only : test_semi_imp_alg
   use tl_test_timesteps_alg_mod,           only : test_timesteps
@@ -51,14 +53,16 @@ module tl_test_driver_mod
          run_advect_density_field,    &
          run_advect_theta_field,      &
          run_vorticity_advection,     &
-         run_project_pressure,        &
+         run_project_eos_pressure,    &
+         run_sample_eos_pressure,     &
          run_hydrostatic,             &
          run_pressure_gradient_bd,    &
          run_rk_alg,                  &
          run_rhs_alg,                 &
-         run_rhs_eos,                 &
-         run_transport_control,       &
-         run_semi_imp_alg
+         run_rhs_project_eos,         &
+         run_rhs_sample_eos,          &
+         run_semi_imp_alg,            &
+         run_transport_control
 
   type (model_data_type) :: model_data
 
@@ -177,15 +181,25 @@ contains
 
   end subroutine run_vorticity_advection
 
-  subroutine run_project_pressure()
+  subroutine run_project_eos_pressure()
 
     implicit none
 
-    call test_project_pressure( model_data, &
-                                mesh,       &
-                                twod_mesh )
+    call test_project_eos_pressure( model_data, &
+                                    mesh,       &
+                                    twod_mesh )
 
-  end subroutine run_project_pressure
+  end subroutine run_project_eos_pressure
+
+  subroutine run_sample_eos_pressure()
+
+    implicit none
+
+    call test_sample_eos_pressure( model_data,  &
+                                   mesh,        &
+                                   twod_mesh )
+
+  end subroutine run_sample_eos_pressure
 
   subroutine run_hydrostatic()
 
@@ -258,15 +272,25 @@ contains
 
   end subroutine run_rhs_alg
 
-  subroutine run_rhs_eos()
+  subroutine run_rhs_project_eos()
 
     implicit none
 
-    call test_rhs_eos( model_data, &
-                       mesh,       &
-                       twod_mesh )
+    call test_rhs_project_eos( model_data,  &
+                               mesh,        &
+                               twod_mesh )
 
-  end subroutine run_rhs_eos
+  end subroutine run_rhs_project_eos
+
+  subroutine run_rhs_sample_eos()
+
+    implicit none
+
+    call test_rhs_sample_eos( model_data,  &
+                              mesh,        &
+                              twod_mesh )
+
+  end subroutine run_rhs_sample_eos
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !>@brief Tidies up after a run.

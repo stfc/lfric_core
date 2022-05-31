@@ -135,6 +135,7 @@ module tl_si_timestep_alg_mod
   type( field_type ), allocatable :: ls_rhs_n(:)
   type( field_type ), allocatable :: ls_rhs_np1(:,:,:)
   type( field_type ), allocatable :: ls_rhs_adv(:,:,:)
+  type( field_type ), allocatable :: ls_rhs_phys(:,:,:)
   type( field_type ), allocatable :: ls_mr_itns(:,:,:)
   type( field_type ), allocatable :: ls_moist_dyn_itns(:,:,:)
 
@@ -208,6 +209,8 @@ contains
              outer_iterations, inner_iterations ))
     allocate(ls_rhs_adv(bundle_size, &
              outer_iterations, inner_iterations ))
+    allocate(ls_rhs_phys(bundle_size, &
+              outer_iterations, inner_iterations ))
     allocate(ls_mr_inc(nummr, &
              outer_iterations, inner_iterations ))
     allocate(ls_mr_itns(nummr, &
@@ -242,6 +245,8 @@ contains
         call clone_bundle(state, ls_state_itns(:, outer, inner), bundle_size)
         call clone_bundle(state, ls_rhs_np1(:, outer, inner),    bundle_size)
         call clone_bundle(state, ls_rhs_adv(:, outer, inner),    bundle_size)
+        call clone_bundle(state, ls_rhs_phys(:, outer, inner),   bundle_size)
+        call set_bundle_scalar(0.0_r_def, ls_rhs_phys(:, outer, inner),   bundle_size)
       end do
     end do
 
@@ -490,12 +495,13 @@ contains
                                       ls_mr_itns(:, outer, 1) )
         end if
 
-        ! Use advective update to guess n+1 level scalar fieldsgv .
+        ! Use advective update to guess n+1 level scalar fields.
         if ( guess_np1 ) &
           call update_prognostic_scalars_alg(        &
                          ls_state_itns(:, outer, 1), &
                          ls_rhs_n,                   &
                          ls_rhs_adv(:, outer, 1),    &
+                         ls_rhs_phys(:, outer, 1),   &
                          ls_moist_dyn_itns(gas_law, outer, 1) )
 
         !=====================================================================
@@ -869,6 +875,7 @@ contains
     if (allocated(ls_rhs_n))            deallocate(ls_rhs_n)
     if (allocated(ls_rhs_np1))          deallocate(ls_rhs_np1)
     if (allocated(ls_rhs_adv))          deallocate(ls_rhs_adv)
+    if (allocated(ls_rhs_phys))         deallocate(ls_rhs_phys)
     if (allocated(ls_mr_n))             deallocate(ls_mr_n)
     if (allocated(ls_mr_after_slow))    deallocate(ls_mr_after_slow)
     if (allocated(ls_mr_inc))           deallocate(ls_mr_inc)

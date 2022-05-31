@@ -51,7 +51,7 @@ vorticity_in_w1=.true.,
 &formulation
 dlayer_on=.false.,
 dry_static_adjust=.false.,
-eos_method='sampled',
+eos_method='projected',
 exner_from_eos=.true.,
 init_exner_bt=.true.,
 l_multigrid=.false.,

@@ -6,7 +6,7 @@
 
 !> Test the weighted q32 matrix
 !>
-module eliminated_theta_q32_kernel_mod_test
+module sample_eliminated_theta_q32_kernel_mod_test
 
   use constants_mod, only : i_def, r_def
   use pFUnit_Mod
@@ -17,13 +17,13 @@ module eliminated_theta_q32_kernel_mod_test
   public :: test_all
 
   @TestCase
-  type, extends(TestCase), public :: eliminated_theta_q32_test_type
+  type, extends(TestCase), public :: sample_eliminated_theta_q32_test_type
     private
   contains
     procedure setUp
     procedure tearDown
     procedure test_all
-  end type eliminated_theta_q32_test_type
+  end type sample_eliminated_theta_q32_test_type
 
 contains
 
@@ -32,7 +32,7 @@ contains
 
     implicit none
 
-    class(eliminated_theta_q32_test_type), intent(inout) :: this
+    class(sample_eliminated_theta_q32_test_type), intent(inout) :: this
 
   end subroutine setUp
 
@@ -41,7 +41,7 @@ contains
 
     implicit none
 
-    class(eliminated_theta_q32_test_type), intent(inout) :: this
+    class(sample_eliminated_theta_q32_test_type), intent(inout) :: this
 
   end subroutine tearDown
 
@@ -50,11 +50,11 @@ contains
   @Test( )
   subroutine test_all( this )
 
-    use eliminated_theta_q32_kernel_mod, only : eliminated_theta_q32_code
+    use sample_eliminated_theta_q32_kernel_mod, only : sample_eliminated_theta_q32_code
 
     implicit none
 
-    class(eliminated_theta_q32_test_type), intent(inout) :: this
+    class(sample_eliminated_theta_q32_test_type), intent(inout) :: this
 
     real(kind=r_def), parameter :: tol = 1.0e-12_r_def
 
@@ -63,31 +63,30 @@ contains
     integer(kind=i_def), parameter :: nlayers = 1
     integer(kind=i_def), parameter :: cell    = 1
 
+    real(r_def),        parameter :: dx = 3.0_r_def, &
+                                     dy = 3.0_r_def, &
+                                     dz = 3.0_r_def
+
     ! Array sizes
     integer(kind=i_def), parameter :: ndf_w3 = 1_i_def
     integer(kind=i_def), parameter :: ndf_w2 = 4_i_def
     integer(kind=i_def), parameter :: ndf_wt = 2_i_def
     integer(kind=i_def), parameter :: undf_w3 = ndf_w3
-    integer(kind=i_def), parameter :: undf_w2 = ndf_w2
     integer(kind=i_def), parameter :: undf_wt = ndf_wt
     ! Operators to test
     real(kind=r_def), dimension(ndf_w3,ndf_w2,ncell) :: q32
     ! Maps
     integer(kind=i_def), dimension(ndf_w3) :: map_w3
-    integer(kind=i_def), dimension(ndf_w2) :: map_w2
     integer(kind=i_def), dimension(ndf_wt) :: map_wt
+    integer(kind=i_def), dimension(ndf_w2) :: map_w2
     ! Basis arrays
     real(kind=r_def), dimension(1,ndf_w3) :: basis_w3
     real(kind=r_def), dimension(3,ndf_w2) :: basis_w2
     real(kind=r_def), dimension(1,ndf_wt) :: basis_wt
     real(kind=r_def), dimension(3,ndf_wt) :: diff_basis_wt
-    ! Quadrature
-    integer(kind=i_def), parameter   :: nqp = 1_i_def
-    real(kind=r_def), dimension(nqp) :: wgt
     ! Fields
     real(kind=r_def), dimension(undf_wt) :: theta
-    ! Operators
-    real(kind=r_def), dimension(ndf_w3,ndf_w3,ncell) :: inv_m3
+    real(kind=r_def), dimension(ndf_w3,ndf_w3)  :: detj_w3
     ! Scalars
     real(kind=r_def) :: const
 
@@ -97,15 +96,12 @@ contains
     do i = 1,ndf_w3
       map_w3(i) = int(i,i_def)
     end do
-    do i = 1,ndf_w2
-      map_w2(i) = int(i,i_def)
-    end do
     do i = 1,ndf_wt
       map_wt(i) = int(i,i_def)
     end do
-
-    ! Quadrature
-    wgt(:) = 1.0_r_def
+    do i = 1,ndf_w2
+      map_w2(i) = int(i,i_def)
+    end do
 
     ! Basis functions
     basis_w2(:,1) = (/ 0.5_r_def, 0.0_r_def, 0.0_r_def /)
@@ -121,35 +117,34 @@ contains
     diff_basis_wt(:,2) = (/ 0.0_r_def, 0.0_r_def,  1.0_r_def /)
 
     ! Fields
+    detj_w3  = dx*dy*dz
     theta = (/ 310.0_r_def, 322.95_r_def /)
     const = 17.0_r_def
-    ! Operators
-    inv_m3 = 1.0_r_def/27.0_r_def
+    ! Operator
     q32 = 0.0_r_def
-    call eliminated_theta_q32_code(cell,                    &
-                                   nlayers,                 &
-                                   ncell,                   &
-                                   q32,                     &
-                                   theta,                   &
-                                   ncell,                   &
-                                   inv_m3,                  &
-                                   const,                   &
-                                   ndf_w3, basis_w3,        &
-                                   ndf_w2, basis_w2,        &
-                                   ndf_wt, undf_wt, map_wt, &
-                                   basis_wt, diff_basis_wt, &
-                                   nqp, nqp, wgt, wgt)
+    call sample_eliminated_theta_q32_code(cell,                      &
+                                          nlayers,                   &
+                                          ncell,                     &
+                                          q32,                       &
+                                          theta,                     &
+                                          detj_w3,                   &
+                                          const,                     &
+                                          ndf_w3, undf_w3,           &
+                                          map_w3, basis_w3,          &
+                                          ndf_w2, basis_w2,          &
+                                          ndf_wt, undf_wt, map_wt,   &
+                                          basis_wt, diff_basis_wt)
 
     ! q32 = const * < basis_w3, (k*dtheta/dz).basis_w2 >
     ! Only the vertical components of W2 are nonzero (df2 = 3,4)
     answer = 0.0_r_def
     do df2 = 3,ndf_w2
       do df1 = 1,ndf_w3
-        answer(df1,df2) = const / 27.0_r_def * (theta(2)-theta(1))/(theta(2)+theta(1))
+        answer(df1,df2) = (const/(dx*dy*dz))*(theta(2)-theta(1))/(theta(2)+theta(1))
       end do
     end do
     @assertEqual(answer, q32(:,:,1), tol)
 
   end subroutine test_all
 
-end module eliminated_theta_q32_kernel_mod_test
+end module sample_eliminated_theta_q32_kernel_mod_test

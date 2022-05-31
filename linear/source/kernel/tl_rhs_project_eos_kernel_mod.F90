@@ -3,9 +3,11 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-!> @brief Computes the rhs for the tangent linear of the equation of state.
+!> @brief Computes the rhs for the tangent linear of the equation of state
+!>        by Galerkin projection.
 !>
-!> @details The kernel computes the rhs of the linearized equation of state.
+!> @details The kernel computes the rhs of the linearized equation of state
+!>          by Galerkin projection.
 !> The nonlinear is:
 !> \f[ rhs_{\Pi} = 1 - p0/Rd * exner ^ (1-kappa)/kappa /(rho*theta_vd) \f]
 !> Following \f[delta r = dr/dp delta p + dr/drho delta rho + dr/dt delta t \f]
@@ -15,7 +17,7 @@
 !> \f[ L = p0/Rd * ls_exner ^ gamma /(ls_rho*ls_theta_vd) \f]
 !> and \f[ gamma = (1-kappa)/kappa \f]
 
-module tl_rhs_eos_kernel_mod
+module tl_rhs_project_eos_kernel_mod
 
   use argument_mod,      only : arg_type, func_type,         &
                                 GH_FIELD, GH_READ, GH_WRITE, &
@@ -38,7 +40,7 @@ module tl_rhs_eos_kernel_mod
   !> The type declaration for the kernel. Contains the metadata needed by the
   !> Psy layer.
   !>
-  type, public, extends(kernel_type) :: tl_rhs_eos_kernel_type
+  type, public, extends(kernel_type) :: tl_rhs_project_eos_kernel_type
     private
     type(arg_type) :: meta_args(14) = (/                                     &
          arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                        &
@@ -64,17 +66,17 @@ module tl_rhs_eos_kernel_mod
     integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
-    procedure, nopass :: tl_rhs_eos_code
+    procedure, nopass :: tl_rhs_project_eos_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public :: tl_rhs_eos_code
+  public :: tl_rhs_project_eos_code
 
 contains
 
-!> @brief Computes lhs of the equation of state for the nonlinear equations
+!> @brief Computes rhs of the equation of state for the nonlinear equations
 !! @param[in] nlayers       Number of layers
 !! @param[in,out] rhs_eos   RHS array for the tangent linear equation of state
 !! @param[in] exner         Change in Pressure
@@ -115,17 +117,17 @@ contains
 !! @param[in] nqp_v         Number of quadrature points in the vertical
 !! @param[in] wqp_h         Horizontal quadrature weights
 !! @param[in] wqp_v         Vertical quadrature weights
-subroutine tl_rhs_eos_code(nlayers,                                         &
-                           rhs_eos, exner, rho, theta, moist_dyn_gas,       &
-                           ls_exner, ls_rho, ls_theta, ls_moist_dyn_gas,    &
-                           chi1, chi2, chi3, panel_id,                      &
-                           kappa, rd, p_zero,                               &
-                           ndf_w3, undf_w3, map_w3, w3_basis,               &
-                           ndf_wt, undf_wt, map_wt, wt_basis,               &
-                           ndf_chi, undf_chi, map_chi,                      &
-                           chi_basis, chi_diff_basis,                       &
-                           ndf_pid, undf_pid, map_pid,                      &
-                           nqp_h, nqp_v, wqp_h, wqp_v)
+subroutine tl_rhs_project_eos_code(nlayers,                                         &
+                                   rhs_eos, exner, rho, theta, moist_dyn_gas,       &
+                                   ls_exner, ls_rho, ls_theta, ls_moist_dyn_gas,    &
+                                   chi1, chi2, chi3, panel_id,                      &
+                                   kappa, rd, p_zero,                               &
+                                   ndf_w3, undf_w3, map_w3, w3_basis,               &
+                                   ndf_wt, undf_wt, map_wt, wt_basis,               &
+                                   ndf_chi, undf_chi, map_chi,                      &
+                                   chi_basis, chi_diff_basis,                       &
+                                   ndf_pid, undf_pid, map_pid,                      &
+                                   nqp_h, nqp_v, wqp_h, wqp_v)
 
   use coordinate_jacobian_mod,  only: coordinate_jacobian
 
@@ -265,6 +267,6 @@ subroutine tl_rhs_eos_code(nlayers,                                         &
     end do
   end do
 
-end subroutine tl_rhs_eos_code
+end subroutine tl_rhs_project_eos_code
 
-end module tl_rhs_eos_kernel_mod
+end module tl_rhs_project_eos_kernel_mod

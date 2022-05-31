@@ -24,7 +24,7 @@ program runge_kutta
                                  run_advect_density_field,    &
                                  run_advect_theta_field,      &
                                  run_vorticity_advection,     &
-                                 run_project_pressure,        &
+                                 run_project_eos_pressure,    &
                                  run_hydrostatic,             &
                                  run_pressure_gradient_bd,    &
                                  run_rk_alg
@@ -46,7 +46,7 @@ program runge_kutta
   logical :: do_test_kinetic_energy_gradient = .false.
   logical :: do_test_advect_density_field = .false.
   logical :: do_test_advect_theta_field = .false.
-  logical :: do_test_project_pressure = .false.
+  logical :: do_test_project_eos_pressure = .false.
   logical :: do_test_vorticity_advection = .false.
   logical :: do_test_pressure_gradient_bd = .false.
   logical :: do_test_hydrostatic = .false.
@@ -82,7 +82,7 @@ program runge_kutta
           " advect_theta_field, "      // &
           " vorticity_advection, "     // &
           " pressure_gradient_bd, "    // &
-          " project_pressure, "        // &
+          " project_eos_pressure, "    // &
           " hydrostatic, "             // &
           " rk_alg, "                  // &
           " } "
@@ -108,8 +108,8 @@ program runge_kutta
      do_test_advect_density_field = .true.
   case ("test_advect_theta_field")
      do_test_advect_theta_field = .true.
-  case ("test_project_pressure")
-     do_test_project_pressure = .true.
+  case ("test_project_eos_pressure")
+     do_test_project_eos_pressure = .true.
   case ("test_vorticity_advection")
      do_test_vorticity_advection = .true.
   case ("test_pressure_gradient_bd")
@@ -140,8 +140,8 @@ program runge_kutta
   if (do_test_vorticity_advection) then
     call run_vorticity_advection()
   endif
-  if (do_test_project_pressure) then
-    call run_project_pressure()
+  if (do_test_project_eos_pressure) then
+    call run_project_eos_pressure()
   endif
   if (do_test_pressure_gradient_bd) then
     call run_pressure_gradient_bd()

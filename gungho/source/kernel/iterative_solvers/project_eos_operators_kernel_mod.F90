@@ -9,12 +9,12 @@
 !>
 !> @details Compute the normalised operators for the semi-implicit left hand
 !>          side of the equation of state. These are:
-!>          m3exner = M3^{-1}*(1-kappa)/kappa*<sigma,sigma/exner*det(J)>
+!>          m3exner = M3^{-1}*(1-kappa)/kappa*E*<sigma,sigma/exner*det(J)>
 !>          m3rho   = M3^{-1}*<sigma,sigma/rho*det(J)>
 !>          p3theta = M3^{-1}*<sigma,gamma/theta*det(J)>
 !>          for functions sigma in W3 and gamma in the theta space
 !>
-module eos_operators_kernel_mod
+module project_eos_operators_kernel_mod
 
   use argument_mod,            only: arg_type, func_type,         &
                                      GH_OPERATOR, GH_FIELD,       &
@@ -35,9 +35,9 @@ module eos_operators_kernel_mod
   !---------------------------------------------------------------------------
   ! Public types
   !---------------------------------------------------------------------------
-  type, public, extends(kernel_type) :: eos_operators_kernel_type
+  type, public, extends(kernel_type) :: project_eos_operators_kernel_type
     private
-    type(arg_type) :: meta_args(10) = (/                                      &
+    type(arg_type) :: meta_args(12) = (/                                      &
          arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W3, W3),                    &
          arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W3, W3),                    &
          arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W3, Wtheta),                &
@@ -47,6 +47,8 @@ module eos_operators_kernel_mod
          arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta),                    &
          arg_type(GH_FIELD*3,  GH_REAL, GH_READ,  ANY_SPACE_1),               &
          arg_type(GH_FIELD,    GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
+         arg_type(GH_SCALAR,   GH_REAL, GH_READ),                             &
+         arg_type(GH_SCALAR,   GH_REAL, GH_READ),                             &
          arg_type(GH_SCALAR,   GH_REAL, GH_READ)                              &
          /)
     type(func_type) :: meta_funcs(3) = (/                                     &
@@ -57,13 +59,13 @@ module eos_operators_kernel_mod
     integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
-    procedure, nopass :: eos_operators_code
-  end type eos_operators_kernel_type
+    procedure, nopass :: project_eos_operators_code
+  end type project_eos_operators_kernel_type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public :: eos_operators_code
+  public :: project_eos_operators_code
 
 contains
 
@@ -85,7 +87,9 @@ contains
 !! @param[in] chi2 2nd coordinate field in Wchi
 !! @param[in] chi3 3rd coordinate field in Wchi
 !! @param[in] panel_id Field giving the ID for mesh panels
-!! @param[in] scalar Scalar weight for the operator
+!! @param[in] kappa Ratio of rd and cp
+!! @param[in] rd Specific heat of dry air at constant density
+!! @param[in] p_zero Reference surface pressure
 !! @param[in] ndf_w3 Number of degrees of freedom per cell for the operator space
 !! @param[in] undf_w3 Total number of degrees of freedom for the W3 space
 !! @param[in] map_w3 Dofmap for the bottom layer in the W3 space
@@ -106,21 +110,21 @@ contains
 !! @param[in] nqp_v Number of vertical quadrature points
 !! @param[in] wqp_h Horizontal quadrature weights
 !! @param[in] wqp_v Vertical quadrature weights
-subroutine eos_operators_code(cell, nlayers,                      &
-                              ncell_3d1, m3exner,                 &
-                              ncell_3d2, m3rho,                   &
-                              ncell_3d3, p3theta,                 &
-                              ncell_3d4, m3_inv,                  &
-                              exner, rho, theta,                  &
-                              chi1, chi2, chi3,                   &
-                              panel_id,                           &
-                              scalar,                             &
-                              ndf_w3, undf_w3, map_w3, basis_w3,  &
-                              ndf_wt, undf_wt, map_wt, basis_wt,  &
-                              ndf_chi, undf_chi,                  &
-                              map_chi, basis_chi, diff_basis_chi, &
-                              ndf_pid, undf_pid, map_pid,         &
-                              nqp_h, nqp_v, wqp_h, wqp_v)
+subroutine project_eos_operators_code(cell, nlayers,                      &
+                                      ncell_3d1, m3exner,                 &
+                                      ncell_3d2, m3rho,                   &
+                                      ncell_3d3, p3theta,                 &
+                                      ncell_3d4, m3_inv,                  &
+                                      exner, rho, theta,                  &
+                                      chi1, chi2, chi3,                   &
+                                      panel_id,                           &
+                                      kappa, rd, p_zero,                  &
+                                      ndf_w3, undf_w3, map_w3, basis_w3,  &
+                                      ndf_wt, undf_wt, map_wt, basis_wt,  &
+                                      ndf_chi, undf_chi,                  &
+                                      map_chi, basis_chi, diff_basis_chi, &
+                                      ndf_pid, undf_pid, map_pid,         &
+                                      nqp_h, nqp_v, wqp_h, wqp_v)
 
   implicit none
 
@@ -153,7 +157,7 @@ subroutine eos_operators_code(cell, nlayers,                      &
   real(kind=r_def), dimension(undf_chi), intent(in)           :: chi2
   real(kind=r_def), dimension(undf_chi), intent(in)           :: chi3
   real(kind=r_def), dimension(undf_pid), intent(in)           :: panel_id
-  real(kind=r_def),                      intent(in)           :: scalar
+  real(kind=r_def),                      intent(in)           :: kappa, rd, p_zero
 
   real(kind=r_def), dimension(nqp_h), intent(in) :: wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in) :: wqp_v
@@ -166,8 +170,12 @@ subroutine eos_operators_code(cell, nlayers,                      &
   real(kind=r_def)                             :: integrand1, integrand2, integrand3
   real(kind=r_def), dimension(3,3)             :: jac
   real(kind=r_def)                             :: dj
+  real(kind=r_def)                             :: p0_over_rd, onemk_over_k
 
   integer(kind=i_def) :: ipanel
+
+  p0_over_rd = p_zero/Rd
+  onemk_over_k = (1.0_r_def - kappa)/kappa
 
   ipanel = int(panel_id(map_pid(1)), i_def)
 
@@ -194,12 +202,13 @@ subroutine eos_operators_code(cell, nlayers,                      &
           exner_quad = exner_quad + exner(map_w3(df)+k)*basis_w3(1,df,qp1,qp2)
           rho_quad   = rho_quad   + rho(map_w3(df)+k)  *basis_w3(1,df,qp1,qp2)
         end do
-        integrand1 = wqp_h(qp1)*wqp_v(qp2)*scalar/exner_quad*dj
-        integrand2 = wqp_h(qp1)*wqp_v(qp2)/rho_quad*dj
         theta_quad = 0.0_r_def
         do df = 1,ndf_wt
           theta_quad = theta_quad + theta(map_wt(df)+k)*basis_wt(1,df,qp1,qp2)
         end do
+        integrand1 = wqp_h(qp1)*wqp_v(qp2)*onemk_over_k*(p0_over_rd*exner_quad**onemk_over_k &
+            /(rho_quad*theta_quad))/exner_quad*dj
+        integrand2 = wqp_h(qp1)*wqp_v(qp2)/rho_quad*dj
         integrand3 = wqp_h(qp1)*wqp_v(qp2)/theta_quad*dj
         do df2 = 1, ndf_w3
           do df1 = 1, ndf_w3
@@ -227,6 +236,6 @@ subroutine eos_operators_code(cell, nlayers,                      &
     m3rho(:,:,ik)   = matmul(m3_inv(:,:,ik), m3rho(:,:,ik))
   end do
 
-end subroutine eos_operators_code
+end subroutine project_eos_operators_code
 
-end module eos_operators_kernel_mod
+end module project_eos_operators_kernel_mod

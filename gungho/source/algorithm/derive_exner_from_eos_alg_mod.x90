@@ -14,6 +14,8 @@ module derive_exner_from_eos_alg_mod
   use field_indices_mod,                  only: igh_p, igh_d, igh_t
   use io_config_mod,                      only: subroutine_timers
   use timer_mod,                          only: timer
+  use log_mod,                            only: log_event, &
+                                                LOG_LEVEL_ERROR
 
   implicit none
 
@@ -34,7 +36,13 @@ contains
                                              get_qr
     use mesh_mod,                      only: mesh_type
     use quadrature_xyoz_mod,           only: quadrature_xyoz_type
-    use project_pressure_kernel_mod,   only: project_pressure_kernel_type
+    use formulation_config_mod,        only: eos_method,         &
+                                             eos_method_sampled, &
+                                             eos_method_projected
+    use project_eos_pressure_kernel_mod, &
+                                       only: project_eos_pressure_kernel_type
+    use sample_eos_pressure_kernel_mod, &
+                                       only: sample_eos_pressure_kernel_type
 
     implicit none
 
@@ -57,10 +65,19 @@ contains
     panel_id => get_panel_id( mesh%get_id() )
     qr       => get_qr()
 
-    call invoke( project_pressure_kernel_type( state(igh_p), state(igh_d), &
-                                               state(igh_t),               &
-                                               moist_dyn_gas_law, chi,     &
-                                               panel_id, m3_inv, qr ) )
+    select case(eos_method)
+    case(eos_method_sampled)
+      call invoke( sample_eos_pressure_kernel_type( state(igh_p), state(igh_d), &
+                                                    state(igh_t),               &
+                                                    moist_dyn_gas_law ) )
+    case(eos_method_projected)
+      call invoke( project_eos_pressure_kernel_type( state(igh_p), state(igh_d), &
+                                                     state(igh_t),               &
+                                                     moist_dyn_gas_law, chi,     &
+                                                     panel_id, m3_inv, qr ) )
+    case default
+      call log_event( "Gungho: Unrecognised method to calculate pressure", LOG_LEVEL_ERROR )
+    end select
 
     nullify( m3_inv, chi, mesh, &
              panel_id, qr )

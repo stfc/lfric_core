@@ -30,7 +30,10 @@ module si_operators_alg_mod
   use function_space_chain_mod,  only: multigrid_function_space_chain, &
                                        w2_multigrid_function_space_chain, &
                                        wtheta_multigrid_function_space_chain
-  use formulation_config_mod,    only: l_multigrid
+  use formulation_config_mod,    only: l_multigrid,          &
+                                       eos_method,           &
+                                       eos_method_sampled,   &
+                                       eos_method_projected
   use multigrid_config_mod,      only: multigrid_chain_nitems
   use mixed_solver_config_mod,   only: eliminate_variables, &
                                        eliminate_variables_analytic
@@ -51,7 +54,6 @@ module si_operators_alg_mod
   type(operator_type), allocatable, dimension(:), target :: eliminated_q22
   type(operator_type), allocatable, dimension(:), target :: eliminated_q32
   type(operator_type),                            target :: eliminated_q2t
-  type(operator_type),                            target :: eliminated_q3t
 
   type(field_type), allocatable, dimension(:),   target :: rho_at_u
   type(field_type), allocatable, dimension(:,:), target :: tri_precon
@@ -228,7 +230,6 @@ contains
    end if
 
    eliminated_q2t = operator_type( w2_fs, wt_fs )
-   eliminated_q3t = operator_type( w3_fs, wt_fs )
 
    do i = 1, multigrid_levels
 
@@ -348,7 +349,8 @@ contains
     use quadrature_xyoz_mod,                  only: quadrature_xyoz_type
     use quadrature_face_mod,                  only: quadrature_face_type
     use quadrature_rule_gaussian_mod,         only: quadrature_rule_gaussian_type
-    use eos_operators_kernel_mod,             only: eos_operators_kernel_type
+    use project_eos_operators_kernel_mod,     only: project_eos_operators_kernel_type
+    use sample_eos_operators_kernel_mod,      only: sample_eos_operators_kernel_type
     use weighted_div_kernel_mod,              only: weighted_div_kernel_type
     use weighted_proj_2theta_kernel_mod,      only: weighted_proj_2theta_kernel_type
     use weighted_proj_theta2_kernel_mod,      only: weighted_proj_theta2_kernel_type
@@ -365,17 +367,18 @@ contains
     use geometric_constants_mod,              only: get_coordinates, &
                                                     get_panel_id, &
                                                     get_height
-    use fem_constants_mod,                    only: get_normalisation, &
-                                                    get_rmultiplicity, &
-                                                    get_div, &
-                                                    get_mass_matrix, &
+    use fem_constants_mod,                    only: get_normalisation,  &
+                                                    get_rmultiplicity,  &
+                                                    get_div,            &
+                                                    get_mass_matrix,    &
                                                     get_dl_mass_matrix, &
+                                                    get_detj_at_w3,     &
                                                     get_inverse_w3_mass_matrix
     use limited_area_constants_mod,           only: get_mask
     use derived_config_mod,                   only: bundle_size
     use invert_local_operator_kernel_mod,     only: invert_local_operator_kernel_type
     use field_indices_mod,                    only: igh_u, igh_t, igh_d, igh_p
-    use planet_config_mod,                    only: kappa, cp
+    use planet_config_mod,                    only: kappa, cp, rd, p_zero
     use timestepping_config_mod,              only: tau_r, tau_t, tau_u
     use reference_element_mod,                only: reference_element_type
     use mesh_mod,                             only: mesh_type
@@ -387,14 +390,16 @@ contains
     use psykal_lite_mod,                      only: invoke_helmholtz_operator_kernel_type, &
                                                     invoke_elim_helmholtz_operator_kernel_type
     use boundaries_config_mod,                only: limited_area
-    use eliminated_theta_q32_kernel_mod,      only: eliminated_theta_q32_kernel_type
+    use sample_eliminated_theta_q32_kernel_mod, &
+                                              only: sample_eliminated_theta_q32_kernel_type
+    use project_eliminated_theta_q32_kernel_mod, &
+                                              only: project_eliminated_theta_q32_kernel_type
     use eliminated_theta_q22_kernel_mod,      only: eliminated_theta_q22_kernel_type
     use sample_w3_to_wtheta_kernel_mod,       only: sample_w3_to_wtheta_kernel_type
     use fs_continuity_mod,                    only: W3, Wtheta
     use multiplicity_kernel_mod,              only: multiplicity_kernel_type
     use sample_field_kernel_mod,              only: sample_field_kernel_type
     use eliminated_theta_q2t_kernel_mod,      only: eliminated_theta_q2t_kernel_type
-    use eliminated_theta_q3t_kernel_mod,      only: eliminated_theta_q3t_kernel_type
     use restrict_kernel_mod,                  only: restrict_kernel_type
     use operator_algebra_kernel_mod,          only: operator_setval_x_kernel_type
 
@@ -428,6 +433,7 @@ contains
     type(field_type),              pointer :: w2_mask   => null()
     type(field_type),              pointer :: height_w3 => null()
     type(field_type),              pointer :: height_wt => null()
+    type(field_type),              pointer :: detj_at_w3 => null()
     type(field_type)                       :: multiplicity
 
     ! Parameters
@@ -492,19 +498,23 @@ contains
        end if
 
        m3_inv => get_inverse_w3_mass_matrix( mesh%get_id() )
-       const1 = (1.0_r_def-kappa)/kappa
-       const2 = tau_t*tau_u*dt**2*cp
-       call invoke( eos_operators_kernel_type(m3_exner_star(level), m3_rho_star(level),  &
-                                              p3theta(level), m3_inv, exner, rho, theta, &
-                                              chi, panel_id, const1, qr),                &
-                    eliminated_theta_q22_kernel_type(eliminated_q22(level), theta,       &
-                                                     exner_in_wth, u_normalisation,      &
-                                                     chi, panel_id, const2, qr) )
+       const1 = tau_t*tau_u*dt**2*cp
+       select case(eos_method)
+       case(eos_method_sampled)
+         call invoke( sample_eos_operators_kernel_type(m3_exner_star(level), m3_rho_star(level), &
+                      p3theta(level), exner, rho, theta, kappa, rd, p_zero) )
+       case(eos_method_projected)
+         call invoke( project_eos_operators_kernel_type(m3_exner_star(level), m3_rho_star(level), &
+                      p3theta(level), m3_inv,                                                     &
+                      exner, rho, theta, chi, panel_id, kappa, rd, p_zero,  qr) )
+       case default
+         call log_event( "Gungho: Unrecognised method used for equation of state", LOG_LEVEL_ERROR )
+       end select
 
-       if ( level == 1 ) then
-         call invoke( eliminated_theta_q3t_kernel_type(eliminated_q3t, theta, &
-                                                       m3_inv, chi, panel_id, qr) )
-       end if
+
+      call invoke( eliminated_theta_q22_kernel_type(eliminated_q22(level), theta,       &
+                                                     exner_in_wth, u_normalisation,      &
+                                                     chi, panel_id, const1, qr) )
 
        ! Compute rho^ref at u nodal points
        if (l_multigrid) then
@@ -547,14 +557,25 @@ contains
             operator_setval_x_kernel_type( eliminated_q32(level), compound_div(level) ) )
 
        if ( level == 1 ) then
-         call invoke( eliminated_theta_q2t_kernel_type(eliminated_q2t, u_normalisation, &
-                                                       exner_in_wth, const1, qr) )
+
+          call invoke( eliminated_theta_q2t_kernel_type(eliminated_q2t, u_normalisation, &
+                                                        exner_in_wth, const1, qr) )
+
        end if
 
        if ( eliminate_variables == eliminate_variables_analytic ) then
          ! Add on contribution to q32 from eliminating theta
-         call invoke( eliminated_theta_q32_kernel_type(eliminated_q32(level), theta,    &
-                                                       m3_inv, const2, qr ) )
+         detj_at_w3    => get_detj_at_w3( mesh%get_id() )
+         select case(eos_method)
+         case(eos_method_sampled)
+           call invoke( sample_eliminated_theta_q32_kernel_type(eliminated_q32(level), theta, detj_at_w3 , &
+                                                                const2) )
+         case(eos_method_projected)
+           call invoke( project_eliminated_theta_q32_kernel_type(eliminated_q32(level), theta,    &
+                                                                 m3_inv, const2, qr ) )
+         case default
+           call log_event( "Gungho: Unrecognised method used for equation of state", LOG_LEVEL_ERROR )
+         end select
        end if
 
        ! Compute Hb_lumped_inv field
@@ -1027,7 +1048,7 @@ contains
   function get_eliminated_q3t() result(op)
     implicit none
     type(operator_type), pointer :: op
-    op => eliminated_q3t
+    op => p3theta(1)
   end function get_eliminated_q3t
 
 end module si_operators_alg_mod

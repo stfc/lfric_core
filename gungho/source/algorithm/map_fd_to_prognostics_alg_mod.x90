@@ -179,7 +179,6 @@ contains
     u_lat_map => get_u_lat_map( mesh%get_id() )
     u_up_map  => get_u_up_map( mesh%get_id() )
 
-    call log_event( "Gungho: Setting Winds! :)", LOG_LEVEL_INFO )
     call invoke( setval_c( u,   0.0_r_def ),                       &
                  setval_c( r_u, 0.0_r_def ),                       &
                  matrix_vector_kernel_type(r_u, u_lon, u_lon_map), &

@@ -9,10 +9,18 @@ module tl_derive_exner_from_eos_alg_mod
 
   use constants_mod,                    only: i_def
   use field_mod,                        only: field_type
+  use log_mod,                          only: log_event, &
+                                              LOG_LEVEL_ERROR
   use derived_config_mod,               only: bundle_size
   use field_indices_mod,                only: igh_p, igh_t, igh_d, &
                                               igh_u, igh_w, igh_uv
-  use tl_project_pressure_kernel_mod,   only: tl_project_pressure_kernel_type
+  use formulation_config_mod,           only: eos_method,         &
+                                              eos_method_sampled, &
+                                              eos_method_projected
+  use tl_project_eos_pressure_kernel_mod, &
+                                        only: tl_project_eos_pressure_kernel_type
+  use tl_sample_eos_pressure_kernel_mod, &
+                                        only: tl_sample_eos_pressure_kernel_type
 
   implicit none
 
@@ -63,15 +71,30 @@ contains
     panel_id => get_panel_id(mesh_id)
     qr => get_qr()
 
-    call invoke( tl_project_pressure_kernel_type( state(igh_p),               &
-                                                  state(igh_d),               &
-                                                  state(igh_t),               &
-                                                  moist_dyn_gas_law,          &
-                                                  ls_state(igh_d),            &
-                                                  ls_state(igh_t),            &
-                                                  ls_moist_dyn_gas_law,       &
-                                                  chi,                        &
-                                                  panel_id, m3_inv, qr ) )
+    select case(eos_method)
+    case(eos_method_sampled)
+      call invoke( name = 'sample_eos_pressure',                                   &
+                   tl_sample_eos_pressure_kernel_type( state(igh_p),               &
+                                                       state(igh_d),               &
+                                                       state(igh_t),               &
+                                                       moist_dyn_gas_law,          &
+                                                       ls_state(igh_d),            &
+                                                       ls_state(igh_t),            &
+                                                       ls_moist_dyn_gas_law ) )
+    case(eos_method_projected)
+      call invoke( name = 'project_eos_pressure',                                   &
+                   tl_project_eos_pressure_kernel_type( state(igh_p),               &
+                                                        state(igh_d),               &
+                                                        state(igh_t),               &
+                                                        moist_dyn_gas_law,          &
+                                                        ls_state(igh_d),            &
+                                                        ls_state(igh_t),            &
+                                                        ls_moist_dyn_gas_law,       &
+                                                        chi,                        &
+                                                        panel_id, m3_inv, qr ) )
+    case default
+      call log_event( "Gungho: Unrecognised method to calculate pressure", LOG_LEVEL_ERROR )
+    end select
 
     nullify( m3_inv, chi,  &
              panel_id, qr )

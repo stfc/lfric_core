@@ -46,12 +46,15 @@ module tl_test_convergence_rate_check
 
     conv_rate =  norm_diff_prev/ norm_diff
 
+
+
     write( log_scratch_space, '(A)' ) &
            "TL Test: " // trim(label)
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
     write( log_scratch_space, '(A, E16.8)') &
            "Convergence rate: ", conv_rate
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
 
     if ( abs(conv_rate - 4.0_r_def ) < tolerance ) then
       pass_str = "PASS"

@@ -7,9 +7,9 @@
 !>
 !> The kernel computes the rhs of the equation of state for the nonlinear
 !> equations,
-!> That is: \f[ rhs_{\Pi} = 1 - p0/Rd * exner ^ (1-kappa)/kappa /(rho*theta_vd) \f]
+!> That is: \f[ rhs_{\Pi} = 1 -p0/Rd * exner ^ (1-kappa)/kappa /(rho*theta_vd) \f]
 !>
-module rhs_eos_kernel_mod
+module rhs_project_eos_kernel_mod
 
   use argument_mod,      only : arg_type, func_type,         &
                                 GH_FIELD, GH_READ, GH_WRITE, &
@@ -32,7 +32,7 @@ module rhs_eos_kernel_mod
   !> The type declaration for the kernel. Contains the metadata needed by the
   !> Psy layer.
   !>
-  type, public, extends(kernel_type) :: rhs_eos_kernel_type
+  type, public, extends(kernel_type) :: rhs_project_eos_kernel_type
     private
     type(arg_type) :: meta_args(10) = (/                                     &
          arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                        &
@@ -54,17 +54,17 @@ module rhs_eos_kernel_mod
     integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
-    procedure, nopass :: rhs_eos_code
+    procedure, nopass :: rhs_project_eos_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public :: rhs_eos_code
+  public :: rhs_project_eos_code
 
 contains
 
-!> @brief Computes lhs of the equation of state for the nonlinear equations
+!> @brief Computes rhs of the equation of state for the nonlinear equations
 !! @param[in] nlayers Number of layers
 !! @param[in,out] rhs_eos RHS array for the equation of state
 !! @param[in] exner Pressure
@@ -99,7 +99,7 @@ contains
 !! @param[in] nqp_v Number of quadrature points in the vertical
 !! @param[in] wqp_h Horizontal quadrature weights
 !! @param[in] wqp_v Vertical quadrature weights
-subroutine rhs_eos_code(nlayers,                                         &
+subroutine rhs_project_eos_code(nlayers,                                 &
                         rhs_eos, exner, rho, theta, moist_dyn_gas,       &
                         chi1, chi2, chi3, panel_id,                      &
                         kappa, rd, p_zero,                               &
@@ -190,7 +190,7 @@ subroutine rhs_eos_code(nlayers,                                         &
           exner_quad = exner_quad + exner_e(df)*w3_basis(1,df,qp1,qp2)
           rho_quad   = rho_quad   + rho_e(df)  *w3_basis(1,df,qp1,qp2)
         end do
-        eos = 1.0_r_def - p0_over_rd * exner_quad**onemk_over_k &
+        eos = 1.0_r_def - (p0_over_rd * exner_quad**onemk_over_k) &
             /(rho_quad*theta_vd_quad)
         eos = wqp_h(qp1)*wqp_v(qp2)*dj(qp1,qp2)*eos
 
@@ -202,6 +202,6 @@ subroutine rhs_eos_code(nlayers,                                         &
     end do
   end do
 
-end subroutine rhs_eos_code
+end subroutine rhs_project_eos_code
 
-end module rhs_eos_kernel_mod
+end module rhs_project_eos_kernel_mod

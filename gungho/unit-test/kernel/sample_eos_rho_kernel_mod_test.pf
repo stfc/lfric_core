@@ -117,8 +117,7 @@ contains
     use get_unit_test_m3x3_dofmap_mod, only: get_w3_m3x3_dofmap,     &
                                              get_wtheta_m3x3_dofmap
 
-    use get_unit_test_q3x3x3_basis_mod, only: get_w3_q3x3x3_basis,     &
-                                              get_wtheta_q3x3x3_basis
+    use get_unit_test_q3x3x3_basis_mod, only: get_w3_q3x3x3_basis
 
     use get_unit_test_w3nodal_basis_mod, only: get_wtheta_w3nodal_basis
 

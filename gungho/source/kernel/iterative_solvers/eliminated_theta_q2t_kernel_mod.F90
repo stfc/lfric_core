@@ -4,8 +4,8 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-!> @brief Compute the q2t matrix for analytic elimination of theta. The family
-!!        of qXY matrices come from elimination of theta from the mixed solver.
+!> @brief Compute the q2t matrix for analytic elimination of theta by Galerkin Projection.
+!!        The family of qXY matrices come from elimination of theta from the mixed solver.
 !> @details Operator to map the residual from the thermodynamic equation
 !!          to the momentum equation: q2t = - const * norm_u * <v, k dexner/dchi3 * w>
 !!          where v is a test function in the W2 space,

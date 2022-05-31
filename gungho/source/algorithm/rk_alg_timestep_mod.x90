@@ -46,7 +46,7 @@ module rk_alg_timestep_mod
   use pressure_gradient_bd_kernel_mod,    only: pressure_gradient_bd_kernel_type
   use hydrostatic_kernel_mod,             only: hydrostatic_kernel_type
   use kinetic_energy_gradient_kernel_mod, only: kinetic_energy_gradient_kernel_type
-  use project_pressure_kernel_mod,        only: project_pressure_kernel_type
+  use project_eos_pressure_kernel_mod,    only: project_eos_pressure_kernel_type
   use matrix_vector_kernel_mod,           only: matrix_vector_kernel_type
   use vorticity_advection_kernel_mod,     only: vorticity_advection_kernel_type
   use w2_vorticity_advection_kernel_mod,  only: w2_vorticity_advection_kernel_type
@@ -299,9 +299,9 @@ contains
       call bundle_axpy(dt, inc, state_n, state, bundle_size)
       ! Recompute exner from eos
       m3_inv => get_inverse_w3_mass_matrix(mesh_id)
-      call invoke( project_pressure_kernel_type( state(igh_p), state(igh_d), state(igh_t), &
-                                                 moist_dyn(gas_law), chi,                  &
-                                                 panel_id, m3_inv, qr ) )
+      call invoke( project_eos_pressure_kernel_type( state(igh_p), state(igh_d),       &
+                                                     state(igh_t), moist_dyn(gas_law), &
+                                                     chi, panel_id, m3_inv, qr ) )
       ! Diagnostics
       call inc(igh_t)%copy_field(diagnostic_field)
       call diagnostic_field%log_minmax(LOG_LEVEL_TRACE, 'theta_inc')

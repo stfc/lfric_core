@@ -22,7 +22,8 @@ program semi_implicit
                                  run_timesteps,               &
                                  run_transport_control,       &
                                  run_semi_imp_alg,            &
-                                 run_rhs_eos,                 &
+                                 run_rhs_sample_eos,          &
+                                 run_rhs_project_eos,         &
                                  run_rhs_alg
 
   implicit none
@@ -43,7 +44,8 @@ program semi_implicit
   logical :: do_test_transport_control = .false.
   logical :: do_test_semi_imp_alg = .false.
   logical :: do_test_rhs_alg = .false.
-  logical :: do_test_rhs_eos = .false.
+  logical :: do_test_rhs_project_eos = .false.
+  logical :: do_test_rhs_sample_eos = .false.
 
   ! Usage message to print
   character(len=256) :: usage_message
@@ -73,7 +75,8 @@ program semi_implicit
           " transport_control, "       // &
           " semi_imp_alg, "            // &
           " rhs_alg, "                 // &
-          " rhs_eos, "                 // &
+          " rhs_project_eos, "         // &
+          " rhs_sample_eos, "         // &
           " } "
      call log_event( trim(usage_message), LOG_LEVEL_ERROR )
   end if
@@ -97,8 +100,10 @@ program semi_implicit
      do_test_semi_imp_alg = .true.
   case ("test_rhs_alg")
      do_test_rhs_alg = .true.
-  case ("test_rhs_eos")
-     do_test_rhs_eos = .true.
+  case ("test_rhs_project_eos")
+    do_test_rhs_project_eos = .true.
+  case ("test_rhs_sample_eos")
+     do_test_rhs_sample_eos = .true.
   case default
      call log_event( "Unknown test", LOG_LEVEL_ERROR )
   end select
@@ -115,8 +120,11 @@ program semi_implicit
   if (do_test_rhs_alg) then
     call run_rhs_alg()
   endif
-  if (do_test_rhs_eos) then
-    call run_rhs_eos()
+  if (do_test_rhs_project_eos) then
+    call run_rhs_project_eos()
+  endif
+  if (do_test_rhs_sample_eos) then
+    call run_rhs_sample_eos()
   endif
   if (do_test_semi_imp_alg) then
     call run_semi_imp_alg()

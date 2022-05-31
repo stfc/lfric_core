@@ -525,6 +525,7 @@ contains
         ! Use advective update to guess n+1 level scalar fieldsgv .
         if ( guess_np1 ) &
           call update_prognostic_scalars_alg(state, rhs_n, rhs_adv, &
+                                             rhs_phys,              &
                                              moist_dyn(gas_law))
 
         !============================================================================

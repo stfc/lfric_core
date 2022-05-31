@@ -81,15 +81,10 @@ class tl_test_rk_alg(TLTest):
         flag = "rk_alg"
         super(tl_test_rk_alg, self).__init__(flag)
 
-
-class tl_test_project_pressure(TLTest):
-    '''
-    Test the Equation of state projection
-    '''
+class tl_test_project_eos_pressure(TLTest):
     def __init__(self):
-        flag = "project_pressure"
-        super(tl_test_project_pressure, self).__init__(flag)
-
+        flag = "project_eos_pressure"
+        super(tl_test_project_eos_pressure, self).__init__(flag)
 
 class tl_test_advect_density_field(TLTest):
     '''
@@ -146,12 +141,11 @@ class tl_test_timesteps(TLTest):
 
 
 if __name__ == '__main__':
-    TestEngine.run(tl_test_kinetic_energy_gradient())
-    TestEngine.run(tl_test_advect_density_field())
-    TestEngine.run(tl_test_advect_theta_field())
-    TestEngine.run(tl_test_vorticity_advection())
-    TestEngine.run(tl_test_hydrostatic())
-    TestEngine.run(tl_test_pressure_gradient_bd())
-    TestEngine.run(tl_test_project_pressure())
-    TestEngine.run(tl_test_rk_alg())
-    TestEngine.run(tl_test_timesteps())
+    TestEngine.run( tl_test_kinetic_energy_gradient() )
+    TestEngine.run( tl_test_advect_density_field() )
+    TestEngine.run( tl_test_advect_theta_field() )
+    TestEngine.run( tl_test_vorticity_advection() )
+    TestEngine.run( tl_test_hydrostatic() )
+    TestEngine.run( tl_test_pressure_gradient_bd() )
+    TestEngine.run( tl_test_project_eos_pressure() )
+    TestEngine.run( tl_test_rk_alg() )

@@ -53,6 +53,7 @@ module fem_constants_mod
                                                 extra_mesh_label
 
   ! Kernels
+  use calc_detj_at_w3_kernel_mod,             only: calc_detj_at_w3_kernel_type
   use calc_detj_at_w2_kernel_mod,             only: calc_detj_at_w2_kernel_type
   use calc_directional_detj_at_w2_kernel_mod, only: calc_directional_detj_at_w2_kernel_type
   use compute_coriolis_matrix_kernel_mod,     only: compute_coriolis_matrix_kernel_type
@@ -121,6 +122,7 @@ module fem_constants_mod
   type(field_type),    allocatable, dimension(:), target :: nodal_rmultiplicity_w2
   type(field_type),    allocatable, dimension(:), target :: nodal_rmultiplicity_wt
   type(field_type),    allocatable, dimension(:), target :: w2_normalisation
+  type(field_type),    allocatable, dimension(:), target :: detj_at_w3
   type(field_type),    allocatable, dimension(:), target :: detj_at_w2
   type(field_type),    allocatable, dimension(:), target :: detj_at_w2_above
   type(field_type),    allocatable, dimension(:), target :: detj_at_w2_below
@@ -154,6 +156,7 @@ module fem_constants_mod
   public :: get_im3_div
   public :: get_normalisation
   public :: get_rmultiplicity
+  public :: get_detj_at_w3
   public :: get_detj_at_w2
   public :: get_detj_at_w2_above
   public :: get_detj_at_w2_below
@@ -260,6 +263,7 @@ contains
              nodal_rmultiplicity_w2(num_meshes),  &
              nodal_rmultiplicity_wt(num_meshes),  &
              w2_normalisation(num_meshes),        &
+             detj_at_w3(num_meshes),              &
              detj_at_w2(num_meshes),              &
              detj_at_w2_above(num_meshes),        &
              detj_at_w2_below(num_meshes),        &
@@ -570,10 +574,23 @@ contains
                      inc_X_powint_n(w2_normalisation(i), i_minus_one) )
       end if
 
+      !================ Create Det(J) values at W3 dof locations ==============!
+
+      if ( label_list(i) == primary_mesh_label .or.  &
+           label_list(i) == shifted_mesh_label  .or. &
+           label_list(i) == multigrid_mesh_label  ) then
+        call detj_at_w3(i)%initialise( vector_space = w3_fs )
+        call invoke( name = "calculate_detj_at_w3",                            &
+                     calc_detj_at_w3_kernel_type(detj_at_w3(i), chi_list(:,i), &
+                                                 panel_id_list(i)) )
+      end if
+
+
       !================ Create Det(J) values at W2 dof locations ==============!
 
       if ( label_list(i) == primary_mesh_label .or. &
-           label_list(i) == shifted_mesh_label ) then
+           label_list(i) == shifted_mesh_label .or. &
+           label_list(i) == multigrid_mesh_label  ) then
         call detj_at_w2(i)%initialise( vector_space = w2_fs )
         call invoke( name = "calculate_detj_at_w2",                            &
                      setval_c(detj_at_w2(i), 0.0_r_def),                       &
@@ -998,6 +1015,23 @@ contains
     call check_initialised_field(rmultiplicity, field_name, mesh_id, space)
 
   end function get_rmultiplicity
+
+  !> @brief Returns the Det(J) values at W3 dof locations
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The Det(J) field
+  function get_detj_at_w3(mesh_id) result(detj)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    integer(kind=i_def)             :: mesh_index
+    type(field_type),       pointer :: detj
+    character(str_def)              :: field_name
+
+    mesh_index = find_mesh_index(mesh_id)
+    field_name = 'detj_at_w3'
+    detj => detj_at_w3(mesh_index)
+    call check_initialised_field(detj, field_name, mesh_id)
+
+  end function get_detj_at_w3
 
   !> @brief Returns the Det(J) values at W2 dof locations
   !> @param[in] mesh_id The ID of the mesh to get the object for

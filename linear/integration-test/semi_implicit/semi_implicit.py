@@ -81,16 +81,15 @@ class tl_test_rhs_alg(TLTest):
         flag = "rhs_alg"
         super(tl_test_rhs_alg, self).__init__(flag)
 
-
-class tl_test_rhs_eos(TLTest):
-    '''
-    Test the Equation of state projection
-    '''
-
+class tl_test_rhs_sample_eos(TLTest):
     def __init__(self):
-        flag = "rhs_eos"
-        super(tl_test_rhs_eos, self).__init__(flag)
+        flag = "rhs_sample_eos"
+        super(tl_test_rhs_sample_eos, self).__init__(flag)
 
+class tl_test_rhs_project_eos(TLTest):
+    def __init__(self):
+        flag = "rhs_project_eos"
+        super(tl_test_rhs_project_eos, self).__init__(flag)
 
 class tl_test_transport_control(TLTest):
     '''
@@ -109,10 +108,10 @@ class tl_test_timesteps(TLTest):
         flag = "timesteps"
         super(tl_test_timesteps, self).__init__(flag)
 
-
 if __name__ == '__main__':
-    TestEngine.run(tl_test_rhs_eos())
+    TestEngine.run( tl_test_rhs_sample_eos() )
+    TestEngine.run( tl_test_rhs_project_eos() )
     TestEngine.run(tl_test_transport_control())
-    TestEngine.run(tl_test_rhs_alg())
-    TestEngine.run(tl_test_semi_imp_alg())
+    TestEngine.run( tl_test_semi_imp_alg() )
+    TestEngine.run( tl_test_rhs_alg() )
     TestEngine.run(tl_test_timesteps())

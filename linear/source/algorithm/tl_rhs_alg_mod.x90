@@ -20,7 +20,10 @@ module tl_rhs_alg_mod
                                                  vorticity_in_w1
   use formulation_config_mod,              only: rotating,             &
                                                  si_momentum_equation, &
-                                                 vector_invariant
+                                                 vector_invariant,     &
+                                                 eos_method,           &
+                                                 eos_method_sampled,   &
+                                                 eos_method_projected
   use planet_config_mod,                   only: cp, kappa, rd, p_zero
   use tl_kinetic_energy_gradient_kernel_mod, &
                                            only: tl_kinetic_energy_gradient_kernel_type
@@ -36,7 +39,8 @@ module tl_rhs_alg_mod
   use field_indices_mod,                   only: igh_u, igh_t, igh_d, igh_p
   use io_config_mod,                       only: subroutine_timers
   use timer_mod,                           only: timer
-  use tl_rhs_eos_kernel_mod,               only: tl_rhs_eos_kernel_type
+  use tl_rhs_project_eos_kernel_mod,       only: tl_rhs_project_eos_kernel_type
+  use tl_rhs_sample_eos_kernel_mod,        only: tl_rhs_sample_eos_kernel_type
   use moist_dyn_mod,                       only: num_moist_factors, gas_law
   use dg_matrix_vector_kernel_mod,         only: dg_matrix_vector_kernel_type
   use reference_element_mod,               only: reference_element_type
@@ -238,14 +242,25 @@ subroutine tl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,        &
     ! Compute rhs_rho
                  setval_X( rhs(igh_d), rho_base ) )
     if ( compute_eos ) then
-      qr = quadrature_xyoz_type(1, gaussian_quadrature)
-      call invoke( name = "Compute rhs_eos",                                     &
-                   tl_rhs_eos_kernel_type(rhs_eos, exner, rho, theta,            &
-                                          moist_dyn(gas_law), ls_exner, ls_rho,  &
-                                          ls_theta, ls_moist_dyn(gas_law),       &
-                                          chi, panel_id,                         &
-                                          kappa, rd, p_zero, qr),                &
-                   dg_matrix_vector_kernel_type( rhs(igh_p), rhs_eos, mm_w3_inv ))
+      select case (eos_method)
+        case(eos_method_sampled)
+          call invoke( name = "sample_rhs_eos",                                    &
+                       tl_rhs_sample_eos_kernel_type(rhs_eos, exner, rho, theta,   &
+                                                     moist_dyn(gas_law), ls_exner, &
+                                                     ls_rho, ls_theta,             &
+                                                     ls_moist_dyn(gas_law),        &
+                                                     kappa, rd, p_zero) )
+        case(eos_method_projected)
+          call invoke( name = "project_rhs_eos",                                             &
+                       tl_rhs_project_eos_kernel_type(rhs_eos, exner, rho, theta,            &
+                                                      moist_dyn(gas_law), ls_exner, ls_rho,  &
+                                                      ls_theta, ls_moist_dyn(gas_law),       &
+                                                      chi, panel_id,                         &
+                                                      kappa, rd, p_zero, qr_exact),          &
+                       dg_matrix_vector_kernel_type( rhs(igh_p), rhs_eos, mm_w3_inv ))
+        case default
+          call log_event( "Gungho: Unrecognised method to rhs_eos", LOG_LEVEL_ERROR )
+      end select
     else
       call invoke( setval_c(rhs(igh_p), 0.0_r_def) )
     end if

@@ -6,7 +6,7 @@
 !> @brief Compute the projection in of the pressure field into the same space
 !>        as density.
 !>
-module project_pressure_kernel_mod
+module project_eos_pressure_kernel_mod
 
   use argument_mod,      only : arg_type, func_type,       &
                                 GH_FIELD, GH_OPERATOR,     &
@@ -29,7 +29,7 @@ module project_pressure_kernel_mod
   !> The type declaration for the kernel. Contains the metadata needed by the
   !> Psy layer.
   !>
-  type, public, extends(kernel_type) :: project_pressure_kernel_type
+  type, public, extends(kernel_type) :: project_eos_pressure_kernel_type
     private
     type(arg_type) :: meta_args(7) = (/                                       &
          arg_type(GH_FIELD,    GH_REAL, GH_WRITE, W3),                        &
@@ -48,13 +48,13 @@ module project_pressure_kernel_mod
     integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
-    procedure, nopass :: project_pressure_code
+    procedure, nopass :: project_eos_pressure_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public :: project_pressure_code
+  public :: project_eos_pressure_code
 
 contains
 
@@ -92,21 +92,21 @@ contains
 !! @param[in] nqp_v Number of quadrature points in the vertical
 !! @param[in] wqp_h horizontal quadrature weights
 !! @param[in] wqp_v vertical quadrature weights
-subroutine project_pressure_code(cell, nlayers,                                &
-                                 exner, rho, theta, moist_dyn_gas,             &
-                                 chi1, chi2, chi3,                             &
-                                 panel_id,                                     &
-                                 ncell_3d, m3_inv,                             &
-                                 ndf_w3, undf_w3, map_w3, w3_basis,            &
-                                 ndf_wt, undf_wt, map_wt, wt_basis,            &
-                                 ndf_chi, undf_chi, map_chi,                   &
-                                 chi_basis, chi_diff_basis,                    &
-                                 ndf_pid, undf_pid, map_pid,                   &
-                                 nqp_h, nqp_v, wqp_h, wqp_v                    &
-                                 )
+subroutine project_eos_pressure_code(cell, nlayers,                                &
+                                     exner, rho, theta, moist_dyn_gas,             &
+                                     chi1, chi2, chi3,                             &
+                                     panel_id,                                     &
+                                     ncell_3d, m3_inv,                             &
+                                     ndf_w3, undf_w3, map_w3, w3_basis,            &
+                                     ndf_wt, undf_wt, map_wt, wt_basis,            &
+                                     ndf_chi, undf_chi, map_chi,                   &
+                                     chi_basis, chi_diff_basis,                    &
+                                     ndf_pid, undf_pid, map_pid,                   &
+                                     nqp_h, nqp_v, wqp_h, wqp_v                    &
+                                     )
 
-  use calc_exner_pointwise_mod,only: calc_exner_pointwise
-  use coordinate_jacobian_mod, only: coordinate_jacobian
+  use coordinate_jacobian_mod,  only: coordinate_jacobian
+  use calc_exner_pointwise_mod, only: calc_exner_pointwise
 
   implicit none
 
@@ -194,6 +194,6 @@ subroutine project_pressure_code(cell, nlayers,                                &
     end do
   end do
 
-end subroutine project_pressure_code
+end subroutine project_eos_pressure_code
 
-end module project_pressure_kernel_mod
+end module project_eos_pressure_kernel_mod

@@ -13,7 +13,7 @@
 !!          in the vertical direction of the reference cell.
 !!          For more details, see the solver section of
 !!          https://code.metoffice.gov.uk/trac/lfric/wiki/GhaspSupport/Documentation
-module eliminated_theta_q32_kernel_mod
+module project_eliminated_theta_q32_kernel_mod
 
   use argument_mod,      only: arg_type, func_type,     &
                                GH_OPERATOR, GH_FIELD,   &
@@ -32,7 +32,7 @@ module eliminated_theta_q32_kernel_mod
   !---------------------------------------------------------------------------
   ! Public types
   !---------------------------------------------------------------------------
-  type, public, extends(kernel_type) :: eliminated_theta_q32_kernel_type
+  type, public, extends(kernel_type) :: project_eliminated_theta_q32_kernel_type
     private
     type(arg_type) :: meta_args(4) = (/                   &
         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W3, W2), &
@@ -48,13 +48,13 @@ module eliminated_theta_q32_kernel_mod
     integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
   contains
-    procedure, nopass :: eliminated_theta_q32_code
+    procedure, nopass :: project_eliminated_theta_q32_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  public eliminated_theta_q32_code
+  public project_eliminated_theta_q32_code
 
 contains
 
@@ -86,16 +86,16 @@ contains
 !> @param[in]     nqp_v          Number of vertical quadrature points
 !> @param[in]     wqp_h          Horizontal quadrature weights
 !> @param[in]     wqp_v          Vertical quadrature weights
-subroutine eliminated_theta_q32_code(cell, nlayers, ncell_3d, &
-                                     q32_op,                  &
-                                     theta,                   &
-                                     ncell_3d1, inv_m3,       &
-                                     const,                   &
-                                     ndf_w3, basis_w3,        &
-                                     ndf_w2, basis_w2,        &
-                                     ndf_wt, undf_wt, map_wt, &
-                                     basis_wt, diff_basis_wt, &
-                                     nqp_h, nqp_v, wqp_h, wqp_v)
+subroutine project_eliminated_theta_q32_code(cell, nlayers, ncell_3d, &
+                                             q32_op,                  &
+                                             theta,                   &
+                                             ncell_3d1, inv_m3,       &
+                                             const,                   &
+                                             ndf_w3, basis_w3,        &
+                                             ndf_w2, basis_w2,        &
+                                             ndf_wt, undf_wt, map_wt, &
+                                             basis_wt, diff_basis_wt, &
+                                             nqp_h, nqp_v, wqp_h, wqp_v)
 
   implicit none
 
@@ -155,6 +155,6 @@ subroutine eliminated_theta_q32_code(cell, nlayers, ncell_3d, &
     q32_op(:,:,ik) = q32_op(:,:,ik) + matmul(inv_m3(:,:,ik), proj(:,:))
   end do
 
-end subroutine eliminated_theta_q32_code
+end subroutine project_eliminated_theta_q32_code
 
-end module eliminated_theta_q32_kernel_mod
+end module project_eliminated_theta_q32_kernel_mod
