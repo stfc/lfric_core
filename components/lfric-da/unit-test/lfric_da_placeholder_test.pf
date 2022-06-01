@@ -1,0 +1,11 @@
+!------------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!------------------------------------------------------------------------------
+!
+! A placeholder test to ensure unit tests build and run succesfully
+!
+module lfric_da_placeholder_test
+  implicit none
+end module lfric_da_placeholder_test
