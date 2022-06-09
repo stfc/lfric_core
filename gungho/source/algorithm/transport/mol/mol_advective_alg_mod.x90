@@ -10,6 +10,7 @@ module mol_advective_alg_mod
   use constants_mod,                  only: r_def, i_def, l_def
   use field_mod,                      only: field_type
   use runge_kutta_init_mod,           only: get_rk_transport_weights
+  use io_config_mod,                  only: subroutine_timers
   use timer_mod,                      only: timer
   use advective_increment_alg_mod,    only: advective_increment_alg
   use mesh_mod,                       only: mesh_type
@@ -53,11 +54,11 @@ contains
     integer(i_def)   :: mesh_id
 
     type(field_type), pointer     :: advecting_wind => null()
-    type(field_type), allocatable :: rk_rhs(:)
+    type(field_type), allocatable :: rk_field(:)
     integer(i_def)                :: stage, s
     integer(i_def)                :: nstage, substeps
-    real(r_def), allocatable      :: ak_adv(:,:)
-    type(field_type)              :: advection_inc
+    real(r_def), allocatable      :: rk_weights(:,:)
+    type(field_type)              :: rhs_field
     type(mesh_type),      pointer :: mesh => null()
     type(transport_runtime_type), pointer :: transport_runtime => null()
 
@@ -65,6 +66,9 @@ contains
     real(r_def)    :: dt_substep
     logical(l_def) :: enforce_min_value
     real(r_def)    :: min_value
+    logical(l_def) :: use_reversible_scheme
+
+    if ( subroutine_timers ) call timer('mol_advective_alg')
 
     ! get the stuff needed by the advection algorithm
     mesh_id = field%get_mesh_id()
@@ -83,43 +87,49 @@ contains
 
     call rhs%initialise(field%get_function_space())
     call field_n%initialise(field%get_function_space())
-    call advection_inc%initialise(field%get_function_space())
 
     call field%copy_field(field_np1)
-    call field%copy_field(field_n)
 
-    call get_rk_transport_weights(nstage, ak_adv, runge_kutta_method)
-    allocate( rk_rhs(nstage) )
+    call get_rk_transport_weights(nstage, rk_weights, runge_kutta_method)
+    allocate( rk_field(nstage) )
 
     do stage = 1, nstage
-      call rk_rhs(stage)%initialise(field%get_function_space())
+      call rk_field(stage)%initialise( field%get_function_space() )
     end do
+    call rhs_field%initialise( field%get_function_space() )
 
     ! Perform the number of rk-stages and substeps required
-    do substeps = 1, number_substeps
+    substep_loop: do substeps = 1, number_substeps
 
-      call invoke( setval_c(advection_inc, 0.0_r_def) )
+      ! Reset field_n ready for the this substep
+      call field_np1%copy_field(field_n)
 
-      do stage = 1, nstage
-        ! Build rhs depending upon type of field being advected
-        ! Compute: - u.grad(f)
-        call advective_increment_alg(rk_rhs(stage), field_np1,       &
-                                     advecting_wind, dt_substep,     &
-                                     direction, monotonicity,        &
-                                     logspace=logspace               )
+      use_reversible_scheme = .false.
 
-        call invoke( setval_c(rhs, 0.0_r_def) )
+      stage_loop: do stage = 1, nstage
+
+        if ( stage == nstage .and. transport_metadata%get_reversible() ) &
+          use_reversible_scheme= .true.
+
+        ! Compute the field for this stage:
+        ! rhs_field = sum(s=1,stage): a(stage,s)*field^(s)
+        call invoke( setval_X( rk_field(stage), field_np1 ), &
+                     setval_c( rhs_field, 0.0_r_def ) )
         do s = 1, stage
-          call invoke( inc_X_minus_bY(rhs, ak_adv(stage,s), rk_rhs(s)) )
+          call invoke( inc_X_plus_bY( rhs_field, rk_weights(stage,s), rk_field(s) ) )
         end do
-        ! Update field: f = f^n - sum_k a_k * dt * rhs_k
-        !               f = f^n + dt_substep*rhs
-        call invoke( aX_plus_Y(field_np1, dt_substep, rhs, field_n), &
-        ! Add increment from this stage to the advection increment
-                     inc_X_minus_bY(advection_inc,                   &
-                                    ak_adv(nstage, stage), rk_rhs(stage)) )
 
-        if ( limited_area .and. topology==topology_non_periodic ) then
+        ! Compute update: rhs = u.grad(rhs_field)
+        call advective_increment_alg(rhs, rhs_field,                   &
+                                     advecting_wind, dt_substep,       &
+                                     direction, use_reversible_scheme, &
+                                     monotonicity=monotonicity,        &
+                                     logspace=logspace)
+
+        ! Update field: f = f^n - dt_substep*rhs
+        call invoke( X_minus_bY(field_np1, field_n, dt_substep, rhs) )
+
+        if ( limited_area .and. topology == topology_non_periodic ) then
           ! This code is required while LAMs loop over cells right up to
           ! the edge of a limited area domain.  It can be removed if
           ! we only loop over columns in the interior domain.
@@ -130,12 +140,9 @@ contains
           call overwrite_blending_zone(field_np1, field_n, depth=1)
         end if
 
-      end do  ! end rk-stages
+      end do stage_loop
 
-      ! Compute the initial state (field_np1) for the next substep
-      call invoke( aX_plus_Y(field_np1, dt_substep, advection_inc, field_n) )
-
-      if ( limited_area .and. topology==topology_non_periodic ) then
+      if ( limited_area .and. topology == topology_non_periodic ) then
         ! This code is required while LAMs loop over cells right up to
         ! the edge of a limited area domain.  It can be removed if
         ! we only loop over columns in the interior domain.
@@ -147,9 +154,7 @@ contains
         call overwrite_blending_zone(field_np1, field_n, depth=transport_boundary_depth)
       end if
 
-      call field_np1%copy_field(field_n)
-
-    end do
+    end do substep_loop
 
     ! Enforce a min value if required
     if ( enforce_min_value ) then
@@ -158,9 +163,10 @@ contains
     end if
 
     nullify( advecting_wind, mesh, transport_runtime )
+    if ( allocated( rk_field ) ) deallocate( rk_field )
+    if ( allocated( rk_weights ) ) deallocate( rk_weights )
 
-    if ( allocated(rk_rhs) ) deallocate(rk_rhs)
-    if ( allocated(ak_adv) ) deallocate(ak_adv)
+    if ( subroutine_timers ) call timer('mol_advective_alg')
 
   end subroutine mol_advective_alg
 

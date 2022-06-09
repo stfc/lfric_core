@@ -50,8 +50,8 @@ contains
     call store_comm(this%getMpiCommunicator())
     call feign_transport_config( operators = operators_fv,                                 &
                                  runge_kutta_method = runge_kutta_method_ssp2,             &
-                                 fv_flux_order = 2,                                        &
-                                 fv_advective_order = 2,                                   &
+                                 fv_vertical_order = 2,                                    &
+                                 fv_horizontal_order = 2,                                  &
                                  consistent_metric  = .false.,                             &
                                  oned_reconstruction = .false.,                            &
                                  cfl_mol_1d_stab = 1.0_r_def,                              &
@@ -74,7 +74,8 @@ contains
                                  log_space = (/.false./),                                  &
                                  enforce_min_value = (/.false./),                          &
                                  min_value = (/0.0_r_def/),                                &
-                                 ffsl_scheme = ffsl_scheme_three_dim                       &
+                                 ffsl_scheme = ffsl_scheme_three_dim,                      &
+                                 reversible = (/.false./)                                  &
                                  )
 
   end subroutine setUp

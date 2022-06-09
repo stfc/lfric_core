@@ -9,8 +9,10 @@
 !!        polynomial representation of a tracer field on the faces of a cell.
 !> @details Compute the coefficients of the flux of a tracer density field using a high order
 !!          1D polynomial fit to the integrated tracer values over a given stencil.
-!!          The stencil used for the polynomial is centred on the upwind cell for each edge.
-!!          A symmetric polynomial is used containing all monomials up to the
+!!          For even order polynomials the stencil is centred on the upwind cell for each edge.
+!!          For odd order polynomials the stencil is centred on the edge the
+!!          reconstruction is computed at.
+!!          A polynomial is used containing all monomials up to the
 !!          desired order, i.e. order = 2: 1 + x + x^2.
 !!          This is exactly fitted over all cells in the stencil.
 !!          The methodology is inspired by that of Thuburn et.al GMD 2014 for
@@ -22,13 +24,11 @@ use argument_mod,      only : arg_type, func_type,       &
                               GH_FIELD, GH_SCALAR,       &
                               GH_REAL, GH_INTEGER,       &
                               GH_WRITE, GH_READ,         &
-                              ANY_SPACE_1,               &
                               GH_BASIS, CELL_COLUMN,     &
                               GH_QUADRATURE_XYoZ,        &
-                              ANY_DISCONTINUOUS_SPACE_1, &
-                              GH_QUADRATURE_face
+                              ANY_DISCONTINUOUS_SPACE_1
 use constants_mod,     only : r_def, i_def
-use fs_continuity_mod, only : W3
+use fs_continuity_mod, only : Wtheta
 use kernel_mod,        only : kernel_type
 
 implicit none
@@ -40,18 +40,17 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the PSy layer
 type, public, extends(kernel_type) :: poly1d_vert_flux_coeffs_kernel_type
   private
-  type(arg_type) :: meta_args(5) = (/                                         &
-       arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-       arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W3),                        &
-       arg_type(GH_FIELD*3, GH_REAL,    GH_READ,  ANY_SPACE_1),               &
-       arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                             &
-       arg_type(GH_SCALAR,  GH_INTEGER, GH_READ)                              &
+  type(arg_type) :: meta_args(4) = (/                                        &
+       arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ,  Wtheta),                    &
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                             &
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ)                              &
        /)
-  type(func_type) :: meta_funcs(1) = (/                         &
-       func_type(ANY_SPACE_1, GH_BASIS)                         &
+  type(func_type) :: meta_funcs(1) = (/ &
+       func_type(Wtheta, GH_BASIS)      &
        /)
   integer :: operates_on = CELL_COLUMN
-  integer :: gh_shape(2) = (/ GH_QUADRATURE_XYoZ, GH_QUADRATURE_face /)
+  integer :: gh_shape = GH_QUADRATURE_XYoZ
 contains
   procedure, nopass :: poly1d_vert_flux_coeffs_code
 end type
@@ -67,59 +66,38 @@ contains
 !> @param[in] nlayers Number of vertical layers
 !> @param[in,out] coeff Array of fields to store the coefficients for the polynomial
 !!                      reconstruction
-!> @param[in]  mdw3 Mass matrix diagonal for the W3 space, this is used to give
-!!                  the cell volume
-!> @param[in] chi1 1st component of the physical coordinate field
-!> @param[in] chi2 2nd component of the physical coordinate field
-!> @param[in] chi3 3rd component of the physical coordinate field
+!> @param[in] height Physical height above the surface
 !> @param[in] ndata Number of data points per dof location
 !> @param[in] global_order Desired polynomial order for flux computations
 !> @param[in] ndf_c Number of degrees of freedom per cell for the coeff space
 !> @param[in] undf_c Total number of degrees of freedom for the coeff space
 !> @param[in] map_c Dofmap for the coeff space
-!> @param[in] ndf_w3 Number of degrees of freedom per cell for W3
-!> @param[in] undf_w3 Total number of degrees of freedom for W3
-!> @param[in] map_w3 Dofmap of the tracer field
 !> @param[in] ndf_wx Number of degrees of freedom per cell for the coordinate space
 !> @param[in] undf_wx Total number of degrees of freedom for the coordinate space
 !> @param[in] map_wx Dofmap of the coordinate space stencil
 !> @param[in] basis_wx Basis function of the coordinate space evaluated on
 !!                     quadrature points
-!> @param[in] face_basis_wx Basis function of the coordinate space evaluated on
 !!                          quadrature points on the vertical faces
 !> @param[in] nqp_h Number of horizontal quadrature points
 !> @param[in] nqp_v Number of vertical quadrature points
 !> @param[in] wqp_h Weights of horizontal quadrature points
 !> @param[in] wqp_v Weights of vertical quadrature points
-!> @param[in] nfaces_qr Number of faces in the quadrature rule
-!> @param[in] nqp_f Number of face quadrature points
-!> @param[in] wqp_f Weights of face quadrature points
 subroutine poly1d_vert_flux_coeffs_code(nlayers,                    &
                                         coeff,                      &
-                                        mdw3,                       &
-                                        chi1, chi2, chi3,           &
+                                        height,                     &
                                         ndata,                      &
                                         global_order,               &
                                         ndf_c,                      &
                                         undf_c,                     &
                                         map_c,                      &
-                                        ndf_w3,                     &
-                                        undf_w3,                    &
-                                        map_w3,                     &
                                         ndf_wx,                     &
                                         undf_wx,                    &
                                         map_wx,                     &
                                         basis_wx,                   &
-                                        face_basis_wx,              &
-                                        nqp_h, nqp_v, wqp_h, wqp_v, &
-                                        nfaces_qr, nqp_f, wqp_f )
+                                        nqp_h, nqp_v, wqp_h, wqp_v )
 
+  use matrix_invert_mod, only: matrix_invert
 
-  use matrix_invert_mod,          only: matrix_invert
-  use base_mesh_config_mod,       only: geometry, &
-                                        geometry_spherical
-  use finite_element_config_mod,  only: coord_system,     &
-                                        coord_system_xyz
   implicit none
 
   ! Arguments
@@ -127,173 +105,124 @@ subroutine poly1d_vert_flux_coeffs_code(nlayers,                    &
   integer(kind=i_def), intent(in) :: nlayers
   integer(kind=i_def), intent(in) :: ndata
   integer(kind=i_def), intent(in) :: ndf_c,  undf_c,  &
-                                     ndf_w3, undf_w3, &
                                      ndf_wx, undf_wx
-  integer(kind=i_def), intent(in) :: nqp_v, nqp_h, nqp_f, nfaces_qr
+  integer(kind=i_def), intent(in) :: nqp_v, nqp_h
 
   integer(kind=i_def), dimension(ndf_c),  intent(in) :: map_c
-  integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
   integer(kind=i_def), dimension(ndf_wx), intent(in) :: map_wx
 
-  real(kind=r_def), dimension(undf_w3), intent(in)    :: mdw3
-  real(kind=r_def), dimension(undf_wx), intent(in)    :: chi1, chi2, chi3
+  real(kind=r_def), dimension(undf_wx), intent(in)    :: height
   real(kind=r_def), dimension(undf_c),  intent(inout) :: coeff
 
-  real(kind=r_def), dimension(1,ndf_wx,nqp_h,nqp_v),     intent(in) :: basis_wx
-  real(kind=r_def), dimension(1,ndf_wx,nqp_f,nfaces_qr), intent(in) :: face_basis_wx
+  real(kind=r_def), dimension(1,ndf_wx,nqp_h,nqp_v), intent(in) :: basis_wx
 
-  real(kind=r_def), dimension(nqp_h),           intent(in) ::  wqp_h
-  real(kind=r_def), dimension(nqp_v),           intent(in) ::  wqp_v
-  real(kind=r_def), dimension(nqp_f,nfaces_qr), intent(in) ::  wqp_f
+  real(kind=r_def), dimension(nqp_h), intent(in) ::  wqp_h
+  real(kind=r_def), dimension(nqp_v), intent(in) ::  wqp_v
 
   ! Local variables
-  integer(kind=i_def) :: k, ijk, df, qv0, qh0, stencil, nmonomial, qp, &
-                         m, face, order, boundary_offset, offset, &
-                         vertical_order, ijkp
-  integer(kind=i_def), allocatable, dimension(:,:)         :: smap
-  real(kind=r_def)                                         :: xx, fn, z0, zq, spherical, planar
-  real(kind=r_def),              dimension(3)              :: x0, xq
-  real(kind=r_def), allocatable, dimension(:,:)            :: int_monomial, inv_int_monomial
-  real(kind=r_def), allocatable, dimension(:)              :: beta, delta, monomial
-  real(kind=r_def),              dimension(global_order+1) :: area
+  integer(kind=i_def) :: k, p, df, kmin, kmax, j, np, qp, ik, qh0
+  integer(kind=i_def) :: use_upwind, direction, vertical_order
+
+  integer(kind=i_def), dimension(global_order+1) :: stencil
+
+  real(kind=r_def)                              :: z, z0, total_coeff
+  real(kind=r_def), allocatable, dimension(:)   :: alpha, delta
+  real(kind=r_def), allocatable, dimension(:,:) :: monomial, inv_monomial
 
   ! Ensure that we reduce the order if there are only a few layers
   vertical_order = min(global_order, nlayers-1)
 
-  if ( geometry == geometry_spherical .and. &
-       coord_system == coord_system_xyz ) then
-    spherical = 1.0_r_def
-    planar    = 0.0_r_def
-  else
-    spherical = 0.0_r_def
-    planar    = 1.0_r_def
-  end if
+  ! Number of points in stencil
+  np = vertical_order + 1
+  allocate( alpha(np), delta(np), monomial(np,np), inv_monomial(np,np) )
 
-  ! Compute the offset map for all orders up to order
-  allocate( smap(global_order+1,0:global_order) )
-  smap(:,:) = 0
-  do m = 0,global_order
-    do stencil = 1,m+1
-      smap(stencil,m) = - m/2 + (stencil-1)
-    end do
-  end do
-
-  ! Avoid compile warning for unused variables
-  fn = wqp_h(1)
-  fn = wqp_f(1,1)
+  ! If order is even then we are using an upwind stencil -> use_upwind = 1
+  ! For odd orders it is zero
+  use_upwind = mod(vertical_order+1_i_def, 2_i_def)
 
   ! Index of quadrature point in the centre of the cell
   ! (this is only true if the number of quadrature points is odd)
-  qv0 = (nqp_v+1)/2
   qh0 = (nqp_h+1)/2
 
   ! Step 1: Build integrals of monomials over all cells in advection stencils
 
-  ! Loop over all layers
-  layer_loop: do k = 0, nlayers-1
-
-    ! Position vector of centre of this cell
-    x0 = 0.0_r_def
-    do df = 1, ndf_wx
-      ijk = map_wx( df ) + k
-      x0(:) = x0(:) + (/ chi1(ijk), chi2(ijk), chi3(ijk) /)*basis_wx(1,df,qh0,qv0)
-    end do
-    z0 = sqrt(x0(1)**2 + x0(2)**2 + x0(3)**2)*spherical + x0(3)*planar
-
-    ! Compute local order, this is at most vertical_order but reduces near the
-    ! top and bottom boundary
-    order = min(vertical_order, min(2*(k+1), 2*(nlayers-1 - (k-1))))
-
-    ! Number of monomials to use (all polynomials up to total degree of order)
-    nmonomial = (order + 1)
-    allocate( int_monomial(nmonomial, nmonomial),  &
-              inv_int_monomial(nmonomial, nmonomial), &
-              beta(nmonomial), delta(nmonomial), monomial(nmonomial) )
-
-    ! Offset for boundary computations when we move from being upwinded
-    ! to downwinded or extrapolated reconstructions
-    boundary_offset = 0
-    if ( order > 0 ) then
-      if ( k == 0 )           boundary_offset =  1
-      if ( k == nlayers - 1 ) boundary_offset = -1
-    end if
-
+  ! Loop over all layers, coefficients are defined on Wtheta points
+  ! so loop 0 (bottom boundary) to nlayers (top boundary)
+  layer_loop: do k = 0, nlayers
     ! Initialise polynomial coefficients to zero
     do df = 0, ndata-1
       coeff(map_c(1) + k*ndata + df) = 0.0_r_def
     end do
 
-    ! Compute the coefficients of each cell in the stencil for
-    ! each edge when this is the upwind cell
-    face_loop: do face = 1,2
+    ! Origin of local coordinate system
+    z0 = height(map_wx(1)+k)
 
-      int_monomial = 0.0_r_def
+    ! For upwind polynomials (even order) compute the coefficients
+    ! for both positive and negative winds (stencil increments by 1)
+    ! if wind < 0 -> direction = 0 (use one more cell above than below)
+    ! if wind > 0 -> direction = 1 (use one more cell below than above)
+    ! For centred polynomials (odd order) we only need one set of coefficients
+    direction_loop: do direction = 0, use_upwind
 
-      ! Loop over all cells in the stencil
-      stencil_loop: do stencil = 1, order+1
-        offset = smap(stencil,order) + boundary_offset
-        area(stencil) = mdw3(map_w3( 1 ) + k + offset)
+      ! Compute the stencil of points required
+      ! For vertical_order = 2 => stencil = (k-1,k,k+1)
+      ! For vertical_order = 3 => stencil = (k-2,k-1,k,k+1)
+      do p = 0, vertical_order
+        stencil(p+1) = k - floor(real(vertical_order + 1_i_def,r_def)/2.0_r_def) + p
+      end do
 
-        ! Integrate monomials over this cell
-        quadrature_loop: do qp = 1, nqp_v
-          ! First: Compute physical coordinate of each quadrature point
-          xq = 0.0_r_def
+      ! Adjust the stencil in the upwind direction unless at the top boundary
+      if ( k < nlayers ) stencil = stencil - direction
+
+      ! Adjust stencil near boundaries to avoid going out of bounds
+      kmin = minval(stencil(1:np))
+      if ( kmin < 0 ) stencil = stencil - kmin
+      kmax = maxval(stencil(1:np)) - (nlayers - 1)
+      if ( kmax > 0 ) stencil = stencil - kmax
+
+      monomial = 0.0_r_def
+
+      quadrature_loop: do qp = 1, nqp_v
+        ! Compute local coordinates (assuming z(k) is origin)
+        ! and monomial matrix m(i,j) = int( z^(j-1) dz_i)
+        do p = 1, np
+          z = 0.0_r_def
           do df = 1, ndf_wx
-            ijk = map_wx( df ) + k + offset
-            xq(:) = xq(:) + (/ chi1(ijk), chi2(ijk), chi3(ijk) /)*basis_wx(1,df,qh0,qp)
+            z = z + height(map_wx(df) + stencil(p))*basis_wx(1,df,qh0,qp)
           end do
-          zq = sqrt(xq(1)**2 + xq(2)**2 + xq(3)**2)*spherical + xq(3)*planar
-
-          ! Second: Compute the local coordinate of each quadrature point from the
-          !         physical coordinate
-          xx = zq - z0
-
-          ! Third: Compute each needed monomial in terms of the local coordinate
-          !        on each quadrature point
-          ! Loop over monomials
-          do m = 1, nmonomial
-            fn = xx**(m-1)
-            int_monomial(stencil,m) = int_monomial(stencil,m) &
-                                    + wqp_v(qp)*fn*area(stencil)
+          z = z - z0
+          do j = 1, np
+            monomial(p,j) = monomial(p,j) + wqp_v(qp)*z**(j-1)
           end do
-        end do quadrature_loop
-      end do stencil_loop
-
-      ! Manipulate the integrals of monomials,
-      call matrix_invert(int_monomial,inv_int_monomial,nmonomial)
-
-      ! Loop over quadrature points on this face
-      face_quadrature_loop: do qp = 1,nqp_f
-
-        ! Obtain physical coordinates of gauss points on this face
-        xq = 0.0_r_def
-        do df = 1, ndf_wx
-          ijk = map_wx( df ) + k
-          xq(:) = xq(:) + (/ chi1(ijk), chi2(ijk), chi3(ijk) /)*face_basis_wx(1,df,qp,face)
         end do
-        zq = sqrt(xq(1)**2 + xq(2)**2 + xq(3)**2)*spherical + xq(3)*planar
+      end do quadrature_loop
+      call matrix_invert(monomial, inv_monomial, np)
 
-        ! Finally obtain local coordinate
-        xx = zq - z0
+      ! Fit polynomial P = a0 + a1*z + a2*z^2 + a3*z^3 to d
+      ! by solving M * [a0, a1, a2, a3]^T = [d(1), d(2), d(3), d(4)]^T
+      ! Where monomial matrix is M_ij = int (z^(j-1) dz_i)
+      ! and d is a delta function such that d_i = 1 in cell i and
+      ! solve system for all possible i's
+      do p = 1, np
+        delta = 0.0_r_def
+        delta(p) = 1.0_r_def
 
-        ! Evaluate polynomial fit
-        ! Loop over monomials
-        do stencil = 1, order+1
-          monomial(stencil) = xx**(stencil-1)
-        end do
-        do stencil = 1, order+1
-          delta(:) = 0.0_r_def
-          delta(stencil) = 1.0_r_def
-          beta = matmul(inv_int_monomial,delta)
-          ijkp = stencil - 1 + (face-1)*(global_order+1) + k*ndata + map_c(1)
-          coeff(ijkp) = dot_product(monomial,beta)*area(stencil)
-        end do
-      end do face_quadrature_loop
-    end do face_loop
-    deallocate( int_monomial, inv_int_monomial, beta, delta, monomial )
+        alpha = matmul(inv_monomial, delta)
+        ! P(z) = sum_i=1^np ( a(i)*z^(i-1) )
+        ! evaluated at z = 0 -> P(0) = a(1)
+        ik = map_c(1) + k*ndata + direction*(global_order+1) - 1
+        coeff( ik + p ) = alpha(1)
+      end do
+
+      ! Normalise coeffs to ensure a constant remains exacly constant
+      p =  map_c(1) + k*ndata + direction*(global_order+1)
+      total_coeff = 1.0_r_def/sum(coeff(p:p+vertical_order))
+      coeff(p:p+vertical_order) = coeff(p:p+vertical_order)*total_coeff
+
+    end do direction_loop
   end do layer_loop
 
-  deallocate( smap )
+  deallocate( alpha, delta, monomial, inv_monomial )
 
 end subroutine poly1d_vert_flux_coeffs_code
 

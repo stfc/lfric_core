@@ -7,15 +7,12 @@
 !>@brief Test the TL vertical reconstruction using 1d polynomials
 module tl_poly1d_vert_w3_reconstruction_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def
+  use constants_mod, only : i_def, r_def, l_def
   use pFUnit_Mod
 
   use, intrinsic :: iso_fortran_env,  only: real64
   use tl_poly1d_vert_w3_reconstruction_kernel_mod, &
                                 only: tl_poly1d_vert_w3_reconstruction_code
-
-  use get_unit_test_planar_mesh_mod, &
-                                only: get_outward_normals_to_vertical_faces
 
   implicit none
 
@@ -32,9 +29,6 @@ module tl_poly1d_vert_w3_reconstruction_kernel_mod_test
     integer(i_def), allocatable :: map_w2(:)
     integer(i_def), allocatable :: map_w3(:)
     integer(i_def), allocatable :: map_c(:)
-
-    real(r_def), allocatable :: basis_w2(:,:,:)
-    real(r_def), allocatable :: outward_normals_to_vertical_faces(:,:)
 
     real(r_def), allocatable :: recon(:)
     real(r_def), allocatable :: density(:)
@@ -79,7 +73,6 @@ contains
     allocate(this%map_w2(ndf_w2))
     allocate(this%map_w3(ndf_w3))
     allocate(this%map_c(ndf_c))
-    allocate(this%basis_w2(3,ndf_w2,ndf_w2))
     allocate(this%recon(undf_w2))
     allocate(this%density(undf_w3))
     allocate(this%ls_wind(undf_w2))
@@ -94,34 +87,27 @@ contains
     this%map_w2(5) = 1 + nfaces_h*nlayers
     this%map_w2(6) = this%map_w2(5) + 1
 
-    ! Get canned information for the reference cube
-    call get_outward_normals_to_vertical_faces(this%outward_normals_to_vertical_faces)
-    this%basis_w2 = 0.0_r_def
-    this%basis_w2(1,1,1) = 1.0_r_def
-    this%basis_w2(2,2,2) = -1.0_r_def
-    this%basis_w2(1,3,3) = 1.0_r_def
-    this%basis_w2(2,4,4) = -1.0_r_def
-    this%basis_w2(3,5,5) = 1.0_r_def
-    this%basis_w2(3,6,6) = 1.0_r_def
-
     ! Quadratic fit for most of the domain
-    do k = 1, nlayers-2
-      this%coeff( 0 + k*ndata + this%map_c(1)) =  2.0_r_def/6.0_r_def
-      this%coeff( 1 + k*ndata + this%map_c(1)) =  5.0_r_def/6.0_r_def
-      this%coeff( 2 + k*ndata + this%map_c(1)) = -1.0_r_def/6.0_r_def
-      this%coeff( 0 + (mol_order+1) + k*ndata + this%map_c(1)) = -1.0_r_def/6.0_r_def
-      this%coeff( 1 + (mol_order+1) + k*ndata + this%map_c(1)) =  5.0_r_def/6.0_r_def
-      this%coeff( 2 + (mol_order+1) + k*ndata + this%map_c(1)) =  2.0_r_def/6.0_r_def
+    do k = 1, nlayers-1
+      df = k*ndata + this%map_c(1)
+      this%coeff( df:2+df) = (/2.0_r_def, 5.0_r_def, -1.0_r_def/)/6.0_r_def
+      df = (mol_order+1) + k*ndata + this%map_c(1)
+      this%coeff( df:2+df) = (/-1.0_r_def, 5.0_r_def, 2.0_r_def/)/6.0_r_def
     end do
-    ! Linear fit on boundaries
+    ! Downwinding near boundaries
+    k = 1
+    df = (mol_order+1) +  k*ndata + this%map_c(1)
+    this%coeff( df:2+df) = (/2.0_r_def, 5.0_r_def, -1.0_r_def/)/6.0_r_def
     k = nlayers-1
+    df = k*ndata + this%map_c(1)
+    this%coeff( df:2+df) = (/-1.0_r_def, 5.0_r_def, 2.0_r_def/)/6.0_r_def
+    ! Extrapolation on boundaries
+    k = nlayers
     do f = 0, 1
-      this%coeff( 0 + f*(mol_order+1) + this%map_c(1)) =  0.5_r_def
-      this%coeff( 1 + f*(mol_order+1) + this%map_c(1)) =  0.5_r_def
-      this%coeff( 2 + f*(mol_order+1) + this%map_c(1)) =  0.0_r_def
-      this%coeff( 0 + f*(mol_order+1) + k*ndata + this%map_c(1)) =  0.5_r_def
-      this%coeff( 1 + f*(mol_order+1) + k*ndata + this%map_c(1)) =  0.5_r_def
-      this%coeff( 2 + f*(mol_order+1) + k*ndata + this%map_c(1)) =  0.0_r_def
+      df = f*(mol_order+1) + this%map_c(1)
+      this%coeff( df:2+df ) = (/ 15.0_r_def, -10.0_r_def, 3.0_r_def/)/8.0_r_def
+      df = f*(mol_order+1) + k*ndata + this%map_c(1)
+      this%coeff( df:2+df ) = (/ 3.0_r_def, -10.0_r_def, 15.0_r_def/)/8.0_r_def
     end do
 
   end subroutine setUp
@@ -133,11 +119,9 @@ contains
 
     class(tl_poly1d_vert_w3_reconstruction_test_type), intent(inout) :: this
 
-    deallocate(this%outward_normals_to_vertical_faces)
     deallocate(this%map_w2)
     deallocate(this%map_w3)
     deallocate(this%map_c)
-    deallocate(this%basis_w2)
     deallocate(this%recon)
     deallocate(this%density)
     deallocate(this%ls_wind)
@@ -156,7 +140,7 @@ contains
     class(tl_poly1d_vert_w3_reconstruction_test_type), intent(inout) :: this
 
     integer(i_def) :: df, k, f
-    integer(i_def) :: logspace
+    logical(l_def) :: logspace
 
     this%recon = 0.0_r_def
 
@@ -168,7 +152,7 @@ contains
     end do
 
     ! First test standard polynomial interpolation
-    logspace = 0_i_def
+    logspace = .false.
 
     call tl_poly1d_vert_w3_reconstruction_code(                       &
                                    nlayers,                           &
@@ -183,15 +167,12 @@ contains
                                    ndf_w2,                            &
                                    undf_w2,                           &
                                    this%map_w2,                       &
-                                   this%basis_w2,                     &
                                    ndf_w3,                            &
                                    undf_w3,                           &
                                    this%map_w3,                       &
                                    ndf_c,                             &
                                    undf_c,                            &
-                                   this%map_c,                        &
-                                   nfaces_v,                          &
-                                   this%outward_normals_to_vertical_faces)
+                                   this%map_c)
     this%answer = 1.0_r_def
     @assertEqual(this%answer, this%recon(this%map_w2(5)+1) , tol)
     this%answer = 2.0_r_def
@@ -209,7 +190,7 @@ contains
     class(tl_poly1d_vert_w3_reconstruction_test_type), intent(inout) :: this
 
     integer(i_def) :: df, k, f
-    integer(i_def) :: logspace
+    logical(l_def) :: logspace
 
     ! Test polynomial interpolation in log-space
 
@@ -222,7 +203,7 @@ contains
       this%ls_density(k) = exp(-real(k,r_def)+0.5_r_def)
     end do
 
-    logspace = 1_i_def
+    logspace = .true.
 
     call tl_poly1d_vert_w3_reconstruction_code(                       &
                                    nlayers,                           &
@@ -237,15 +218,12 @@ contains
                                    ndf_w2,                            &
                                    undf_w2,                           &
                                    this%map_w2,                       &
-                                   this%basis_w2,                     &
                                    ndf_w3,                            &
                                    undf_w3,                           &
                                    this%map_w3,                       &
                                    ndf_c,                             &
                                    undf_c,                            &
-                                   this%map_c,                        &
-                                   nfaces_v,                          &
-                                   this%outward_normals_to_vertical_faces)
+                                   this%map_c)
 
     this%answer = 1.0_r_def * exp(-1.0_r_def)
     @assertEqual(this%answer, this%recon(this%map_w2(5)+1), tol)

@@ -7,7 +7,7 @@
 !> Test the computation of the vertical adv coefficients
 module poly1d_vert_adv_coeffs_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def
+  use constants_mod, only : i_def, r_def, l_def
   use pFUnit_Mod
   use mpi_mod,       only : store_comm, clear_comm
   implicit none
@@ -50,8 +50,8 @@ contains
     call store_comm(this%getMpiCommunicator())
     call feign_transport_config( operators = operators_fv,                                 &
                                  runge_kutta_method = runge_kutta_method_ssp2,             &
-                                 fv_flux_order = 2,                                        &
-                                 fv_advective_order = 2,                                   &
+                                 fv_vertical_order = 2,                                    &
+                                 fv_horizontal_order = 2,                                  &
                                  consistent_metric  = .false.,                             &
                                  oned_reconstruction = .false.,                            &
                                  cfl_mol_1d_stab = 1.0_r_def,                              &
@@ -74,7 +74,8 @@ contains
                                  log_space = (/.false./),                                  &
                                  enforce_min_value = (/.false./),                          &
                                  min_value = (/0.0_r_def/),                                &
-                                 ffsl_scheme = ffsl_scheme_three_dim                       &
+                                 ffsl_scheme = ffsl_scheme_three_dim,                      &
+                                 reversible = (/.false./)                                  &
                                  )
     call feign_base_mesh_config( filename='foo',                      &
                                  prime_mesh_name='unit_test',         &
@@ -86,7 +87,7 @@ contains
 
   @Test( npes=[1] )
   subroutine test_uniform_mesh( this )
-
+    use, intrinsic :: iso_fortran_env,     only : real64
     use poly1d_vert_adv_coeffs_kernel_mod, only: poly1d_vert_adv_coeffs_code
     use poly1d_vert_adv_kernel_mod,        only: poly1d_vert_adv_code
     implicit none
@@ -94,64 +95,39 @@ contains
     class(poly1d_vert_adv_coeffs_test_type), intent(inout) :: this
 
     real(r_def), parameter    :: tol = 1.0e-12_r_def   ! r_def 64bit tolerance
-    real(r_def), dimension(3) :: answer
+    real(r_def), dimension(4) :: answer
+    real(r_def)               :: use_tol
 
     integer(i_def), parameter :: nfaces_v = 2
 
     integer(i_def), parameter :: nlayers = 9
-    integer(i_def), parameter :: mol_order = 2
+    integer(i_def), parameter :: mol_order = 3
     integer(i_def), parameter :: ndf_c  = 2
-    integer(i_def), parameter :: ndf_wx = 8
+    integer(i_def), parameter :: ndf_wx = 2
     integer(i_def), parameter :: ndata = (mol_order+1)*nfaces_v
     integer(i_def), parameter :: undf_c  = ndata*(nlayers+1)
-    integer(i_def), parameter :: undf_wx = ndf_wx*nlayers
+    integer(i_def), parameter :: undf_wx = nlayers + 1
     integer(i_def), dimension(ndf_c)  :: map_c
     integer(i_def), dimension(ndf_wx) :: map_wx
 
     real(r_def), dimension(undf_c)  :: coeff
-    real(r_def), dimension(undf_wx) :: x, y, z
+    real(r_def), dimension(undf_wx) :: z
 
-    real(r_def), dimension(1,ndf_wx,ndf_c) :: basis_wx
+    real(r_def) :: dz = 3.0_r_def
 
-    real(r_def), parameter :: dx = 2.0_r_def
-    real(r_def), parameter :: dy = 1.7_r_def
-    real(r_def)            :: dz = 3.0_r_def
-
-    integer(i_def) :: i, k, df
+    integer(i_def) :: k, df
 
     map_c(:) = (/ 1, 1 + ndata /)
+    map_wx(:) = (/ 1, 2 /)
 
-    do df = 1,ndf_wx
-      map_wx(df) = 1 + (df-1)*nlayers
-    end do
-
-    x(:) = 0.0_r_def
-    y(:) = 0.0_r_def
-    z(:) = 0.0_r_def
+    z(1) = 0.0_r_def
     do k = 0,nlayers-1
-      x(map_wx(2)+k) = dx
-      x(map_wx(4)+k) = dx
-      y(map_wx(3)+k) = dy
-      y(map_wx(4)+k) = dy
-
-      do df = 1,4
-        x(map_wx(4+df)+k) = x(map_wx(df)+k)
-        y(map_wx(4+df)+k) = y(map_wx(df)+k)
-        z(map_wx(df)+k)   = k*dz
-        z(map_wx(4+df)+k) = z(map_wx(df)+k) + dz
-      end do
+      z(map_wx(2)+k) = z(map_wx(1)+k) + dz
     end do
-
-    basis_wx(:,:,:) = 0.0_r_def
-    do df = 1,4
-      basis_wx(1,df,1) = 0.25_r_def
-      basis_wx(1,4+df,2) = 0.25_r_def
-    end do
-
 
     call poly1d_vert_adv_coeffs_code(nlayers,                   &
                                      coeff,                     &
-                                     x, y, z,                   &
+                                     z,                         &
                                      ndata,                     &
                                      mol_order,                 &
                                      ndf_c,                     &
@@ -159,16 +135,19 @@ contains
                                      map_c,                     &
                                      ndf_wx,                    &
                                      undf_wx,                   &
-                                     map_wx,                    &
-                                     basis_wx)
-
-    answer = (/ -1.0_r_def, 6.0_r_def, 3.0_r_def /)/8.0_r_def
-    do df = 0,2
-      @assertEqual(answer(df+1), coeff(df + map_c(1) + 2*ndata), tol)
+                                     map_wx)
+    answer = (/ -2.0_r_def, -3.0_r_def, 6.0_r_def, -1.0_r_def /)/6.0_r_def
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( answer(1) )
+    endif
+    do df = 0,3
+      @assertEqual(answer(df+1), coeff(df + map_c(1) + 2*ndata), use_tol)
     end do
-    answer = (/ 3.0_r_def, 6.0_r_def, -1.0_r_def /)/8.0_r_def
-    do df = 0,2
-      @assertEqual(answer(df+1), coeff(df + (mol_order+1) + map_c(1) + 2*ndata), tol)
+    answer = (/ 1.0_r_def, -6.0_r_def, 3.0_r_def, 2.0_r_def /)/6.0_r_def
+    do df = 0,3
+      @assertEqual(answer(df+1), coeff(df + (mol_order+1) + map_c(1) + 2*ndata), use_tol)
     end do
 
   end subroutine test_uniform_mesh
@@ -184,34 +163,31 @@ contains
     class(poly1d_vert_adv_coeffs_test_type), intent(inout) :: this
 
     real(r_def), parameter    :: tol = 1.0e-12_r_def  ! r_def 64bit tolerance
-    real(r_def), dimension(3) :: answer
     real(r_def)               :: use_tol
 
     integer(i_def), parameter :: nfaces_v = 2
 
     integer(i_def), parameter :: nlayers = 9
-    integer(i_def), parameter :: mol_order = 2
-    integer(i_def), parameter :: logspace = 0
+    integer(i_def), parameter :: mol_order = 3
+    logical(l_def), parameter :: logspace = .false.
     integer(i_def), parameter :: ndf_wt = 2
     integer(i_def), parameter :: ndf_c  = 2
-    integer(i_def), parameter :: ndf_wx = 8
+    integer(i_def), parameter :: ndf_wx = 2
     integer(i_def), parameter :: ndata = (mol_order+1)*nfaces_v
     integer(i_def), parameter :: undf_wt = (nlayers+1)
     integer(i_def), parameter :: undf_c  = ndata*(nlayers+1)
-    integer(i_def), parameter :: undf_wx = ndf_wx*nlayers
+    integer(i_def), parameter :: undf_wx = nlayers + 1
     integer(i_def), dimension(ndf_c)  :: map_c
     integer(i_def), dimension(ndf_wt) :: map_wt
     integer(i_def), dimension(ndf_wx) :: map_wx
 
     real(r_def), dimension(undf_c)  :: coeff
-    real(r_def), dimension(undf_wx) :: x, y, z
+    real(r_def), dimension(undf_wx) :: z
     real(r_def), dimension(undf_wt) :: mdwt
 
-    real(r_def), dimension(1,ndf_wx,ndf_c) :: basis_wx
-
     real(r_def), parameter :: dx = 2.0_r_def
-    real(r_def), parameter :: dy = 1.7_r_def
-    real(r_def)            :: dz = 3.0_r_def
+    real(r_def), parameter :: dy = 1.5_r_def
+    real(r_def)            :: dz
 
     integer(i_def) :: i, k, df
 
@@ -228,53 +204,29 @@ contains
 
     map_c(:)  = (/ 1, 1 + ndata /)
     map_wt(:) = (/ 1, 2 /)
+    map_wx(:) = map_wt(:)
 
-    do df = 1,ndf_wx
-      map_wx(df) = 1 + (df-1)*nlayers
-    end do
-
-    basis_wx(:,:,:) = 0.0_r_def
-    do df = 1,4
-      basis_wx(1,df,1) = 0.25_r_def
-      basis_wx(1,4+df,2) = 0.25_r_def
-    end do
-
-    ! Test reconstruciton on a stretched grid
+    ! Test reconstruction on a stretched grid
     coeff = 0.0_r_def
     mdwt = 0.0_r_def
-    x(:) = 0.0_r_def
-    y(:) = 0.0_r_def
-    z(:) = 0.0_r_def
+    z(1) = 0.0_r_def
     dz = 2.3_r_def
     do k = 0,nlayers-1
-      x(map_wx(2)+k) = dx
-      x(map_wx(4)+k) = dx
-      y(map_wx(3)+k) = dy
-      y(map_wx(4)+k) = dy
       dz = dz * stretch
-      do df = 1,4
-        x(map_wx(4+df)+k) = x(map_wx(df)+k)
-        y(map_wx(4+df)+k) = y(map_wx(df)+k)
-        if ( k == 0 ) then
-          z(map_wx(df)+k) = 0.0_r_def
-        else
-          z(map_wx(df)+k) = z(map_wx(4+df)+k-1)
-        end if
-        z(map_wx(4+df)+k) = z(map_wx(df)+k) + dz
-      end do
+      z(map_wx(2)+k) = z(map_wx(1)+k) + dz
       mdwt(map_wt(1)+k) = mdwt(map_wt(1)+k) + 0.5_r_def*dx*dy*dz
       mdwt(map_wt(2)+k) = mdwt(map_wt(2)+k) + 0.5_r_def*dx*dy*dz
       density(1+k)    = z(map_wx(1)+k)**power
       ddensitydz(1+k) = real(power,r_def)*z(map_wx(1)+k)**(power-1)
+    end do
 
-   end do
-   density(nlayers+1)    = z(map_wx(5)+nlayers-1)**power
-   ddensitydz(nlayers+1) = real(power,r_def)*z(map_wx(5)+nlayers-1)**(power-1)
+    density(nlayers+1)    = z(map_wx(2)+nlayers-1)**power
+    ddensitydz(nlayers+1) = real(power,r_def)*z(map_wx(2)+nlayers-1)**(power-1)
 
     ! Compute the coeffs for the stretched mesh
     call poly1d_vert_adv_coeffs_code(nlayers,                   &
                                      coeff,                     &
-                                     x, y, z,                   &
+                                     z,                         &
                                      ndata,                     &
                                      mol_order,                 &
                                      ndf_c,                     &
@@ -282,8 +234,7 @@ contains
                                      map_c,                     &
                                      ndf_wx,                    &
                                      undf_wx,                   &
-                                     map_wx,                    &
-                                     basis_wx)
+                                     map_wx)
 
     ! compute the reconstruction
     do df = 1,4

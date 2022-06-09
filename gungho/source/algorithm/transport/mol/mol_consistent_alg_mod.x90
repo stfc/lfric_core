@@ -76,11 +76,11 @@ module mol_consistent_alg_mod
     integer(kind=i_def)                :: nstage_this_substep
     integer(kind=i_def)                :: nstage, number_substeps
     integer(kind=i_def)                :: monotonicity
+    logical(kind=l_def)                :: use_reversible_scheme
     logical(kind=l_def)                :: enforce_min_value
     logical(kind=l_def)                :: logspace
     logical(kind=l_def)                :: include_div_term_with_density
     real(kind=r_def)                   :: dt_substep
-    real(kind=r_def)                   :: minus_dt
     real(kind=r_def)                   :: min_value
     real(kind=r_def),      allocatable :: rk_weights(:,:)
     type(function_space_type), pointer :: w3_sh_fs => null()
@@ -97,8 +97,8 @@ module mol_consistent_alg_mod
     type(field_type)                   :: mr_sh_w3_for_flux, mr_wt_for_flux
     type(field_type)                   :: mr_wt_n
     type(field_type)                   :: rho_X_n, rho_X_np1
-    type(field_type)                   :: rhs_adv, rhs_flux, advection_inc
-    type(field_type),      allocatable :: rk_rhs(:)
+    type(field_type)                   :: rhs_adv, rhs_flux, rhs_field
+    type(field_type),      allocatable :: rk_field(:)
     type(mesh_type),           pointer :: primary_mesh => null()
     type(mesh_type),           pointer :: shifted_mesh => null()
     type(transport_runtime_type), pointer :: transport_runtime => null()
@@ -126,10 +126,11 @@ module mol_consistent_alg_mod
     div => get_im3_div(shifted_mesh_id)
 
     call get_rk_transport_weights( nstage, rk_weights, runge_kutta_method )
-    allocate( rk_rhs(nstage) )
+    allocate( rk_field(nstage) )
 
     ! Initialise fields
     call flux_X%initialise( vector_space = w2_sh_fs )
+    call mr_wt_n%initialise( vector_space = wt_fs )
     call mr_sh_w3_n%initialise( vector_space = w3_sh_fs )
     call mr_sh_w3_np1%initialise( vector_space = w3_sh_fs )
     call mr_sh_w3_for_flux%initialise( vector_space = w3_sh_fs )
@@ -139,9 +140,9 @@ module mol_consistent_alg_mod
     call rho_X_np1%initialise( vector_space = w3_sh_fs )
     call rhs_flux%initialise( vector_space = w3_sh_fs )
     call rhs_adv%initialise( vector_space = wt_fs )
-    call advection_inc%initialise( vector_space = wt_fs )
+    call rhs_field%initialise( vector_space = wt_fs )
     do stage = 1, nstage
-      call rk_rhs(stage)%initialise( vector_space = wt_fs )
+      call rk_field(stage)%initialise( vector_space = wt_fs )
     end do
 
     ! Set initial values of Wtheta mixing ratios
@@ -155,7 +156,6 @@ module mol_consistent_alg_mod
     monotonicity = transport_metadata%get_monotone()
     enforce_min_value = transport_metadata%get_enforce_min_value()
     include_div_term_with_density = transport_metadata%get_divergence_factor()
-    minus_dt = - dt_substep
 
     ! Get the div-term if required: not implemented yet
     if ( include_div_term_with_density ) then
@@ -175,7 +175,7 @@ module mol_consistent_alg_mod
     ! ------------------------------------------------------------------------ !
     ! Do advective form for until last stage of last substep
     ! ------------------------------------------------------------------------ !
-    do substeps = 1, number_substeps
+    substep_loop: do substeps = 1, number_substeps
 
       if (substeps == number_substeps) then
         nstage_this_substep = nstage - 1
@@ -183,29 +183,35 @@ module mol_consistent_alg_mod
         nstage_this_substep = nstage
       end if
 
-      ! Set initial value for mr used in flux calculation
-      call invoke( setval_c(advection_inc, 0.0_r_def), &
-                   inc_X_plus_bY(mr_wt_for_flux, rk_weights(nstage, 1), mr_wt_n) )
+      use_reversible_scheme = .false.
 
-      do stage = 1, nstage_this_substep
-        ! Build rhs depending upon type of field being advected
-        ! Compute: - u.grad(f)
-        call advective_increment_alg(rk_rhs(stage), mr_wt_np1,           &
+      ! Set initial value for mr used in flux calculation
+      call mr_wt_np1%copy_field(mr_wt_n)
+      call invoke( inc_X_plus_bY(mr_wt_for_flux, rk_weights(nstage, 1), mr_wt_n) )
+
+      stage_loop: do stage = 1, nstage_this_substep
+
+        if ( stage == nstage .and. transport_metadata%get_reversible() ) &
+            use_reversible_scheme= .true.
+
+        ! Compute the field for this stage:
+        ! rhs_field = sum(s=1,stage): a(stage,s)*field^(s)
+        call invoke( setval_X( rk_field(stage), mr_wt_np1 ), &
+                     setval_c( rhs_field, 0.0_r_def ) )
+        do s = 1, stage
+          call invoke( inc_X_plus_bY( rhs_field, rk_weights(stage,s), rk_field(s) ) )
+        end do
+
+        ! Compute update: rhs_adv = u.grad(rhs_field)
+        call advective_increment_alg(rhs_adv, rhs_field,                 &
                                      primary_advecting_wind, dt_substep, &
-                                     direction, monotonicity,            &
+                                     direction, use_reversible_scheme,   &
+                                     monotonicity=monotonicity,          &
                                      logspace=logspace)
 
-        call invoke( setval_c(rhs_adv, 0.0_r_def) )
-        do s = 1, stage
-          call invoke( inc_X_minus_bY(rhs_adv, rk_weights(stage,s), rk_rhs(s)) )
-        end do
-        ! Update field: f = f^n - sum_k a_k * dt * rhs_k
-        !               f = f^n + dt_substep*rhs
-        call invoke( aX_plus_Y(mr_wt_np1, dt_substep, rhs_adv, mr_wt_n), &
-        ! Add increment from this stage to the advection increment
-                     inc_X_minus_bY(advection_inc,                       &
-                                    rk_weights(nstage, stage),           &
-                                    rk_rhs(stage)) )
+        ! Update field: f = f^n - dt_substep*rhs
+        call invoke( X_minus_bY(mr_wt_np1, mr_wt_n, dt_substep, rhs_adv) )
+
         ! Increment mixing ratio used for flux in last step
         if (stage /= nstage) then
           call invoke( inc_X_plus_bY(mr_wt_for_flux, &
@@ -223,10 +229,7 @@ module mol_consistent_alg_mod
           call overwrite_blending_zone(mr_wt_np1, mr_wt_n, depth=1)
         end if
 
-      end do  ! end rk-stages
-
-      ! Compute the initial state for the next substep
-      call invoke( aX_plus_Y(mr_wt_np1, dt_substep, advection_inc, mr_wt_n) )
+      end do stage_loop
 
       if ( limited_area .and. topology == topology_non_periodic ) then
         ! This code is required while LAMs loop over cells right up to
@@ -240,22 +243,25 @@ module mol_consistent_alg_mod
         call overwrite_blending_zone(mr_wt_np1, mr_wt_n, depth=transport_boundary_depth)
       end if
 
-      call mr_wt_np1%copy_field(mr_wt_n)
-
-    end do ! end of fully-advective substeps
+    end do substep_loop
 
     ! Shift accumulated mixing ratio
 
     ! ------------------------------------------------------------------------ !
     ! Conservative form: in shifted W3
     ! ------------------------------------------------------------------------ !
+
+    if ( transport_metadata%get_reversible() ) use_reversible_scheme= .true.
+
     ! For final stage of RK scheme, we go to flux form. We use the
     ! mixing ratio in place of density, and dry flux for advecting wind
     call invoke( inject_wt_to_sh_w3_kernel_type(mr_sh_w3_for_flux, &
                                                 mr_wt_for_flux),   &
                  setval_c(flux_X, 0.0_r_def) )
     call flux_alg(flux_X, mr_sh_w3_for_flux, dry_flux, &
-                  direction, monotonicity, logspace=logspace)
+                  direction, use_reversible_scheme,    &
+                  monotonicity=monotonicity,           &
+                  logspace=logspace)
 
     ! Enforce a minimum value by modifying the fluxes
     if ( enforce_min_value ) then
@@ -266,9 +272,9 @@ module mol_consistent_alg_mod
     end if
 
     ! Compute div(flux_X)
-    call invoke( dg_matrix_vector_kernel_type(rhs_flux, flux_X, div), &
+    call invoke( dg_matrix_vector_kernel_type(rhs_flux, flux_X, div),  &
     ! Increment rho_X
-                 aX_plus_Y(rho_X_np1, minus_dt, rhs_flux, rho_X_n), &
+                 X_minus_bY(rho_X_np1, rho_X_n, dt_substep, rhs_flux), &
     ! Turn density back into mixing ratio
                  X_divideby_Y(mr_sh_w3_np1, rho_X_np1, rho_d_np1) )
     ! Turn back to Wtheta -- separate invoke as on different mesh
@@ -292,7 +298,7 @@ module mol_consistent_alg_mod
 
     call transport_runtime%inc_tracer_step_ctr()
 
-    if ( allocated( rk_rhs ) ) deallocate( rk_rhs )
+    if ( allocated( rk_field ) ) deallocate( rk_field )
     if ( allocated( rk_weights ) ) deallocate( rk_weights )
 
     nullify( wt_fs, w3_sh_fs, w2_sh_fs, dry_flux, div, &

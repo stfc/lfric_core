@@ -24,10 +24,12 @@ contains
   !> @param[in]     wind                Advecting wind
   !> @param[in]     dt                  Advection time step
   !> @param[in]     direction           Direction to perform the advective update
-  !> @param[in]     logspace            Flag to use logspace for edge reconstruction
+  !> @param[in]     reversible          Flag to use reversible scheme
   !> @param[in]     monotonicity        Flag to apply monotonicity
-  subroutine advective_increment_alg(advective_increment, field, wind,    &
-                                     dt, direction, monotonicity, logspace)
+  !> @param[in]     logspace            Flag to use logspace for edge reconstruction
+  subroutine advective_increment_alg(advective_increment, field, wind, &
+                                     dt, direction, reversible, &
+                                     monotonicity, logspace)
 
     use constants_mod,                  only: r_def, i_def, l_def
     use field_mod,                      only: field_type
@@ -49,6 +51,7 @@ contains
     type(field_type),    intent(in)    :: field, wind
     real(kind=r_def),    intent(in)    :: dt
     integer(kind=i_def), intent(in)    :: direction
+    logical(kind=l_def), intent(in)    :: reversible
     logical(kind=l_def), intent(in)    :: logspace
     integer(kind=i_def), intent(in)    :: monotonicity
 
@@ -62,7 +65,7 @@ contains
         if ( monotonicity == monotone_koren ) then
           call reconstruct_koren_w3_field_alg(field_new, field, wind, direction, logspace)
         else
-          call reconstruct_w3_field_alg(field_new, field, wind, direction, logspace)
+          call reconstruct_w3_field_alg(field_new, field, wind, direction, reversible, logspace)
         end if
         m3_inv => get_inverse_w3_mass_matrix( field%get_mesh_id() )
         call invoke( w3_advective_update_kernel_type( advective_increment, field_new, wind, m3_inv ) )
@@ -70,7 +73,8 @@ contains
         if ( monotonicity == monotone_koren ) then
           call wt_advective_update_koren_alg(advective_increment, field, wind, direction, logspace)
         else
-          call wt_advective_update_alg(advective_increment, field, wind, dt, direction, monotonicity, logspace)
+          call wt_advective_update_alg(advective_increment, field, wind, dt, direction, reversible, &
+                                       monotonicity, logspace)
         end if
       case default
         call log_event( "Advective increment only valid for W3 & Wtheta spaces", LOG_LEVEL_ERROR )

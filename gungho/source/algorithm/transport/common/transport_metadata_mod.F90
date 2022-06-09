@@ -30,7 +30,7 @@ module transport_metadata_mod
     real(kind=r_def)       :: min_value          ! the min value to be enforced
     logical(kind=l_def)    :: log_space ! Do interpolation in log space
     logical(kind=l_def)    :: divergence_factor ! Compute divergence factor (=1-beta*dt*div(u^n))
-
+    logical(kind=l_def)    :: reversible ! Use a reversible transport scheme
     contains
 
     procedure, public :: get_name
@@ -44,6 +44,7 @@ module transport_metadata_mod
     procedure, public :: get_min_value
     procedure, public :: get_log_space
     procedure, public :: get_divergence_factor
+    procedure, public :: get_reversible
 
   end type transport_metadata_type
 
@@ -63,7 +64,8 @@ contains
                                             enforce_min_value,          &
                                             min_value,                  &
                                             log_space,                  &
-                                            divergence_factor)          &
+                                            divergence_factor,          &
+                                            reversible)                 &
                                             result(self)
 
     implicit none
@@ -81,6 +83,7 @@ contains
     real(kind=r_def),       intent(in) :: min_value
     logical(kind=l_def),    intent(in) :: log_space
     logical(kind=l_def),    intent(in) :: divergence_factor
+    logical(kind=l_def),    intent(in) :: reversible
 
     self%fname             = trim(fname)
     self%equation          = equation
@@ -93,6 +96,7 @@ contains
     self%min_value         = min_value
     self%log_space         = log_space
     self%divergence_factor = divergence_factor
+    self%reversible        = reversible
 
   end function transport_metadata_constructor
 
@@ -249,5 +253,19 @@ contains
     divergence_factor = self%divergence_factor
 
   end function get_divergence_factor
+
+  !> @brief Get the reversible option
+  !> @param[in] self     The transport_metadata object
+  !> @return             The reversible switch
+  function get_reversible(self) result(reversible)
+
+    implicit none
+
+    class(transport_metadata_type), intent(in) :: self
+    logical(kind=l_def)                        :: reversible
+
+    reversible = self%reversible
+
+  end function get_reversible
 
 end module transport_metadata_mod

@@ -19,9 +19,10 @@ module polyv_w3_koren_kernel_mod
 use argument_mod,      only : arg_type, func_type,         &
                               GH_FIELD, GH_SCALAR,         &
                               GH_REAL, GH_INTEGER,         &
+                              GH_LOGICAL,                  &
                               GH_INC, GH_READ, GH_BASIS,   &
                               CELL_COLUMN, GH_EVALUATOR
-use constants_mod,     only : r_def, i_def, tiny_eps
+use constants_mod,     only : r_def, i_def, l_def, tiny_eps
 use fs_continuity_mod, only : W2, W3
 use kernel_mod,        only : kernel_type
 
@@ -40,7 +41,7 @@ type, public, extends(kernel_type) :: polyv_w3_koren_kernel_type
        arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W2),                        &
        arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W3),                        &
        arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                             &
-       arg_type(GH_SCALAR, GH_INTEGER, GH_READ)                              &
+       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ)                              &
        /)
   type(func_type) :: meta_funcs(1) = (/                                 &
        func_type(W2, GH_BASIS)                                          &
@@ -64,11 +65,7 @@ contains
 !> @param[in]     wind           Wind field
 !> @param[in]     tracer         Tracer field
 !> @param[in]     ndata          Number of data points per dof location
-!> @param[in]     logspace       If true (=1), then perform interpolation in log space;
-!!                               this should be a logical but this is not currently supported in
-!!                               PSyclone, see Issue #1248
-!!                               TODO #3010: the use of logical types is now supported
-!!                               so this ticket should remove these integers
+!> @param[in]     logspace       Perform interpolation in log space;
 !> @param[in]     ndf_w2         Number of degrees of freedom per cell
 !> @param[in]     undf_w2        Number of unique degrees of freedom for the reconstruction &
 !!                               wind fields
@@ -108,7 +105,8 @@ subroutine polyv_w3_koren_code( nlayers,                           &
   real(kind=r_def), dimension(undf_w2), intent(in)    :: wind
   real(kind=r_def), dimension(undf_w3), intent(in)    :: tracer
   real(kind=r_def), dimension(3,ndf_w2,ndf_w2), intent(in) :: basis_w2
-  integer(kind=i_def), intent(in) :: logspace
+
+  logical(kind=l_def), intent(in) :: logspace
 
   ! Local variables
   integer(kind=i_def)                             :: k, k1, k2, k3
@@ -138,8 +136,8 @@ subroutine polyv_w3_koren_code( nlayers,                           &
   tracer_1d(nlayers+1:nlayers+ext) = tracer_1d(nlayers)
 
   ! Apply log to tracer_1d if required
-  ! If logspace=1 the tracer if forced to be positive
-  if (logspace == 1_i_def) then
+  ! If using the logspace option, the tracer is forced to be positive
+  if (logspace) then
       do k = 1-ext,nlayers+ext
          tracer_1d(k) = log(abs(tracer_1d(k)))
       end do
@@ -165,7 +163,7 @@ subroutine polyv_w3_koren_code( nlayers,                           &
      tracer_edge(k) = tracer_1d(k2) + 0.5_r_def*phi*x
   end do
 
-  if (logspace == 1_i_def) then
+  if (logspace) then
       do k=1,nlayers+1
          tracer_edge(k) = exp(tracer_edge(k))
       end do

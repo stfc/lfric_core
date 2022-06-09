@@ -65,14 +65,14 @@ module tl_mol_conservative_alg_mod
     type(field_type),     pointer :: divergence_factor => null()
     type(field_type),     pointer :: ls_divergence_factor => null()
     type(operator_type),  pointer :: div => null()
-    type(field_type)              :: flux, flux_temp
+    type(field_type)              :: flux
     type(field_type)              :: rhs, field_n
     type(field_type)              :: field_inc
     type(field_type)              :: ls_field_np1, ls_field_n
-    type(field_type), allocatable :: rk_rhs(:)
-    real(r_def),      allocatable :: ak_adv(:,:)
+    type(field_type), allocatable :: rk_field(:)
+    real(r_def),      allocatable :: rk_weights(:,:)
     type(field_type), allocatable :: stored_ls_field(:,:)
-    type(field_type)              :: flux_step, sum_flux
+    type(field_type)              :: flux_step
     integer(i_def)                :: stage, s
     integer(i_def)                :: nstage, substep
     logical(l_def)                :: include_div_term_with_density
@@ -83,6 +83,8 @@ module tl_mol_conservative_alg_mod
     type(mesh_type),      pointer :: mesh => null()
     type(transport_runtime_type), pointer :: transport_runtime => null()
     integer(i_def)                :: monotonicity
+    type(field_type)              :: rhs_field
+    logical(l_def)                :: use_reversible_scheme
 
     if ( subroutine_timers ) call timer('tl_mol_conservative_alg')
 
@@ -102,30 +104,27 @@ module tl_mol_conservative_alg_mod
     ls_advecting_wind => transport_runtime%get_advecting_wind(mesh_id)
     minus_dt = - dt_substep
 
-    call get_rk_transport_weights(nstage, ak_adv, runge_kutta_method)
-    allocate( rk_rhs(nstage) )
+    call get_rk_transport_weights(nstage, rk_weights, runge_kutta_method)
+    allocate( rk_field(nstage) )
     allocate( stored_ls_field(number_substeps,nstage) )
 
     do stage = 1, nstage
-      call rk_rhs(stage)%initialise(field%get_function_space())
+      call rk_field(stage)%initialise(field%get_function_space())
       do substep = 1, number_substeps
         call stored_ls_field(substep, stage)%initialise(field%get_function_space())
       end do
     end do
+    call rhs_field%initialise( field%get_function_space() )
 
     call flux%initialise(advecting_wind%get_function_space())
-    call flux_temp%initialise(advecting_wind%get_function_space())
     call flux_step%initialise(advecting_wind%get_function_space())
     call rhs%initialise(field%get_function_space())
     call field_inc%initialise(field%get_function_space())
     call field_n%initialise(field%get_function_space())
-    call sum_flux%initialise(flux%get_function_space())
 
-    call invoke( setval_c(sum_flux, 0.0_r_def) )
     call field%copy_field(field_np1)
     call field%copy_field(field_n)
     call ls_field%copy_field(ls_field_np1)
-    call ls_field%copy_field(ls_field_n)
 
     ! Perform the number of rk-stages and substeps required
     div => get_im3_div(mesh_id)
@@ -152,44 +151,44 @@ module tl_mol_conservative_alg_mod
 
     do substep = 1, number_substeps
 
-      call invoke( setval_c(flux_step, 0.0_r_def) )
+      ! Reset field_n ready for the this substep
+      call ls_field_np1%copy_field(ls_field_n)
 
       ! Include the div-term if required (this needs to be done at every sub-step)
       if ( include_div_term_with_density ) then
         call invoke( inc_X_times_Y(ls_field_np1, ls_divergence_factor) )
       end if
 
+      use_reversible_scheme = .false.
+
       do stage = 1, nstage
+
+        if ( stage == nstage .and. transport_metadata%get_reversible() ) &
+          use_reversible_scheme= .true.
+
         ! Store values for use in the perturbation code. This is done before
         ! advecting so as to pick up the correct linearisation state
         call invoke( setval_X(stored_ls_field(substep,stage), ls_field_np1) )
-        ! Build rhs depending upon type of field being advected
-        ! Compute the flux using desired spatial reconstruction
-        call invoke( setval_c(flux_temp, 0.0_r_def) )
-        call flux_alg(flux_temp, ls_field_np1, ls_advecting_wind, &
-                      direction, monotonicity, logspace=logspace)
-        ! Compute: div(F)
-        call invoke( dg_matrix_vector_kernel_type(rk_rhs(stage), flux_temp, div), &
-                     inc_X_plus_bY(flux_step, ak_adv(nstage, stage), flux_temp) )
 
-        ! Build rhs of Runge-Kutta scheme
-        call invoke( setval_c(rhs, 0.0_r_def) )
+
+        ! Compute the field for this stage:
+        ! rhs_field = sum(s=1,stage): a(stage,s)*field^(s)
+        call invoke( setval_X( rk_field(stage), ls_field_np1 ), &
+                     setval_c( rhs_field, 0.0_r_def ) )
         do s = 1, stage
-          call invoke( inc_X_minus_bY(rhs, ak_adv(stage,s), rk_rhs(s)) )
+          call invoke( inc_X_plus_bY( rhs_field, rk_weights(stage,s), rk_field(s) ) )
         end do
 
-        ! Update field: f = f^n - sum_k a_k * dt * rhs_k
-        !                 = f^n + dt * rhs
-        call invoke( aX_plus_Y(ls_field_np1, dt_substep, rhs, ls_field_n) )
+        ! Compute the flux using desired spatial reconstruction
+        call invoke( setval_c( flux_step, 0.0_r_def ) )
+        call flux_alg(flux_step, rhs_field, ls_advecting_wind,          &
+                      direction, use_reversible_scheme, monotonicity,   &
+                      logspace=logspace)
+        ! Compute: rhs = div(F) and update field: f = f^n - dt_substep*rhs
+        call invoke( dg_matrix_vector_kernel_type(rhs, flux_step, div), &
+                     X_minus_bY(ls_field_np1, ls_field_n, dt_substep, rhs) )
 
       end do
-
-      ! Compute the state at the start of the next sub-step
-      ! and the sum of the fluxes of all the sub-steps
-      ! field_np1 = field_n - dt*div(flux)
-      call invoke( dg_matrix_vector_kernel_type(field_inc, flux_step, div), &
-                   aX_plus_Y(ls_field_np1, minus_dt, field_inc, ls_field_n) )
-      call ls_field_np1%copy_field(ls_field_n)
 
     end do ! End substepping
 
@@ -215,7 +214,6 @@ module tl_mol_conservative_alg_mod
     end if
 
     do substep = 1, number_substeps
-      call invoke( setval_c(flux_step, 0.0_r_def) )
 
       if ( include_div_term_with_density ) then
         ! Not yet implemented, but this might be:
@@ -224,36 +222,32 @@ module tl_mol_conservative_alg_mod
                        'yet implemented', LOG_LEVEL_ERROR)
       end if
 
-      do stage = 1, nstage
-        ! Build rhs depending upon type of field being advected
-        ! Compute the flux using desired spatial reconstruction
-        call invoke( setval_c(flux_temp, 0.0_r_def) )
-        call tl_flux_alg(flux_temp, field_np1, advecting_wind,              &
-                         stored_ls_field(substep,stage), ls_advecting_wind, &
-                         direction, logspace=logspace)
-        ! Compute: div(F)
-        call invoke( dg_matrix_vector_kernel_type(rk_rhs(stage), flux_temp, div), &
-                     inc_X_plus_bY(flux_step, ak_adv(nstage, stage), flux_temp) )
+      use_reversible_scheme = .false.
 
-        ! Build rhs of Runge-Kutta scheme
-        call invoke( setval_c(rhs, 0.0_r_def) )
+      do stage = 1, nstage
+
+        if ( stage == nstage .and. transport_metadata%get_reversible() ) &
+          use_reversible_scheme= .true.
+
+        ! Compute the field for this stage:
+        ! rhs_field = sum(s=1,stage): a(stage,s)*field^(s)
+        call invoke( setval_X( rk_field(stage), field_np1 ), &
+                     setval_c( rhs_field, 0.0_r_def ) )
         do s = 1, stage
-          call invoke( inc_X_minus_bY(rhs, ak_adv(stage,s), rk_rhs(s)) )
+          call invoke( inc_X_plus_bY( rhs_field, rk_weights(stage,s), rk_field(s) ) )
         end do
 
-        ! Update field: f = f^n - sum_k a_k * dt * rhs_k
-        !                 = f^n + dt * rhs
-        call invoke( aX_plus_Y(field_np1, dt_substep, rhs, field_n) )
+        ! Compute the flux using desired spatial reconstruction
+        call invoke( setval_c( flux_step, 0.0_r_def ) )
+        call tl_flux_alg(flux_step, rhs_field, advecting_wind,              &
+                         stored_ls_field(substep,stage), ls_advecting_wind, &
+                         direction, use_reversible_scheme,                  &
+                         logspace=logspace)
+        ! Compute: div(F) and update field: f = f^n - dt_substep*rhs
+        call invoke( dg_matrix_vector_kernel_type(rhs, flux_step, div), &
+                     X_minus_bY(field_np1, field_n, dt_substep, rhs) )
 
       end do ! End RK stages
-
-      ! Compute the state at the start of the next sub-step
-      ! and the sum of the fluxes of all the sub-steps
-      ! field_np1 = field_n - dt*div(flux)
-      call invoke( dg_matrix_vector_kernel_type(field_inc, flux_step, div), &
-                   aX_plus_Y(field_np1, minus_dt, field_inc, field_n),      &
-                   inc_X_plus_Y(sum_flux, flux_step) )
-      call field_np1%copy_field(field_n)
 
     end do ! End substepping
 
@@ -263,8 +257,8 @@ module tl_mol_conservative_alg_mod
                      'yet implemented', LOG_LEVEL_ERROR)
     end if
 
-    if ( allocated(rk_rhs) ) deallocate(rk_rhs)
-    if ( allocated(ak_adv) ) deallocate(ak_adv)
+    if ( allocated(rk_field) ) deallocate(rk_field)
+    if ( allocated(rk_weights) ) deallocate(rk_weights)
     if ( allocated(stored_ls_field) ) deallocate(stored_ls_field)
     nullify( div, advecting_wind, ls_advecting_wind )
     if ( include_div_term_with_density ) then

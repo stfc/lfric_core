@@ -205,17 +205,34 @@ prime_mesh_name='dynamics',
 /
 
 &transport
-  scheme = 'method_of_lines'
-  operators = 'fv'
-  fv_flux_order = 2
-  fv_advective_order = 2
-  consistent_metric  = .false.
-  enforce_monotonicity = .false.
-  oned_reconstruction = .false.
-  rho_splitting = 'none'
-  theta_splitting = 'none'
-  log_rho=.true.
-  log_theta=.true.
+cfl_mol_1d_stab = 1.5,
+cfl_mol_2d_stab = 1.5,
+cfl_mol_3d_stab = 1.5,
+consistent_metric  = .false.,
+dry_field_name='rho'
+enforce_min_value=.false.
+ffsl_advective_splitting='full',
+ffsl_flux_splitting='full',
+ffsl_scheme='three_dim',
+field_names='rho'
+fv_horizontal_order = 2,
+fv_vertical_order = 2,
+horizontal_method=1
+min_value=0.0
+moisture_eqn='consistent',
+log_space=.false.
+monotone=1
+oned_reconstruction = .false.,
+operators = 'fv',
+profile_size=41
+reversible=.false.
+runge_kutta_method='ssp3',
+scheme=1
+slice_order='cubic',
+splitting=1
+use_density_predictor=.false.,
+vertical_method=3
+vertical_sl_order='cubic',
 /
 
 &partitioning

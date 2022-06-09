@@ -11,9 +11,10 @@ module tl_poly1d_vert_adv_kernel_mod
 use argument_mod,         only : arg_type, CELL_COLUMN, &
                                  GH_FIELD, GH_SCALAR,   &
                                  GH_REAL, GH_INTEGER,   &
+                                 GH_LOGICAL,            &
                                  GH_READWRITE, GH_READ, &
                                  ANY_DISCONTINUOUS_SPACE_1
-use constants_mod,        only : r_def, i_def
+use constants_mod,        only : r_def, i_def, l_def
 use fs_continuity_mod,    only : W2, Wtheta
 use kernel_mod,           only : kernel_type
 
@@ -36,7 +37,7 @@ type, public, extends(kernel_type) :: tl_poly1d_vert_adv_kernel_type
        arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &
        arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                 &
        arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                 &
-       arg_type(GH_SCALAR, GH_INTEGER, GH_READ)                                  &
+       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ)                                  &
        /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -60,7 +61,7 @@ contains
 !! @param[in]  coeff     Array of polynomial coefficients for interpolation
 !! @param[in]  ndata     Number of data points per dof location
 !! @param[in]  global_order Desired order of polynomial reconstruction
-!! @param[in]  logspace  If true (=1), then perform interpolation in log space
+!! @param[in]  logspace  If true then perform interpolation in log space
 !! @param[in]  ndf_wt    Number of degrees of freedom per cell
 !! @param[in]  undf_wt   Number of unique degrees of freedom for the tracer
 !!                       field
@@ -116,159 +117,89 @@ subroutine tl_poly1d_vert_adv_code( nlayers,              &
   real(kind=r_def), dimension(undf_wt), intent(in)    :: ls_tracer
   real(kind=r_def), dimension(undf_c),  intent(in)    :: coeff
 
-  integer(kind=i_def), intent(in) :: logspace
+  logical(kind=l_def), intent(in) :: logspace
 
   ! Internal variables
-  integer(kind=i_def)            :: k, ij, p, stencil, order, &
-                                    m, ijkp, direction, boundary_offset, &
-                                    vertical_order, km, idx
 
-  real(kind=r_def)               :: w, tracer_p, tracer_m, ls_tracer_p, ls_tracer_m
-  integer(kind=i_def), allocatable, dimension(:,:) :: smap
+  integer(kind=i_def) :: k, kmin, kmax, ij, ik, p
+  integer(kind=i_def) :: vertical_order, use_upwind, upwind_offset, upwind
+
+  integer(kind=i_def), dimension(global_order+1) :: stencil
+
+  real(kind=r_def) :: dpdz, ls_dpdz
+  real(kind=r_def), dimension(0:nlayers) :: ls_log_tracer
+
+  ij = map_wt(1)
+
+  ! For logspace the nonlinear term is:
+  ! dp_{j}/dz = p_j * sum_i a_i * log( p_i)
+  ! The tl term is then:
+  ! dp_{j}/dz = ls_p_j * sum_i a_i * p_i / ls_p_i !
+  !           + p_j * sum_i a_i * log( ls_p_i )
+
+  ! Compute log of tracer. This code should only be used for a positive
+  ! quantity, but adding in the abs ensures no errors are thrown
+  ! if negative numbers are passed through in redundant calculations
+  ! in the haloes
+  if ( logspace ) then
+    do k = 0, nlayers
+      ls_log_tracer(k) = log(abs(ls_tracer(ij+k)))
+    end do
+  end if
 
   ! Ensure that we reduce the order if there are only a few layers
   vertical_order = min(global_order, nlayers-1)
 
-  ! Compute the offset map for all even orders up to order
-  allocate( smap(global_order+1,0:global_order) )
-  smap(:,:) = 0
-  do m = 0,global_order
-    do stencil = 1,m+1
-      smap(stencil,m) = - m/2 + (stencil-1)
-    end do
-  end do
+  ! If order is odd then we are using an upwind stencil -> use_upwind = 1
+  ! For even orders it is zero
+  use_upwind = mod(vertical_order, 2_i_def)
 
-  ij = map_wt(1)
-
-  ! Reconstruct upwind tracer at cell centres with stencil
-  ! direction determined by w at Wtheta points
+  ! Compute dtracer/dz using precomputed weights
   do k = 1, nlayers - 1
 
-    ! Check if this is the upwind cell
-    w = sign( 1.0_r_def, ls_wind(map_w2(5) + k ) )
-    ! w > 0, direction = 0
-    ! w < 0, direction = 1
-    direction = int( 0.5_r_def*(abs(w)-w),i_def )
+    ! Compute the stencil of points required
+    do p = 0, vertical_order
+      stencil(p+1) = k - floor(real(vertical_order,r_def)/2.0_r_def) + p
+    end do
 
-    !---- Linearisation state---------------------------------------
-    ! Compute value at W3 point in cell below this cell
-    km = k - 1
-    order = min(vertical_order, min(2*(km+1), 2*(nlayers-1 - (km-1))))
-    ! At the boundaries reduce to centred linear interpolation
-    if ( km == 0 .and. direction == 0 ) order = 1
-    if (logspace == 1_i_def) then
-      ls_tracer_m = 1.0_r_def
-      do p = 1,order+1
-        ijkp = ij + km + smap(p,order) + direction
-        idx = p - 1 + direction*(global_order+1) + km*ndata + map_c(1)
-        ls_tracer_m = ls_tracer_m  * abs(ls_tracer( ijkp ))**coeff( idx )
+    ! Adjust the stencil based upon the wind sign for upwind (odd order)
+    ! reconstructions only.
+    ! if wind > 0 -> upwind_offset = 1
+    ! if wind < 0 -> upwind_offset = 0
+    upwind = int(0.5_r_def*(1.0_r_def + sign(1.0_r_def,ls_wind(map_w2(5)+k))),i_def)
+    upwind_offset = use_upwind*upwind
+    stencil = stencil - upwind_offset
+
+    ! Adjust stencil near boundaries to avoid going out of bounds
+    kmin = minval(stencil(1:vertical_order+1))
+    if ( kmin < 0 ) stencil = stencil - kmin
+    kmax = maxval(stencil(1:vertical_order+1)) - nlayers
+    if ( kmax > 0 ) stencil = stencil - kmax
+
+    ! Compute the derivative and the advective update
+    dpdz = 0.0_r_def
+    ls_dpdz = 0.0_r_def
+    if ( logspace ) then
+      ! dp/dz = p * d(log(p))/dz
+      do p = 1, vertical_order + 1
+        ik = p + upwind_offset*(global_order+1) + k*ndata + map_c(1) - 1
+        dpdz = dpdz + coeff(ik)*tracer(ij + stencil(p))/ls_tracer(ij + stencil(p))
+        ls_dpdz = ls_dpdz + coeff(ik)*ls_log_tracer(stencil(p))
       end do
+      dpdz = ls_tracer(ij + k)*dpdz + tracer(ij + k)*ls_dpdz
+      ls_dpdz = ls_tracer(ij + k)*ls_dpdz
     else
-      ls_tracer_m = 0.0_r_def
-      do p = 1,order+1
-        ijkp = ij + km + smap(p,order) + direction
-        idx = p - 1 + direction*(global_order+1) + km*ndata + map_c(1)
-        ls_tracer_m = ls_tracer_m  + ls_tracer( ijkp )*coeff( idx )
+      do p = 1, vertical_order + 1
+        ik = p + upwind_offset*(global_order+1) + k*ndata + map_c(1) - 1
+        dpdz = dpdz + coeff(ik)*tracer(ij + stencil(p))
+        ls_dpdz = ls_dpdz + coeff(ik)*ls_tracer(ij + stencil(p))
       end do
     end if
 
-    ! Compute value at W3 point in this cell
-    order = min(vertical_order, min(2*(k+1), 2*(nlayers-1 - (k-1))))
-    ! At the boundaries reduce to centred linear interpolation
-    if ( k == nlayers - 1 .and. direction == 1 ) order = 1
-
-    ! Offset at the top boundary to ensure we use the correct entries
-    boundary_offset = 0
-    if ( k == nlayers - 1 .and. direction == 1)  boundary_offset = -1
-
-    if (logspace == 1_i_def) then
-      ! Interpolate log(tracer)
-      ! I.e. polynomial = exp(c_1*log(tracer_1) + c_2*log(tracer_2) + ...)
-      !                 = tracer_1**c_1*tracer_2**c_2...
-      ls_tracer_p = 1.0_r_def
-      do p = 1,order+1
-        ijkp = ij + k + smap(p,order) + direction + boundary_offset
-        idx = p - 1 + direction*(global_order+1) + k*ndata + map_c(1)
-        ls_tracer_p = ls_tracer_p  * abs(ls_tracer( ijkp ))**coeff( idx )
-      end do
-    else
-      ls_tracer_p = 0.0_r_def
-      do p = 1,order+1
-        ijkp = ij + k + smap(p,order) + direction + boundary_offset
-        idx = p - 1 + direction*(global_order+1) + k*ndata + map_c(1)
-        ls_tracer_p = ls_tracer_p  + ls_tracer( ijkp )*coeff( idx )
-      end do
-    end if
-
-    !--- Perturbation------------------------------------------------
-    ! Compute value at W3 point in cell below this cell
-    km = k - 1
-    order = min(vertical_order, min(2*(km+1), 2*(nlayers-1 - (km-1))))
-    ! At the boundaries reduce to centred linear interpolation
-    if ( km == 0 .and. direction == 0 ) order = 1
-
-    if (logspace == 1_i_def) then
-      tracer_m = 0.0_r_def
-      do p = 1,order+1
-        ijkp = ij + km + smap(p,order) + direction
-        idx = p - 1 + direction*(global_order+1) + km*ndata + map_c(1)
-        tracer_m = tracer_m +        &
-                   coeff( idx ) *    &
-                   tracer( ijkp ) /  &
-                   ls_tracer( ijkp )
-      end do
-      tracer_m = tracer_m * ls_tracer_m
-    else
-      tracer_m = 0.0_r_def
-      do p = 1,order+1
-        ijkp = ij + km + smap(p,order) + direction
-        idx = p - 1 + direction*(global_order+1) + km*ndata + map_c(1)
-        tracer_m = tracer_m  + tracer( ijkp )*coeff( idx )
-      end do
-    end if
-
-    ! Compute value at W3 point in this cell
-    order = min(vertical_order, min(2*(k+1), 2*(nlayers-1 - (k-1))))
-    ! At the boundaries reduce to centred linear interpolation
-    if ( k == nlayers - 1 .and. direction == 1 ) order = 1
-
-    ! Offset at the top boundary to ensure we use the correct entries
-    boundary_offset = 0
-    if ( k == nlayers - 1 .and. direction == 1)  boundary_offset = -1
-
-    if (logspace == 1_i_def) then
-      ! Interpolate log(tracer)
-      ! I.e. polynomial = exp(c_1*log(tracer_1) + c_2*log(tracer_2) + ...)
-      !                 = tracer_1**c_1*tracer_2**c_2...
-      tracer_p = 0.0_r_def
-      do p = 1,order+1
-        ijkp = ij + k + smap(p,order) + direction + boundary_offset
-        idx = p - 1 + direction*(global_order+1) + k*ndata + map_c(1)
-        tracer_p = tracer_p +        &
-                   coeff( idx ) *    &
-                   tracer( ijkp ) /  &
-                   ls_tracer( ijkp )
-      end do
-      tracer_p = tracer_p * ls_tracer_p
-    else
-      tracer_p = 0.0_r_def
-      do p = 1,order+1
-        ijkp = ij + k + smap(p,order) + direction + boundary_offset
-        idx = p - 1 + direction*(global_order+1) + k*ndata + map_c(1)
-        tracer_p = tracer_p  + tracer( ijkp )*coeff( idx )
-      end do
-    end if
-
-    ! --- Calculation -------------------------------------------------
-    ! Compute advective increment
-    advective( map_wt(1) + k ) = advective( map_wt(1) + k )   &
-                               + ls_wind( map_w2(5) + k )     &
-                               * ( tracer_p - tracer_m )      &
-                               + wind( map_w2(5) + k )        &
-                               * ( ls_tracer_p - ls_tracer_m )
+    advective(map_wt(1)+ k) = advective(map_wt(1)+k) &
+                              + wind(map_w2(5)+k)*ls_dpdz &
+                              + ls_wind(map_w2(5)+k)*dpdz
   end do
-
-  deallocate( smap )
 end subroutine tl_poly1d_vert_adv_code
 
 end module tl_poly1d_vert_adv_kernel_mod

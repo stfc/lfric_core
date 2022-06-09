@@ -16,11 +16,6 @@
 !!                      PSyclone currently only passes in the local size and so
 !!                      until this is resolved we also pass in the global maximum
 !!                      size as an integer argument.
-!!       3. Issue #1248 There is no PSyclone support for passing logical types
-!!                      to kernels and so as an intermediate solution we create
-!!                      an integer argument that = 1 (.true.) or = 0 (.false.).
-!!                      TODO #3010: the use of logical types is now supported
-!!                      so this ticket should remove these integers
 module reconstruct_w3_field_alg_mod
 
   use constants_mod,                  only: r_def, i_def, l_def, str_def
@@ -32,7 +27,7 @@ module reconstruct_w3_field_alg_mod
   use finite_element_config_mod,      only: element_order,          &
                                             coord_system,           &
                                             coord_system_xyz
-  use fs_continuity_mod,              only: W2, W3
+  use fs_continuity_mod,              only: W2, W3, Wtheta
   use function_space_mod,             only: function_space_type
   use poly1d_w3_reconstruction_kernel_mod, &
                                       only: poly1d_w3_reconstruction_kernel_type
@@ -48,7 +43,8 @@ module reconstruct_w3_field_alg_mod
   use quadrature_xyoz_mod,            only: quadrature_xyoz_type
   use quadrature_face_mod,            only: quadrature_face_type
   use transport_config_mod,           only: operators,            &
-                                            fv_flux_order,        &
+                                            fv_horizontal_order,  &
+                                            fv_vertical_order,    &
                                             operators_fv,         &
                                             operators_fem,        &
                                             oned_reconstruction
@@ -74,9 +70,10 @@ module reconstruct_w3_field_alg_mod
   integer(kind=i_def), allocatable, target :: flux_2d_stencil_size_list(:)
   integer(kind=i_def), allocatable, target :: ndata_h_list(:)
   integer(kind=i_def), allocatable, target :: ndata_v_list(:)
+  integer(kind=i_def), allocatable, target :: reversible_ndata_v_list(:)
   type(field_type),    allocatable, target :: flux_coeffs_list(:)
   type(field_type),    allocatable, target :: vert_flux_coeffs_list(:)
-
+  type(field_type),    allocatable, target :: reversible_vert_flux_coeffs_list(:)
   public :: reconstruct_w3_field_alg_set_num_meshes
   public :: reconstruct_w3_field_alg_init
   public :: reconstruct_w3_field_alg_final
@@ -85,9 +82,11 @@ module reconstruct_w3_field_alg_mod
   public :: get_flux_2d_stencil_size
   public :: get_flux_ndata_h
   public :: get_flux_ndata_v
+  public :: get_reversible_flux_ndata_v
   public :: get_flux_coeffs
   public :: get_vert_flux_coeffs
   public :: reconstruct_koren_w3_field_alg
+  public :: get_reversible_vert_flux_coeffs
 
 contains
 
@@ -106,8 +105,10 @@ contains
       if (.not. allocated(flux_2d_stencil_size_list)) allocate(flux_2d_stencil_size_list(number_of_meshes))
       if (.not. allocated(flux_coeffs_list)) allocate(flux_coeffs_list(number_of_meshes))
       if (.not. allocated(vert_flux_coeffs_list)) allocate(vert_flux_coeffs_list(number_of_meshes))
+      if (.not. allocated(reversible_vert_flux_coeffs_list)) allocate(reversible_vert_flux_coeffs_list(number_of_meshes))
       if (.not. allocated(ndata_h_list)) allocate(ndata_h_list(number_of_meshes))
       if (.not. allocated(ndata_v_list)) allocate(ndata_v_list(number_of_meshes))
+      if (.not. allocated(reversible_ndata_v_list)) allocate(reversible_ndata_v_list(number_of_meshes))
       variables_allocated = .true.
     else
       call log_event('Variables have already been allocated for ' // &
@@ -128,10 +129,12 @@ contains
   !!
   subroutine reconstruct_w3_field_alg_init( mesh )
 
-    use fs_continuity_mod,                 only: W3
-    use function_space_collection_mod,     only: function_space_collection
-    use reference_element_mod,             only: reference_element_type
-    use mesh_mod,                          only: mesh_type
+    use fs_continuity_mod,             only: W3
+    use function_space_collection_mod, only: function_space_collection
+    use reference_element_mod,         only: reference_element_type
+    use mesh_mod,                      only: mesh_type
+    use geometric_constants_mod,       only: get_height
+    use transport_config_mod,          only: reversible
 
     implicit none
 
@@ -163,6 +166,8 @@ contains
     type(function_space_type),     pointer :: multidata_fs => null()
     logical(kind=l_def)                    :: horizontal_faces
     logical(kind=l_def)                    :: vertical_faces
+    type(field_type),              pointer :: height => null()
+    integer(kind=i_def)                    :: vertical_order
 
     reference_element => mesh%get_reference_element()
     mesh_index = find_mesh_index(mesh%get_id())
@@ -178,7 +183,7 @@ contains
       ! This setup is only needed for FV methods
       if ( element_order == 0_i_def ) then
         ! Compute stencil extents
-        flux_stencil_extent = fv_flux_order/2_i_def
+        flux_stencil_extent = fv_horizontal_order/2_i_def
         !======================================================================!
         ! Compute stencil for nonuniform polynomial fit
         ! Initialise PSy layer arrays (this will not be needed when
@@ -194,13 +199,13 @@ contains
         nfaces_re_v = reference_element%get_number_vertical_faces()
 
         if ( oned_reconstruction ) then
-          flux_stencil_size = fv_flux_order + 1_i_def
+          flux_stencil_size = fv_horizontal_order + 1_i_def
         else
           ! Compute the maximum number of cells in the flux stencil
           ! This occurs on a uniform mesh
           ! (this computation is only correct for quadrilateral meshes)
           flux_2d_stencil_size = 1_i_def
-          do polynomial = 1, fv_flux_order
+          do polynomial = 1, fv_horizontal_order
             if ( mod(polynomial, 2_i_def) == 0_i_def ) then
               flux_2d_stencil_size = flux_2d_stencil_size + nfaces_re_h
             else
@@ -223,12 +228,12 @@ contains
           transform_radius = 1.0_r_def + abs(transform_radius)
         end if
 
-        nqp_xyz = fv_flux_order + 1_i_def
+        nqp_xyz = fv_horizontal_order + 1_i_def
         qr = quadrature_xyoz_type(nqp_xyz, gaussian_quadrature)
         if ( oned_reconstruction ) then
           face_quad_order = 1_i_def
         else
-          face_quad_order = fv_flux_order + 1_i_def
+          face_quad_order = fv_horizontal_order + 1_i_def
         end if
         ! Quadrature rule on lateral faces with 1 point in the vertical
         nqp_xy = face_quad_order
@@ -241,9 +246,10 @@ contains
         call log_event( "Gungho: computing horizontal flux coeffs", LOG_LEVEL_INFO )
 
         md_w3 => get_mass_matrix_diagonal(W3, mesh%get_id())
-        ! Create multi-data space and field for the vertical flux coefficients
+        ! Create multi-data space and field for the horizontal flux coefficients
         ndata_h = nfaces_re_h*flux_stencil_size
         multidata_fs => function_space_collection%get_fs( mesh, element_order, W3, ndata_h )
+        ndata_h_list(mesh_index) = ndata_h
         call flux_coeffs_list(mesh_index)%initialise( vector_space = multidata_fs, ndata_first = .false. )
 
         if ( oned_reconstruction ) then
@@ -256,7 +262,7 @@ contains
                                                 panel_id,                      &
                                                 flux_stencil_extent,           &
                                                 ndata_h,                       &
-                                                fv_flux_order,                 &
+                                                fv_horizontal_order,           &
                                                 transform_radius,              &
                                                 qr, qrf ) )
         else
@@ -269,7 +275,7 @@ contains
                                                 panel_id,                      &
                                                 flux_stencil_extent,           &
                                                 ndata_h,                       &
-                                                fv_flux_order,                 &
+                                                fv_horizontal_order,           &
                                                 flux_2d_stencil_size,          &
                                                 transform_radius,              &
                                                 qr, qrf) )
@@ -277,28 +283,35 @@ contains
 
         ! Vertical flux coeffs
         call log_event( "Gungho: computing vertical flux coeffs", LOG_LEVEL_INFO )
-
         ! Create multi-data space and field for the vertical flux coefficients
-        ndata_v = nfaces_re_v*(fv_flux_order + 1_i_def)
-        multidata_fs => function_space_collection%get_fs( mesh, element_order, W3, ndata_v )
+        vertical_order = fv_vertical_order
+        ndata_v = nfaces_re_v*(vertical_order + 1_i_def)
+        ndata_v_list(mesh_index) = ndata_v
+        multidata_fs => function_space_collection%get_fs( mesh, element_order, Wtheta, ndata_v )
         call vert_flux_coeffs_list(mesh_index)%initialise( vector_space = multidata_fs, ndata_first = .true. )
-
-        ! Quadrature rule on vertical faces with 1 point in both horizontal and
-        ! vertical directions
-        nqp_xyz = 1_i_def
-        horizontal_faces = .false.
-        vertical_faces = .true.
-        qrf = quadrature_face_type(nqp_xyz, horizontal_faces, vertical_faces,  &
-                                   reference_element, gaussian_quadrature)
-
+        height => get_height(Wtheta, mesh%get_id())
         call invoke(poly1d_vert_flux_coeffs_kernel_type(                       &
                                           vert_flux_coeffs_list(mesh_index),   &
-                                          md_w3,                               &
-                                          chi,                             &
+                                          height,                              &
                                           ndata_v,                             &
-                                          fv_flux_order,                       &
-                                          qr, qrf ) )
+                                          vertical_order,                      &
+                                          qr ) )
 
+        if ( any(reversible) ) then
+          ! Compute reversible vertical coefficients
+          vertical_order = fv_vertical_order-1
+          ndata_v = vertical_order + 1_i_def
+          reversible_ndata_v_list(mesh_index) = ndata_v
+          multidata_fs => function_space_collection%get_fs( mesh, element_order, Wtheta, ndata_v )
+          call reversible_vert_flux_coeffs_list(mesh_index)%initialise( vector_space = multidata_fs, ndata_first = .true. )
+          height => get_height(Wtheta, mesh%get_id())
+          call invoke(poly1d_vert_flux_coeffs_kernel_type(                                &
+                                            reversible_vert_flux_coeffs_list(mesh_index), &
+                                            height,                                       &
+                                            ndata_v,                                      &
+                                            vertical_order,                               &
+                                            qr ) )
+        end if
         !======================================================================!
       else
         call log_event( "Gungho: subgrid mappings needed for FV MoL with high &
@@ -308,10 +321,8 @@ contains
 
     flux_stencil_extent_list(mesh_index) = flux_stencil_extent
     flux_2d_stencil_size_list(mesh_index) = flux_2d_stencil_size
-    ndata_h_list(mesh_index) = ndata_h
-    ndata_v_list(mesh_index) = ndata_v
 
-    nullify( chi, panel_id, md_w3, w3_fs, reference_element )
+    nullify( chi, panel_id, md_w3, w3_fs, reference_element, height )
 
   end subroutine reconstruct_w3_field_alg_init
 
@@ -322,8 +333,10 @@ contains
     implicit none
 
     if (allocated(ndata_v_list)) deallocate(ndata_v_list)
+    if (allocated(reversible_ndata_v_list)) deallocate(reversible_ndata_v_list)
     if (allocated(ndata_h_list)) deallocate(ndata_h_list)
     if (allocated(vert_flux_coeffs_list)) deallocate(vert_flux_coeffs_list)
+    if (allocated(reversible_vert_flux_coeffs_list)) deallocate(reversible_vert_flux_coeffs_list)
     if (allocated(flux_coeffs_list)) deallocate(flux_coeffs_list)
     if (allocated(flux_2d_stencil_size_list)) deallocate(flux_2d_stencil_size_list)
     if (allocated(flux_stencil_extent_list)) deallocate(flux_stencil_extent_list)
@@ -335,13 +348,14 @@ contains
   !> @details Reconstruct a W3 field (field_old) at W2 points (field_new) using
   !!          desired spatial reconstruction.
   !!          Options for this are either FE or FV reconstructions.
-  !> @param[in,out] field_new Reconstructed field at W2 points
-  !> @param[in]     field_old Initial W3 field
-  !> @param[in]     wind      Advecting wind field to determine upwind direction
-  !> @param[in]     direction Splitting direction (h, v, or 3d) to compute
-  !!                          reconstruction
-  !> @param[in]     logspace  Carry out interpolation in log space
-  subroutine reconstruct_w3_field_alg(field_new, field_old, wind, direction, logspace)
+  !> @param[in,out] field_new  Reconstructed field at W2 points
+  !> @param[in]     field_old  Initial W3 field
+  !> @param[in]     wind       Advecting wind field to determine upwind direction
+  !> @param[in]     direction  Splitting direction (h, v, or 3d) to compute
+  !!                           reconstruction
+  !> @param[in]     reversible Use the reversible reconstruction
+  !> @param[in]     logspace   Carry out interpolation in log space
+  subroutine reconstruct_w3_field_alg(field_new, field_old, wind, direction, reversible, logspace)
 
     use sample_field_kernel_mod, only: sample_field_kernel_type
 
@@ -350,11 +364,12 @@ contains
     type(field_type),              intent(in)    :: field_old, wind
     type(field_type),              intent(inout) :: field_new
     integer(kind=i_def),           intent(in)    :: direction
+    logical(kind=l_def),           intent(in)    :: reversible
     logical(kind=l_def), optional, intent(in)    :: logspace
 
     type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: mesh_index
-    integer(kind=i_def) :: logspace_loc
+    logical(kind=l_def) :: logspace_loc
     integer(kind=i_def) :: stencil_extent
 
     integer(kind=i_def), pointer :: flux_stencil_extent => null()
@@ -364,12 +379,13 @@ contains
     type(field_type),    pointer :: flux_coeffs => null()
     type(field_type),    pointer :: vert_flux_coeffs => null()
     type(field_type),    pointer :: w2_rmultiplicity => null()
+    integer(kind=i_def)          :: vertical_order
 
     ! Psyclone doesn't support the passing of logicals to kernels
     ! so we have to set up an integer instead
-    logspace_loc = 0_i_def
+    logspace_loc = .false.
     if ( present(logspace) ) then
-      if ( logspace ) logspace_loc = 1_i_def
+      logspace_loc = logspace
     end if
 
     mesh => field_new%get_mesh()
@@ -382,29 +398,29 @@ contains
       case(operators_fv)
         mesh_index = find_mesh_index(mesh%get_id())
 
-        ! Get extents and data sizes for this mesh
-        flux_stencil_extent => flux_stencil_extent_list(mesh_index)
-        flux_2d_stencil_size => flux_2d_stencil_size_list(mesh_index)
-        ndata_h => ndata_h_list(mesh_index)
-        ndata_v => ndata_v_list(mesh_index)
-        flux_coeffs => flux_coeffs_list(mesh_index)
-        vert_flux_coeffs => vert_flux_coeffs_list(mesh_index)
-
         ! Set default value to be 0 and then update the mass flux
         ! in cases where the wind is nonzero using an upwind reconstruction
         call invoke( setval_c( field_new, 0.0_r_def) )
+
         if ( direction==direction_h .or. direction==direction_3d ) then
+
+          ! Get extents and data sizes for this mesh
+          flux_stencil_extent => flux_stencil_extent_list(mesh_index)
+          flux_2d_stencil_size => flux_2d_stencil_size_list(mesh_index)
+          ndata_h => ndata_h_list(mesh_index)
+          flux_coeffs => flux_coeffs_list(mesh_index)
+
           if ( oned_reconstruction ) then
             ! Use 1d flux reconstruction
             call invoke( name="W3_1dh_reconstruction", &
                          poly1d_w3_reconstruction_kernel_type( field_new, wind, field_old, &
                                                                flux_stencil_extent,        &
                                                                flux_coeffs,                &
-                                                               fv_flux_order,              &
+                                                               fv_horizontal_order,        &
                                                                ndata_h ) )
          else
            ! Use 2d flux reconstruction
-           stencil_extent = fv_flux_order / 2_i_def
+           stencil_extent = fv_horizontal_order / 2_i_def
            call invoke( name="W3_2dh_reconstruction", &
                         poly2d_w3_reconstruction_kernel_type( field_new, wind, field_old, &
                                                               stencil_extent,             &
@@ -414,12 +430,21 @@ contains
          end if
        end if
        if ( direction==direction_v .or. direction==direction_3d ) then
-       ! Compute vertical components of mass flux
+          ! Compute vertical components of mass flux
+          if ( reversible ) then
+            ndata_v => reversible_ndata_v_list(mesh_index)
+            vert_flux_coeffs => reversible_vert_flux_coeffs_list(mesh_index)
+            vertical_order = fv_vertical_order - 1_i_def
+          else
+            ndata_v => ndata_v_list(mesh_index)
+            vert_flux_coeffs => vert_flux_coeffs_list(mesh_index)
+            vertical_order = fv_vertical_order
+          end if
           call invoke(name="W3_1dv_reconstruction", &
                         poly1d_vert_w3_reconstruction_kernel_type( field_new, wind, field_old, &
                                                                    vert_flux_coeffs,           &
                                                                    ndata_v,                    &
-                                                                   fv_flux_order,              &
+                                                                   vertical_order,             &
                                                                    logspace_loc) )
         end if
       case(operators_fem)
@@ -465,7 +490,7 @@ contains
 
     integer(kind=i_def) :: mesh_id
     integer(kind=i_def) :: mesh_index
-    integer(kind=i_def) :: logspace_loc
+    logical(kind=l_def) :: logspace_loc
 
     integer(kind=i_def), pointer :: flux_stencil_extent => null()
     integer(kind=i_def), pointer :: ndata_h => null()
@@ -474,9 +499,9 @@ contains
 
     ! Psyclone doesn't support the passing of logicals to kernels
     ! so we have to set up an integer instead
-    logspace_loc = 0_i_def
+    logspace_loc = .false.
     if ( present(logspace) ) then
-      if ( logspace ) logspace_loc = 1_i_def
+      logspace_loc = logspace
     end if
 
     mesh_id = field_new%get_mesh_id()
@@ -587,6 +612,20 @@ contains
 
   end function get_flux_ndata_v
 
+  !> @brief Returns a pointer to the number of reversible vertical data points
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The ndata_v integer
+  function get_reversible_flux_ndata_v(mesh_id) result(ndata_v)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    integer(kind=i_def)             :: mesh_index
+    integer(kind=i_def),    pointer :: ndata_v
+
+    mesh_index = find_mesh_index(mesh_id)
+    ndata_v => reversible_ndata_v_list(mesh_index)
+
+  end function get_reversible_flux_ndata_v
+
   !> @brief Returns a pointer to the flux coefficients
   !> @param[in] mesh_id the ID of the mesh to get the object for
   !> @return The flux coefficients field
@@ -619,5 +658,21 @@ contains
     vert_flux_coeffs => vert_flux_coeffs_list(mesh_index)
     call check_initialised_field(vert_flux_coeffs, field_name, mesh_id)
   end function get_vert_flux_coeffs
+
+  !> @brief Returns a pointer to the reversible vertical flux coefficients
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The vertical flux coefficient field
+  function get_reversible_vert_flux_coeffs(mesh_id) result(vert_flux_coeffs)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    integer(kind=i_def)             :: mesh_index
+    type(field_type),       pointer :: vert_flux_coeffs
+    character(str_def)              :: field_name
+
+    mesh_index = find_mesh_index(mesh_id)
+    field_name = 'reversible_vert_flux_coeffs'
+    vert_flux_coeffs => reversible_vert_flux_coeffs_list(mesh_index)
+    call check_initialised_field(vert_flux_coeffs, field_name, mesh_id)
+  end function get_reversible_vert_flux_coeffs
 
 end module reconstruct_w3_field_alg_mod

@@ -86,6 +86,7 @@ contains
     logical(kind=l_def)           :: logspace = .true.
     logical(kind=l_def)           :: divergence_factor = .false.
     real(kind=r_def)              :: min_value = 1.9_r_def
+    logical(kind=l_def)           :: reversible = .false.
     type(transport_metadata_type) :: our_metadata
 
 
@@ -100,7 +101,8 @@ contains
                                            enforce_min_value, &
                                            min_value,         &
                                            logspace,          &
-                                           divergence_factor)
+                                           divergence_factor, &
+                                           reversible)
 
     ! Check all properties of metadata object
     @assertEqual(fname, our_metadata%get_name())

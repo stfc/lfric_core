@@ -7,7 +7,7 @@
 !> Test the wtheta_adv_inc computation using the Koren scheme
 module polyv_wtheta_koren_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def
+  use constants_mod, only : i_def, r_def, l_def
   use pFUnit_Mod
   use mpi_mod,       only : store_comm, clear_comm
 
@@ -47,8 +47,8 @@ contains
     call store_comm(this%getMpiCommunicator())
     call feign_transport_config( operators = operators_fv,                                 &
                                  runge_kutta_method = runge_kutta_method_ssp2,             &
-                                 fv_flux_order = 2,                                        &
-                                 fv_advective_order = 2,                                   &
+                                 fv_vertical_order = 2,                                    &
+                                 fv_horizontal_order = 2,                                  &
                                  consistent_metric  = .false.,                             &
                                  oned_reconstruction = .false.,                            &
                                  cfl_mol_1d_stab = 1.0_r_def,                              &
@@ -69,6 +69,7 @@ contains
                                  vertical_method = (/1/),                                  &
                                  monotone = (/1/),                                         &
                                  log_space = (/.false./),                                  &
+                                 reversible = (/.false./),                                 &
                                  enforce_min_value = (/.false./),                          &
                                  min_value = (/0.0_r_def/),                                &
                                  ffsl_scheme = ffsl_scheme_three_dim                       &
@@ -125,7 +126,8 @@ contains
     real(r_def), dimension(undf_wt) :: density
     real(r_def), dimension(undf_wt) :: adv_inc_answer1, adv_inc_answer2
 
-    integer(i_def) :: df, k, logspace, p1, p2, p3
+    integer(i_def) :: df, k, p1, p2, p3
+    logical(l_def) :: logspace
     real(r_def)    :: const, r, val_u, val_d
     real(r_def), dimension(3) :: kw=(/-1.0_r_def,5.0_r_def,2.0_r_def/)/6.0_r_def
 
@@ -166,8 +168,8 @@ contains
         adv_inc_answer2(k) = exp(val_u) - exp(val_d)
     end do
 
-    ! Test subroutine with logspace=0
-    logspace = 0_i_def
+    ! Test subroutine with logspace = .false.
+    logspace = .false.
     adv_inc = 0.0_r_def
     call polyv_wtheta_koren_code( nlayers,              &
                                   adv_inc,              &
@@ -191,8 +193,8 @@ contains
       @assertEqual(adv_inc_answer1(k), adv_inc(k), use_tol)
     end do
 
-    ! Test subroutine with logspace=1
-    logspace = 1_i_def
+    ! Test subroutine with logspace = .true.
+    logspace = .true.
     density(:) = exp(density(:))
 
     adv_inc = 0.0_r_def

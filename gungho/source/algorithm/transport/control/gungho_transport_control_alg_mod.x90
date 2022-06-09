@@ -51,17 +51,18 @@ contains
 
     use reconstruct_w3_field_alg_mod, only: reconstruct_w3_field_alg_init
     use wt_advective_update_alg_mod,  only: wt_advective_update_alg_init
-    use transport_config_mod,         only: profile_size,      &
-                                            field_names,       &
-                                            scheme,            &
-                                            monotone,          &
-                                            splitting,         &
-                                            horizontal_method, &
-                                            vertical_method,   &
-                                            enforce_min_value, &
-                                            min_value,         &
-                                            log_space,         &
-                                            use_density_predictor
+    use transport_config_mod,         only: profile_size,          &
+                                            field_names,           &
+                                            scheme,                &
+                                            monotone,              &
+                                            splitting,             &
+                                            horizontal_method,     &
+                                            vertical_method,       &
+                                            enforce_min_value,     &
+                                            min_value,             &
+                                            log_space,             &
+                                            use_density_predictor, &
+                                            reversible
 
     implicit none
 
@@ -102,17 +103,18 @@ contains
         use_divergence_factor = .false.
       end if
 
-      transport_metadata = transport_metadata_type( field_names(config),        &
-                                                    equation_form,              &
-                                                    splitting(config),          &
-                                                    scheme(config),             &
-                                                    horizontal_method(config),  &
-                                                    vertical_method(config),    &
-                                                    monotone(config),           &
-                                                    enforce_min_value(config),  &
-                                                    min_value(config),          &
-                                                    log_space(config),          &
-                                                    divergence_factor = use_divergence_factor)
+      transport_metadata = transport_metadata_type( field_names(config),       &
+                                                    equation_form,             &
+                                                    splitting(config),         &
+                                                    scheme(config),            &
+                                                    horizontal_method(config), &
+                                                    vertical_method(config),   &
+                                                    monotone(config),          &
+                                                    enforce_min_value(config), &
+                                                    min_value(config),         &
+                                                    log_space(config),         &
+                                                    use_divergence_factor,     &
+                                                    reversible(config) )
 
       call transport_metadata_collection%set_transport_metadata(transport_metadata)
 

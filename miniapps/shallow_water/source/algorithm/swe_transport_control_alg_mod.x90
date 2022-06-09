@@ -75,6 +75,7 @@ contains
                                             enforce_min_value, &
                                             min_value,         &
                                             log_space,         &
+                                            reversible,        &
                                             use_density_predictor
 
     implicit none
@@ -122,7 +123,8 @@ contains
                                                     enforce_min_value(config),  &
                                                     min_value(config),          &
                                                     log_space(config),          &
-                                                    divergence_factor = use_divergence_factor)
+                                                    use_divergence_factor,      &
+                                                    reversible(config) )
 
       call transport_metadata_collection%set_transport_metadata(transport_metadata)
 

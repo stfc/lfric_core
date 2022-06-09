@@ -15,8 +15,8 @@ module check_configuration_mod
   use transport_config_mod, only: operators,              &
                                   operators_fv,           &
                                   consistent_metric,      &
-                                  fv_flux_order,          &
-                                  fv_advective_order,     &
+                                  fv_horizontal_order,    &
+                                  fv_vertical_order,      &
                                   profile_size,           &
                                   scheme,                 &
                                   horizontal_method,      &
@@ -222,12 +222,12 @@ contains
       any_scheme_mol = check_any_scheme_mol()
       if (any_scheme_mol) then
         ! Check that flux orders are even
-        if ( mod(fv_flux_order,2_i_def) /= 0_i_def ) then
-          write( log_scratch_space, '(A)' ) 'fv_flux_order must be even'
+        if ( mod(fv_horizontal_order,2_i_def) /= 0_i_def ) then
+          write( log_scratch_space, '(A)' ) 'fv_horizontal_order must be even'
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
-        if ( mod(fv_advective_order,2_i_def) /= 0_i_def ) then
-          write( log_scratch_space, '(A)' ) 'fv_advective_order must be even'
+        if ( mod(fv_vertical_order,2_i_def) /= 0_i_def ) then
+          write( log_scratch_space, '(A)' ) 'fv_vertical_order must be even'
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
       end if
@@ -306,7 +306,6 @@ contains
     implicit none
 
     integer(kind=i_def) :: stencil_depth
-    integer(kind=i_def) :: max_fv_stencil
     logical(kind=l_def) :: any_scheme_ffsl
 
     stencil_depth = 1
@@ -316,8 +315,7 @@ contains
 
     if (operators == operators_fv) then
       ! Need larger haloes for fv operators
-      max_fv_stencil = max( fv_flux_order, fv_advective_order ) / 2
-      stencil_depth  = max( stencil_depth, max_fv_stencil )
+      stencil_depth  = max( stencil_depth, fv_horizontal_order/2 )
     end if
 
     any_scheme_ffsl = check_any_scheme_ffsl()

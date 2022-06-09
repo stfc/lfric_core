@@ -26,11 +26,12 @@ contains
   !> @param[in]     ls_wind             PASSIVE Linearisation state advecting wind
   !> @param[in]     dt                  Advection time step
   !> @param[in]     direction           Direction to perform the advective update
+  !> @param[in]     reversible          Flag to use reversible scheme
   !> @param[in]     logspace            Flag to use logspace for
   !> @param[in]     monotonicity        Flag to apply monotonicity
   subroutine tl_advective_increment_alg(advective_increment, field, wind, &
                                         ls_field, ls_wind, dt, direction, &
-                                        logspace, monotonicity)
+                                        reversible, logspace, monotonicity)
 
     use constants_mod,                   only: r_def, i_def, l_def
     use field_mod,                       only: field_type
@@ -51,6 +52,7 @@ contains
     type(field_type),    intent(in)    :: ls_field, ls_wind
     real(kind=r_def),    intent(in)    :: dt
     integer(kind=i_def), intent(in)    :: direction
+    logical(kind=l_def), intent(in)    :: reversible
     logical(kind=l_def), intent(in)    :: logspace
     integer(kind=i_def), intent(in)    :: monotonicity
 
@@ -70,9 +72,9 @@ contains
         ! Calculate reconstructions
         ! ls wind is still used here to define upwind direction
         call reconstruct_w3_field_alg(recon_ls_tracer, ls_field, ls_wind, &
-                                      direction, logspace)
+                                      direction, reversible, logspace)
         call tl_reconstruct_w3_field_alg(recon_tracer, field, ls_field,   &
-                                         ls_wind, direction, logspace)
+                                         ls_wind, direction, reversible, logspace)
 
         ! Compute increments
         call invoke( w3_advective_update_kernel_type(adv_inc_tracer,        &
@@ -93,7 +95,7 @@ contains
         ! Everything is handled by T.L. version of Wtheta advective update alg
         call tl_wt_advective_update_alg(advective_increment, field, wind, &
                                         ls_field, ls_wind, dt, direction, &
-                                        logspace, monotonicity)
+                                        reversible, logspace, monotonicity)
 
       case default
         call log_event( "Advective increment only valid for W3 & Wtheta spaces", LOG_LEVEL_ERROR )

@@ -7,7 +7,7 @@
 !>@brief Test the TL vertical advective computation using 1d polynomials
 module tl_poly1d_vert_adv_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def
+  use constants_mod, only : i_def, r_def, l_def
   use pFUnit_Mod
   use mpi_mod,       only : store_comm, clear_comm
 
@@ -49,7 +49,7 @@ module tl_poly1d_vert_adv_kernel_mod_test
   integer(i_def), parameter :: nfaces_v = 2
   integer(i_def), parameter :: nfaces_h = 4
   integer(i_def), parameter :: nlayers = 6
-  integer(i_def), parameter :: mol_order = 2
+  integer(i_def), parameter :: mol_order = 3
   integer(i_def), parameter :: ndata = (mol_order+1)*nfaces_v
   integer(i_def), parameter :: ndf_w2 = 6
   integer(i_def), parameter :: ndf_wt = 2
@@ -63,15 +63,6 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use feign_config_mod,     only: feign_transport_config
-    use transport_config_mod, only: operators_fv,                  &
-                                    runge_kutta_method_ssp2,       &
-                                    slice_order_cubic,             &
-                                    vertical_sl_order_quintic,     &
-                                    ffsl_flux_splitting_full,      &
-                                    ffsl_advective_splitting_full, &
-                                    moisture_eqn_advective,        &
-                                    ffsl_scheme_three_dim
     implicit none
 
     class(tl_poly1d_vert_adv_test_type), intent(inout) :: this
@@ -80,35 +71,6 @@ contains
 
     ! Store the MPI communicator for later use
     call store_comm(this%getMpiCommunicator())
-
-    call feign_transport_config( operators = operators_fv,                                 &
-                                 runge_kutta_method = runge_kutta_method_ssp2,             &
-                                 fv_flux_order = 2,                                        &
-                                 fv_advective_order = 2,                                   &
-                                 consistent_metric  = .false.,                             &
-                                 oned_reconstruction = .false.,                            &
-                                 cfl_mol_1d_stab = 1.0_r_def,                              &
-                                 cfl_mol_2d_stab = 1.0_r_def,                              &
-                                 cfl_mol_3d_stab = 1.0_r_def,                              &
-                                 slice_order = slice_order_cubic,                          &
-                                 vertical_sl_order = vertical_sl_order_quintic,            &
-                                 use_density_predictor = .false.,                          &
-                                 ffsl_flux_splitting = ffsl_flux_splitting_full,           &
-                                 ffsl_advective_splitting = ffsl_advective_splitting_full, &
-                                 moisture_eqn=moisture_eqn_advective,                      &
-                                 dry_field_name='tracer',                                  &
-                                 profile_size = 1,                                         &
-                                 field_names = (/'tracer'/),                               &
-                                 scheme = (/1/),                                           &
-                                 splitting = (/1/),                                        &
-                                 horizontal_method = (/1/),                                &
-                                 vertical_method = (/1/),                                  &
-                                 monotone = (/1/),                                         &
-                                 log_space = (/.false./),                                  &
-                                 enforce_min_value = (/.false./),                          &
-                                 min_value = (/0.0_r_def/),                                &
-                                 ffsl_scheme = ffsl_scheme_three_dim                       &
-                                 )
 
     allocate(this%map_w2(ndf_w2))
     allocate(this%map_wt(ndf_wt))
@@ -130,9 +92,10 @@ contains
 
     do k = 0,nlayers
       do f = 1,nfaces_v
-        this%coeff(0 + (f-1)*(mol_order+1) + k*ndata + this%map_c(1)) =  3.0_r_def/8.0_r_def
-        this%coeff(1 + (f-1)*(mol_order+1) + k*ndata + this%map_c(1)) =  6.0_r_def/8.0_r_def
-        this%coeff(2 + (f-1)*(mol_order+1) + k*ndata + this%map_c(1)) = -1.0_r_def/8.0_r_def
+        this%coeff(0 + (f-1)*(mol_order+1) + k*ndata + this%map_c(1)) = -2.0_r_def/6.0_r_def
+        this%coeff(1 + (f-1)*(mol_order+1) + k*ndata + this%map_c(1)) = -3.0_r_def/6.0_r_def
+        this%coeff(2 + (f-1)*(mol_order+1) + k*ndata + this%map_c(1)) =  6.0_r_def/6.0_r_def
+        this%coeff(3 + (f-1)*(mol_order+1) + k*ndata + this%map_c(1)) = -1.0_r_def/6.0_r_def
       end do
     end do
 
@@ -172,7 +135,8 @@ contains
 
     class(tl_poly1d_vert_adv_test_type), intent(inout) :: this
 
-    integer(i_def) :: k, logspace
+    integer(i_def) :: k
+    logical(l_def) :: logspace
 
     ! Test standard polynomial interpolation
 
@@ -186,7 +150,7 @@ contains
       this%ls_density(k) = real(k,r_def)
     end do
 
-    logspace = 0_i_def
+    logspace = .false.
 
     call tl_poly1d_vert_adv_code( nlayers,              &
                                   this%flux,            &
@@ -228,7 +192,8 @@ contains
 
     class(tl_poly1d_vert_adv_test_type), intent(inout) :: this
 
-    integer(i_def) :: k, logspace
+    integer(i_def) :: k
+    logical(l_def) :: logspace
 
     ! Test polynomial interpolation in log-space
 
@@ -242,7 +207,7 @@ contains
       this%ls_density(k) = exp(-real(k,r_def))
     end do
 
-    logspace = 1_i_def
+    logspace = .true.
 
     call tl_poly1d_vert_adv_code( nlayers,              &
                                   this%flux,            &
@@ -269,10 +234,11 @@ contains
     else
       this%use_tol = 10.0_r_def*spacing( maxval( this%flux(this%map_wt(1)+2:this%map_wt(1)+3) ) )
     end if
-    this%answer = (exp(-2.5_r_def)-exp(-1.5_r_def))*2.0_r_def
-    @assertEqual(this%answer, this%flux(this%map_wt(1)+2), this%use_tol)
-    this%answer = (exp(-3.5_r_def)-exp(-2.5_r_def))*2.0_r_def
-    @assertEqual(this%answer, this%flux(this%map_wt(1)+3), this%use_tol)
+
+    do k = 2,3
+      this%answer = -2.0_r_def*this%density(this%map_wt(1)+k)
+      @assertEqual(this%answer, this%flux(this%map_wt(1)+k), this%use_tol)
+    end do
 
   end subroutine test_logspace
 

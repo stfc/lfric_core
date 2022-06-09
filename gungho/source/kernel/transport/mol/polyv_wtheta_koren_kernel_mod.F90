@@ -16,11 +16,12 @@
 
 module polyv_wtheta_koren_kernel_mod
 
-use argument_mod,         only : arg_type, GH_FIELD,       &
-                                 GH_SCALAR, GH_REAL,       &
-                                 GH_INTEGER, GH_READWRITE, &
+use argument_mod,         only : arg_type, GH_FIELD,     &
+                                 GH_SCALAR, GH_REAL,     &
+                                 GH_INTEGER, GH_LOGICAL, &
+                                 GH_READWRITE,           &
                                  GH_READ, CELL_COLUMN
-use constants_mod,        only : r_def, i_def, tiny_eps
+use constants_mod,        only : r_def, i_def, l_def, tiny_eps
 use fs_continuity_mod,    only : W2, Wtheta
 use kernel_mod,           only : kernel_type
 
@@ -39,7 +40,7 @@ type, public, extends(kernel_type) :: polyv_wtheta_koren_kernel_type
        arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W2),                        &
        arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta),                    &
        arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                 &
-       arg_type(GH_SCALAR, GH_INTEGER, GH_READ)                                  &
+       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ)                                  &
        /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -59,11 +60,7 @@ contains
 !> @param[in]     wind         Wind field
 !> @param[in]     tracer       Tracer field to advect
 !> @param[in]     ndata        Number of data points per dof location
-!> @param[in]     logspace     If true (=1), then perform interpolation in log space;
-!!                             this should be a logical but this is not currently supported in
-!!                             PSyclone, see Issue #1248
-!!                             TODO #3010: the use of logical types is now supported
-!!                             so this ticket should remove these integers
+!> @param[in]     logspace     Perform interpolation in log space
 !> @param[in]     ndf_wt       Number of degrees of freedom per cell
 !> @param[in]     undf_wt      Number of unique degrees of freedom for the tracer field
 !> @param[in]     map_wt       Cell dofmaps for the tracer space
@@ -100,7 +97,7 @@ subroutine polyv_wtheta_koren_code( nlayers,              &
   real(kind=r_def), dimension(undf_wt), intent(inout) :: advective
   real(kind=r_def), dimension(undf_w2), intent(in)    :: wind
   real(kind=r_def), dimension(undf_wt), intent(in)    :: tracer
-  integer(kind=i_def),                  intent(in)    :: logspace
+  logical(kind=l_def),                  intent(in)    :: logspace
 
   !Internal variables
   real(kind=r_def), dimension(nlayers+1)   :: wind_1d, dtracerdz
@@ -132,8 +129,8 @@ subroutine polyv_wtheta_koren_code( nlayers,              &
   tracer_1d(nlayers+2) = tracer_1d(nlayers+1)
 
   ! Apply log to tracer_1d if required
-  ! If logspace=1 the tracer if forced to be positive
-  if (logspace == 1_i_def) then
+  ! If using the logspace option, the tracer is forced to be positive
+  if (logspace) then
       do k=0,nlayers+2
          tracer_1d(k) = log(abs(tracer_1d(k)))
       end do
@@ -160,7 +157,7 @@ subroutine polyv_wtheta_koren_code( nlayers,              &
   end do
 
   ! Revert from log of tracer_w3 if required
-  if (logspace == 1_i_def) then
+  if (logspace) then
       do k = 1, nlayers
          tracer_w3(k) = exp(tracer_w3(k))
       end do

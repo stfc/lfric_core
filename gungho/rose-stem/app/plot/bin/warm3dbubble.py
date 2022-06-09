@@ -98,7 +98,7 @@ def make_figure(plotpath, nx, ny, field, component, timestep, small):
             plotlevel = 12*2
     elif timestep == 'T000160':
         if small == '0':
-            plotlevel = 27*2
+            plotlevel = 40*2
         else:
             plotlevel = 13*2
     elif timestep == 'T000180':

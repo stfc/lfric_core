@@ -8,7 +8,7 @@
 !> (valid for lowest order quadrilateral elements)
 module poly1d_vert_w3_reconstruction_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def
+  use constants_mod, only : i_def, r_def, l_def
   use pFUnit_Mod
 
   implicit none
@@ -42,23 +42,20 @@ contains
     real(r_def)            :: answer, use_tol
 
     integer(i_def), parameter :: nfaces_v = 2
-    integer(i_def), parameter :: nfaces_h = 4
-    integer(i_def), parameter :: nlayers = 3
+    integer(i_def), parameter :: nlayers = 5
     integer(i_def), parameter :: mol_order = 2
     integer(i_def), parameter :: ndata = (mol_order+1)*nfaces_v
     integer(i_def), parameter :: ndf_w2 = 6
     integer(i_def), parameter :: ndf_w3 = 1
     integer(i_def), parameter :: ndf_c  = 1
-    integer(i_def), parameter :: undf_w2 = nfaces_h*nlayers + (nlayers+1)
+    integer(i_def), parameter :: undf_w2 = (nlayers+1)
     integer(i_def), parameter :: undf_w3 = ndf_w3*nlayers
-    integer(i_def), parameter :: undf_c  = ndata*nlayers
+    integer(i_def), parameter :: undf_c  = ndata*(nlayers+1)
 
     integer(i_def), dimension(ndf_w2) :: map_w2
     integer(i_def), dimension(ndf_w3) :: map_w3
     integer(i_def), dimension(ndf_c)  :: map_c
 
-    real(r_def), dimension(3,ndf_w2,ndf_w2)  :: basis_w2
-    real(r_def), allocatable, dimension(:,:) :: outward_normals_to_vertical_faces
 
     real(r_def), dimension(undf_w2) :: reconstruction
     real(r_def), dimension(undf_w2) :: wind
@@ -66,55 +63,43 @@ contains
     real(r_def), dimension(undf_c)  :: coeff
 
     integer(i_def) :: df, k, f
-    integer(i_def) :: logspace
+    logical(l_def) :: logspace
 
     map_w3(1) = 1
     map_c(1) = 1
-    do df = 1,nfaces_h
-      map_w2(df) = 1 + (df-1)*nlayers
-    end do
-    map_w2(5) = 1 + nfaces_h*nlayers
-    map_w2(6) = map_w2(5) + 1
-
-    ! Get canned information for the reference cube
-    call get_outward_normals_to_vertical_faces(outward_normals_to_vertical_faces)
+    map_w2(1:4) = 0
+    map_w2(5:6) = (/1, 2/)
 
     wind(:) = 1.0_r_def
-
-    basis_w2 = 0.0_r_def
-    basis_w2(1,1,1) = 1.0_r_def
-    basis_w2(2,2,2) = -1.0_r_def
-    basis_w2(1,3,3) = 1.0_r_def
-    basis_w2(2,4,4) = -1.0_r_def
-    basis_w2(3,5,5) = 1.0_r_def
-    basis_w2(3,6,6) = 1.0_r_def
 
     do k = 1,nlayers
       density(k) = real(k,r_def) - 0.5_r_def
     end do
 
     ! Quadratic fit for most of the domain
-    do k = 1, nlayers-2
-      coeff( 0 + k*ndata + map_c(1)) =  2.0_r_def/6.0_r_def
-      coeff( 1 + k*ndata + map_c(1)) =  5.0_r_def/6.0_r_def
-      coeff( 2 + k*ndata + map_c(1)) = -1.0_r_def/6.0_r_def
-      coeff( 0 + (mol_order+1) + k*ndata + map_c(1)) = -1.0_r_def/6.0_r_def
-      coeff( 1 + (mol_order+1) + k*ndata + map_c(1)) =  5.0_r_def/6.0_r_def
-      coeff( 2 + (mol_order+1) + k*ndata + map_c(1)) =  2.0_r_def/6.0_r_def
+    do k = 1, nlayers-1
+      df = k*ndata + map_c(1)
+      coeff( df:2+df) = (/2.0_r_def, 5.0_r_def, -1.0_r_def/)/6.0_r_def
+      df = (mol_order+1) + k*ndata + map_c(1)
+      coeff( df:2+df) = (/-1.0_r_def, 5.0_r_def, 2.0_r_def/)/6.0_r_def
     end do
-    ! Linear fit on boundaries
+    ! Downwinding near boundaries
+    k = 1
+    df = (mol_order+1) +  k*ndata + map_c(1)
+    coeff( df:2+df) = (/2.0_r_def, 5.0_r_def, -1.0_r_def/)/6.0_r_def
     k = nlayers-1
+    df = k*ndata + map_c(1)
+    coeff( df:2+df) = (/-1.0_r_def, 5.0_r_def, 2.0_r_def/)/6.0_r_def
+    ! Extrapolation on boundaries
+    k = nlayers
     do f = 0, 1
-      coeff( 0 + f*(mol_order+1) + map_c(1)) =  0.5_r_def
-      coeff( 1 + f*(mol_order+1) + map_c(1)) =  0.5_r_def
-      coeff( 2 + f*(mol_order+1) + map_c(1)) =  0.0_r_def
-      coeff( 0 + f*(mol_order+1) + k*ndata + map_c(1)) =  0.5_r_def
-      coeff( 1 + f*(mol_order+1) + k*ndata + map_c(1)) =  0.5_r_def
-      coeff( 2 + f*(mol_order+1) + k*ndata + map_c(1)) =  0.0_r_def
+      df = f*(mol_order+1) + map_c(1)
+      coeff( df:2+df ) = (/ 15.0_r_def, -10.0_r_def, 3.0_r_def/)/8.0_r_def
+      df = f*(mol_order+1) + k*ndata + map_c(1)
+      coeff( df:2+df ) = (/ 3.0_r_def, -10.0_r_def, 15.0_r_def/)/8.0_r_def
     end do
-
     ! First test standard polynomial interpolation
-    logspace = 0_i_def
+    logspace = .false.
     call poly1d_vert_w3_reconstruction_code( nlayers,                           &
                                              reconstruction,                    &
                                              wind,                              &
@@ -126,17 +111,19 @@ contains
                                              ndf_w2,                            &
                                              undf_w2,                           &
                                              map_w2,                            &
-                                             basis_w2,                          &
                                              ndf_w3,                            &
                                              undf_w3,                           &
                                              map_w3,                            &
                                              ndf_c,                             &
                                              undf_c,                            &
-                                             map_c,                             &
-                                             nfaces_v,                          &
-                                             outward_normals_to_vertical_faces)
+                                             map_c)
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( reconstruction(map_w2(5)+1) )
+    endif
     answer = 1.0_r_def
-    @assertEqual(answer, reconstruction(map_w2(5)+1) , tol)
+    @assertEqual(answer, reconstruction(map_w2(5)+1) , use_tol)
     answer = 2.0_r_def
     @assertEqual(answer, reconstruction(map_w2(5)+2) , tol)
 
@@ -145,7 +132,7 @@ contains
     do k = 1,nlayers
       density(k) = exp(-real(k,r_def)+0.5_r_def)
     end do
-    logspace = 1_i_def
+    logspace = .true.
     call poly1d_vert_w3_reconstruction_code( nlayers,                           &
                                              reconstruction,                    &
                                              wind,                              &
@@ -157,25 +144,21 @@ contains
                                              ndf_w2,                            &
                                              undf_w2,                           &
                                              map_w2,                            &
-                                             basis_w2,                          &
                                              ndf_w3,                            &
                                              undf_w3,                           &
                                              map_w3,                            &
                                              ndf_c,                             &
                                              undf_c,                            &
-                                             map_c,                             &
-                                             nfaces_v,                          &
-                                             outward_normals_to_vertical_faces)
-    answer = exp(-1.0_r_def)
-    @assertEqual(answer, reconstruction(map_w2(5)+1), tol)
-    answer = exp(-2.0_r_def)
+                                             map_c)
     if ( r_def == real64 ) then
       use_tol = tol
-      @assertEqual(answer, reconstruction(map_w2(5)+2), use_tol)
     else
-      use_tol = 10.0_r_def*spacing( reconstruction(map_w2(5)+2) )
-      @assertEqual(answer, reconstruction(map_w2(5)+2), use_tol)
+      use_tol = 10.0_r_def*spacing( reconstruction(map_w2(5)+1) )
     endif
+    answer = exp(-1.0_r_def)
+    @assertEqual(answer, reconstruction(map_w2(5)+1), use_tol)
+    answer = exp(-2.0_r_def)
+    @assertEqual(answer, reconstruction(map_w2(5)+2), use_tol)
 
   end subroutine test_all
 

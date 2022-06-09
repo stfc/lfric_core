@@ -60,11 +60,10 @@ module mol_conservative_alg_mod
     type(field_type), pointer     :: advecting_wind => null()
     type(field_type), pointer     :: divergence_factor => null()
     type(operator_type), pointer  :: div => null()
-    type(field_type)              :: flux_temp,    &
-                                     rhs, field_n, &
-                                     field_inc
-    type(field_type), allocatable :: rk_rhs(:)
-    real(r_def), allocatable      :: ak_adv(:,:)
+    type(field_type)              :: rhs,     &
+                                     field_n
+    type(field_type), allocatable :: rk_field(:)
+    real(r_def), allocatable      :: rk_weights(:,:)
     type(field_type)              :: flux_step, sum_flux
     integer(i_def)                :: stage, s
     integer(i_def)                :: nstage, substeps
@@ -72,11 +71,14 @@ module mol_conservative_alg_mod
     real(r_def)                   :: inv_num_substeps
     integer(i_def)                :: number_substeps
     real(r_def)                   :: dt_substep
-    real(r_def)                   :: minus_dt, adv_dt
+    real(r_def)                   :: adv_dt
     logical(l_def)                :: enforce_min_value
     real(r_def)                   :: min_value
     type(mesh_type),      pointer :: mesh => null()
-    type(transport_runtime_type), pointer :: transport_runtime => null()
+    type(transport_runtime_type), &
+                          pointer :: transport_runtime => null()
+    type(field_type)              :: rhs_field
+    logical(l_def)                :: use_reversible_scheme
     integer(i_def)                :: monotonicity
 
     if ( subroutine_timers ) call timer('mol_conservative_alg')
@@ -86,34 +88,32 @@ module mol_conservative_alg_mod
     transport_runtime => get_transport_runtime(mesh)
 
     ! Get all the stuff needed by the transport algorithm
-    mesh_id = field%get_mesh_id()
-    number_substeps = transport_runtime%get_number_substeps(mesh_id,direction,transport_metadata%get_splitting())
-    dt_substep = transport_runtime%get_dt_substep(mesh_id,direction,transport_metadata%get_splitting())
-    logspace = transport_metadata%get_log_space()
-    monotonicity = transport_metadata%get_monotone()
-    enforce_min_value = transport_metadata%get_enforce_min_value()
+    mesh_id                       = field%get_mesh_id()
+    number_substeps               = transport_runtime%get_number_substeps(mesh_id,direction,transport_metadata%get_splitting())
+    dt_substep                    = transport_runtime%get_dt_substep(mesh_id,direction,transport_metadata%get_splitting())
+    logspace                      = transport_metadata%get_log_space()
+    monotonicity                  = transport_metadata%get_monotone()
+    enforce_min_value             = transport_metadata%get_enforce_min_value()
     include_div_term_with_density = transport_metadata%get_divergence_factor()
-    advecting_wind => transport_runtime%get_advecting_wind(mesh_id)
-    minus_dt = - dt_substep
+    advecting_wind                => transport_runtime%get_advecting_wind(mesh_id)
+    inv_num_substeps              = 1.0_r_def/real(number_substeps, r_def)
 
-    call get_rk_transport_weights(nstage, ak_adv, runge_kutta_method)
-    allocate( rk_rhs(nstage) )
+    call get_rk_transport_weights(nstage, rk_weights, runge_kutta_method)
 
+    allocate( rk_field(nstage) )
     do stage = 1,nstage
-      call rk_rhs(stage)%initialise(field%get_function_space())
+      call rk_field(stage)%initialise(field%get_function_space())
     end do
+    call rhs_field%initialise( field%get_function_space() )
 
 
-    call flux_temp%initialise(advecting_wind%get_function_space())
     call flux_step%initialise(advecting_wind%get_function_space())
     call rhs%initialise(field%get_function_space())
-    call field_inc%initialise(field%get_function_space())
     call field_n%initialise(field%get_function_space())
     call sum_flux%initialise(advecting_wind%get_function_space())
 
     call invoke( setval_c(sum_flux, 0.0_r_def) )
     call field%copy_field(field_np1)
-    call field%copy_field(field_n  )
 
     ! Perform the number of rk-stages and substeps required
     div => get_im3_div(mesh_id)
@@ -125,34 +125,41 @@ module mol_conservative_alg_mod
       divergence_factor => transport_runtime%get_div_factor(mesh_id)
     end if
 
-    do substeps = 1, number_substeps
-      call invoke( setval_c(flux_step, 0.0_r_def) )
+    substep_loop: do substeps = 1, number_substeps
+
+      ! Reset field_n ready for the this substep
+      call field_np1%copy_field(field_n)
+
       ! Include the div-term if required (this needs to be done at every sub-step)
       if ( include_div_term_with_density ) then
         call invoke( inc_X_times_Y(field_np1, divergence_factor) )
       end if
 
-      do stage = 1,nstage
-        ! Build rhs depending upon type of field being advected
+      use_reversible_scheme = .false.
+
+      stage_loop: do stage = 1,nstage
+
+        if ( stage == nstage .and. transport_metadata%get_reversible() ) &
+            use_reversible_scheme= .true.
+
+        ! Compute the field for this stage:
+        ! rhs_field = sum(s=1,stage): a(stage,s)*field^(s)
+        call invoke( setval_X( rk_field(stage), field_np1 ), &
+                     setval_c( rhs_field, 0.0_r_def ) )
+        do s = 1, stage
+          call invoke( inc_X_plus_bY( rhs_field, rk_weights(stage,s), rk_field(s) ) )
+        end do
 
         ! Compute the flux using desired spatial reconstruction
-        call invoke( setval_c( flux_temp, 0.0_r_def ) )
-        call flux_alg( flux_temp,field_np1, advecting_wind,       &
-                       direction, monotonicity, logspace=logspace )
-        ! Compute: div(F)
-        call invoke( dg_matrix_vector_kernel_type(rk_rhs(stage), flux_temp, div), &
-                     inc_X_plus_bY(flux_step, ak_adv(nstage, stage), flux_temp) )
+        call invoke( setval_c( flux_step, 0.0_r_def ) )
+        call flux_alg(flux_step, rhs_field, advecting_wind,           &
+                      direction, use_reversible_scheme, monotonicity, &
+                      logspace=logspace)
+        ! Compute: rhs = div(F) and update field: f = f^n - dt_substep*rhs
+        call invoke( dg_matrix_vector_kernel_type(rhs, flux_step, div), &
+                     X_minus_bY(field_np1, field_n, dt_substep, rhs) )
 
-        ! Build rhs of Runge-Kutta scheme
-        call invoke( setval_c(rhs, 0.0_r_def) )
-        do s = 1, stage
-          call invoke( inc_X_minus_bY(rhs, ak_adv(stage,s), rk_rhs(s)) )
-        end do
-        ! Update field: f = f^n - sum_k a_k * dt * rhs_k
-        !                 = f^n + dt * rhs
-        call invoke( aX_plus_Y(field_np1, dt_substep, rhs, field_n) )
-
-        if ( limited_area .and. topology==topology_non_periodic ) then
+        if ( limited_area .and. topology == topology_non_periodic ) then
           ! This code is required while LAMs loop over cells right up to
           ! the edge of a limited area domain.  It can be removed if
           ! we only loop over columns in the interior domain.
@@ -163,16 +170,12 @@ module mol_conservative_alg_mod
           call overwrite_blending_zone(field_np1, field_n, depth=1)
         end if
 
-      end do
+      end do stage_loop
 
-      ! Compute the state at the start of the next sub-step
-      ! and the sum of the fluxes of all the sub-steps
-      ! field_np1 = field_n - dt*div(flux)
-      call invoke( dg_matrix_vector_kernel_type(field_inc, flux_step, div), &
-                   aX_plus_Y(field_np1, minus_dt, field_inc, field_n),      &
-                   inc_X_plus_Y(sum_flux, flux_step) )
+      ! Increment the total flux by the substep flux
+      call invoke( inc_X_plus_bY(sum_flux, inv_num_substeps, flux_step) )
 
-      if ( limited_area .and. topology==topology_non_periodic ) then
+      if ( limited_area .and. topology == topology_non_periodic ) then
         ! This code is required while LAMs loop over cells right up to
         ! the edge of a limited area domain.  It can be removed if
         ! we only loop over columns in the interior domain.
@@ -183,15 +186,7 @@ module mol_conservative_alg_mod
         ! Ticket #3112 will investigate further options.
         call overwrite_blending_zone(field_np1, field_n, depth=transport_boundary_depth)
       end if
-
-      call field_np1%copy_field(field_n)
-
-    end do
-
-    ! Compute the average flux for the whole big steps so we can write the
-    ! final answer as: field^{n+1}= field^{n} + dt_model*div(flux_av)
-    inv_num_substeps = 1.0_r_def/real(number_substeps, r_def)
-    call invoke( inc_a_times_X(inv_num_substeps, sum_flux) )
+    end do substep_loop
 
     ! Enforce a minimum value if required while still conservative;
     ! by modyfing the fluxes, then recompute the field^{n+1}
@@ -200,15 +195,12 @@ module mol_conservative_alg_mod
 
       min_value = transport_metadata%get_min_value()
       adv_dt = dt_substep*real(number_substeps, r_def)
-      minus_dt = - adv_dt
 
-      call invoke_impose_min_flux_kernel_type(field, sum_flux,      &
+      call invoke_impose_min_flux_kernel_type(field, sum_flux, &
                                               div, min_value, adv_dt)
-      call invoke( name = "Recompute field_np1 after modifying fluxes",    &
-                   setval_c(field_inc, 0.0_r_def),                         &
-                   setval_c(field_np1, 0.0_r_def),                         &
-                   dg_matrix_vector_kernel_type(field_inc, sum_flux, div), &
-                   aX_plus_Y(field_np1, minus_dt, field_inc, field)        )
+      call invoke( name = "Recompute field_np1 after modifying fluxes", &
+                   dg_matrix_vector_kernel_type(rhs, sum_flux, div),    &
+                   X_minus_bY(field_np1, field, adv_dt, rhs) )
     end if
 
     ! Store field in transport_runtime for conservative transport
@@ -217,12 +209,10 @@ module mol_conservative_alg_mod
       call transport_runtime%set_dry_fields(field, field_np1, sum_flux)
     end if
 
-    if ( allocated(rk_rhs) ) deallocate(rk_rhs)
-    if ( allocated(ak_adv) ) deallocate(ak_adv)
-    nullify( div, advecting_wind, mesh, transport_runtime )
-    if ( include_div_term_with_density ) then
-      nullify( divergence_factor )
-    end if
+    if ( allocated(rk_field) ) deallocate(rk_field)
+    if ( allocated(rk_weights) ) deallocate(rk_weights)
+
+    nullify( div, advecting_wind, mesh, transport_runtime, divergence_factor )
 
     if ( subroutine_timers ) call timer('mol_conservative_alg')
 

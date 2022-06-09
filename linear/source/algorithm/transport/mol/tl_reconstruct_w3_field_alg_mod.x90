@@ -16,11 +16,6 @@
 !!                      PSyclone currently only passes in the local size and so
 !!                      until this is resolved we also pass in the global maximum
 !!                      size as an integer argument.
-!!       3. Issue #1248 There is no PSyclone support for passing logical types
-!!                      to kernels and so as an intermediate solution we create
-!!                      an integer argument that = 1 (.true.) or = 0 (.false.).
-!!                      TODO #3010: the use of logical types is now supported
-!!                      so this ticket should remove these integers
 module tl_reconstruct_w3_field_alg_mod
 
   use constants_mod,                  only: r_def, i_def, l_def
@@ -33,7 +28,8 @@ module tl_reconstruct_w3_field_alg_mod
   use poly2d_w3_reconstruction_kernel_mod, &
                                       only: poly2d_w3_reconstruction_kernel_type
   use transport_config_mod,           only: operators,            &
-                                            fv_flux_order,        &
+                                            fv_horizontal_order,  &
+                                            fv_vertical_order,    &
                                             operators_fv,         &
                                             operators_fem,        &
                                             oned_reconstruction
@@ -42,12 +38,14 @@ module tl_reconstruct_w3_field_alg_mod
   use transport_enumerated_types_mod, only: direction_v,    &
                                             direction_h,    &
                                             direction_3d
-  use reconstruct_w3_field_alg_mod,   only: get_flux_stencil_extent,  &
-                                            get_flux_2d_stencil_size, &
-                                            get_flux_ndata_h,         &
-                                            get_flux_ndata_v,         &
-                                            get_flux_coeffs,          &
-                                            get_vert_flux_coeffs
+  use reconstruct_w3_field_alg_mod,   only: get_flux_stencil_extent,     &
+                                            get_flux_2d_stencil_size,    &
+                                            get_flux_ndata_h,            &
+                                            get_flux_ndata_v,            &
+                                            get_reversible_flux_ndata_v, &
+                                            get_flux_coeffs,             &
+                                            get_vert_flux_coeffs,        &
+                                            get_reversible_vert_flux_coeffs
 
   implicit none
 
@@ -69,9 +67,10 @@ contains
   !> @param[in]     ls_wind      PASSIVE Advecting wind to determine upwind direction
   !> @param[in]     direction    Splitting direction (h, v, or 3d) to compute
   !!                             reconstruction
+  !> @param[in]     reversible   Use the reversible reconstruction
   !> @param[in]     logspace     Carry out interpolation in log space
   subroutine tl_reconstruct_w3_field_alg(field_new, field_old, ls_field_old, &
-                                         ls_wind, direction, logspace)
+                                         ls_wind, direction, reversible, logspace)
 
     implicit none
 
@@ -80,10 +79,11 @@ contains
     type(field_type),              intent(in)    :: ls_wind
     type(field_type),              intent(inout) :: field_new
     integer(kind=i_def),           intent(in)    :: direction
+    logical(kind=l_def),           intent(in)    :: reversible
     logical(kind=l_def), optional, intent(in)    :: logspace
 
     integer(kind=i_def) :: mesh_id
-    integer(kind=i_def) :: logspace_loc
+    logical(kind=l_def) :: logspace_loc
     integer(kind=i_def) :: stencil_extent
 
     integer(kind=i_def), pointer :: flux_stencil_extent => null()
@@ -92,12 +92,11 @@ contains
     integer(kind=i_def), pointer :: ndata_v => null()
     type(field_type),    pointer :: flux_coeffs => null()
     type(field_type),    pointer :: vert_flux_coeffs => null()
+    integer(kind=i_def)          :: vertical_order
 
-    ! Psyclone doesn't support the passing of logicals to kernels
-    ! so we have to set up an integer instead
-    logspace_loc = 0_i_def
+    logspace_loc = .false.
     if ( present(logspace) ) then
-      if ( logspace ) logspace_loc = 1_i_def
+      logspace_loc = logspace
     end if
 
     mesh_id = field_new%get_mesh_id()
@@ -109,18 +108,15 @@ contains
 
       case(operators_fv)
 
-        ! Get extents and data sizes for this mesh
-        flux_stencil_extent => get_flux_stencil_extent(mesh_id)
-        flux_2d_stencil_size => get_flux_2d_stencil_size(mesh_id)
-        ndata_h => get_flux_ndata_h(mesh_id)
-        ndata_v => get_flux_ndata_v(mesh_id)
-        flux_coeffs => get_flux_coeffs(mesh_id)
-        vert_flux_coeffs => get_vert_flux_coeffs(mesh_id)
-
         ! Set default value to be 0 and then update the mass flux
         ! in cases where the wind is nonzero using an upwind reconstruction
         call invoke( setval_c( field_new, 0.0_r_def) )
         if ( direction==direction_h .or. direction==direction_3d ) then
+          ! Get extents and data sizes for this mesh
+          flux_stencil_extent => get_flux_stencil_extent(mesh_id)
+          flux_2d_stencil_size => get_flux_2d_stencil_size(mesh_id)
+          ndata_h => get_flux_ndata_h(mesh_id)
+          flux_coeffs => get_flux_coeffs(mesh_id)
           if ( oned_reconstruction ) then
             ! Use 1d flux reconstruction
             call invoke( name="W3_1dh_reconstruction", &
@@ -129,11 +125,11 @@ contains
                                                     field_old,           &
                                                     flux_stencil_extent, &
                                                     flux_coeffs,         &
-                                                    fv_flux_order,       &
+                                                    fv_horizontal_order, &
                                                     ndata_h ) )
           else
             ! Use 2d flux reconstruction
-            stencil_extent = fv_flux_order / 2_i_def
+            stencil_extent = fv_horizontal_order / 2_i_def
             call invoke( name="W3_2dh_reconstruction",              &
               poly2d_w3_reconstruction_kernel_type( field_new,      &
                                                     ls_wind,        &
@@ -145,8 +141,17 @@ contains
          end if
        end if
        if ( direction==direction_v .or. direction==direction_3d ) then
-       ! Compute vertical components of mass flux
-       ! The logspace interpolation makes this different to non-linear kernel
+          ! Compute vertical components of mass flux
+          if ( reversible ) then
+            ndata_v => get_reversible_flux_ndata_v(mesh_id)
+            vert_flux_coeffs => get_reversible_vert_flux_coeffs(mesh_id)
+            vertical_order = fv_vertical_order - 1_i_def
+          else
+            ndata_v => get_flux_ndata_v(mesh_id)
+            vert_flux_coeffs => get_vert_flux_coeffs(mesh_id)
+            vertical_order = fv_vertical_order
+          end if
+          ! The logspace interpolation makes this different to non-linear kernel
           call invoke( name="W3_1dv_reconstruction",                        &
             tl_poly1d_vert_w3_reconstruction_kernel_type( field_new,        &
                                                           field_old,        &
@@ -154,7 +159,7 @@ contains
                                                           ls_field_old,     &
                                                           vert_flux_coeffs, &
                                                           ndata_v,          &
-                                                          fv_flux_order,    &
+                                                          vertical_order,   &
                                                           logspace_loc) )
         end if
       case(operators_fem)

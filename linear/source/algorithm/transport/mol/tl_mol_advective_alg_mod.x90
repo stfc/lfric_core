@@ -57,17 +57,18 @@ contains
     type(field_type), pointer     :: ls_advecting_wind => null()
     type(field_type)              :: ls_field_np1, ls_field_n
     type(field_type), allocatable :: stored_ls_field(:,:)
-    type(field_type), allocatable :: rk_rhs(:)
+    type(field_type), allocatable :: rk_field(:)
     integer(i_def)                :: stage, s
     integer(i_def)                :: nstage, substep
-    real(r_def),      allocatable :: ak_adv(:,:)
-    type(field_type)              :: advection_inc
+    real(r_def),      allocatable :: rk_weights(:,:)
     type(mesh_type),  pointer     :: mesh => null()
     type(transport_runtime_type), pointer :: transport_runtime => null()
+    type(field_type)              :: rhs_field
 
     integer(i_def) :: number_substeps
     real(r_def)    :: dt_substep
     logical(l_def) :: enforce_min_value
+    logical(l_def) :: use_reversible_scheme
 
     ! Get transport_runtime
     mesh => field%get_mesh()
@@ -88,23 +89,21 @@ contains
 
     call rhs%initialise(field%get_function_space())
     call field_n%initialise(field%get_function_space())
-    call advection_inc%initialise(field%get_function_space())
 
-    call get_rk_transport_weights(nstage, ak_adv, runge_kutta_method)
-    allocate( rk_rhs(nstage) )
+    call get_rk_transport_weights(nstage, rk_weights, runge_kutta_method)
+    allocate( rk_field(nstage) )
     allocate( stored_ls_field(number_substeps, nstage) )
 
     do stage = 1, nstage
-      call rk_rhs(stage)%initialise(field%get_function_space())
+      call rk_field(stage)%initialise(field%get_function_space())
       do substep = 1, number_substeps
         call stored_ls_field(substep, stage)%initialise(field%get_function_space())
       end do
     end do
+    call rhs_field%initialise( field%get_function_space() )
 
     call field%copy_field(field_np1)
-    call field%copy_field(field_n)
     call ls_field%copy_field(ls_field_np1)
-    call ls_field%copy_field(ls_field_n)
 
     !--------------------------------------------------------------------------!
     !                    Linearisation state
@@ -116,35 +115,37 @@ contains
     ! Perform the number of rk-stages and substeps required
     do substep = 1, number_substeps
 
-      call invoke( setval_c(advection_inc, 0.0_r_def) )
+      ! Reset field_n ready for the this substep
+      call ls_field_np1%copy_field(ls_field_n)
+
+      use_reversible_scheme = .false.
 
       do stage = 1, nstage
         ! Store values for use in the perturbation code. This is done before
         ! advecting so as to pick up the correct linearisation state
         call invoke( setval_X(stored_ls_field(substep, stage), ls_field_np1) )
-        ! Build rhs depending upon type of field being advected
-        ! Compute: - u.grad(f)
-        call advective_increment_alg(rk_rhs(stage), ls_field_np1,      &
-                                     ls_advecting_wind, dt_substep,    &
-                                     direction, logspace=logspace,     &
-                                     monotonicity=monotonicity)
 
-        call invoke( setval_c(rhs, 0.0_r_def) )
+        if ( stage == nstage .and. transport_metadata%get_reversible() ) &
+            use_reversible_scheme= .true.
+
+        ! Compute the field for this stage:
+        ! rhs_field = sum(s=1,stage): a(stage,s)*field^(s)
+        call invoke( setval_X( rk_field(stage), ls_field_np1 ), &
+                     setval_c( rhs_field, 0.0_r_def ) )
         do s = 1, stage
-          call invoke( inc_X_minus_bY(rhs, ak_adv(stage,s), rk_rhs(s)) )
+          call invoke( inc_X_plus_bY( rhs_field, rk_weights(stage,s), rk_field(s) ) )
         end do
-        ! Update field: f = f^n - sum_k a_k * dt * rhs_k
-        !               f = f^n + dt_substep*rhs
-        call invoke( aX_plus_Y(ls_field_np1, dt_substep, rhs, ls_field_n),  &
-        ! Add increment from this stage to the advection increment
-                     inc_X_minus_bY(advection_inc,                          &
-                                    ak_adv(nstage, stage), rk_rhs(stage)) )
 
+        ! Compute update: rhs = u.grad(rhs_field)
+        call advective_increment_alg(rhs, rhs_field,                   &
+                                     ls_advecting_wind, dt_substep,       &
+                                     direction, use_reversible_scheme, &
+                                     logspace=logspace,                &
+                                     monotonicity=monotonicity )
+
+        ! Update field: f = f^n - dt_substep*rhs
+        call invoke( X_minus_bY(ls_field_np1, ls_field_n, dt_substep, rhs) )
       end do  ! end rk-stages
-
-      ! Compute the initial state (field_np1) for the next substep
-      call invoke( aX_plus_Y(ls_field_np1, dt_substep, advection_inc, ls_field_n) )
-      call ls_field_np1%copy_field(ls_field_n)
 
     end do
 
@@ -162,41 +163,38 @@ contains
     !   linearisation stage stage
     !---------------------------------------------------------------------------
 
-    do s = 1, nstage
-      call invoke( setval_c(rk_rhs(s), 0.0_r_def) )
-    end do
-
     ! Perform the number of rk-stages and substeps required
     do substep = 1, number_substeps
 
-      call invoke( setval_c(advection_inc, 0.0_r_def) )
+      ! Reset field_n ready for the this substep
+      call field_np1%copy_field(field_n)
+
+      use_reversible_scheme = .false.
 
       do stage = 1, nstage
-        ! Build rhs depending upon type of field being advected
-        ! Compute: - ls_u.grad(f) - u.grad(ls_f)
-        call tl_advective_increment_alg(rk_rhs(stage), field_np1,        &
-                                        advecting_wind,                  &
-                                        stored_ls_field(substep, stage), &
-                                        ls_advecting_wind, dt_substep,   &
-                                        direction, logspace=logspace,    &
-                                        monotonicity=monotonicity)
 
-        call invoke( setval_c(rhs, 0.0_r_def) )
+        if ( stage == nstage .and. transport_metadata%get_reversible() ) &
+          use_reversible_scheme= .true.
+
+        ! Compute the field for this stage:
+        ! rhs_field = sum(s=1,stage): a(stage,s)*field^(s)
+        call invoke( setval_X( rk_field(stage), field_np1 ), &
+                     setval_c( rhs_field, 0.0_r_def ) )
         do s = 1, stage
-          call invoke( inc_X_minus_bY(rhs, ak_adv(stage,s), rk_rhs(s)) )
+          call invoke( inc_X_plus_bY( rhs_field, rk_weights(stage,s), rk_field(s) ) )
         end do
-        ! Update field: f = f^n - sum_k a_k * dt * rhs_k
-        !               f = f^n + dt_substep*rhs
-        call invoke( aX_plus_Y(field_np1, dt_substep, rhs, field_n), &
-        ! Add increment from this stage to the advection increment
-                     inc_X_minus_bY(advection_inc,                   &
-                                    ak_adv(nstage, stage), rk_rhs(stage)) )
 
+        ! Compute update: rhs = u.grad(rhs_field)
+        call tl_advective_increment_alg(rhs, rhs_field, advecting_wind,   &
+                                        stored_ls_field(substep, stage),  &
+                                        ls_advecting_wind, dt_substep,    &
+                                        direction, use_reversible_scheme, &
+                                        logspace=logspace,                &
+                                        monotonicity=monotonicity )
+
+        ! Update field: f = f^n - dt_substep*rhs
+        call invoke( X_minus_bY(field_np1, field_n, dt_substep, rhs) )
       end do  ! end rk-stages
-
-      ! Compute the initial state (field_np1) for the next substep
-      call invoke( aX_plus_Y(field_np1, dt_substep, advection_inc, field_n) )
-      call field_np1%copy_field(field_n)
 
     end do
 
@@ -206,8 +204,8 @@ contains
                      'yet implemented', LOG_LEVEL_ERROR)
     end if
 
-    if ( allocated(rk_rhs) ) deallocate(rk_rhs)
-    if ( allocated(ak_adv) ) deallocate(ak_adv)
+    if ( allocated(rk_field) ) deallocate(rk_field)
+    if ( allocated(rk_weights) ) deallocate(rk_weights)
     if ( allocated(stored_ls_field) ) deallocate(stored_ls_field)
 
   end subroutine tl_mol_advective_alg

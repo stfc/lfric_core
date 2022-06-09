@@ -7,7 +7,7 @@
 !> Test the vertical edge_values computed for a w3-field using the Koren scheme
 module polyv_w3_koren_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def
+  use constants_mod, only : i_def, r_def, l_def
   use pFUnit_Mod
 
   implicit none
@@ -62,7 +62,7 @@ contains
     real(r_def), dimension(3) :: kw=(/-1.0_r_def,5.0_r_def,2.0_r_def/)/6.0_r_def
 
     integer(i_def) :: df, k, p1, p2, p3
-    integer(i_def) :: logspace
+    logical(l_def) :: logspace
     real(r_def)    :: constant, r, answerh, answerk
 
     map_w3(1) = 1
@@ -108,9 +108,9 @@ contains
        edge_values_answer(map_w2(5) + k ) = edge_density(k+1)
     end do
 
-    ! Test subroutine with logspace = 0
+    ! Test subroutine with logspace = .false.
 
-    logspace = 0_i_def
+    logspace = .false.
     edge_values(:) = 0.0_r_def
     call polyv_w3_koren_code( nlayers,            &
                               edge_values,        &
@@ -138,9 +138,9 @@ contains
       @assertEqual(answerh, answerk, use_tol )
     end do
 
-    ! Test subroutine with logspace = 1
+    ! Test subroutine with logspace = .true.
 
-    logspace = 1_i_def
+    logspace = .true.
     density(:) = exp(density(:))
     edge_density(:)=exp(edge_density(:))
     edge_values_answer(:) =  0.0_r_def

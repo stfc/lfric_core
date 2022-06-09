@@ -19,9 +19,10 @@
 /
 
 &extrusion
-  method           = 'dcmip'
-  domain_top       = 30000.0
-  number_of_layers = 30
+domain_top=30000.0,
+method='dcmip',
+number_of_layers=30,
+stretching_method='linear',
 /
 
 &finite_element
@@ -218,7 +219,7 @@
   horizontal_method = 1, 1, 1
   vertical_method = 1, 1, 1
   monotone = 1,2,1
-  log_space = .true., .false., .false.
+  log_space = .false., .false., .false.
   enforce_min_value=.false.,.false.,.false.
   min_value=0.0,0.0,-99999999.0,0.0
   cfl_mol_1d_stab = 2.0
@@ -226,12 +227,13 @@
   cfl_mol_3d_stab = 2.0
   dry_field_name = 'density'
   consistent_metric  = .false.
-  fv_flux_order = 2
-  fv_advective_order = 2
+  fv_horizontal_order = 2
+  fv_vertical_order = 2
   oned_reconstruction = .false.
   operators = 'fv'
   vertical_sl_order='cubic'
   slice_order='cubic'
+  reversible = .true., .true., .false.
   runge_kutta_method = 'ssp5'
   ffsl_advective_splitting='full'
   ffsl_flux_splitting='full'
