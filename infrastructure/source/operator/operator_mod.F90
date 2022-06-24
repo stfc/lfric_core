@@ -31,7 +31,10 @@ module operator_mod
 #endif
 
   implicit none
-  private
+! Removing the following "private" statement is a workaround for a bug that
+! appeared in Intel v19. Every item in the module has an explicit access set,
+! so not setting the default has no effect. See ticket #3326 for details
+!  private
   public :: operator_type, operator_proxy_type
   public :: r_solver_operator_type, r_solver_operator_proxy_type
 

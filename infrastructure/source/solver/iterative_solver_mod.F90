@@ -25,7 +25,10 @@ module iterative_solver_mod
   use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
 
   implicit none
-  private
+! Removing the following "private" statement is a workaround for a bug that
+! appeared in Intel v19. Every item in the module has an explicit access set,
+! so not setting the default has no effect. See ticket #3326 for details
+!  private
 
   !> @brief abstract solver type for the solver API
   type, public, abstract :: abstract_iterative_solver_type
