@@ -20,7 +20,6 @@ module compute_mass_matrix_kernel_w2b_mod_test
                                                   get_gaussian_q3x3x3_quadrature_weights_z
   use get_unit_test_3x3x3_chi_mod,         only : get_w0_3x3x3_field
   use pFUnit_Mod
-  use mpi_mod,                             only : store_comm, clear_comm
 
   implicit none
 
@@ -28,7 +27,7 @@ module compute_mass_matrix_kernel_w2b_mod_test
   public :: test_all
 
   @TestCase
-  type, extends(MPITestCase), public :: compute_mass_matrix_w2b_test_type
+  type, extends(TestCase), public :: compute_mass_matrix_w2b_test_type
     private
   contains
     procedure setUp
@@ -48,9 +47,6 @@ contains
     implicit none
 
     class(compute_mass_matrix_w2b_test_type), intent(inout) :: this
-
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
     call feign_finite_element_config(           &
              cellshape=cellshape_quadrilateral, &
@@ -73,14 +69,11 @@ contains
 
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use compute_mass_matrix_kernel_w2_mod, only : compute_mass_matrix_w2_code

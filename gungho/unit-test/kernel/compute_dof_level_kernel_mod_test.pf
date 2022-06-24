@@ -13,7 +13,6 @@ module compute_dof_level_kernel_mod_test
     only : get_w2_m3x3_q3x3x3_size
   use get_unit_test_nodal_coords_mod, &
     only : get_w2_nodal_coords
-  use mpi_mod,       only : store_comm, clear_comm
   use pFUnit_Mod
 
   implicit none
@@ -22,7 +21,7 @@ module compute_dof_level_kernel_mod_test
   public :: test_all
 
   @TestCase
-  type, extends(MPITestCase), public :: compute_dof_level_test_type
+  type, extends(TestCase), public :: compute_dof_level_test_type
     private
   contains
     procedure setUp
@@ -41,9 +40,6 @@ contains
 
     class(compute_dof_level_test_type), intent(inout) :: this
 
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
   end subroutine setUp
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -53,13 +49,10 @@ contains
 
     class(compute_dof_level_test_type), intent(inout) :: this
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use compute_dof_level_kernel_mod, only: compute_dof_level_code

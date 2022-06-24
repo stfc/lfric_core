@@ -9,7 +9,6 @@ module scale_by_detj_kernel_mod_test
 
   use constants_mod, only : i_def, r_def
   use pFUnit_Mod
-  use mpi_mod,                             only : store_comm, clear_comm
   use get_unit_test_wthetanodal_basis_mod, only : get_w0_wthetanodal_basis, &
                                                   get_w0_wthetanodal_diff_basis
 
@@ -20,7 +19,7 @@ module scale_by_detj_kernel_mod_test
   public :: test_all
 
   @TestCase
-  type, extends(MPITestCase), public :: scale_by_detj_test_type
+  type, extends(TestCase), public :: scale_by_detj_test_type
     private
   contains
     procedure setUp
@@ -40,9 +39,6 @@ contains
     implicit none
 
     class(scale_by_detj_test_type), intent(inout) :: this
-
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
     call feign_finite_element_config(           &
              cellshape=cellshape_quadrilateral, &
@@ -65,14 +61,11 @@ contains
 
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use scale_by_detj_kernel_mod, only : scale_by_detj_code

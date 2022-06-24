@@ -10,7 +10,6 @@ module propagate_onion_layers_kernel_mod_test
 
   use constants_mod, only : i_def, r_def
   use pFUnit_Mod
-  use mpi_mod,       only : store_comm, clear_comm
 
   implicit none
 
@@ -18,7 +17,7 @@ module propagate_onion_layers_kernel_mod_test
   public :: test_propagate_onion_layers_kernel
 
   @TestCase
-  type, extends(MPITestCase), public :: propagate_onion_layers_test_type
+  type, extends(TestCase), public :: propagate_onion_layers_test_type
     private
     integer(kind=i_def) :: nlayers
     integer(kind=i_def) :: ncells
@@ -55,9 +54,6 @@ module propagate_onion_layers_kernel_mod_test
     ! Dimensions (not used)
     integer(kind=i_def) :: dim_space, dim_space_diff
 
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
     ! Mesh
     this%nlayers = 1
 
@@ -89,13 +85,10 @@ module propagate_onion_layers_kernel_mod_test
     deallocate(this%onion_layers)
     deallocate(this%propagated_onion_layers)
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_propagate_onion_layers_kernel( this )
 
     use propagate_onion_layers_kernel_mod, only : propagate_onion_layers_code

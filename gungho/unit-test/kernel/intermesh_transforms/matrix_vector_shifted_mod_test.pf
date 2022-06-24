@@ -9,7 +9,6 @@ module matrix_vector_shifted_mod_test
 
   use constants_mod, only : r_def, i_def
   use pFUnit_Mod
-  use mpi_mod,       only: store_comm, clear_comm
 
   implicit none
 
@@ -18,7 +17,7 @@ module matrix_vector_shifted_mod_test
   public :: matrix_vector_shifted_kernel_test_type, test_all
 
   @TestCase
-  type, extends(MPITestCase) :: matrix_vector_shifted_kernel_test_type
+  type, extends(TestCase) :: matrix_vector_shifted_kernel_test_type
     private
 
   contains
@@ -36,10 +35,6 @@ contains
 
     class(matrix_vector_shifted_kernel_test_type), intent(inout) :: this
 
-
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
   end subroutine setUp
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
@@ -52,15 +47,11 @@ contains
 
     call final_configuration()
 
-
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use matrix_vector_shifted_kernel_mod, only : matrix_vector_shifted_code

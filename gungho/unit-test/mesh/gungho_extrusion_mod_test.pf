@@ -12,7 +12,6 @@ module gungho_extrusion_mod_test
   use feign_config_mod,        only : feign_base_mesh_config, &
                                       feign_extrusion_config, &
                                       feign_planet_config
-  use mpi_mod,                 only : store_comm, clear_comm
   use pFUnit_mod
 
   implicit none
@@ -21,7 +20,7 @@ module gungho_extrusion_mod_test
   public test_planar, test_spherical, test_dcmip, test_shifted_dcmip
 
   @TestCase
-  type, public, extends(MPITestCase) :: gungho_extrusion_test_type
+  type, public, extends(TestCase) :: gungho_extrusion_test_type
     private
   contains
     private
@@ -43,9 +42,6 @@ contains
 
     class(gungho_extrusion_test_type), intent(inout) :: this
 
-    !Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
   end subroutine setUp
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -59,13 +55,10 @@ contains
 
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_planar( this )
 
     use base_mesh_config_mod, only : geometry_planar, &
@@ -112,7 +105,7 @@ contains
   end subroutine test_planar
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_spherical( this )
 
     use base_mesh_config_mod, only : geometry_spherical,      &
@@ -160,7 +153,7 @@ contains
   end subroutine test_spherical
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_dcmip( this )
 
     use gungho_extrusion_mod, only : dcmip_extrusion_type
@@ -187,7 +180,7 @@ contains
   end subroutine test_dcmip
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_shifted_dcmip( this )
 
     use gungho_extrusion_mod, only : dcmip_extrusion_type

@@ -11,7 +11,6 @@ module splice_fields_kernel_mod_test
 
   use constants_mod, only : i_def, r_def
   use pFUnit_Mod
-  use mpi_mod,       only : store_comm, clear_comm
 
   implicit none
 
@@ -19,7 +18,7 @@ module splice_fields_kernel_mod_test
   public :: test_splice_fields_kernel
 
   @TestCase
-  type, extends(MPITestCase), public :: splice_fields_test_type
+  type, extends(TestCase), public :: splice_fields_test_type
     private
     integer(kind=i_def) :: nlayers
     integer(kind=i_def) :: ncells
@@ -52,9 +51,6 @@ module splice_fields_kernel_mod_test
 
     ! Dimensions (not used)
     integer(kind=i_def) :: dim_space, dim_space_diff
-
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
     ! Mesh
     this%nlayers = 1
@@ -90,13 +86,10 @@ module splice_fields_kernel_mod_test
 
     call boundaries_final()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_splice_fields_kernel( this )
 
     use splice_fields_kernel_mod, only : splice_fields_code

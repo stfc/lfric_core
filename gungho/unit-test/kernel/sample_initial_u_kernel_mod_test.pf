@@ -11,8 +11,6 @@ module sample_initial_u_kernel_mod_test
   use constants_mod,                 only : i_def, r_def
   use pFUnit_Mod
 
-  use mpi_mod,                       only : store_comm, clear_comm
-
   implicit none
 
 
@@ -20,7 +18,7 @@ module sample_initial_u_kernel_mod_test
   public :: sample_initial_u_test_type, test_all
 
   @TestCase
-  type, extends(MPITestCase) :: sample_initial_u_test_type
+  type, extends(TestCase) :: sample_initial_u_test_type
     private
   contains
     procedure setUp
@@ -51,10 +49,6 @@ contains
 
     class(sample_initial_u_test_type), intent(inout) :: this
 
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
-
   end subroutine setUp
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -68,13 +62,10 @@ contains
 
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use sample_initial_u_kernel_mod, only : sample_initial_u_code

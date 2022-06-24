@@ -122,7 +122,7 @@ $(BIN_DIR)/%: %.x | $(BIN_DIR)
 	$(call MESSAGE,Pre-process and compile,$<)
 	$(Q)$(FC) $(FFLAGS) \
 	          $(MODULE_DESTINATION_ARGUMENT) \
-	          $(INCLUDE_ARGS) $(MACRO_ARGS) -DUSE_MPI=YES -c -o $(basename $@).o $<
+	          $(INCLUDE_ARGS) $(MACRO_ARGS) -c -o $(basename $@).o $<
 
 #############################################################################
 # Directories

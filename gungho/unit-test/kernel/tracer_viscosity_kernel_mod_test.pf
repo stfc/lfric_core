@@ -8,7 +8,6 @@ module tracer_viscosity_kernel_mod_test
 
   use constants_mod, only: i_def, r_def
   use pFUnit_Mod
-  use mpi_mod,       only: store_comm, clear_comm
 
   implicit none
 
@@ -16,7 +15,7 @@ module tracer_viscosity_kernel_mod_test
   public :: test_all
 
   @TestCase
-  type, extends(MPITestCase), public :: tracer_viscosity_test_type
+  type, extends(TestCase), public :: tracer_viscosity_test_type
     private
   contains
     procedure setUp
@@ -38,9 +37,6 @@ contains
     implicit none
 
     class(tracer_viscosity_test_type), intent(inout) :: this
-
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
     call feign_finite_element_config(      &
         cellshape=cellshape_quadrilateral, &
@@ -68,13 +64,10 @@ contains
     call final_chi_transforms()
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @test( npes=[1] )
+  @test
   subroutine test_all( this )
 
     use tracer_viscosity_kernel_mod, only: tracer_viscosity_code

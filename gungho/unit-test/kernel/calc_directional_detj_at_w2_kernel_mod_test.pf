@@ -22,15 +22,13 @@ module calc_directional_detj_at_w2_kernel_mod_test
     use get_unit_test_q3x3x3_basis_mod,      only : get_w0_q3x3x3_diff_basis, &
                                                     get_w0_q3x3x3_basis
 
-    use mpi_mod,                       only : store_comm, clear_comm
-
   implicit none
 
   private
   public :: test_all
 
   @TestCase
-  type, extends(MPITestCase), public :: calc_directional_detj_at_w2_test_type
+  type, extends(TestCase), public :: calc_directional_detj_at_w2_test_type
     private
   contains
     procedure setUp
@@ -53,9 +51,6 @@ contains
     implicit none
 
     class(calc_directional_detj_at_w2_test_type), intent(inout) :: this
-
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
     call feign_finite_element_config(           &
              cellshape=cellshape_quadrilateral, &
@@ -90,13 +85,10 @@ contains
 
     class(calc_directional_detj_at_w2_test_type), intent(inout) :: this
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use, intrinsic :: iso_fortran_env, only : real64

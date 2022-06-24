@@ -21,7 +21,6 @@ module compute_mass_matrix_kernel_w3_mod_test
                                                   get_gaussian_q3x3x3_quadrature_weights_z
   use get_unit_test_3x3x3_chi_mod,         only : get_w0_3x3x3_field
   use pFUnit_Mod
-  use mpi_mod,                             only : store_comm, clear_comm
 
   implicit none
 
@@ -29,7 +28,7 @@ module compute_mass_matrix_kernel_w3_mod_test
   public :: test_r_single, test_r_double, test_mixed_precision
 
   @TestCase
-  type, extends(MPITestCase), public :: compute_mass_matrix_w3_test_type
+  type, extends(TestCase), public :: compute_mass_matrix_w3_test_type
     private
   contains
     procedure setUp
@@ -52,9 +51,6 @@ contains
 
     class(compute_mass_matrix_w3_test_type), intent(inout) :: this
 
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
     call feign_finite_element_config( &
              cellshape              = cellshape_quadrilateral,    &
              coord_order            = 0_i_def,                    &
@@ -76,14 +72,11 @@ contains
 
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! TEST R_SINGLE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  @Test( npes=[1] )
+  @Test
   subroutine test_r_single( this )
 
     use compute_mass_matrix_kernel_w3_mod, only : compute_mass_matrix_w3_code
@@ -214,7 +207,7 @@ contains
   end subroutine test_r_single
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! TEST R_DOUBLE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_r_double( this )
 
     use compute_mass_matrix_kernel_w3_mod, only : compute_mass_matrix_w3_code
@@ -346,7 +339,7 @@ contains
 
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!! TEST MIXED PRECISION !!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_mixed_precision( this )
 
     use compute_mass_matrix_kernel_w3_mod, only : compute_mass_matrix_w3_code

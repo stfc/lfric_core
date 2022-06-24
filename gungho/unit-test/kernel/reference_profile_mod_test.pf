@@ -8,7 +8,6 @@
 module reference_profile_mod_test
 
   use constants_mod, only : r_def, i_def
-  use mpi_mod, only : store_comm, clear_comm
   use pFUnit_Mod
 
   implicit none
@@ -17,7 +16,7 @@ module reference_profile_mod_test
   public :: reference_profile_test_type, test_all
 
   @TestCase
-  type, extends(MPITestCase) :: reference_profile_test_type
+  type, extends(TestCase) :: reference_profile_test_type
     private
   contains
     procedure setUp
@@ -74,9 +73,6 @@ contains
 
     class(reference_profile_test_type), intent(inout) :: this
 
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
     call feign_base_mesh_config( filename='foo',                   &
                                  prime_mesh_name='unit_test',      &
                                  geometry=geometry_planar,         &
@@ -121,13 +117,10 @@ contains
 
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use idealised_config_mod,  only : test_gravity_wave

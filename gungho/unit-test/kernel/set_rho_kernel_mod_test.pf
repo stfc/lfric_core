@@ -20,7 +20,6 @@ module set_rho_kernel_mod_test
                                                   get_gaussian_q3x3x3_quadrature_weights_z
   use get_unit_test_3x3x3_chi_mod,         only : get_w0_3x3x3_field
   use pFUnit_Mod
-  use mpi_mod,                             only : store_comm, clear_comm
 
   implicit none
 
@@ -28,7 +27,7 @@ module set_rho_kernel_mod_test
   public :: set_rho_kernel_test_type, test_all
 
   @TestCase
-  type, extends(MPITestCase) :: set_rho_kernel_test_type
+  type, extends(TestCase) :: set_rho_kernel_test_type
     private
   contains
     procedure setUp
@@ -98,9 +97,6 @@ contains
 
     class(set_rho_kernel_test_type), intent(inout) :: this
 
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
     call feign_base_mesh_config( filename='foo',                   &
                                  prime_mesh_name='unit_test',      &
                                  geometry=geometry_planar,         &
@@ -156,13 +152,10 @@ contains
     call final_configuration()
     call final_chi_transforms()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use set_rho_kernel_mod,     only : set_rho_code

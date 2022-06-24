@@ -8,7 +8,6 @@ module departure_point_kernel_mod_test
 
   use pFUnit_Mod
   use constants_mod,      only : i_def, r_def, r_second
-  use mpi_mod, only : store_comm, clear_comm
   use mesh_mod,           only : mesh_type
 
   implicit none
@@ -17,7 +16,7 @@ module departure_point_kernel_mod_test
   public :: developed_departure_point_test_type , test_all
 
   @TestCase
-  type, extends(MPITestCase) :: developed_departure_point_test_type
+  type, extends(TestCase) :: developed_departure_point_test_type
     private
     type(mesh_type)          :: mesh
   contains
@@ -52,9 +51,6 @@ contains
 
     class(developed_departure_point_test_type), intent(inout) :: this
 
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
     call feign_timestepping_config(                                       &
              method=method_semi_implicit,                                 &
              dt=dt,                                                       &
@@ -83,13 +79,10 @@ contains
 
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use calc_departure_point_kernel_mod, only : calc_departure_point_code

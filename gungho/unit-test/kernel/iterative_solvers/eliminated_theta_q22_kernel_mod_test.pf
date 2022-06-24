@@ -10,7 +10,6 @@ module eliminated_theta_q22_kernel_mod_test
   use, intrinsic :: iso_fortran_env, only : real64
   use constants_mod, only : i_def, r_def
   use pFUnit_Mod
-  use mpi_mod,       only : store_comm, clear_comm
 
   implicit none
 
@@ -18,7 +17,7 @@ module eliminated_theta_q22_kernel_mod_test
   public :: test_all
 
   @TestCase
-  type, extends(MPITestCase), public :: eliminated_theta_q22_test_type
+  type, extends(TestCase), public :: eliminated_theta_q22_test_type
     private
   contains
     procedure setUp
@@ -38,9 +37,6 @@ contains
     implicit none
 
     class(eliminated_theta_q22_test_type), intent(inout) :: this
-
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
     call feign_finite_element_config(           &
              cellshape=cellshape_quadrilateral, &
@@ -63,14 +59,11 @@ contains
 
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use eliminated_theta_q22_kernel_mod, only : eliminated_theta_q22_code

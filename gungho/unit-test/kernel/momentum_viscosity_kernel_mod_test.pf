@@ -12,7 +12,6 @@ module momentum_viscosity_kernel_mod_test
   use get_unit_test_m3x3_dofmap_mod,       only : get_w2_m3x3_dofmap,      &
                                                   get_m3x3_stencil_dofmap_cross
   use pFUnit_Mod
-  use mpi_mod,                             only : store_comm, clear_comm
 
   implicit none
 
@@ -20,7 +19,7 @@ module momentum_viscosity_kernel_mod_test
   public :: test_all
 
   @TestCase
-  type, extends(MPITestCase), public :: momentum_viscosity_test_type
+  type, extends(TestCase), public :: momentum_viscosity_test_type
     private
   contains
     procedure setUp
@@ -42,9 +41,6 @@ contains
     implicit none
 
     class(momentum_viscosity_test_type), intent(inout) :: this
-
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
     call feign_finite_element_config(      &
         cellshape=cellshape_quadrilateral, &
@@ -72,13 +68,10 @@ contains
     call final_chi_transforms()
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use momentum_viscosity_kernel_mod, only : momentum_viscosity_code

@@ -12,7 +12,6 @@ module agnesi_orography_spherical_mod_test
                                          str_max_filename
   use global_mesh_mod,            only : global_mesh_type
   use analytic_orography_mod,     only : orography_profile
-  use mpi_mod,                    only : store_comm, clear_comm
   use ugrid_mesh_data_mod,        only : ugrid_mesh_data_type
 
   use pFUnit_Mod
@@ -23,7 +22,7 @@ module agnesi_orography_spherical_mod_test
   public :: setUp, tearDown, test_agnesi_orography_spherical
 
   @testCase
-  type, public, extends(MPITestCase) :: agnesi_orography_spherical_test_type
+  type, public, extends(TestCase) :: agnesi_orography_spherical_test_type
     real(r_def) :: mountain_height
     real(r_def) :: half_width
     real(r_def) :: lambda_centre_dec
@@ -80,9 +79,6 @@ contains
     implicit none
 
     class(agnesi_orography_spherical_test_type), intent(inout) :: this
-
-    !Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
     ! Set mesh configuration
     call feign_base_mesh_config(                                    &
@@ -144,13 +140,10 @@ contains
     deallocate( orography_profile )
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_agnesi_orography_spherical(this)
 
     use local_mesh_mod,       only : local_mesh_type

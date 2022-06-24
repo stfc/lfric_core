@@ -17,7 +17,6 @@ module initial_rho_sample_kernel_mod_test
   use get_unit_test_q3x3x3_basis_mod,      only : get_w0_q3x3x3_basis
 
   use pFUnit_Mod
-  use mpi_mod,                             only : store_comm, clear_comm
 
   implicit none
 
@@ -25,7 +24,7 @@ module initial_rho_sample_kernel_mod_test
   public:: test_all
 
   @TestCase
-  type, extends(MPITestCase), public  :: initial_rho_sample_kernel_test_type
+  type, extends(TestCase), public  :: initial_rho_sample_kernel_test_type
     private
   contains
     procedure setUp
@@ -58,10 +57,6 @@ contains
     class(initial_rho_sample_kernel_test_type), intent(inout) :: this
 
     integer(kind=i_def) :: nlayers
-
-
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
     call feign_base_mesh_config( filename='foo',                   &
                                  prime_mesh_name='unit_test',      &
@@ -100,9 +95,6 @@ contains
 
     class(initial_rho_sample_kernel_test_type), intent(inout) :: this
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
     ! Finalise namelists
     call final_configuration()
     call final_chi_transforms()
@@ -110,7 +102,7 @@ contains
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use initial_rho_sample_kernel_mod, only: initial_rho_sample_kernel_code

@@ -17,7 +17,7 @@ module multi_insert_kernel_mod_test
   public:: test_of_multi_insert
 
   @TestCase
-  type, extends(MPITestCase), public :: multi_insert_test_type
+  type, extends(TestCase), public :: multi_insert_test_type
     private
     real(r_def), allocatable ::               &
       input_field(:), answer_output_field(:), &
@@ -68,7 +68,7 @@ contains
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_of_multi_insert( this )
 
     use multi_insert_kernel_mod, only : multi_insert_code

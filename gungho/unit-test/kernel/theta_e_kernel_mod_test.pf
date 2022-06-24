@@ -11,7 +11,6 @@ module theta_e_kernel_mod_test
   use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_wtheta_m3x3_q3x3x3_size
   use get_unit_test_m3x3_dofmap_mod,       only : get_wtheta_m3x3_dofmap
   use pFUnit_Mod
-  use mpi_mod,                             only : store_comm, clear_comm
 
   implicit none
 
@@ -19,7 +18,7 @@ module theta_e_kernel_mod_test
   public :: theta_e_test_type, test_all
 
   @TestCase
-  type, extends(MPITestCase) :: theta_e_test_type
+  type, extends(TestCase) :: theta_e_test_type
     private
   contains
     procedure setUp
@@ -36,9 +35,6 @@ contains
 
     class(theta_e_test_type), intent(inout) :: this
 
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
   end subroutine setUp
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -48,13 +44,10 @@ contains
 
     class(theta_e_test_type), intent(inout) :: this
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use theta_e_kernel_mod, only : theta_e_code

@@ -7,7 +7,6 @@
 module generate_global_gw_fields_mod_test
 
   use constants_mod, only: r_def, i_def
-  use mpi_mod, only : store_comm, clear_comm
   use pFUnit_Mod
 
   implicit none
@@ -16,7 +15,7 @@ module generate_global_gw_fields_mod_test
   public :: generate_global_gw_fields_test_type, test_all
 
   @TestCase
-  type, extends(MPITestCase) :: generate_global_gw_fields_test_type
+  type, extends(TestCase) :: generate_global_gw_fields_test_type
     private
   contains
     procedure setUp
@@ -73,9 +72,6 @@ contains
 
     class(generate_global_gw_fields_test_type), intent(inout) :: this
 
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
     call feign_initial_temperature_config( bvf_square=bvf_square,                 &
                                            theta_surf=theta_surf,                 &
                                            pert_width_scaling=pert_width_scaling, &
@@ -130,13 +126,10 @@ contains
 
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use generate_global_gw_fields_mod, only: generate_global_gw_fields

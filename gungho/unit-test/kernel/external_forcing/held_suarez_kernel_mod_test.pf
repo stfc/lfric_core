@@ -11,7 +11,6 @@ module held_suarez_kernel_mod_test
   use constants_mod,                 only : i_def, r_def, r_second, PI
   use coord_transform_mod,           only : llr2xyz
   use pFUnit_Mod
-  use mpi_mod,                       only : store_comm, clear_comm
 
   implicit none
 
@@ -19,7 +18,7 @@ module held_suarez_kernel_mod_test
   public :: test_all
 
   @TestCase
-  type, extends(MPITestCase), public :: held_suarez_test_type
+  type, extends(TestCase), public :: held_suarez_test_type
     private
   contains
     procedure setup
@@ -57,9 +56,6 @@ contains
 
     class(held_suarez_test_type), intent(inout) :: this
 
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
     call feign_finite_element_config(      &
         cellshape=cellshape_quadrilateral, &
         coord_order=0_i_def,               &
@@ -94,9 +90,6 @@ contains
 
     class(held_suarez_test_type), intent(inout) :: this
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
     ! Finalise namelists
     call final_configuration()
     call final_chi_transforms()
@@ -104,7 +97,7 @@ contains
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use held_suarez_fv_kernel_mod,       only : held_suarez_fv_code

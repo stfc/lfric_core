@@ -17,7 +17,6 @@ module operator_r32_mod_test
                                             mesh_collection
   use mesh_mod,                      only : mesh_type
 
-  use yaxt,                          only : xt_initialize, xt_finalize
   use mpi_mod,                       only : store_comm, clear_comm
   use pFUnit_Mod
 
@@ -45,8 +44,6 @@ contains
 
     class(operator_r32_test_type), intent(inout) :: this
 
-    ! Initialise YAXT
-    call xt_initialize(this%getMpiCommunicator())
     !Store the MPI communicator for later use
     call store_comm(this%getMpiCommunicator())
 
@@ -67,8 +64,6 @@ contains
     call function_space_collection%clear()
     call mesh_collection%clear()
 
-    ! Finalise YAXT
-    call xt_finalize()
     ! Clear the stored MPI communicator
     call clear_comm()
 

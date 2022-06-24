@@ -10,7 +10,6 @@ module moist_dyn_gas_kernel_mod_test
 
   use constants_mod, only: i_def, r_def
   use pFUnit_Mod
-  use mpi_mod,       only: store_comm, clear_comm
 
   implicit none
 
@@ -18,7 +17,7 @@ module moist_dyn_gas_kernel_mod_test
   public :: moist_dyn_gas_test_type, test_all
 
   @TestCase
-  type, extends(MPITestCase) :: moist_dyn_gas_test_type
+  type, extends(TestCase) :: moist_dyn_gas_test_type
     private
     integer(i_def), allocatable :: map_wtheta(:)
     real(r_def),    allocatable :: mr_v(:)
@@ -53,10 +52,6 @@ contains
 
     class(moist_dyn_gas_test_type), intent(inout) :: this
 
-
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
     allocate(this%map_wtheta(ndf_wtheta))
     allocate(this%mr_v(undf_wtheta))
     allocate(this%moist_dyn_gas(undf_wtheta))
@@ -78,14 +73,10 @@ contains
     deallocate(this%mr_v)
     deallocate(this%moist_dyn_gas)
 
-
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use, intrinsic :: iso_fortran_env, only : real64

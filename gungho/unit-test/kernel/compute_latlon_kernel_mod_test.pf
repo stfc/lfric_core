@@ -15,7 +15,6 @@ module compute_latlon_kernel_mod_test
     only : get_wchi_q3x3x3_basis
 
   use pFUnit_Mod
-  use mpi_mod,    only : store_comm, clear_comm
 
   implicit none
 
@@ -23,7 +22,7 @@ module compute_latlon_kernel_mod_test
   public test_all
 
   @TestCase
-  type, extends(MPITestCase), public  :: compute_latlon_kernel_test_type
+  type, extends(TestCase), public  :: compute_latlon_kernel_test_type
     private
   contains
     procedure setUp
@@ -50,10 +49,6 @@ contains
 
     integer(kind=i_def) :: nlayers
 
-
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
     call feign_finite_element_config(      &
         cellshape=cellshape_quadrilateral, &
         coord_order=0_i_def,               &
@@ -76,9 +71,6 @@ contains
 
     class(compute_latlon_kernel_test_type), intent(inout) :: this
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
     ! Finalise namelists
     call final_configuration()
     call final_chi_transforms()
@@ -86,7 +78,7 @@ contains
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use compute_latlon_kernel_mod, only: compute_latlon_code

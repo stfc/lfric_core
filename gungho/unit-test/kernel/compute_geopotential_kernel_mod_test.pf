@@ -8,7 +8,6 @@
 module compute_geopotential_kernel_mod_test
 
   use constants_mod, only : i_def, r_def
-  use mpi_mod, only : store_comm, clear_comm
   use pFUnit_Mod
 
   implicit none
@@ -17,7 +16,7 @@ module compute_geopotential_kernel_mod_test
   public :: compute_geopotential_kernel_test_type, test_all
 
   @TestCase
-  type, extends(MPITestCase) :: compute_geopotential_kernel_test_type
+  type, extends(TestCase) :: compute_geopotential_kernel_test_type
     private
     integer(i_def), allocatable :: map(:)
     real(r_def),    allocatable :: x(:), y(:), z(:), phi(:), basis(:,:,:)
@@ -59,9 +58,6 @@ contains
     implicit none
 
     class(compute_geopotential_kernel_test_type), intent(inout) :: this
-
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
     ! Base mesh config is needed to ensure spherical geometry is used
     call feign_base_mesh_config( filename='foo',                   &
@@ -115,13 +111,10 @@ contains
     deallocate( this%map, this%x, this%y, this%z, this%phi, this%basis )
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use compute_geopotential_kernel_mod, only : compute_geopotential_code

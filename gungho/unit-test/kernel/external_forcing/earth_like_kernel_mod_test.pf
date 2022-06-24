@@ -11,7 +11,6 @@ module earth_like_kernel_mod_test
   use constants_mod,       only : i_def, r_def, r_second, PI
   use coord_transform_mod, only : llr2xyz
   use pFUnit_Mod
-  use mpi_mod,             only : store_comm, clear_comm
 
   implicit none
 
@@ -19,7 +18,7 @@ module earth_like_kernel_mod_test
   public :: test_all
 
   @TestCase
-  type, extends(MPITestCase), public :: earth_like_test_type
+  type, extends(TestCase), public :: earth_like_test_type
     private
   contains
     procedure setup
@@ -59,9 +58,6 @@ contains
 
     class(earth_like_test_type), intent(inout) :: this
 
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
     call feign_finite_element_config( cellshape=cellshape_quadrilateral, &
                                       coord_order=0_i_def,               &
                                       coord_system=coord_system_xyz,     &
@@ -95,9 +91,6 @@ contains
 
     class(earth_like_test_type), intent(inout) :: this
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
     ! Finalise namelists
     call final_configuration()
     call final_chi_transforms()
@@ -105,7 +98,7 @@ contains
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use, intrinsic :: iso_fortran_env, only : real64

@@ -31,15 +31,13 @@ module hydrostatic_kernel_mod_test
   use get_unit_test_3x3x3_chi_mod,         only : get_w0_3x3x3_field
   use pFUnit_Mod
 
-  use mpi_mod,                       only : store_comm, clear_comm
-
   implicit none
 
   private
   public :: hydrostatic_test_type, test_all
 
   @TestCase
-  type, extends(MPITestCase) :: hydrostatic_test_type
+  type, extends(TestCase) :: hydrostatic_test_type
     private
   contains
     procedure setUp
@@ -64,9 +62,6 @@ contains
 
     class(hydrostatic_test_type), intent(inout) :: this
 
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
     ! The kernel uses cp
 
   end subroutine setUp
@@ -80,13 +75,10 @@ contains
 
     class(hydrostatic_test_type), intent(inout) :: this
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use, intrinsic :: iso_fortran_env, only: real64

@@ -8,7 +8,6 @@
 module tri_solve_sh_rho_to_mr_kernel_mod_test
   use constants_mod,         only : i_def, r_def
   use pFUnit_Mod
-  use mpi_mod,               only: store_comm, clear_comm
 
   implicit none
 
@@ -17,7 +16,7 @@ module tri_solve_sh_rho_to_mr_kernel_mod_test
   public :: tri_solve_sh_rho_to_mr_kernel_test_type, test_all
 
   @TestCase
-  type, extends(MPITestCase) :: tri_solve_sh_rho_to_mr_kernel_test_type
+  type, extends(TestCase) :: tri_solve_sh_rho_to_mr_kernel_test_type
     private
 
   contains
@@ -34,10 +33,6 @@ contains
 
     class(tri_solve_sh_rho_to_mr_kernel_test_type), intent(inout) :: this
 
-
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
   end subroutine setUp
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
@@ -51,15 +46,11 @@ contains
 
     call final_configuration()
 
-
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use, intrinsic :: iso_fortran_env, only      : real64

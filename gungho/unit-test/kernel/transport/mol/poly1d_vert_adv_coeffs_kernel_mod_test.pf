@@ -9,7 +9,6 @@ module poly1d_vert_adv_coeffs_kernel_mod_test
 
   use constants_mod, only : i_def, r_def, l_def
   use pFUnit_Mod
-  use mpi_mod,       only : store_comm, clear_comm
   implicit none
 
   private
@@ -17,7 +16,7 @@ module poly1d_vert_adv_coeffs_kernel_mod_test
   public :: test_stretched_mesh
 
   @TestCase
-  type, extends(MPITestCase), public :: poly1d_vert_adv_coeffs_test_type
+  type, extends(TestCase), public :: poly1d_vert_adv_coeffs_test_type
     private
   contains
     procedure setUp
@@ -47,8 +46,6 @@ contains
 
     class(poly1d_vert_adv_coeffs_test_type), intent(inout) :: this
 
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
     call feign_transport_config( operators = operators_fv,                                 &
                                  runge_kutta_method = runge_kutta_method_ssp2,             &
                                  fv_vertical_order = 2,                                    &
@@ -87,7 +84,7 @@ contains
                                  fplane=.false., f_lat_deg=0.0_r_def )
   end subroutine setUp
 
-  @Test( npes=[1] )
+  @Test
   subroutine test_uniform_mesh( this )
     use, intrinsic :: iso_fortran_env,     only : real64
     use poly1d_vert_adv_coeffs_kernel_mod, only: poly1d_vert_adv_coeffs_code
@@ -154,7 +151,7 @@ contains
 
   end subroutine test_uniform_mesh
 
-  @Test( npes=[1] )
+  @Test
   subroutine test_stretched_mesh( this )
 
     use, intrinsic :: iso_fortran_env,     only : real64
@@ -293,8 +290,6 @@ contains
 
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
   end  subroutine tearDown
 
 end module poly1d_vert_adv_coeffs_kernel_mod_test

@@ -21,14 +21,13 @@ module weighted_div_kernel_mod_test
   use get_unit_test_q3x3x3_quadrature_mod, only : get_gaussian_q3x3x3_quadrature_weights_xy, &
                                                   get_gaussian_q3x3x3_quadrature_weights_z
   use pFUnit_Mod
-  use mpi_mod,                       only : store_comm, clear_comm
   implicit none
 
   private
   public :: test_all
 
   @TestCase
-  type, extends(MPITestCase), public :: weighted_div_test_type
+  type, extends(TestCase), public :: weighted_div_test_type
     private
   contains
     procedure setUp
@@ -48,9 +47,6 @@ contains
     implicit none
 
     class(weighted_div_test_type), intent(inout) :: this
-
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
     call feign_finite_element_config(           &
              cellshape=cellshape_quadrilateral, &
@@ -73,13 +69,10 @@ contains
 
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use, intrinsic :: iso_fortran_env, only: real64

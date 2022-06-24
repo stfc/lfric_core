@@ -13,7 +13,6 @@ module cfl_kernel_mod_test
   use get_unit_test_m3x3_dofmap_mod,       only : get_w2_m3x3_dofmap
 
   use pFUnit_Mod
-  use mpi_mod,                       only : store_comm, clear_comm
 
   implicit none
 
@@ -21,7 +20,7 @@ module cfl_kernel_mod_test
   public :: test_all
 
   @TestCase
-  type, extends(MPITestCase), public :: cfl_test_type
+  type, extends(TestCase), public :: cfl_test_type
     private
   contains
     procedure setup
@@ -49,9 +48,6 @@ contains
 
     class(cfl_test_type), intent(inout) :: this
 
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
     call feign_timestepping_config(                                   &
              method=method_semi_implicit,                             &
              dt=real(DT, r_second), alpha=0.5_r_def, tau_u=0.5_r_def, &
@@ -74,13 +70,10 @@ contains
 
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use cfl_kernel_mod, only: cfl_code

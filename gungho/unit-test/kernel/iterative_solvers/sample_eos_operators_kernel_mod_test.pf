@@ -11,7 +11,6 @@ module sample_eos_operators_kernel_mod_test
 
   use constants_mod,                 only : i_def, r_def
   use pFUnit_Mod
-  use mpi_mod,                       only : store_comm, clear_comm
 
   implicit none
 
@@ -19,7 +18,7 @@ module sample_eos_operators_kernel_mod_test
   public :: sample_eos_operators_test_type, test_all
 
   @TestCase
-  type, extends(MPITestCase) :: sample_eos_operators_test_type
+  type, extends(TestCase) :: sample_eos_operators_test_type
     private
   contains
     procedure setUp
@@ -69,9 +68,6 @@ contains
 
     class(sample_eos_operators_test_type), intent(inout) :: this
 
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
     call feign_base_mesh_config                     &
              ( filename='foo',                      &
                prime_mesh_name='unit_test',         &
@@ -105,13 +101,10 @@ contains
 
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @test( npes=[1] )
+  @test
   subroutine test_all( this )
 
     use sample_eos_operators_kernel_mod, only : sample_eos_operators_code

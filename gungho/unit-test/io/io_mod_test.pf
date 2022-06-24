@@ -10,7 +10,6 @@
 module io_mod_test
 
   use pFUnit_mod
-  use mpi_mod, only: store_comm, clear_comm
 
   implicit none
 
@@ -18,7 +17,7 @@ module io_mod_test
   public :: test_restart_filename
 
   @TestCase
-  type, public, extends(MPITestCase) :: io_test_type
+  type, public, extends(TestCase) :: io_test_type
 
     private
 
@@ -39,27 +38,19 @@ contains
 
     class(io_test_type), intent(inout) :: this
 
-    !Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
   end subroutine setUp
 
 
   subroutine tearDown( this )
 
-    use mpi_mod,         only : clear_comm
-
     implicit none
 
     class(io_test_type), intent(inout) :: this
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   ! Test filename generation for restart files
-  @test( npes=[1] )
+  @test
   subroutine test_restart_filename( this )
 
     use constants_mod,       only : str_max_filename

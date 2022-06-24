@@ -9,14 +9,13 @@ module poly1d_advective_coeffs_kernel_mod_test
 
   use constants_mod, only : i_def, r_def
   use pFUnit_Mod
-  use mpi_mod,       only : store_comm, clear_comm
   implicit none
 
   private
   public :: test_all
 
   @TestCase
-  type, extends(MPITestCase), public :: poly1d_advective_coeffs_test_type
+  type, extends(TestCase), public :: poly1d_advective_coeffs_test_type
     private
   contains
     procedure setUp
@@ -38,9 +37,6 @@ contains
 
     implicit none
     class(poly1d_advective_coeffs_test_type), intent(inout) :: this
-
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
     call feign_base_mesh_config( filename='foo',                      &
                                  prime_mesh_name='unit_test',         &
@@ -66,7 +62,7 @@ contains
   end subroutine setUp
 
 
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use, intrinsic :: iso_fortran_env,      only : real64
@@ -271,8 +267,6 @@ contains
     call final_configuration()
     call final_chi_transforms()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
   end subroutine tearDown
 
 end module poly1d_advective_coeffs_kernel_mod_test

@@ -12,7 +12,6 @@ module inject_sh_w3_to_wt_kernel_mod_test
   use get_unit_test_m3x3_dofmap_mod,       only : get_w3_m3x3_dofmap, &
                                                   get_wtheta_m3x3_dofmap
   use pFUnit_Mod
-  use mpi_mod,                             only : store_comm, clear_comm
 
   implicit none
 
@@ -20,7 +19,7 @@ module inject_sh_w3_to_wt_kernel_mod_test
   public :: inject_sh_w3_to_wt_test_type, test_all
 
   @TestCase
-  type, extends(MPITestCase) :: inject_sh_w3_to_wt_test_type
+  type, extends(TestCase) :: inject_sh_w3_to_wt_test_type
     private
   contains
     procedure setUp
@@ -41,9 +40,6 @@ contains
 
     class(inject_sh_w3_to_wt_test_type), intent(inout) :: this
 
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
     call feign_base_mesh_config( filename='foo',                      &
                                  prime_mesh_name='unit_test',         &
                                  geometry=geometry_planar,            &
@@ -62,13 +58,10 @@ contains
 
     class(inject_sh_w3_to_wt_test_type), intent(inout) :: this
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use inject_sh_w3_to_wt_kernel_mod, only : inject_sh_w3_to_wt_code

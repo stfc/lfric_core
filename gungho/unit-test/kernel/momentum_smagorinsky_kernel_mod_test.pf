@@ -17,7 +17,6 @@ module momentum_smagorinsky_kernel_mod_test
                                                   get_wtheta_m3x3_dofmap,      &
                                                   get_m3x3_stencil_dofmap_cross
   use pFUnit_Mod
-  use mpi_mod,                       only : store_comm, clear_comm
 
   implicit none
 
@@ -25,7 +24,7 @@ module momentum_smagorinsky_kernel_mod_test
   public :: test_all
 
   @TestCase
-  type, extends(MPITestCase), public :: momentum_smagorinsky_test_type
+  type, extends(TestCase), public :: momentum_smagorinsky_test_type
     private
 
   contains
@@ -50,8 +49,6 @@ contains
 
     class(momentum_smagorinsky_test_type), intent(inout) :: this
 
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
     call feign_mixing_config( viscosity     = .false.,       &
                               viscosity_mu  = 0.0_r_def,     &
                               smagorinsky   = .false.,       &
@@ -86,13 +83,10 @@ contains
     call final_chi_transforms()
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use momentum_smagorinsky_kernel_mod, only : momentum_smagorinsky_code

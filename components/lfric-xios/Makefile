@@ -84,6 +84,7 @@ unit-tests/%: export PROJECT = lfric_xios
 unit-tests/%: export SOURCE_DIR = source
 unit-tests/%: export TEST_DIR = unit-test
 unit-tests/%: export WORKING_DIR := $(WORKING_DIR)/unit-tests
+unit-tests/%: export UNIT_TEST_PRE_PROCESS_MACROS = "USE_MPI=YES"
 unit-tests: unit-tests/run
 
 

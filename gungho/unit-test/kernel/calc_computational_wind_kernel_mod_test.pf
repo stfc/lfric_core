@@ -22,8 +22,6 @@ module calc_computational_wind_kernel_mod_test
 
   use get_unit_test_3x3x3_chi_mod,         only : get_w0_3x3x3_field
 
-  use mpi_mod,                       only : store_comm, clear_comm
-
   use pFUnit_Mod
 
   implicit none
@@ -32,7 +30,7 @@ module calc_computational_wind_kernel_mod_test
   public :: test_all
 
   @TestCase
-  type, extends(MPITestCase), public :: calc_computational_wind_test_type
+  type, extends(TestCase), public :: calc_computational_wind_test_type
     private
   contains
     procedure setUp
@@ -55,8 +53,6 @@ contains
     implicit none
 
     class(calc_computational_wind_test_type), intent(inout) :: this
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
     call feign_finite_element_config(           &
              cellshape=cellshape_quadrilateral, &
@@ -91,13 +87,10 @@ contains
 
     class(calc_computational_wind_test_type), intent(inout) :: this
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use, intrinsic :: iso_fortran_env,      only : real64

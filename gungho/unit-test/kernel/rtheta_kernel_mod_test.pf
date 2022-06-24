@@ -10,7 +10,6 @@ module rtheta_kernel_mod_test
 
   use constants_mod,                 only : i_def, r_def
   use pFUnit_Mod
-  use mpi_mod,                       only : store_comm, clear_comm
 
   implicit none
 
@@ -18,7 +17,7 @@ module rtheta_kernel_mod_test
   public :: test_all
 
   @TestCase
-  type, extends(MPITestCase), public :: rtheta_test_type
+  type, extends(TestCase), public :: rtheta_test_type
     private
   contains
     procedure setup
@@ -35,9 +34,6 @@ contains
 
     class(rtheta_test_type), intent(inout) :: this
 
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
   end subroutine setUp
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -47,13 +43,10 @@ contains
 
     class(rtheta_test_type), intent(inout) :: this
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use rtheta_kernel_mod,          only : rtheta_code

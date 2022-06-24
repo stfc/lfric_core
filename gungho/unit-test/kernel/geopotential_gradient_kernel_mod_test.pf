@@ -10,7 +10,6 @@ module geopotential_gradient_kernel_mod_test
 
   use constants_mod,                 only : i_def, r_def
   use pFUnit_Mod
-  use mpi_mod,                       only : store_comm, clear_comm
 
   implicit none
 
@@ -18,7 +17,7 @@ module geopotential_gradient_kernel_mod_test
   public :: geopotential_gradient_test_type, test_all
 
   @TestCase
-  type, extends(MPITestCase) :: geopotential_gradient_test_type
+  type, extends(TestCase) :: geopotential_gradient_test_type
     private
   contains
     procedure setUp
@@ -46,9 +45,6 @@ contains
 
     class(geopotential_gradient_test_type), intent(inout) :: this
 
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
     call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
                               rd=rd, cp=cp, p_zero=p_zero,                 &
                               scaling_factor=scaling )
@@ -66,13 +62,10 @@ contains
 
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use, intrinsic :: iso_fortran_env,    only : real64

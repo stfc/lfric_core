@@ -10,7 +10,6 @@
 module get_dz_w3_kernel_mod_test
 
     use constants_mod,                       only : i_def, r_def
-    use mpi_mod,                             only : store_comm, clear_comm
     use pFUnit_Mod
     use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w2_m3x3_q3x3x3_size, &
                                                     get_w3_m3x3_q3x3x3_size
@@ -23,7 +22,7 @@ module get_dz_w3_kernel_mod_test
   public :: test_all
 
   @TestCase
-  type, extends(MPITestCase), public :: get_dz_w3_kernel_test_type
+  type, extends(TestCase), public :: get_dz_w3_kernel_test_type
     private
   contains
     procedure setUp
@@ -46,9 +45,6 @@ contains
     implicit none
 
     class(get_dz_w3_kernel_test_type), intent(inout) :: this
-
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
     call feign_base_mesh_config( filename='foo',                   &
                                  prime_mesh_name='unit_test',      &
@@ -78,13 +74,10 @@ contains
 
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use get_dz_w3_kernel_mod, only : get_dz_w3_code

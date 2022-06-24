@@ -17,7 +17,7 @@ module weighted_ave_kernel_mod_test
   public:: test_of_weighted_ave
 
   @TestCase
-  type, extends(MPITestCase), public :: weighted_ave_test_type
+  type, extends(TestCase), public :: weighted_ave_test_type
     private
     real(r_def), allocatable ::               &
       input_field(:), answer_output_field(:), &
@@ -65,7 +65,7 @@ contains
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_of_weighted_ave( this )
 
     use weighted_ave_kernel_mod, only : weighted_ave_code

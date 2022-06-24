@@ -15,7 +15,6 @@ module create_w2mask_lbc_kernel_mod_test
   use get_unit_test_w2nodal_basis_mod,     only: get_w0_w2nodal_basis
   use get_unit_test_3x3x3_chi_mod,         only: get_w0_3x3x3_field
   use pFUnit_Mod
-  use mpi_mod,                             only: store_comm, clear_comm
 
   implicit none
 
@@ -23,7 +22,7 @@ module create_w2mask_lbc_kernel_mod_test
   public :: test_all
 
   @TestCase
-  type, extends(MPITestCase), public :: create_w2mask_lbc_test_type
+  type, extends(TestCase), public :: create_w2mask_lbc_test_type
     private
   contains
     procedure setUp
@@ -46,8 +45,6 @@ contains
     implicit none
 
     class(create_w2mask_lbc_test_type), intent(inout) :: this
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
     call feign_base_mesh_config( filename        = 'foo',                 &
                                  prime_mesh_name = 'unit_test',           &
@@ -77,13 +74,10 @@ contains
 
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes = [1] )
+  @Test
   subroutine test_all( this )
 
     use create_w2mask_lbc_kernel_mod, only: create_w2mask_lbc_code

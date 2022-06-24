@@ -10,7 +10,6 @@ module consist_w3_to_sh_w3_op_kernel_mod_test
   use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w3_m3x3_q3x3x3_size
   use get_unit_test_m3x3_dofmap_mod,       only : get_w3_m3x3_dofmap
   use pFUnit_Mod
-  use mpi_mod,                             only : store_comm, clear_comm
   implicit none
 
   private
@@ -18,7 +17,7 @@ module consist_w3_to_sh_w3_op_kernel_mod_test
   public :: consist_w3_to_sh_w3_op_kernel_test_type, test_all
 
   @TestCase
-  type, extends(MPITestCase) :: consist_w3_to_sh_w3_op_kernel_test_type
+  type, extends(TestCase) :: consist_w3_to_sh_w3_op_kernel_test_type
     private
 
   contains
@@ -39,10 +38,6 @@ contains
     implicit none
 
     class(consist_w3_to_sh_w3_op_kernel_test_type), intent(inout) :: this
-
-
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
     call feign_finite_element_config(           &
              cellshape=cellshape_quadrilateral, &
@@ -66,15 +61,11 @@ contains
 
     call final_configuration()
 
-
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this)
 
     use, intrinsic :: iso_fortran_env, only : real64

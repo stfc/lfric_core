@@ -14,7 +14,6 @@ use profile_interp_kernel_mod, only: profile_size,   &
                                      profile_data,   &
                                      profile_heights
 use pFUnit_Mod
-use mpi_mod,             only: store_comm, clear_comm
 
 implicit none
 
@@ -22,7 +21,7 @@ private
 public :: profile_interp_test_type, test_all
 
 @TestCase
-type, extends(MPITestCase) :: profile_interp_test_type
+type, extends(TestCase) :: profile_interp_test_type
   private
 contains
   procedure setUp
@@ -52,10 +51,6 @@ contains
     real(r_def)    :: delta
 
     integer(i_def) :: k
-
-
-    !Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
     ! Input profile of potential temperature:
     !   a) constant extrapolation from 500m to lower boundary
@@ -126,14 +121,10 @@ contains
     deallocate( theta )
     deallocate( height_wt )
 
-
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use profile_interp_kernel_mod, only: profile_interp_code

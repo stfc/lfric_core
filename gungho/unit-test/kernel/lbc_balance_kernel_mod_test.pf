@@ -16,15 +16,14 @@ module lbc_balance_kernel_mod_test
                                                   get_w3_m3x3_dofmap,      &
                                                   get_wtheta_m3x3_dofmap
   use pFUnit_Mod
-  use mpi_mod,                             only : store_comm, clear_comm
 
   implicit none
 
   private
   public :: lbc_balance_test_type, test_all
 
-  @TestCase(npes=[1])
-  type, extends(MPITestCase) :: lbc_balance_test_type
+  @TestCase
+  type, extends(TestCase) :: lbc_balance_test_type
     private
       integer(i_def) :: ndf_w3, undf_w3, ndf_wt, undf_wt
       integer(i_def), allocatable     :: map_w3(:,:), map_wt(:,:)
@@ -75,9 +74,6 @@ contains
     integer(i_def) :: dim_space, dim_space_diff
     integer(i_def) :: nqp_h, nqp_v
     integer(i_def) :: nlayers, i, j, k
-
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
     call feign_base_mesh_config                  &
              ( filename='foo',                   &
@@ -155,13 +151,10 @@ contains
 
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @test( npes=[1] )
+  @test
   subroutine test_all( this )
 
     use lbc_balance_kernel_mod, only : lbc_balance_code

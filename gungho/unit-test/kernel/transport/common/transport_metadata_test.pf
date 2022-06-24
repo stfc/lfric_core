@@ -18,15 +18,13 @@ module transport_metadata_test
   use transport_metadata_mod,         only : transport_metadata_type
   use pFUnit_Mod
 
-  use mpi_mod, only: store_comm, clear_comm
-
   implicit none
 
   private
   public :: test_all
 
   @TestCase
-  type, extends(MPITestCase), public :: transport_metadata_test_type
+  type, extends(TestCase), public :: transport_metadata_test_type
     private
 
     integer, allocatable :: dummy_for_gcc
@@ -46,10 +44,6 @@ contains
 
     class(transport_metadata_test_type), intent(inout) :: this
 
-
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
   end subroutine setUp
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -59,14 +53,11 @@ contains
 
     class(transport_metadata_test_type), intent(inout) :: this
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  @test(npes=[1])
+  @test
   subroutine test_all( this )
 
 

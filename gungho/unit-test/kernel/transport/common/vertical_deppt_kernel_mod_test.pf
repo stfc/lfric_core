@@ -8,7 +8,6 @@ module vertical_deppt_kernel_mod_test
 
   use pFUnit_Mod
   use constants_mod,      only : i_def, r_def, r_second
-  use mpi_mod,            only : store_comm, clear_comm
 
   implicit none
 
@@ -16,7 +15,7 @@ module vertical_deppt_kernel_mod_test
   public :: vertical_deppt_test_type , test_all
 
   @TestCase
-  type, extends(MPITestCase) :: vertical_deppt_test_type
+  type, extends(TestCase) :: vertical_deppt_test_type
     private
   contains
     procedure setUp
@@ -57,9 +56,6 @@ contains
 
     class(vertical_deppt_test_type), intent(inout) :: this
 
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
     call feign_departure_points_config( departure_grid = departure_grid_physical, &
                                         method = method_euler,                    &
                                         vertical_limit = vertical_limit_boundary, &
@@ -93,13 +89,10 @@ contains
 
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use calc_departure_point_kernel_mod, only : calc_departure_point_code

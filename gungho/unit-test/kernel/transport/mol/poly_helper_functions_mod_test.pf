@@ -9,14 +9,13 @@ module poly_helper_functions_mod_test
 
   use constants_mod, only: i_def, r_def, l_def
   use pFUnit_Mod
-  use mpi_mod,       only: store_comm, clear_comm
   implicit none
 
   private
   public :: test_all
 
   @TestCase
-  type, extends(MPITestCase), public :: poly_helper_functions_test_type
+  type, extends(TestCase), public :: poly_helper_functions_test_type
     private
   contains
     procedure setUp
@@ -31,8 +30,6 @@ contains
     implicit none
 
     class(poly_helper_functions_test_type), intent(inout) :: this
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
     call  feign_domain_size_config(planar_domain_min_x = -10.0_r_def, &
                                    planar_domain_max_x = 10.0_r_def, &
@@ -41,7 +38,7 @@ contains
 
   end subroutine setUp
 
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use, intrinsic :: iso_fortran_env, only: real64
@@ -106,8 +103,6 @@ contains
     implicit none
 
     class(poly_helper_functions_test_type), intent(inout) :: this
-    ! Clear the stored MPI communicator
-    call clear_comm()
   end subroutine tearDown
 
 end module poly_helper_functions_mod_test

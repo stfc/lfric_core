@@ -34,7 +34,7 @@ $(UNIT_TEST_EXE): do-unit-test/generate \
 	$Q$(MAKE) $(QUIET_ARG) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/analyse.mk
 	$Q$(MAKE) $(QUIET_ARG) \
                     -C $(WORKING_DIR) -f $(LFRIC_BUILD)/compile.mk \
-                    PRE_PROCESS_MACROS="$(PRE_PROCESS_MACROS)"
+                    PRE_PROCESS_MACROS="$(PRE_PROCESS_MACROS) $(UNIT_TEST_PRE_PROCESS_MACROS)"
 
 # Ensure all extraction is performed before PSyclone otherwise kernel files may
 # not have arrived when they are needed.

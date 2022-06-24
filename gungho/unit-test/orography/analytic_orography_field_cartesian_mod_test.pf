@@ -11,9 +11,6 @@ module analytic_orography_field_cartesian_mod_test
   use constants_mod,              only : i_def, r_def, str_def, str_max_filename
   use global_mesh_mod,            only : global_mesh_type
   use analytic_orography_mod,     only : orography_profile
-  use halo_comms_mod,             only : initialise_halo_comms, &
-                                         finalise_halo_comms
-  use mpi_mod,                    only : store_comm, clear_comm
   use ugrid_mesh_data_mod,        only : ugrid_mesh_data_type
 
   use pFUnit_Mod
@@ -24,7 +21,7 @@ module analytic_orography_field_cartesian_mod_test
   public :: setUp, tearDown, test_analytic_orography_field_cartesian
 
   @testCase
-  type, public, extends(MPITestCase) :: analytic_orography_field_cartesian_test_type
+  type, public, extends(TestCase) :: analytic_orography_field_cartesian_test_type
     real(r_def)         :: mountain_height
     real(r_def)         :: half_width_x
     real(r_def)         :: half_width_y
@@ -76,11 +73,6 @@ contains
     implicit none
 
     class(analytic_orography_field_cartesian_test_type), intent(inout) :: this
-
-    !Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-    ! Initialise halo functionality
-    call initialise_halo_comms( this%getMpiCommunicator() )
 
     ! Set mesh configuration
     call feign_base_mesh_config(                                    &
@@ -155,15 +147,10 @@ contains
     deallocate( orography_profile )
     call final_configuration()
 
-    ! Finalise halo functionality
-    call finalise_halo_comms()
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_analytic_orography_field_cartesian(this)
 
     use local_mesh_mod,                        only : local_mesh_type

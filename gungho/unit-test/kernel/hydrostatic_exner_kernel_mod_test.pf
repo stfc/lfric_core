@@ -18,15 +18,14 @@ module hydrostatic_exner_kernel_mod_test
                                                   get_wtheta_m3x3_dofmap
   use formulation_config_mod,              only : init_exner_bt
   use pFUnit_Mod
-  use mpi_mod,                             only : store_comm, clear_comm
 
   implicit none
 
   private
   public :: hydrostatic_exner_test_type, test_bottom_up, test_top_down
 
-  @TestCase(npes=[1])
-  type, extends(MPITestCase) :: hydrostatic_exner_test_type
+  @TestCase
+  type, extends(TestCase) :: hydrostatic_exner_test_type
     private
       integer(i_def) :: ndf_w0, undf_w0, ndf_w3, undf_w3, ndf_wt, undf_wt
       integer(i_def), allocatable     :: map_w0(:,:), map_w3(:,:), map_wt(:,:)
@@ -98,9 +97,6 @@ contains
     integer(i_def) :: dim_space, dim_space_diff
     integer(i_def) :: nqp_h, nqp_v
     integer(i_def) :: nlayers, i, j, k
-
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
     call feign_base_mesh_config                  &
              ( filename='foo',                   &
@@ -221,13 +217,10 @@ contains
     call final_configuration()
     call final_chi_transforms()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @test( npes=[1] )
+  @test
   subroutine test_bottom_up( this )
 
     use hydrostatic_exner_kernel_mod, only : hydrostatic_exner_code
@@ -298,7 +291,7 @@ contains
 
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @test( npes=[1] )
+  @test
   subroutine test_top_down( this )
 
     use hydrostatic_exner_kernel_mod, only : hydrostatic_exner_code

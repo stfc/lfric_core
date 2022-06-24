@@ -7,7 +7,6 @@ module ancil_orography_cartesian_mod_test
 
   use constants_mod,                 only : i_def, r_def
   use pFUnit_Mod
-  use mpi_mod,                       only : store_comm, clear_comm
 
   implicit none
 
@@ -15,7 +14,7 @@ module ancil_orography_cartesian_mod_test
   public :: ancil_orography_cartesian_test_type, test_all
 
   @TestCase
-  type, extends(MPITestCase) :: ancil_orography_cartesian_test_type
+  type, extends(TestCase) :: ancil_orography_cartesian_test_type
   contains
     procedure setUp
     procedure tearDown
@@ -49,9 +48,6 @@ contains
     implicit none
 
     class(ancil_orography_cartesian_test_type), intent(inout) :: this
-
-    !Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
     call feign_base_mesh_config(                                     &
                          filename        = 'foo',                    &
@@ -90,13 +86,10 @@ contains
 
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use average_w3_to_w0_kernel_mod,   only : average_w3_to_w0_code

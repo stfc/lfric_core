@@ -10,7 +10,6 @@ module vorticity_advection_kernel_mod_test
 
   use constants_mod, only: i_def, r_def
   use pFUnit_Mod
-  use mpi_mod,       only : store_comm, clear_comm
 
   implicit none
 
@@ -18,7 +17,7 @@ module vorticity_advection_kernel_mod_test
   public :: vorticity_advection_test_type, test_all
 
   @TestCase
-  type, extends(MPITestCase) :: vorticity_advection_test_type
+  type, extends(TestCase) :: vorticity_advection_test_type
     private
   contains
     procedure setUp
@@ -38,9 +37,6 @@ contains
     implicit none
 
     class(vorticity_advection_test_type), intent(inout) :: this
-
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
     call feign_finite_element_config(           &
              cellshape=cellshape_quadrilateral, &
@@ -63,13 +59,10 @@ contains
 
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use vorticity_advection_kernel_mod, only: vorticity_advection_code

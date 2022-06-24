@@ -9,7 +9,6 @@
 module calc_exner_pointwise_mod_test
 
   use constants_mod, only: r_def
-  use mpi_mod, only : store_comm, clear_comm
   use pFUnit_Mod
 
   implicit none
@@ -18,7 +17,7 @@ module calc_exner_pointwise_mod_test
   public :: calc_exner_pointwise_test_type, test_all
 
   @TestCase
-  type, extends(MPITestCase) :: calc_exner_pointwise_test_type
+  type, extends(TestCase) :: calc_exner_pointwise_test_type
     private
   contains
     procedure setUp
@@ -44,9 +43,6 @@ contains
 
     class(calc_exner_pointwise_test_type), intent(inout) :: this
 
-    ! Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
-
     call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
                               rd=rd, cp=cp, p_zero=p_zero,                 &
                               scaling_factor=scaling )
@@ -64,13 +60,10 @@ contains
 
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
+  @Test
   subroutine test_all( this )
 
     use calc_exner_pointwise_mod, only: calc_exner_pointwise, &

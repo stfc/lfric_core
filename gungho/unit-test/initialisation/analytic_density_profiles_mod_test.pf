@@ -9,7 +9,6 @@
 module analytic_density_profiles_mod_test
 
   use constants_mod, only : r_def
-  use mpi_mod,       only : store_comm, clear_comm
   use pFUnit_Mod
 
   implicit none
@@ -19,7 +18,7 @@ module analytic_density_profiles_mod_test
   public :: yz_cosine_hill_test, hadley_like_dcmip_test
 
   @TestCase
-  type, extends(MPITestCase) :: analytic_density_profiles_test_type
+  type, extends(TestCase) :: analytic_density_profiles_test_type
     private
   contains
     procedure setUp
@@ -44,9 +43,6 @@ contains
     implicit none
 
     class(analytic_density_profiles_test_type), intent(inout) :: this
-
-    !Store the MPI communicator for later use
-    call store_comm(this%getMpiCommunicator())
 
     call feign_planet_config( gravity=10.0_r_def, radius=6000000.0_r_def, &
                               omega=8.0E-5_r_def, rd=300.0_r_def,         &
@@ -75,12 +71,9 @@ contains
 
     call final_configuration()
 
-    ! Clear the stored MPI communicator
-    call clear_comm()
-
   end subroutine tearDown
 
-  @Test( npes=[1] )
+  @Test
   subroutine vortex_field_test( this )
 
     use, intrinsic :: iso_fortran_env, only : real64
@@ -110,7 +103,7 @@ contains
   end subroutine vortex_field_test
 
 
-  @Test( npes=[1] )
+  @Test
   subroutine yz_cosine_hill_test( this )
 
     use, intrinsic :: iso_fortran_env, only : real64
@@ -138,7 +131,7 @@ contains
   end subroutine yz_cosine_hill_test
 
 
-  @Test( npes=[1] )
+  @Test
   subroutine hadley_like_dcmip_test( this )
 
     use analytic_density_profiles_mod, only:    hadley_like_dcmip
