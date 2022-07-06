@@ -10,7 +10,6 @@ MODULE scintelapi_interface_mod
 !
 
 USE log_mod,                   ONLY: log_event, log_scratch_space,             &
-                                     initialise_logging, finalise_logging,     &
                                      LOG_LEVEL_INFO, LOG_LEVEL_ERROR
 USE scintelapi_namelist_mod,   ONLY: scintelapi_namelist_from_cl, lfric_nl,    &
                                      scintelapi_nl, required_lfric_namelists,  &

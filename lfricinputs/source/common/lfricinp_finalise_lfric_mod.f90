@@ -18,9 +18,10 @@ SUBROUTINE lfricinp_finalise_lfric()
 ! Description:
 !  Call finalise routines for associated APIs and logging system
 
+USE log_mod,                   ONLY: log_event, LOG_LEVEL_INFO
+USE driver_log_mod,            ONLY: final_logger
 USE halo_comms_mod,            ONLY: finalise_halo_comms
-USE log_mod,                   ONLY: finalise_logging, LOG_LEVEL_INFO, &
-                                     log_event
+
 ! External libraries
 USE xios,                      ONLY: xios_finalize
 USE mpi_mod,                   ONLY: finalise_comm
@@ -36,7 +37,7 @@ CALL xios_finalize()
 CALL finalise_comm()
 
 ! Finalise the logging system
-CALL finalise_logging()
+CALL final_logger("lfricinputs")
 
 END SUBROUTINE lfricinp_finalise_lfric
 

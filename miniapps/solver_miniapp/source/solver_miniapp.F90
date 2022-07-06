@@ -16,39 +16,22 @@ program solver_miniapp
   use cli_mod,                          only : get_initial_filename
   use driver_mesh_mod,                  only : init_mesh
   use driver_fem_mod,                   only : init_fem
+  use driver_log_mod,                   only : init_logger, final_logger
   use halo_comms_mod,                   only : initialise_halo_comms, &
                                                finalise_halo_comms
   use init_solver_miniapp_mod,          only : init_solver_miniapp
   use mpi_mod,                          only : initialise_comm, store_comm, &
                                                finalise_comm,               &
                                                get_comm_size, get_comm_rank
-  use local_mesh_collection_mod,        only : local_mesh_collection, &
-                                               local_mesh_collection_type
   use field_mod,                        only : field_type
   use field_vector_mod,                 only : field_vector_type
   use solver_miniapp_alg_mod,           only : solver_miniapp_alg
   use configuration_mod,                only : final_configuration
   use solver_miniapp_mod,               only : load_configuration, program_name
   use log_mod,                          only : log_event,            &
-                                               log_set_level,        &
                                                log_scratch_space,    &
-                                               initialise_logging,   &
-                                               finalise_logging,     &
                                                LOG_LEVEL_ALWAYS,     &
-                                               LOG_LEVEL_ERROR,      &
-                                               LOG_LEVEL_WARNING,    &
-                                               LOG_LEVEL_INFO,       &
-                                               LOG_LEVEL_DEBUG,      &
-                                               LOG_LEVEL_TRACE
-  use logging_config_mod,               only : run_log_level,          &
-                                               key_from_run_log_level, &
-                                               RUN_LOG_LEVEL_ERROR,    &
-                                               RUN_LOG_LEVEL_INFO,     &
-                                               RUN_LOG_LEVEL_DEBUG,    &
-                                               RUN_LOG_LEVEL_TRACE,    &
-                                               RUN_LOG_LEVEL_WARNING
-  use mesh_collection_mod,              only : mesh_collection, &
-                                               mesh_collection_type
+                                               LOG_LEVEL_INFO
   use mesh_mod,                         only : mesh_type
   use checksum_alg_mod,                 only : checksum_alg
 
@@ -56,8 +39,7 @@ program solver_miniapp
 
   character(:), allocatable :: filename
 
-  integer(i_def) :: total_ranks, local_rank, stencil_depth
-  integer(i_def) :: log_level
+  integer(i_def) :: total_ranks, local_rank
   integer(i_def) :: comm = -999
 
   ! prognostic fields
@@ -85,31 +67,11 @@ program solver_miniapp
   total_ranks = get_comm_size()
   local_rank  = get_comm_rank()
 
-  call initialise_logging(local_rank, total_ranks, program_name)
-
   call get_initial_filename( filename )
   call load_configuration( filename )
   deallocate( filename )
 
-  select case (run_log_level)
-  case( RUN_LOG_LEVEL_ERROR )
-    log_level = LOG_LEVEL_ERROR
-  case( RUN_LOG_LEVEL_WARNING )
-    log_level = LOG_LEVEL_WARNING
-  case( RUN_LOG_LEVEL_INFO )
-    log_level = LOG_LEVEL_INFO
-  case( RUN_LOG_LEVEL_DEBUG )
-    log_level = LOG_LEVEL_DEBUG
-  case( RUN_LOG_LEVEL_TRACE )
-    log_level = LOG_LEVEL_TRACE
-  end select
-
-  call log_set_level( log_level )
-
-  write(log_scratch_space,'(A)')                              &
-      'Runtime message logging severity set to log level: '// &
-      convert_to_upper(key_from_run_log_level(run_log_level))
-  call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
+  call init_logger(total_ranks, local_rank, program_name)
 
   write(log_scratch_space,'(A)')                        &
       'Application built with '//trim(PRECISION_REAL)// &
@@ -121,20 +83,9 @@ program solver_miniapp
   !-----------------------------------------------------------------------------
   call log_event( 'Initialising '//program_name//' ...', LOG_LEVEL_ALWAYS )
 
-  ! Create the mesh and function space collection
-  allocate( local_mesh_collection, &
-            source = local_mesh_collection_type() )
-  allocate( mesh_collection, &
-            source=mesh_collection_type() )
-
-  ! Set stencil depth to 1 as the solver miniapp doesn't
-  ! have the same config modules as gungho
-  stencil_depth = 1
-
-  call init_mesh( local_rank, total_ranks, stencil_depth, mesh )
+  call init_mesh( local_rank, total_ranks, mesh )
 
   call init_fem( mesh, chi, panel_id )
-
 
   ! Create and initialise prognostic fields
   call init_solver_miniapp( mesh, chi, panel_id, fv_1 )
@@ -172,9 +123,7 @@ program solver_miniapp
   ! Finalise MPI communications
   call finalise_comm()
 
-  call log_event( program_name//' completed.', LOG_LEVEL_ALWAYS )
-
   ! Finalise the logging system
-  call finalise_logging()
+  call final_logger(program_name)
 
 end program solver_miniapp

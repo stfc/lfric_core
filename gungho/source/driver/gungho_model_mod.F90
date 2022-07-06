@@ -17,6 +17,7 @@ module gungho_model_mod
   use driver_io_mod,              only : init_io, final_io, get_clock, &
                                          filelist_populator
   use driver_mesh_mod,            only : init_mesh, final_mesh
+  use driver_log_mod,             only : init_logger, final_logger
   use configuration_mod,          only : final_configuration
   use check_configuration_mod,    only : get_required_stencil_depth
   use conservation_algorithm_mod, only : conservation_algorithm
@@ -49,25 +50,16 @@ module gungho_model_mod
                                          timer_output_path,       &
                                          counter_output_suffix
   use linked_list_mod,            only : linked_list_type
-  use local_mesh_collection_mod,  only : local_mesh_collection, &
-                                         local_mesh_collection_type
   use log_mod,                    only : log_event,          &
-                                         log_set_level,      &
                                          log_scratch_space,  &
-                                         initialise_logging, &
-                                         finalise_logging,   &
-                                         LOG_LEVEL_ALWAYS,   &
-                                         LOG_LEVEL_ERROR,    &
-                                         LOG_LEVEL_WARNING,  &
                                          LOG_LEVEL_INFO,     &
+                                         LOG_LEVEL_ERROR,    &
                                          LOG_LEVEL_DEBUG,    &
-                                         LOG_LEVEL_TRACE
+                                         LOG_LEVEL_ALWAYS
   use mg_orography_alg_mod,       only : mg_orography_alg
   use minmax_tseries_mod,         only : minmax_tseries,      &
                                          minmax_tseries_init, &
                                          minmax_tseries_final
-  use mesh_collection_mod,        only : mesh_collection, &
-                                         mesh_collection_type
   use mesh_mod,                   only : mesh_type
   use moisture_conservation_alg_mod, &
                                   only : moisture_conservation_alg
@@ -142,14 +134,6 @@ contains
                                         double_level_mesh,    &
                                         model_data )
 
-    use logging_config_mod, only: run_log_level,          &
-                                  key_from_run_log_level, &
-                                  RUN_LOG_LEVEL_ERROR,    &
-                                  RUN_LOG_LEVEL_INFO,     &
-                                  RUN_LOG_LEVEL_DEBUG,    &
-                                  RUN_LOG_LEVEL_TRACE,    &
-                                  RUN_LOG_LEVEL_WARNING
-
     implicit none
 
     character(*), intent(in) :: filename
@@ -166,8 +150,7 @@ contains
 
     procedure(filelist_populator), pointer :: files_init_ptr => null()
 
-    integer(i_def)    :: stencil_depth
-    integer(i_native) :: log_level, communicator
+    integer(i_native) :: communicator
 
     class(clock_type), pointer :: clock
     real(r_def)                :: dt_model
@@ -196,28 +179,9 @@ contains
 
     call init_comm(program_name, communicator)
 
-    call initialise_logging(get_comm_rank(), get_comm_size(), program_name)
     call load_configuration( filename )
 
-    select case (run_log_level)
-    case( RUN_LOG_LEVEL_ERROR )
-      log_level = LOG_LEVEL_ERROR
-    case( RUN_LOG_LEVEL_WARNING )
-      log_level = LOG_LEVEL_WARNING
-    case( RUN_LOG_LEVEL_INFO )
-      log_level = LOG_LEVEL_INFO
-    case( RUN_LOG_LEVEL_DEBUG )
-      log_level = LOG_LEVEL_DEBUG
-    case( RUN_LOG_LEVEL_TRACE )
-      log_level = LOG_LEVEL_TRACE
-    end select
-
-    call log_set_level( log_level )
-
-    write(log_scratch_space,'(A)')                              &
-        'Runtime message logging severity set to log level: '// &
-        convert_to_upper(key_from_run_log_level(run_log_level))
-    call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
+    call init_logger(get_comm_size(), get_comm_rank(), program_name)
 
     write(log_scratch_space,'(A)')                        &
         'Application built with '//trim(PRECISION_REAL)// &
@@ -245,22 +209,18 @@ contains
     ! Initialise aspects of the grid
     !-------------------------------------------------------------------------
 
-    allocate( local_mesh_collection, source=local_mesh_collection_type() )
-    allocate( mesh_collection, source=mesh_collection_type() )
-
-    stencil_depth = get_required_stencil_depth()
-
     ! Generate prime mesh extrusion
     allocate( extrusion, source=create_extrusion() )
 
     ! Create the mesh
-    call init_mesh( get_comm_rank(), get_comm_size(), stencil_depth, mesh,  &
-                    twod_mesh             = twod_mesh,             &
-                    shifted_mesh          = shifted_mesh,          &
-                    double_level_mesh     = double_level_mesh,     &
-                    multigrid_mesh_ids    = multigrid_mesh_ids,    &
-                    multigrid_2D_mesh_ids = multigrid_2D_mesh_ids, &
-                    use_multigrid         = l_multigrid,           &
+    call init_mesh( get_comm_rank(), get_comm_size(), mesh,               &
+                    twod_mesh             = twod_mesh,                    &
+                    shifted_mesh          = shifted_mesh,                 &
+                    double_level_mesh     = double_level_mesh,            &
+                    multigrid_mesh_ids    = multigrid_mesh_ids,           &
+                    multigrid_2D_mesh_ids = multigrid_2D_mesh_ids,        &
+                    use_multigrid         = l_multigrid,                  &
+                    input_stencil_depth   = get_required_stencil_depth(), &
                     input_extrusion       = extrusion )
 
     call init_fem( mesh, chi, panel_id,                           &
@@ -509,7 +469,7 @@ contains
     ! Final logging before infrastructure is destroyed
     !-------------------------------------------------------------------------
 
-    call log_event( program_name//' completed.', LOG_LEVEL_ALWAYS )
+    call final_logger( program_name )
 
     !-------------------------------------------------------------------------
     ! Finalise infrastructure
@@ -520,9 +480,6 @@ contains
 
     ! Finalise communicator
     call final_comm()
-
-    ! Finalise the logging system
-    call finalise_logging()
 
   end subroutine finalise_infrastructure
 

@@ -27,13 +27,14 @@ module driver_mesh_mod
   use global_mesh_collection_mod, only: global_mesh_collection, &
                                         global_mesh_collection_type
   use global_mesh_mod,            only: global_mesh_type
-  use local_mesh_collection_mod,  only: local_mesh_collection
+  use local_mesh_collection_mod,  only: local_mesh_collection, &
+                                        local_mesh_collection_type
   use local_mesh_mod,             only: local_mesh_type
   use log_mod,                    only: log_event,         &
                                         log_scratch_space, &
                                         LOG_LEVEL_INFO,    &
                                         LOG_LEVEL_ERROR
-  use mesh_collection_mod,        only: mesh_collection
+  use mesh_collection_mod,        only: mesh_collection, mesh_collection_type
   use mesh_mod,                   only: mesh_type
   use ncdf_quad_mod,              only: ncdf_quad_type
   use partition_mod,              only: partition_type, &
@@ -72,7 +73,6 @@ contains
 !>
 !> @param[in]   local_rank                     Number of the MPI rank of this process
 !> @param[in]   total_ranks                    Total number of MPI ranks in this job
-!> @param[in]   stencil_depth                  Stencil depth that local meshes should support
 !> @param[out]  mesh                           Mesh of partitioned prime mesh
 !> @param[out]  twod_mesh                      Optional, mesh of the 2D (surface) mesh
 !> @param[out]  shifted_mesh                   Optional, mesh of vertically shifted mesh
@@ -81,6 +81,7 @@ contains
 !> @param[out]  multigrid_mesh_ids             Optional, multigrid chain mesh IDs
 !> @param[out]  multigrid_2D_mesh_ids          Optional, multigrid chain 2D-mesh IDs
 !> @param[in]   use_multigrid                  Optional, configuration switch for multigrid
+!> @param[in]   input_stencil_depth            Optional, Stencil depth that local meshes should support
 !> @param[out]  multires_coupling_mesh_ids     Optional, multiresolution coupling miniapp mesh IDs
 !> @param[out]  multires_coupling_2D_mesh_ids  Optional, multiresolution coupling miniapp 2D-mesh IDs
 !> @param[in]   multires_coupling_mesh_tags    Optional, multiresolution coupling miniapp mesh names
@@ -88,13 +89,13 @@ contains
 !!                                             multiresolution atmospheric coupling
 !> @param[in]   input_extrusion                Optional, mesh extrusion object to create prime 3D mesh
 subroutine init_mesh( local_rank, total_ranks,        &
-                      stencil_depth,                  &
                       mesh, twod_mesh,                &
                       shifted_mesh,                   &
                       double_level_mesh,              &
                       multigrid_mesh_ids,             &
                       multigrid_2D_mesh_ids,          &
                       use_multigrid,                  &
+                      input_stencil_depth,            &
                       multires_coupling_mesh_ids,     &
                       multires_coupling_2D_mesh_ids,  &
                       multires_coupling_mesh_tags,    &
@@ -111,7 +112,6 @@ subroutine init_mesh( local_rank, total_ranks,        &
 
   integer(kind=i_def), intent(in)  :: local_rank
   integer(kind=i_def), intent(in)  :: total_ranks
-  integer(kind=i_def), intent(in)  :: stencil_depth
 
   type(mesh_type), intent(out), pointer           :: mesh
   type(mesh_type), intent(out), pointer, optional :: twod_mesh
@@ -123,6 +123,7 @@ subroutine init_mesh( local_rank, total_ranks,        &
   integer(kind=i_def), intent(out), optional, allocatable :: multires_coupling_mesh_ids(:)
   integer(kind=i_def), intent(out), optional, allocatable :: multires_coupling_2d_mesh_ids(:)
 
+  integer(kind=i_def),    intent(in), optional :: input_stencil_depth
   character(len=str_def), intent(in), optional :: multires_coupling_mesh_tags(:)
   logical(kind=l_def),    intent(in), optional :: use_multigrid
   logical(kind=l_def),    intent(in), optional :: use_multires_coupling
@@ -148,13 +149,24 @@ subroutine init_mesh( local_rank, total_ranks,        &
   logical(kind=l_def) :: create_multires_coupling_2d_meshes = .false.
   logical(kind=l_def) :: create_multigrid                   = .false.
 
-  integer(kind=i_def) :: i, j, n_coupling_meshes, n_chain_meshes
+  integer(kind=i_def) :: i, j, n_coupling_meshes, n_chain_meshes, stencil_depth
 
   character(len=str_def) :: mesh_name
   character(len=str_def) :: mesh_name_A
   character(len=str_def) :: mesh_name_B
 
   class(extrusion_type), allocatable :: prime_extrusion
+
+  ! Allocate mesh collections
+  allocate( local_mesh_collection, source=local_mesh_collection_type() )
+  allocate( mesh_collection, source=mesh_collection_type() )
+
+  ! Set up stencil depth
+  if (present(input_stencil_depth)) then
+    stencil_depth = input_stencil_depth
+  else
+    stencil_depth = 1
+  end if
 
   ! Sort out prime mesh extrusion
   if (present(input_extrusion)) then

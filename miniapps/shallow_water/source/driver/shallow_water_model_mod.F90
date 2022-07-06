@@ -18,6 +18,7 @@ module shallow_water_model_mod
   use convert_to_upper_mod,           only: convert_to_upper
   use count_mod,                      only: count_type, halo_calls
   use derived_config_mod,             only: set_derived_config
+  use driver_log_mod,                 only: init_logger, final_logger
   use driver_comm_mod,                only: init_comm, final_comm
   use driver_fem_mod,                 only: init_fem, final_fem
   use driver_io_mod,                  only: init_io, final_io, get_clock, &
@@ -26,7 +27,6 @@ module shallow_water_model_mod
   use field_mod,                      only: field_type
   use field_parent_mod,               only: write_interface
   use field_collection_mod,           only: field_collection_type
-  use function_space_mod,             only: function_space_type
   use global_mesh_collection_mod,     only: global_mesh_collection, &
                                             global_mesh_collection_type
   use io_config_mod,                  only: subroutine_timers,       &
@@ -42,13 +42,7 @@ module shallow_water_model_mod
   use log_mod,                        only: log_event,          &
                                             log_set_level,      &
                                             log_scratch_space,  &
-                                            initialise_logging, &
-                                            finalise_logging,   &
-                                            LOG_LEVEL_ERROR,    &
-                                            LOG_LEVEL_WARNING,  &
-                                            LOG_LEVEL_INFO,     &
-                                            LOG_LEVEL_DEBUG,    &
-                                            LOG_LEVEL_TRACE
+                                            LOG_LEVEL_INFO
   use mesh_collection_mod,            only: mesh_collection, &
                                             mesh_collection_type
   use mesh_mod,                       only: mesh_type
@@ -86,18 +80,10 @@ module shallow_water_model_mod
                                        mesh,         &
                                        chi           )
 
-    use logging_config_mod, only: run_log_level,          &
-                                  key_from_run_log_level, &
-                                  RUN_LOG_LEVEL_ERROR,    &
-                                  RUN_LOG_LEVEL_INFO,     &
-                                  RUN_LOG_LEVEL_DEBUG,    &
-                                  RUN_LOG_LEVEL_TRACE,    &
-                                  RUN_LOG_LEVEL_WARNING
-
     implicit none
 
     character(*),      intent(in)                    :: program_name
-    type(mesh_type), intent(inout), pointer          :: mesh
+    type(mesh_type),   intent(inout), pointer        :: mesh
     type(field_type),  intent(inout)                 :: chi(3)
 
     type(field_type), target :: panel_id
@@ -105,16 +91,12 @@ module shallow_water_model_mod
 
     procedure(filelist_populator), pointer :: files_init_ptr => null()
 
-    integer(i_def) :: stencil_depth
-
     character(len=*), parameter :: io_context_name = "shallow_water"
     character(:),   allocatable :: filename
 
+    integer(i_native) :: communicator
+
     class(clock_type), pointer :: clock
-
-    integer(i_native) :: log_level, communicator
-
-    type(function_space_type), pointer       :: function_space
 
     !-------------------------------------------------------------------------
     ! Initialise aspects of the infrastructure
@@ -123,30 +105,10 @@ module shallow_water_model_mod
     ! Set up the MPI communicator for later use
     call init_comm( program_name, communicator )
 
-    call initialise_logging( get_comm_rank(), get_comm_size(), program_name )
-
     call get_initial_filename( filename )
     call load_configuration( filename )
 
-    select case (run_log_level)
-    case( RUN_LOG_LEVEL_ERROR )
-      log_level = LOG_LEVEL_ERROR
-    case( RUN_LOG_LEVEL_WARNING )
-      log_level = LOG_LEVEL_WARNING
-    case( RUN_LOG_LEVEL_INFO )
-      log_level = LOG_LEVEL_INFO
-    case( RUN_LOG_LEVEL_DEBUG )
-      log_level = LOG_LEVEL_DEBUG
-    case( RUN_LOG_LEVEL_TRACE )
-      log_level = LOG_LEVEL_TRACE
-    end select
-
-    call log_set_level( log_level )
-
-    write(log_scratch_space,'(A)')                              &
-        'Runtime message logging severity set to log level: '// &
-        convert_to_upper(key_from_run_log_level(run_log_level))
-    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    call init_logger( get_comm_size(), get_comm_rank(), program_name)
 
     write(log_scratch_space,'(A)')                        &
         'Application built with '//trim(PRECISION_REAL)// &
@@ -174,22 +136,13 @@ module shallow_water_model_mod
     ! Initialise aspects of the grid
     !-------------------------------------------------------------------------
 
-    allocate( local_mesh_collection, &
-               source = local_mesh_collection_type() )
-
-    allocate( mesh_collection, &
-              source=mesh_collection_type() )
-
     ! TODO Stencil depth needs to be taken from configuration options
-    stencil_depth = 2_i_def
-
     ! Create the mesh
-    call init_mesh(get_comm_rank(), get_comm_size(), stencil_depth, mesh, twod_mesh)
+    call init_mesh( get_comm_rank(),  get_comm_size(), mesh, twod_mesh, &
+                    input_stencil_depth = 2_i_def )
 
     ! Create FEM specifics (function spaces and chi field)
     call init_fem(mesh, chi, panel_id)
-
-    nullify( function_space )
 
     !-------------------------------------------------------------------------
     ! Initialise aspects of output
@@ -296,8 +249,7 @@ module shallow_water_model_mod
     !-------------------------------------------------------------------------
     ! Final logging before infrastructure is destroyed
     !-------------------------------------------------------------------------
-
-    call log_event( program_name//' completed.', LOG_LEVEL_INFO )
+    call final_logger( program_name )
 
     !-------------------------------------------------------------------------
     ! Finalise infrastructure
@@ -307,9 +259,6 @@ module shallow_water_model_mod
     call final_configuration()
 
     call final_comm()
-
-    ! Finalise the logging system
-    call finalise_logging()
 
   end subroutine finalise_infrastructure
 

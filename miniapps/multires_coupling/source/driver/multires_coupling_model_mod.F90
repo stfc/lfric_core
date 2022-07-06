@@ -15,6 +15,7 @@ module multires_coupling_model_mod
   use driver_comm_mod,            only : init_comm, final_comm
   use driver_fem_mod,             only : init_fem, final_fem
   use driver_mesh_mod,            only : init_mesh, final_mesh
+  use driver_log_mod,             only : init_logger, final_logger
   use driver_io_mod,              only : init_io, final_io, get_clock, &
                                          filelist_populator
   use configuration_mod,          only : final_configuration
@@ -52,19 +53,12 @@ module multires_coupling_model_mod
                                          counter_output_suffix
   use io_context_mod,             only : io_context_type
   use linked_list_mod,            only : linked_list_type
-  use local_mesh_collection_mod,  only : local_mesh_collection, &
-                                         local_mesh_collection_type
   use log_mod,                    only : log_event,          &
-                                         log_set_level,      &
                                          log_scratch_space,  &
-                                         initialise_logging, &
-                                         finalise_logging,   &
                                          LOG_LEVEL_ALWAYS,   &
-                                         LOG_LEVEL_ERROR,    &
-                                         LOG_LEVEL_WARNING,  &
                                          LOG_LEVEL_INFO,     &
-                                         LOG_LEVEL_DEBUG,    &
-                                         LOG_LEVEL_TRACE
+                                         LOG_LEVEL_ERROR,    &
+                                         LOG_LEVEL_DEBUG
   use mg_orography_alg_mod,       only : mg_orography_alg
   use minmax_tseries_mod,         only : minmax_tseries,      &
                                          minmax_tseries_init, &
@@ -114,9 +108,6 @@ contains
   !> @brief Initialises the infrastructure and sets up constants used by the
   !>        model.
   !>
-  !> @param [in]    communicator The MPI communicator for use within the model
-  !>                             (not XIOS' communicator)
-  !> @param [in]    filename The name of the configuration namelist file
   !> @param [in]    program_name An identifier given to the model begin run
   !> @param [in,out] mesh         The current 3d mesh
   !> @param [in,out] twod_mesh    The current 2d mesh
@@ -130,13 +121,6 @@ contains
                                         double_level_mesh )
 
     use check_configuration_mod, only: get_required_stencil_depth
-    use logging_config_mod,      only: run_log_level,          &
-                                       key_from_run_log_level, &
-                                       RUN_LOG_LEVEL_ERROR,    &
-                                       RUN_LOG_LEVEL_INFO,     &
-                                       RUN_LOG_LEVEL_DEBUG,    &
-                                       RUN_LOG_LEVEL_TRACE,    &
-                                       RUN_LOG_LEVEL_WARNING
 
     implicit none
 
@@ -148,11 +132,11 @@ contains
 
     procedure(filelist_populator), pointer :: files_init_ptr
 
-    integer(i_def)    :: stencil_depth, i
-    integer(i_native) :: log_level, communicator
+    integer(i_def) :: i
 
     class(clock_type), pointer :: clock
     real(r_def)                :: dt_model
+    integer(i_native)          :: communicator
 
     type(field_type) :: surface_altitude
 
@@ -198,27 +182,7 @@ contains
     call get_initial_filename( filename )
     call load_configuration( filename )
 
-    call initialise_logging(get_comm_rank(), get_comm_size(), program_name)
-
-    select case (run_log_level)
-    case( RUN_LOG_LEVEL_ERROR )
-      log_level = LOG_LEVEL_ERROR
-    case( RUN_LOG_LEVEL_WARNING )
-      log_level = LOG_LEVEL_WARNING
-    case( RUN_LOG_LEVEL_INFO )
-      log_level = LOG_LEVEL_INFO
-    case( RUN_LOG_LEVEL_DEBUG )
-      log_level = LOG_LEVEL_DEBUG
-    case( RUN_LOG_LEVEL_TRACE )
-      log_level = LOG_LEVEL_TRACE
-    end select
-
-    call log_set_level( log_level )
-
-    write(log_scratch_space,'(A)')                              &
-        'Runtime message logging severity set to log level: '// &
-        convert_to_upper(key_from_run_log_level(run_log_level))
-    call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
+    call init_logger( get_comm_size(), get_comm_rank(), program_name )
 
     write(log_scratch_space,'(A)')                        &
         'Application built with '//trim(PRECISION_REAL)// &
@@ -246,16 +210,8 @@ contains
     ! Initialise aspects of the grid
     !-------------------------------------------------------------------------
 
-    allocate( local_mesh_collection, &
-              source = local_mesh_collection_type() )
-
-    allocate( mesh_collection, &
-              source = mesh_collection_type() )
-
-    stencil_depth = get_required_stencil_depth()
-
     ! Create the mesh
-    call init_mesh( get_comm_rank(), get_comm_size(), stencil_depth, mesh,                  &
+    call init_mesh( get_comm_rank(), get_comm_size(), mesh,                        &
                     twod_mesh                     = twod_mesh,                     &
                     shifted_mesh                  = shifted_mesh,                  &
                     double_level_mesh             = double_level_mesh,             &
@@ -265,7 +221,8 @@ contains
                     multires_coupling_mesh_ids    = multires_coupling_mesh_ids,    &
                     multires_coupling_2D_mesh_ids = multires_coupling_2D_mesh_ids, &
                     multires_coupling_mesh_tags   = multires_coupling_mesh_tags,   &
-                    use_multires_coupling         = use_multires_coupling )
+                    use_multires_coupling         = use_multires_coupling,         &
+                    input_stencil_depth = get_required_stencil_depth() )
 
     call init_fem( mesh, chi, panel_id,                                           &
                    shifted_mesh                  = shifted_mesh,                  &
@@ -286,8 +243,6 @@ contains
     !-------------------------------------------------------------------------
     ! Initialise aspects of output
     !-------------------------------------------------------------------------
-
-    call log_event("Initialising I/O context", LOG_LEVEL_INFO)
 
     dynamics_2D_mesh_name = trim(dynamics_mesh_name)//'_2d'
     dynamics_mesh    => mesh_collection%get_mesh( dynamics_mesh_name )
@@ -530,23 +485,16 @@ contains
     call final_fem()
 
     !-------------------------------------------------------------------------
-    ! Final logging before infrastructure is destroyed
-    !-------------------------------------------------------------------------
-
-    call log_event( program_name//' completed.', LOG_LEVEL_ALWAYS )
-
-    !-------------------------------------------------------------------------
     ! Finalise infrastructure
     !-------------------------------------------------------------------------
+
+    call final_logger( program_name )
 
     ! Finalise namelist configurations
     call final_configuration()
 
     ! Finalise communication interface
     call final_comm()
-
-    ! Finalise the logging system
-    call finalise_logging()
 
   end subroutine finalise_infrastructure
 

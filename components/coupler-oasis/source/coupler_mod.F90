@@ -40,7 +40,6 @@ module coupler_mod
                                             LOG_LEVEL_DEBUG, &
                                             LOG_LEVEL_ERROR, &
                                             log_scratch_space
-  use mesh_collection_mod,            only: mesh_collection
   use mesh_mod,                       only: mesh_type
   use field_parent_mod,               only: write_interface, read_interface,  &
                                             checkpoint_write_interface,       &

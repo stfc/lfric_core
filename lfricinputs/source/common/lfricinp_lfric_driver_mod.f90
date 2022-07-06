@@ -8,12 +8,12 @@ MODULE lfricinp_lfric_driver_mod
 USE constants_mod,              ONLY: i_def, imdi, r_second
 USE log_mod,                    ONLY: log_event, log_scratch_space,            &
                                       LOG_LEVEL_INFO, LOG_LEVEL_ERROR,         &
-                                      LOG_LEVEL_ALWAYS, initialise_logging,    &
-                                      finalise_logging
+                                      LOG_LEVEL_ALWAYS
 
 ! LFRic Modules
 USE driver_mesh_mod,            ONLY: init_mesh
 USE driver_fem_mod,             ONLY: init_fem
+USE driver_log_mod,             ONLY: init_logger, final_logger
 USE derived_config_mod,         ONLY: set_derived_config
 USE extrusion_mod,              ONLY: extrusion_type
 USE field_collection_mod,       ONLY: field_collection_type
@@ -24,10 +24,6 @@ USE halo_comms_mod,             ONLY: initialise_halo_comms
 USE mod_wait,                   ONLY: init_wait
 USE lfric_xios_context_mod,     ONLY: lfric_xios_context_type
 USE lfricinp_setup_io_mod,      ONLY: init_lfricinp_files
-USE local_mesh_collection_mod,  ONLY: local_mesh_collection,                   &
-                                      local_mesh_collection_type
-USE mesh_collection_mod,        ONLY: mesh_collection,                         &
-                                      mesh_collection_type
 USE mesh_mod,                   ONLY: mesh_type
 USE time_config_mod,            ONLY: calendar_start, calendar_type, &
                                       key_from_calendar_type
@@ -96,8 +92,6 @@ REAL(r_second),      INTENT(IN) :: seconds_per_step
 
 CHARACTER(LEN=10) :: char_first_step, char_last_step
 
-INTEGER(KIND=i_def) :: stencil_depth
-
 CLASS(extrusion_type), ALLOCATABLE :: extrusion
 CLASS(file_type),      ALLOCATABLE :: file_list(:)
 
@@ -122,30 +116,24 @@ local_rank = get_comm_rank()
 !Initialise halo functionality
 CALL initialise_halo_comms( comm )
 
+CALL load_configuration(lfric_nl_fname, required_lfric_namelists)
+
 ! Initialise logging system
-CALL initialise_logging(local_rank, total_ranks, program_name)
+CALL init_logger(local_rank, total_ranks, program_name)
 
 WRITE(log_scratch_space, '(2(A,I0))') 'total ranks = ', total_ranks,           &
                             ', local_rank = ', local_rank
 CALL log_event(log_scratch_space, LOG_LEVEL_INFO)
 
-CALL log_event('Loading LFRic Infrastructure namelists', LOG_LEVEL_INFO)
-CALL load_configuration(lfric_nl_fname, required_lfric_namelists)
-
 ! Sets variables used interally by the LFRic infrastructure.
 CALL set_derived_config( .TRUE. )
 
 CALL log_event('Initialising mesh', LOG_LEVEL_INFO)
-ALLOCATE(local_mesh_collection, source = local_mesh_collection_type())
-ALLOCATE(mesh_collection, source=mesh_collection_type() )
-
-! LFricInputs does not contain science, hard code to the default
-stencil_depth = 1
 
 ! Generate prime mesh extrusion
 ALLOCATE(extrusion, source=create_extrusion())
 
-CALL init_mesh(local_rank, total_ranks, stencil_depth, mesh, twod_mesh, &
+CALL init_mesh(local_rank, total_ranks, mesh, twod_mesh, &
                input_extrusion=extrusion)
 
 ! Create FEM specifics (function spaces and chi field)
@@ -228,8 +216,8 @@ SUBROUTINE lfricinp_finalise_lfric()
 !  Call finalise routines for associated APIs and logging system
 
 USE halo_comms_mod,            ONLY: finalise_halo_comms
-USE log_mod,                   ONLY: finalise_logging, LOG_LEVEL_INFO,         &
-                                     log_event
+USE log_mod,                   ONLY: log_event, LOG_LEVEL_INFO
+
 ! External libraries
 USE xios,                      ONLY: xios_finalize
 USE mpi_mod,                   ONLY: finalise_comm
@@ -245,7 +233,7 @@ CALL xios_finalize()
 CALL finalise_comm()
 
 ! Finalise the logging system
-CALL finalise_logging()
+CALL final_logger(program_name)
 
 END SUBROUTINE lfricinp_finalise_lfric
 

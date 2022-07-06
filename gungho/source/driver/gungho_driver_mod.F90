@@ -42,7 +42,6 @@ module gungho_driver_mod
                                          log_level_always,    &
                                          log_level_info,      &
                                          log_scratch_space
-  use mesh_collection_mod,        only : mesh_collection
   use mesh_mod,                   only : mesh_type
   use derived_config_mod,         only : l_esm_couple
 #ifdef UM_PHYSICS

@@ -47,18 +47,13 @@ program cma_test
   use configuration_mod,              only : read_configuration, &
                                              ensure_configuration
   use driver_mesh_mod,                only : init_mesh
-  use local_mesh_collection_mod,      only : local_mesh_collection, &
-                                             local_mesh_collection_type
   use log_mod,                        only : log_event,         &
                                              log_scratch_space, &
                                              initialise_logging, &
                                              finalise_logging, &
                                              LOG_LEVEL_ERROR,   &
                                              LOG_LEVEL_INFO
-  use mesh_collection_mod,            only : mesh_collection, &
-                                             mesh_collection_type
   use mesh_mod,                       only : mesh_type
-  use mesh_collection_mod,            only : mesh_collection
   use planet_config_mod,              only : radius
 
   implicit none
@@ -67,7 +62,7 @@ program cma_test
   integer(kind=i_def) :: comm
 
   ! Number of processes and local rank
-  integer(kind=i_def) :: total_ranks, local_rank, stencil_depth
+  integer(kind=i_def) :: total_ranks, local_rank
 
   ! Filename to read namelist from
   character(:), allocatable :: filename
@@ -237,14 +232,8 @@ program cma_test
 
   call log_event( 'Initialising harness', LOG_LEVEL_INFO )
 
-  allocate( local_mesh_collection, &
-            source = local_mesh_collection_type() )
-  allocate( mesh_collection, &
-            source=mesh_collection_type() )
-
-  stencil_depth = get_required_stencil_depth()
-
-  call init_mesh( local_rank, total_ranks, stencil_depth, mesh )
+  call init_mesh( local_rank, total_ranks, mesh, &
+                  input_stencil_depth=get_required_stencil_depth() )
 
   ! Work out grid spacing, which should be of order 1
   ncells_2d_local = mesh%get_ncells_2d()

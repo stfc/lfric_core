@@ -25,21 +25,11 @@ module diagnostics_driver_mod
   use io_config_mod,                 only : write_diag, &
                                             use_xios_io
   use io_context_mod,                only : io_context_type
-  use local_mesh_collection_mod,     only : local_mesh_collection, &
-                                            local_mesh_collection_type
   use log_mod,                       only : log_event, &
-                                            log_set_level, &
                                             log_scratch_space, &
-                                            initialise_logging, &
-                                            finalise_logging, &
                                             LOG_LEVEL_ALWAYS, &
-                                            LOG_LEVEL_ERROR, &
-                                            LOG_LEVEL_WARNING, &
-                                            LOG_LEVEL_INFO, &
-                                            LOG_LEVEL_DEBUG, &
+                                            LOG_LEVEL_INFO,   &
                                             LOG_LEVEL_TRACE
-  use mesh_collection_mod,           only : mesh_collection, &
-                                            mesh_collection_type
   use mesh_mod,                      only : mesh_type
   use mpi_mod,                       only : get_comm_size, &
                                             get_comm_rank
@@ -73,15 +63,11 @@ contains
   subroutine initialise()
 
     use convert_to_upper_mod,       only : convert_to_upper
+    use driver_fem_mod,             only : init_fem
+    use driver_mesh_mod,            only : init_mesh
+    use driver_log_mod,             only : init_logger
     use fieldspec_xml_parser_mod,   only : populate_fieldspec_collection
     use init_diagnostics_mod,       only : init_diagnostics
-    use logging_config_mod,         only : run_log_level, &
-                                           key_from_run_log_level, &
-                                           RUN_LOG_LEVEL_ERROR, &
-                                           RUN_LOG_LEVEL_INFO, &
-                                           RUN_LOG_LEVEL_DEBUG, &
-                                           RUN_LOG_LEVEL_TRACE, &
-                                           RUN_LOG_LEVEL_WARNING
     use mod_wait,                   only : init_wait
     use seed_diagnostics_mod,       only : seed_diagnostics
     use timestepping_config_mod,    only : dt, &
@@ -97,36 +83,14 @@ contains
     class(clock_type), pointer :: clock
     real(r_def)                :: dt_model
 
-    integer(i_def)    :: stencil_depth
-
-    integer(i_native) :: log_level, model_communicator
+    integer(i_native) :: model_communicator
 
     call init_comm( program_name, model_communicator )
 
-    call initialise_logging(get_comm_rank(), get_comm_size(), program_name)
-
     call get_initial_filename( filename )
-    call load_configuration( filename )
+    call load_configuration(filename)
 
-    select case (run_log_level)
-    case(RUN_LOG_LEVEL_ERROR)
-        log_level = LOG_LEVEL_ERROR
-    case(RUN_LOG_LEVEL_WARNING)
-        log_level = LOG_LEVEL_WARNING
-    case(RUN_LOG_LEVEL_INFO)
-        log_level = LOG_LEVEL_INFO
-    case(RUN_LOG_LEVEL_DEBUG)
-        log_level = LOG_LEVEL_DEBUG
-    case(RUN_LOG_LEVEL_TRACE)
-        log_level = LOG_LEVEL_TRACE
-    end select
-
-    call log_set_level(log_level)
-
-    write(log_scratch_space, '(A)')                            &
-            'Runtime message logging severity set to log level: ' // &
-                    convert_to_upper(key_from_run_log_level(run_log_level))
-    call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
+    call init_logger(get_comm_rank(), get_comm_size(), program_name)
 
     !----------------------------------------------------------------------
     ! Model init
@@ -134,17 +98,8 @@ contains
     call log_event( 'Initialising ' // program_name // ' ...', &
                     LOG_LEVEL_ALWAYS )
 
-    allocate( local_mesh_collection, &
-            source = local_mesh_collection_type() )
-    allocate( mesh_collection, &
-              source=mesh_collection_type() )
-
-    stencil_depth = 1_i_def
-
     ! Create the mesh
-    call init_mesh( get_comm_rank(), get_comm_size(), stencil_depth, &
-                    mesh, twod_mesh=twod_mesh )
-
+    call init_mesh( get_comm_rank(), get_comm_size(), mesh, twod_mesh=twod_mesh )
 
     ! Create FEM specifics (function spaces and chi field)
     call init_fem( mesh, chi, panel_id )
@@ -218,6 +173,7 @@ contains
     use checksum_alg_mod,  only : checksum_alg
     use configuration_mod, only : final_configuration
     use fieldspec_mod,     only : fieldspec_type
+    use driver_log_mod,    only : final_logger
 
     implicit none
 
@@ -260,7 +216,7 @@ contains
     call log_event(program_name // ' completed.', LOG_LEVEL_ALWAYS)
 
     ! Finalise the logging system
-    call finalise_logging()
+    call final_logger(program_name)
 
   end subroutine finalise
 

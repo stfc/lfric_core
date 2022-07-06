@@ -18,6 +18,7 @@ module io_dev_driver_mod
                                         PRECISION_REAL, r_def
   use convert_to_upper_mod,       only: convert_to_upper
   use driver_comm_mod,            only: init_comm, final_comm
+  use driver_log_mod,             only: init_logger, final_logger
   use driver_mesh_mod,            only: init_mesh, final_mesh
   use driver_fem_mod,             only: init_fem, final_fem
   use driver_io_mod,              only: init_io, final_io, &
@@ -28,16 +29,9 @@ module io_dev_driver_mod
   use local_mesh_collection_mod,  only: local_mesh_collection, &
                                         local_mesh_collection_type
   use log_mod,                    only: log_event,          &
-                                        log_set_level,      &
                                         log_scratch_space,  &
-                                        initialise_logging, &
-                                        finalise_logging,   &
                                         LOG_LEVEL_ALWAYS,   &
-                                        LOG_LEVEL_ERROR,    &
-                                        LOG_LEVEL_WARNING,  &
-                                        LOG_LEVEL_INFO,     &
-                                        LOG_LEVEL_DEBUG,    &
-                                        LOG_LEVEL_TRACE
+                                        LOG_LEVEL_INFO
   use mesh_collection_mod,        only: mesh_collection, &
                                         mesh_collection_type
   use mesh_mod,                   only: mesh_type
@@ -74,20 +68,11 @@ module io_dev_driver_mod
   !> @brief Sets up required state in preparation for run.
   subroutine initialise()
 
-    use logging_config_mod, only: run_log_level,          &
-                                  key_from_run_log_level, &
-                                  RUN_LOG_LEVEL_ERROR,    &
-                                  RUN_LOG_LEVEL_INFO,     &
-                                  RUN_LOG_LEVEL_DEBUG,    &
-                                  RUN_LOG_LEVEL_TRACE,    &
-                                  RUN_LOG_LEVEL_WARNING
-
     implicit none
 
     character(:), allocatable :: filename
 
-    integer(i_def)    :: stencil_depth
-    integer(i_native) :: communicator, log_level
+    integer(i_native) :: communicator
 
     procedure(filelist_populator), pointer :: files_init_ptr => null()
 
@@ -96,27 +81,7 @@ module io_dev_driver_mod
     call get_initial_filename( filename )
     call load_configuration( filename )
 
-    call initialise_logging(get_comm_rank(), get_comm_size(), program_name)
-
-    select case (run_log_level)
-    case( RUN_LOG_LEVEL_ERROR )
-      log_level = LOG_LEVEL_ERROR
-    case( RUN_LOG_LEVEL_WARNING )
-      log_level = LOG_LEVEL_WARNING
-    case( RUN_LOG_LEVEL_INFO )
-      log_level = LOG_LEVEL_INFO
-    case( RUN_LOG_LEVEL_DEBUG )
-      log_level = LOG_LEVEL_DEBUG
-    case( RUN_LOG_LEVEL_TRACE )
-      log_level = LOG_LEVEL_TRACE
-    end select
-
-    call log_set_level( log_level )
-
-    write(log_scratch_space,'(A)')                              &
-        'Runtime message logging severity set to log level: '// &
-        convert_to_upper(key_from_run_log_level(run_log_level))
-    call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
+    call init_logger(get_comm_rank(), get_comm_size(), program_name)
 
     write(log_scratch_space,'(A)')                        &
         'Application built with '//trim(PRECISION_REAL)// &
@@ -133,18 +98,8 @@ module io_dev_driver_mod
     !-------------------------------------------------------------------------
     call log_event( 'Initialising '//program_name//' ...', LOG_LEVEL_ALWAYS )
 
-    allocate( local_mesh_collection, &
-              source = local_mesh_collection_type() )
-
-    allocate( mesh_collection, &
-              source = mesh_collection_type() )
-
-    ! Hard-code stencil depth to 1
-    stencil_depth = 1
-
     ! Create the mesh
-    call init_mesh( get_comm_rank(), get_comm_size(), stencil_depth, &
-                    mesh, twod_mesh = twod_mesh )
+    call init_mesh( get_comm_rank(), get_comm_size(), mesh, twod_mesh = twod_mesh )
 
     ! Create FEM specifics (function spaces and chi field)
     call init_fem( mesh, chi, panel_id )
@@ -225,8 +180,7 @@ module io_dev_driver_mod
     call final_fem()
 
     ! Final logging before infrastructure is destroyed
-    call log_event( program_name//' completed.', LOG_LEVEL_ALWAYS )
-    call finalise_logging()
+    call final_logger( program_name )
 
     ! Finalise namelist configurations
     call final_configuration()

@@ -48,13 +48,14 @@ CHARACTER(LEN=fnamelen), PUBLIC :: io_nl_fname
 
 INTEGER(KIND=int64), PARAMETER :: max_stash_list = 999
 
-CHARACTER(*), PARAMETER  :: required_lfric_namelists(6) =                      &
-     ['finite_element  ',                                                      &
-     'base_mesh       ',                                                       &
-     'planet          ',                                                       &
-     'extrusion       ',                                                       &
-     'domain_size     ',                                                       &
-     'io              ']
+CHARACTER(*), PARAMETER  :: required_lfric_namelists(7) =                      &
+     ['logging         ',                                                      &
+      'finite_element  ',                                                      &
+      'base_mesh       ',                                                      &
+      'planet          ',                                                      &
+      'extrusion       ',                                                      &
+      'domain_size     ',                                                      &
+      'io              ']
 
 CONTAINS
 

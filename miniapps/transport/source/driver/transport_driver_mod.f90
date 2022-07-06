@@ -14,11 +14,11 @@ module transport_driver_mod
   use clock_mod,                        only: clock_type
   use configuration_mod,                only: final_configuration
   use constants_mod,                    only: i_def, i_native, r_def
-  use convert_to_upper_mod,             only: convert_to_upper
   use driver_comm_mod,                  only: init_comm, final_comm
   use driver_fem_mod,                   only: init_fem
   use driver_io_mod,                    only: init_io, final_io, get_clock
   use driver_mesh_mod,                  only: init_mesh
+  use driver_log_mod,                   only: init_logger, final_logger
   use derived_config_mod,               only: set_derived_config
   use diagnostics_io_mod,               only: write_scalar_diagnostic, &
                                               write_vector_diagnostic
@@ -36,22 +36,12 @@ module transport_driver_mod
                                               timer_output_path
   use lfric_xios_clock_mod,             only: lfric_xios_clock_type
   use local_mesh_mod,                   only: local_mesh_type
-  use local_mesh_collection_mod,        only: local_mesh_collection, &
-                                              local_mesh_collection_type
   use log_mod,                          only: log_event,                       &
-                                              log_set_level,                   &
                                               log_scratch_space,               &
-                                              initialise_logging,              &
-                                              finalise_logging,                &
                                               LOG_LEVEL_ALWAYS,                &
-                                              LOG_LEVEL_ERROR,                 &
-                                              LOG_LEVEL_WARNING,               &
                                               LOG_LEVEL_INFO,                  &
-                                              LOG_LEVEL_DEBUG,                 &
                                               LOG_LEVEL_TRACE
   use mass_conservation_alg_mod,        only: mass_conservation
-  use mesh_collection_mod,              only: mesh_collection, &
-                                              mesh_collection_type
   use mesh_mod,                         only: mesh_type
   use mpi_mod,                          only: get_comm_size, &
                                               get_comm_rank
@@ -112,14 +102,6 @@ contains
   !! @param[in] filename Configuration namelist file
   subroutine initialise_transport()
 
-    use logging_config_mod, only: run_log_level,          &
-                                  key_from_run_log_level, &
-                                  RUN_LOG_LEVEL_ERROR,    &
-                                  RUN_LOG_LEVEL_INFO,     &
-                                  RUN_LOG_LEVEL_DEBUG,    &
-                                  RUN_LOG_LEVEL_TRACE,    &
-                                  RUN_LOG_LEVEL_WARNING
-
     implicit none
 
     character(len=*), parameter :: xios_ctx  = "transport"
@@ -127,9 +109,7 @@ contains
 
     class(clock_type), pointer :: clock => null()
     real(kind=r_def)           :: dt_model
-
-    integer(i_def)    :: stencil_depth
-    integer(i_native) :: log_level, model_communicator
+    integer(i_native)          :: model_communicator
 
     integer(kind=i_def), allocatable :: multigrid_mesh_ids(:)
     integer(kind=i_def), allocatable :: multigrid_2d_mesh_ids(:)
@@ -143,27 +123,7 @@ contains
     call get_initial_filename( filename )
     call transport_load_configuration( filename )
 
-    call initialise_logging( get_comm_rank(), get_comm_size(), program_name )
-
-    select case (run_log_level)
-    case( RUN_LOG_LEVEL_ERROR )
-      log_level = LOG_LEVEL_ERROR
-    case( RUN_LOG_LEVEL_WARNING )
-      log_level = LOG_LEVEL_WARNING
-    case( RUN_LOG_LEVEL_INFO )
-      log_level = LOG_LEVEL_INFO
-    case( RUN_LOG_LEVEL_DEBUG )
-      log_level = LOG_LEVEL_DEBUG
-    case( RUN_LOG_LEVEL_TRACE )
-      log_level = LOG_LEVEL_TRACE
-    end select
-
-    call log_set_level( log_level )
-
-    write(log_scratch_space,'(A)')                             &
-       'Runtime message logging severity set to log level: '// &
-       convert_to_upper(key_from_run_log_level(run_log_level))
-    call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
+    call init_logger( get_comm_rank(), get_comm_size(), program_name )
 
     call log_event( program_name//': Runtime default precision set as:', LOG_LEVEL_ALWAYS )
     write(log_scratch_space, '(I1)') kind(1.0_r_def)
@@ -182,23 +142,16 @@ contains
       call timer( program_name )
     end if
 
-    ! Mesh initialisation
-    allocate( local_mesh_collection, &
-              source = local_mesh_collection_type() )
-    allocate( mesh_collection, &
-              source=mesh_collection_type() )
-
-    stencil_depth = get_required_stencil_depth()
-
     ! Create the mesh
-    call init_mesh( get_comm_rank(), get_comm_size(), stencil_depth,      &
-                    mesh,                                        &
-                    twod_mesh=twod_mesh,                         &
-                    shifted_mesh=shifted_mesh,                   &
-                    double_level_mesh=double_level_mesh,         &
-                    multigrid_mesh_ids=multigrid_mesh_ids,       &
-                    multigrid_2d_mesh_ids=multigrid_2d_mesh_ids, &
-                    use_multigrid=l_multigrid )
+    call init_mesh( get_comm_rank(), get_comm_size(),                &
+                    mesh,                                            &
+                    twod_mesh=twod_mesh,                             &
+                    shifted_mesh=shifted_mesh,                       &
+                    double_level_mesh=double_level_mesh,             &
+                    multigrid_mesh_ids=multigrid_mesh_ids,           &
+                    multigrid_2d_mesh_ids=multigrid_2d_mesh_ids,     &
+                    use_multigrid=l_multigrid,                       &
+                    input_stencil_depth=get_required_stencil_depth() )
 
     ! FEM initialisation
     call init_fem( mesh, chi, panel_id,                         &
@@ -391,10 +344,8 @@ contains
     !----------------------------------------------------------------------------
     call final_comm()
 
-    call log_event( program_name//' completed.', LOG_LEVEL_ALWAYS )
-
     ! Finalise the logging system
-    call finalise_logging()
+    call final_logger(program_name)
 
   end subroutine finalise_transport
 
