@@ -754,7 +754,7 @@ contains
                                                               blend_height_tq, &
                                                               shallow_flag,    &
                                                               level_parcel_top
- 
+
 
     real(kind=r_def), dimension(undf_2d), intent(inout) :: z0m_eff,            &
                                                            ustar,              &

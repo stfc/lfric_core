@@ -6,7 +6,7 @@
 !> @brief Create matrix of Legendre Polynomial coefficients
 !> @details This kernel populates the Pnm_star variable with the associated
 !!          Legendre Polynomial (including the Spherical harmonic amplitude,
-!!          hence the "star" tag) with wavenumber n and m numbers using 
+!!          hence the "star" tag) with wavenumber n and m numbers using
 !!          recurrence relationship. See documentation at
 !!          SH_decomp_cubedsphere.pdf in TicketDetails of LFRIC ticket #2682
 module get_Pnm_star_kernel_mod
@@ -34,7 +34,7 @@ module get_Pnm_star_kernel_mod
     type(arg_type) :: meta_args(3) = (/                                   &
         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! Pnm_star
         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), & ! latitude
-        arg_type(GH_SCALAR, GH_INTEGER, GH_READ)                          & ! spt_n_max        
+        arg_type(GH_SCALAR, GH_INTEGER, GH_READ)                          & ! spt_n_max
         /)
         integer :: operates_on = CELL_COLUMN
 
@@ -63,7 +63,7 @@ contains
   subroutine  get_Pnm_star_code(nlayers,   &
                                 Pnm_star,  &
                                 latitude,  &
-                                spt_n_max, &                                
+                                spt_n_max, &
                                 ndf_sp,    &
                                 undf_sp,   &
                                 map_sp,    &
@@ -80,11 +80,11 @@ contains
     integer(kind=i_def), intent(in) :: undf_sp, undf_2d
     integer(kind=i_def), intent(in), dimension(ndf_sp)  ::  map_sp
     integer(kind=i_def), intent(in), dimension(ndf_2d)  ::  map_2d
-    
+
     !fields
     real(kind=r_def), intent(inout), dimension(undf_sp) :: Pnm_star
     real(kind=r_def), intent(in),    dimension(undf_2d) :: latitude
-    
+
     !SPT scalar
     integer(kind=i_def), intent(in) :: spt_n_max
 
@@ -101,17 +101,17 @@ contains
     !!!! Compute the Pnm_star coefficients:
     ! Legendre Polynomials from -pi/2  to pi/2 defined as P[sin phi]
     ! in the range of [-1,1]
-        
-    ! Compute the Legendre Polynomials and the 
-    ! amplitude of the spherical harmonics together using adapted 
+
+    ! Compute the Legendre Polynomials and the
+    ! amplitude of the spherical harmonics together using adapted
     ! recurrence relationships for the Legendre Polynomials.
-    ! 
+    !
     ! As Ynm = sqrt ((2n + 1)/4Pi * (n - m)!/(n + m)! )  Pnm [sin phi] exp(i m lambda)
-    ! We create 
+    ! We create
     ! Pnm_star = sqrt ((2n + 1)/4Pi * (n - m)!/(n + m)! )  Pnm [sin phi]
     !
     ! Pnm_star includes the amplitude to simplify the operations
-    ! done in the recurrence relationships, where factorials are 
+    ! done in the recurrence relationships, where factorials are
     ! removed. This avoids the division of very large numbers.
 
     ! Indexing of the Pnm_star matrix:
@@ -133,16 +133,16 @@ contains
 
     ! Set Pnm_star (0, 0)
     Pnm_star(map_sp(1)) = 1.0_r_def/sqrt(4.0_r_def*pi)
-    
+
     ! --- Set Pnm_star(n+1, n+1)
-  
+
     ! Use recurrence relationship  Pnm(n+1, n+1) = - (2*n + 1) * cos phi * Pnm(n, n)
     ! transformed into
     ! Pnm_star(n+1, n+1) = - sqrt( (2*n + 3) / (2*n + 2) * cos phi * Pnm_star(n, n)
     !
-    ! Indices Pnm_star(n+1, n+1) -> n_row + 2*(n + 1); where n_row = Sum (n) 
+    ! Indices Pnm_star(n+1, n+1) -> n_row + 2*(n + 1); where n_row = Sum (n)
     !         Pnm_star(n, n) -> n_row + n
-    
+
     n_row=0
     do n = 0,spt_n_max-1
       n_row = n_row + n
@@ -152,13 +152,13 @@ contains
     end do
 
     ! --- Set Pnm_star(n+1,n)
-  
+
     ! Use recurrence relationship  Pnm(n+1, n) =  ( 2*n+1 ) * sin phi * Pnm(n, m)
-    ! transformed into 
+    ! transformed into
     ! Pnm_star(n+1, n) = sqrt( 2*n + 3 ) sin phi * Pnm_star(n, n)
     !
-    ! Indices Pnm_star(n+1, n) -> n_row + (n+1) + n; where n_row = Sum (n) 
-    !         Pnm_star(n,n) -> n_row + n    
+    ! Indices Pnm_star(n+1, n) -> n_row + (n+1) + n; where n_row = Sum (n)
+    !         Pnm_star(n,n) -> n_row + n
     n_row=0
     do n = 0,spt_n_max-1
       n_row = n_row + n
@@ -166,27 +166,27 @@ contains
       coeff=sqrt(2.0_r_def*n + 3.0_r_def)
       Pnm_star(map_sp(1) + np1_row + n) = coeff * sin_esp_lat_rad * Pnm_star(map_sp(1) + (n_row + n) )
     end do
-  
+
     ! --- Set Pnm_star(n,m)
-  
+
     ! Use recurrence relationship
-    ! (n - m) * Pnm(n,m) = (2*n-1) * sin phi * Pnm(n-1, m)  - & 
-    !                           (n + m - 1) * Pnm(n-2, m) 
+    ! (n - m) * Pnm(n,m) = (2*n-1) * sin phi * Pnm(n-1, m)  - &
+    !                           (n + m - 1) * Pnm(n-2, m)
     !
     ! Going from 2 (0 and 1 done in previous loop)
-    ! Tansformed into  
-    ! P_star(n,m)  = fact_1st * sin phi * P_star(n-1,m)  - 
-    !                fact_2nd * P_star(n-2,m) 
+    ! Tansformed into
+    ! P_star(n,m)  = fact_1st * sin phi * P_star(n-1,m)  -
+    !                fact_2nd * P_star(n-2,m)
     !
     ! Where
     !
     ! fact_1st = sqrt( (4*n*n - 1) / (n*n m *m) )
     ! fact_2nd = sqrt( (2*n + 1) / (2*n - 3)  * ( (n-1)**2 - m*m ) / ( n*n - m*m ) )
     !
-    ! Indices Pnm_star(n, m) -> n_row + m; where n_row = Sum (n) 
+    ! Indices Pnm_star(n, m) -> n_row + m; where n_row = Sum (n)
     !         Pnm_star(n-1, m) -> (n_row-n) + m
     !         Pnm_star(n-2, m) -> (n_row-n-(n-1)) + m
-    
+
     n_row=1 ! starting at one as 0 n loop start at 2
     do n=2,spt_n_max
       n_row = n_row + n
@@ -201,7 +201,7 @@ contains
     end do
 
     ! Normalization factor for Spherical Harmonics for n != 0
-    ! Indices Pnm_star(n,m) -> n_row + m; where n_row = Sum (n) 
+    ! Indices Pnm_star(n,m) -> n_row + m; where n_row = Sum (n)
     n_row=0
     do n=1, spt_n_max
       n_row = n_row + n
@@ -209,7 +209,7 @@ contains
         Pnm_star(map_sp(1)+ n_row + m) = Pnm_star(map_sp(1)+ n_row +m)*sqrt(2.0)
       end do
     end do
-   
+
   end subroutine  get_Pnm_star_code
 
 end module get_Pnm_star_kernel_mod

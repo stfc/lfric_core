@@ -271,7 +271,7 @@ contains
     logical(l_def) :: dust_loaded = .false.
 
     ! ----------------------------------------------------------------
-    ! UM aerosol scheme settings 
+    ! UM aerosol scheme settings
     ! For GLOMAP-mode climatology scheme (GLOMAP-clim), these are
     ! contained in glomap_clim_option_mod
     ! For prognostic GLOMAP-mode aerosols (using UKCA with aerosol
@@ -614,7 +614,7 @@ contains
     call check_run_convection()
 
     ! ----------------------------------------------------------------
-    ! UM convection scheme settings for plume scavenging of UKCA 
+    ! UM convection scheme settings for plume scavenging of UKCA
     ! aerosol tracers - contained in UM module ukca_option_mod
     ! ----------------------------------------------------------------
 

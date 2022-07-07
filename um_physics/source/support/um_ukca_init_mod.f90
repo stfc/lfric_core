@@ -23,7 +23,7 @@ module um_ukca_init_mod
   use timestep_mod,         only: timestep
   use cv_run_mod,           only: l_param_conv
 
-  ! JULES modules used 
+  ! JULES modules used
   use jules_surface_types_mod, only: ntype, npft,                              &
                                      brd_leaf, ndl_leaf,                       &
                                      c3_grass, c4_grass,                       &
@@ -63,7 +63,7 @@ module um_ukca_init_mod
   ! All UKCA field names used in LFRic should be defined below and should be
   ! used from this module as required. This is intended to be the master copy
   ! that can be updated in the event of any changes to UKCA names in future
-  ! UKCA versions. 
+  ! UKCA versions.
   ! --------------------------------------------------------------------------
 
   ! -- UKCA field names - Tracers --
@@ -181,14 +181,14 @@ module um_ukca_init_mod
 
   ! - Drivers in scalar group -
   character(len=*), parameter, public :: fldname_sin_declination =             &
-                                         'sin_declination'  
+                                         'sin_declination'
   character(len=*), parameter, public :: fldname_equation_of_time =            &
-                                         'equation_of_time'  
+                                         'equation_of_time'
 
   ! - Drivers in flat grid groups (integer, real & logical) -
 
   ! Photolysis & emissions-related drivers (integer)
-  character(len=*), parameter, public :: fldname_kent = 'kent'  
+  character(len=*), parameter, public :: fldname_kent = 'kent'
   character(len=*), parameter, public :: fldname_kent_dsc = 'kent_dsc'
   ! General purpose drivers (real)
   character(len=*), parameter, public :: fldname_latitude = 'latitude'
@@ -269,7 +269,7 @@ module um_ukca_init_mod
   ! - Drivers in full-height plus level 0 grid group -
 
   character(len=*), parameter, public :: fldname_interf_z = 'interf_z'
-  
+
   ! - Drivers in full-height plus one grid group -
 
   character(len=*), parameter, public :: fldname_exner_rho_lev =               &
@@ -355,7 +355,7 @@ module um_ukca_init_mod
 
   ! Lists of emissions for the UKCA configuration
   character(len=ukca_maxlen_emiss_tracer_name), pointer ::                     &
-    emiss_names(:) => null() 
+    emiss_names(:) => null()
   character(len=ukca_maxlen_emiss_tracer_name), allocatable, public ::         &
     emiss_names_flat(:)
   character(len=ukca_maxlen_emiss_tracer_name), allocatable, public ::         &
@@ -388,7 +388,7 @@ contains
   !>          Also register each emission field to be supplied to UKCA and
   !>          obtain lists of UKCA tracers, non-transported prognostics and
   !>          environmental drivers required for the selected configuration.
-  !> @param[in] row_length      X dimension of model grid 
+  !> @param[in] row_length      X dimension of model grid
   !> @param[in] rows            Y dimension of model grid
   !> @param[in] model_levels    Z dimension of model grid
   !> @param[in] bl_levels       No. of Z levels in boundary layer
@@ -406,7 +406,7 @@ contains
   !> @param[in] dzsoil_layer1   Thickness of surface soil layer (m)
   !> @param[in] timestep        Model time step (s)
   !> @param[in] l_param_conv    True if convection is parameterized
-  
+
   subroutine aerosol_ukca_init( row_length, rows, model_levels, bl_levels,     &
                                 ntype, npft, i_brd_leaf, i_ndl_leaf,           &
                                 i_c3_grass, i_c4_grass, i_shrub,               &
@@ -423,19 +423,19 @@ contains
     use ukca_nmspec_mod, only: nm_spec_active, nmspec_len
     use ukca_option_mod, only: i_mode_nucscav, l_ukca_plume_scav
     use ukca_scavenging_mod, only: ukca_set_conv_indices, tracer_info
-    
+
 
     implicit none
 
-    integer, intent(in) :: row_length      ! X dimension of model grid 
-    integer, intent(in) :: rows            ! Y dimension of model grid 
+    integer, intent(in) :: row_length      ! X dimension of model grid
+    integer, intent(in) :: rows            ! Y dimension of model grid
     integer, intent(in) :: model_levels    ! Z dimension of model grid
-    integer, intent(in) :: bl_levels       ! No. of Z levels in boundary layer 
+    integer, intent(in) :: bl_levels       ! No. of Z levels in boundary layer
     integer, intent(in) :: ntype           ! No. of surface types considered in
-                                           ! interactive dry deposition 
+                                           ! interactive dry deposition
     integer, intent(in) :: npft            ! No. of plant functional types
     integer, intent(in) :: i_brd_leaf      ! Index of type 'broad-leaf tree'
-    integer, intent(in) :: i_ndl_leaf      ! Index of type 'needle-leaf tree'  
+    integer, intent(in) :: i_ndl_leaf      ! Index of type 'needle-leaf tree'
     integer, intent(in) :: i_c3_grass      ! Index of type 'c3 grass'
     integer, intent(in) :: i_c4_grass      ! Index of type 'c4 grass'
     integer, intent(in) :: i_shrub         ! Index of type 'shrub'
@@ -457,11 +457,11 @@ contains
 
     logical :: l_three_dim
 
-    character(len=ukca_maxlen_emiss_long_name) :: long_name 
+    character(len=ukca_maxlen_emiss_long_name) :: long_name
     character(len=ukca_maxlen_emiss_tracer_name), allocatable :: tmp_names(:)
 
     character(len=ukca_maxlen_emiss_var_name) :: field_varname
-    character(len=*), parameter  :: emiss_units = 'kg m-2 s-1' 
+    character(len=*), parameter  :: emiss_units = 'kg m-2 s-1'
 
     ! Variables for UKCA error handling
     integer :: ukca_errcode
@@ -569,7 +569,7 @@ contains
     if (l_ukca_plume_scav) then
       n = size(tracer_names)
       allocate(nm_spec_active(n))
-      do i = 1, n 
+      do i = 1, n
         nm_spec_active(i) = tracer_names(i)(1:nmspec_len)
       end do
       call ukca_set_conv_indices()
@@ -598,16 +598,16 @@ contains
     ! must be registered in order of dimensionality for compatibility with
     ! the UKCA time step call which expects an array of 2D emission fields
     ! and an array of 3D emission fields. These arrays are expected to
-    ! contain fields corresponding to consecutive emission id numbers, 
+    ! contain fields corresponding to consecutive emission id numbers,
     ! starting at 1, with the 3D fields having the highest numbers.
     ! The names of the emission species corresponding to each field array
     ! are given in separate reference arrays created below.
 
     n_emissions = size(emiss_names)
-    allocate(tmp_names(n_emissions)) 
+    allocate(tmp_names(n_emissions))
 
     ! Register 2D emissions
-    n = 0    
+    n = 0
     do i = 1, n_emissions
       if (.NOT.( emiss_names(i) == 'SO2_nat' .or.                              &
                  emiss_names(i) == 'BC_biomass' .or.                           &
@@ -661,7 +661,7 @@ contains
             ') assigned on registering a 2D UKCA emission. Expected ', n
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
-        tmp_names(n) = emiss_names(i)  
+        tmp_names(n) = emiss_names(i)
       end if
     end do
 
@@ -673,8 +673,8 @@ contains
 
     ! Register 3D emissions
     n_previous = n
-    n = 0    
-    do i = 1, n_emissions 
+    n = 0
+    do i = 1, n_emissions
       if ( emiss_names(i) == 'SO2_nat' .or.                                    &
            emiss_names(i) == 'BC_biomass' .or.                                 &
            emiss_names(i) == 'OM_biomass' ) then
@@ -701,10 +701,10 @@ contains
         if (emiss_id /= int( n + n_previous, i_um )) then
           write( log_scratch_space, '(A,I0,A,I0)' )                            &
             'Unexpected id (', emiss_id,                                       &
-            ') assigned on registering 3D UKCA emission. Expected ',n 
+            ') assigned on registering 3D UKCA emission. Expected ',n
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
-        tmp_names(n) = emiss_names(i)  
+        tmp_names(n) = emiss_names(i)
       end if
     end do
 
@@ -725,11 +725,11 @@ contains
     ! Local variables
 
     integer :: i
-    integer :: n 
-    integer :: n_tot 
+    integer :: n
+    integer :: n_tot
 
     ! Number of emission entries for each emitted species
-    integer, pointer :: n_slots(:) => null()   
+    integer, pointer :: n_slots(:) => null()
 
     ! Variables for UKCA error handling
     integer :: ukca_errcode
@@ -773,10 +773,10 @@ contains
     end do
 
     ! Get lists of environmental drivers required by the current UKCA
-    ! configuration. 
+    ! configuration.
     ! Note that these group lists derived from UKCA's master list must
     ! be requested here to force UKCA to set up the group lists prior to
-    ! their use in kernel calls. (Setup within kernels is not thread-safe.) 
+    ! their use in kernel calls. (Setup within kernels is not thread-safe.)
 
     CALL ukca_get_envgroup_varlists(                                           &
            ukca_errcode,                                                       &
@@ -808,7 +808,7 @@ contains
     write( log_scratch_space, '(A,I0,A)' )                                     &
       'Environmental drivers in scalar real group required (', n, '):'
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
-    do i = 1, n 
+    do i = 1, n
       write( log_scratch_space, '(A)' ) env_names_scalar_real(i)
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
     end do
@@ -818,7 +818,7 @@ contains
     write( log_scratch_space, '(A,I0,A)' )                                     &
       'Environmental drivers in flat integer group required (', n, '):'
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
-    do i = 1, n 
+    do i = 1, n
       write( log_scratch_space, '(A)' ) env_names_flat_integer(i)
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
     end do
@@ -828,7 +828,7 @@ contains
     write( log_scratch_space, '(A,I0,A)' )                                     &
       'Environmental drivers in flat real group required (', n, '):'
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
-    do i = 1, n 
+    do i = 1, n
       write( log_scratch_space, '(A)' ) env_names_flat_real(i)
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
     end do
@@ -838,7 +838,7 @@ contains
     write( log_scratch_space, '(A,I0,A)' )                                     &
       'Environmental drivers in flat logical group required (', n, '):'
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
-    do i = 1, n 
+    do i = 1, n
       write( log_scratch_space, '(A)' ) env_names_flat_logical(i)
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
     end do
@@ -848,7 +848,7 @@ contains
     write( log_scratch_space, '(A,I0,A)' )                                     &
       'Environmental drivers in flat PFT real group required (', n, '):'
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
-    do i = 1, n 
+    do i = 1, n
       write( log_scratch_space, '(A)' ) env_names_flatpft_real(i)
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
     end do
@@ -858,7 +858,7 @@ contains
     write( log_scratch_space, '(A,I0,A)' )                                     &
       'Environmental drivers in full-height real group required (', n, '):'
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
-    do i = 1, n 
+    do i = 1, n
       write( log_scratch_space, '(A)' ) env_names_fullht_real(i)
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
     end do
@@ -869,7 +869,7 @@ contains
       'Environmental drivers in full-height + level 0 real group required (',  &
       n, '):'
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
-    do i = 1, n 
+    do i = 1, n
       write( log_scratch_space, '(A)' ) env_names_fullht0_real(i)
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
     end do
@@ -879,7 +879,7 @@ contains
     write( log_scratch_space, '(A,I0,A)' )                                     &
       'Environmental drivers in full-height + 1 real group required (', n, '):'
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
-    do i = 1, n 
+    do i = 1, n
       write( log_scratch_space, '(A)' ) env_names_fullhtp1_real(i)
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
     end do
@@ -889,7 +889,7 @@ contains
     write( log_scratch_space, '(A,I0,A)' )                                     &
       'Environmental drivers in boundary layer real group required (', n, '):'
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
-    do i = 1, n 
+    do i = 1, n
       write( log_scratch_space, '(A)' ) env_names_bllev_real(i)
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
     end do
@@ -900,7 +900,7 @@ contains
       'Environmental drivers in entrainment levels real group required (',     &
       n, '):'
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
-    do i = 1, n 
+    do i = 1, n
       write( log_scratch_space, '(A)' ) env_names_entlev_real(i)
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
     end do
@@ -910,7 +910,7 @@ contains
     write( log_scratch_space, '(A,I0,A)' )                                     &
       'Environmental drivers in land real group required (', n, '):'
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
-    do i = 1, n 
+    do i = 1, n
       write( log_scratch_space, '(A)' ) env_names_land_real(i)
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
     end do
@@ -920,7 +920,7 @@ contains
     write( log_scratch_space, '(A,I0,A)' )                                     &
       'Environmental drivers in land tile real group required (', n, '):'
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
-    do i = 1, n 
+    do i = 1, n
       write( log_scratch_space, '(A)' ) env_names_landtile_real(i)
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
     end do
@@ -930,7 +930,7 @@ contains
     write( log_scratch_space, '(A,I0,A)' )                                     &
       'Environmental drivers in land tile logical group required (', n, '):'
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
-    do i = 1, n 
+    do i = 1, n
       write( log_scratch_space, '(A)' ) env_names_landtile_logical(i)
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
     end do
@@ -940,7 +940,7 @@ contains
     write( log_scratch_space, '(A,I0,A)' )                                     &
       'Environmental drivers in land PFT real group required (', n, '):'
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
-    do i = 1, n 
+    do i = 1, n
       write( log_scratch_space, '(A)' ) env_names_landpft_real(i)
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
     end do
@@ -974,7 +974,7 @@ contains
     ! (consistent with GA9 requirements).
     n_emiss_slots = 0
     do i = 1, size(emiss_names)
-      n_emiss_slots = n_emiss_slots + n_slots(i) 
+      n_emiss_slots = n_emiss_slots + n_slots(i)
     end do
 
   end subroutine get_ukca_field_lists

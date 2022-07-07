@@ -20,7 +20,7 @@ module bm_tau_alg_mod
 
 contains
 
-  !>@brief Calculate various time scales for the bimodal cloud scheme 
+  !>@brief Calculate various time scales for the bimodal cloud scheme
   !>@details The calculation of time sales:
   !>         calculates decorrelation, homogenisation and phase-relaxation
   !>         time scales for use in the variance calculation in the bimodal

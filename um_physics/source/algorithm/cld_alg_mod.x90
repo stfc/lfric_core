@@ -128,7 +128,7 @@ contains
     type( field_type ) :: medium_cld_amount
     type( field_type ) :: high_cld_amount
     type( field_type ) :: very_high_cld_amount
-    type( field_type ) :: combined_cld_amount 
+    type( field_type ) :: combined_cld_amount
     type( field_type ) :: icing_sfip_li_bcf
     type( field_type ) :: icing_sfip_lir_com
 

@@ -94,9 +94,9 @@ contains
 !> @param[in]     wvar           Vertical velocity variance in wth
 !> @param[in]     gradrinr       Gradient Richardson Number in wth
 !> @param[in]     zh             Mixed-layer height
-!> @param[in]     zhsc           Decoupled layer height 
-!> @param[in]     inv_depth      Depth of BL top inversion layer 
-!> @param[in]     bl_type_ind    Diagnosed BL types 
+!> @param[in]     zhsc           Decoupled layer height
+!> @param[in]     inv_depth      Depth of BL top inversion layer
+!> @param[in]     bl_type_ind    Diagnosed BL types
 !> @param[in]     tau_dec_bm     Decorrelation time scale in wth
 !> @param[in]     tau_hom_bm     Homogenisation time scale in wth
 !> @param[in]     tau_mph_bm     Phase-relaxation time scale in wth

@@ -32,12 +32,12 @@ type, public, extends(kernel_type) :: aerosol_ukca_kernel_type
   private
   type(arg_type) :: meta_args(153) = (/            &
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! h2o2
-       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! dms 
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! dms
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! so2
-       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! h2so4 
-       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! dmso 
-       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! monoterpene 
-       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! secondary_organic 
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! h2so4
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! dmso
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! monoterpene
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! secondary_organic
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! n_nuc_sol
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! nuc_sol_su
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! nuc_sol_om
@@ -60,7 +60,7 @@ type, public, extends(kernel_type) :: aerosol_ukca_kernel_type
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! n_ait_ins
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! ait_ins_bc
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! ait_ins_om
-       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! n_acc_ins 
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! n_acc_ins
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! acc_ins_du
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! n_cor_ins
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! acc_cor_du
@@ -115,11 +115,11 @@ type, public, extends(kernel_type) :: aerosol_ukca_kernel_type
        arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),          & ! previous_time_minute
        arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),          & ! previous_time_second
        arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),          & ! previous_time_daynum
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! o3 
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! no3 
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! ho 
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! ho2 
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! h2o2_limit 
+       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! o3
+       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! no3
+       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! ho
+       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! ho2
+       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! h2o2_limit
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! theta_wth
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! exner_in_w3
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! exner_in_wth
@@ -129,61 +129,61 @@ type, public, extends(kernel_type) :: aerosol_ukca_kernel_type
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! m_ci_n
        arg_type( GH_FIELD, GH_REAL, GH_READ, W3 ),          & ! height_w3
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! height_wth
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! ls_rain_3d 
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! ls_snow_3d 
+       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! ls_rain_3d
+       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! ls_snow_3d
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! autoconv
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! accretion 
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! rim_cry 
+       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! accretion
+       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! rim_cry
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! rim_agg
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! tke_bl 
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! conv_rain_3d 
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! conv_snow_3d 
+       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! tke_bl
+       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! conv_rain_3d
+       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! conv_snow_3d
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! cf_bulk
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! cf_liq
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1 ), & ! tile_fraction
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1 ), & ! tile_temperature
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1 ), & ! tile_heat_flux
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1 ), & ! gc_tile 
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1 ), & ! gc_tile
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_2 ), & ! leaf_area_index
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_2 ), & ! canopy_height
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3 ), & ! soil_moisture
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! latitude
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! longitude
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! sin_stellar_declination_rts
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! stellar_eqn_of_time_rts 
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! stellar_eqn_of_time_rts
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! soil_roughness
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! z0m 
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! ustar 
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! z0m
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! ustar
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! wspd10m
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! chloro_sea
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! zh
-       arg_type( GH_FIELD, GH_REAL, GH_READ, W3 ),          & ! wetrho_in_w3 
-       arg_type( GH_FIELD, GH_REAL, GH_READ, W3 ),          & ! rhokh_bl 
+       arg_type( GH_FIELD, GH_REAL, GH_READ, W3 ),          & ! wetrho_in_w3
+       arg_type( GH_FIELD, GH_REAL, GH_READ, W3 ),          & ! rhokh_bl
        arg_type( GH_FIELD, GH_REAL, GH_READ, W3 ),          & ! rdz_tq_bl
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! dtrdz_tq_bl
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! zhsc
-       arg_type( GH_FIELD, GH_INTEGER, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! level_ent 
-       arg_type( GH_FIELD, GH_INTEGER, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! level_ent_dsc 
+       arg_type( GH_FIELD, GH_INTEGER, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! level_ent
+       arg_type( GH_FIELD, GH_INTEGER, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! level_ent_dsc
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_5 ), & ! ent_we_lim
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_5 ), & ! ent_t_frac 
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_5 ), & ! ent_zrzi 
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_5 ), & ! ent_t_frac
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_5 ), & ! ent_zrzi
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_5 ), & ! ent_we_lim_dsc
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_5 ), & ! ent_t_frac_dsc
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_5 ), & ! ent_zrzi_dsc
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! dms_conc_ocean 
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_6 ), & ! dust_flux 
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! dms_conc_ocean
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_6 ), & ! dust_flux
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_4 ), & ! surf_wetness
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! emiss_bc_biomass
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! emiss_om_biomass
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! emiss_so2_nat
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_bc_biofuel
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_bc_fossil
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_dms_land 
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_monoterp 
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_om_biofuel 
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_om_fossil 
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_so2_low 
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ) &  ! emiss_so2_high 
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_dms_land
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_monoterp
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_om_biofuel
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_om_fossil
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! emiss_so2_low
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ) &  ! emiss_so2_high
        /)
   integer :: iterates_over = CELL_COLUMN
 contains
@@ -206,13 +206,13 @@ contains
 !>          Mass mixing ratios are in kg per kg of air, number mixing ratio
 !>          for the aerosol modes are in particles per molecule of air.
 !> @param[in]     nlayers             Number of layers
-!> @param[in,out] h2o2                Hydrogen peroxide m.m.r.          
+!> @param[in,out] h2o2                Hydrogen peroxide m.m.r.
 !> @param[in,out] dms                 Dimethyl sulfide m.m.r.
-!> @param[in,out] so2                 Sulfur dioxide m.m.r.      
-!> @param[in,out] h2so4               Sulfuric acid m.m.r.           
-!> @param[in,out] dmso                Dimethyl sulfoxide m.m.r.         
-!> @param[in,out] monoterpene         Monoterpene m.m.r.         
-!> @param[in,out] secondary organic   Secondary organic m.m.r.           
+!> @param[in,out] so2                 Sulfur dioxide m.m.r.
+!> @param[in,out] h2so4               Sulfuric acid m.m.r.
+!> @param[in,out] dmso                Dimethyl sulfoxide m.m.r.
+!> @param[in,out] monoterpene         Monoterpene m.m.r.
+!> @param[in,out] secondary organic   Secondary organic m.m.r.
 !> @param[in,out] n_nuc_sol           Aerosol field: n.m.r. of soluble nucleation mode
 !> @param[in,out] nuc_sol_su          Aerosol field: m.m.r. of H2SO4 in soluble nucleation mode
 !> @param[in,out] nuc_sol_om          Aerosol field: m.m.r. of organic matter in soluble nucleation mode
@@ -241,13 +241,13 @@ contains
 !> @param[in,out] cor_ins_du          Aerosol field: m.m.r. of dust in insoluble coarse mode
 !> @param[in,out] cloud_drop_no_conc  Cloud Droplet Number Concentration
 !> @param[in]     timestep_number     Time step number
-!> @param[in]     current_time_year   Current model year 
-!> @param[in]     current_time_month  Current model month 
-!> @param[in]     current_time_day    Current model day 
-!> @param[in]     current_time_hour   Current model hour 
-!> @param[in]     current_time_minute Current model minute 
-!> @param[in]     current_time_second Current model second 
-!> @param[in]     current_time_daynum Current model day number 
+!> @param[in]     current_time_year   Current model year
+!> @param[in]     current_time_month  Current model month
+!> @param[in]     current_time_day    Current model day
+!> @param[in]     current_time_hour   Current model hour
+!> @param[in]     current_time_minute Current model minute
+!> @param[in]     current_time_second Current model second
+!> @param[in]     current_time_daynum Current model day number
 !> @param[in]     previous_time_year  Model year at previous time step
 !> @param[in]     previous_time_month Model month at previous time step
 !> @param[in]     previous_time_day   Model day of month at previous time step
@@ -255,13 +255,13 @@ contains
 !> @param[in]     previous_time_minute Model minute at previous time step
 !> @param[in]     previous_time_second Model second at previous time step
 !> @param[in]     previous_time_daynum Model day number at previous time step
-!> @param[in]     o3                  Ozone m.m.r. 
+!> @param[in]     o3                  Ozone m.m.r.
 !> @param[in]     no3                 Nitrate m.m.r.
 !> @param[in]     oh                  Hydroxyl radical m.m.r.
 !> @param[in]     ho2                 Hydroperoxyl radical m.m.r.
 !> @param[in]     h2o2_limit          Hydrogen peroxide m.m.r. upper limit
 !> @param[in]     theta_wth           Potential temperature field (K)
-!> @param[in]     exner_in_w3         Exner pressure in w3 space 
+!> @param[in]     exner_in_w3         Exner pressure in w3 space
 !> @param[in]     exner_in_wth        Exner pressure in theta space
 !> @param[in]     u3_in_wth           'Vertical' wind in theta space
 !> @param[in]     m_v_n               Vapour mixing ratio at time level n
@@ -269,15 +269,15 @@ contains
 !> @param[in]     m_ci_n              Cloud ice mixing ratio at time level n
 !> @param[in]     height_w3           Height of density space above surface (m)
 !> @param[in]     height_wth          Height of theta space above surface (m)
-!> @param[in]     ls_rain_3d          Large scale rainfall flux (kg m-2 s-1) 
-!> @param[in]     ls_snow_3d          Large scale snowfall flux (kg m-2 s-1) 
+!> @param[in]     ls_rain_3d          Large scale rainfall flux (kg m-2 s-1)
+!> @param[in]     ls_snow_3d          Large scale snowfall flux (kg m-2 s-1)
 !> @param[in]     autoconv            Rain autoconversion rate (kg kg-1 s-1)
 !> @param[in]     accretion           Rain accretion rate (kg kg-1 s-1)
 !> @param[in]     rim_cry             Riming rate for ice crystals (kg kg-1 s-1)
 !> @param[in]     rim_agg             Riming rate for ice aggregates (kg kg-1 s-1)
-!> @param[in]     tke_bl              Turbulent_kinetic_energy (m2 s-2) 
-!> @param[in]     conv_rain_3d        Convective rainfall flux (kg m-2 s-1) 
-!> @param[in]     conv_snow_3d        Convective snowfall flux (kg m-2 s-1) 
+!> @param[in]     tke_bl              Turbulent_kinetic_energy (m2 s-2)
+!> @param[in]     conv_rain_3d        Convective rainfall flux (kg m-2 s-1)
+!> @param[in]     conv_snow_3d        Convective snowfall flux (kg m-2 s-1)
 !> @param[in]     cf_bulk             Bulk cloud fraction
 !> @param[in]     cf_liq              Liquid cloud fraction
 !> @param[in]     tile_fraction       Surface tile fractions
@@ -294,29 +294,29 @@ contains
 !> @param[in]     soil_roughness      Bare soil surface roughness length (m)
 !> @param[in]     z0m                 Cell surface roughness length (m)
 !> @param[in]     ustar               Friction velocity (m s-1)
-!> @param[in]     wspd10m             Wind speed at 10 m (m s-1) 
+!> @param[in]     wspd10m             Wind speed at 10 m (m s-1)
 !> @param[in]     chloro_sea          Sea surface chlorophyll content
 !> @param[in]     zh                  Boundary layer depth (m)
-!> @param[in]     wetrho_in_w3        Wet density (kg m-3) 
+!> @param[in]     wetrho_in_w3        Wet density (kg m-3)
 !> @param[in]     rhokh_bl            Scalar eddy diffusivity * rho (kg m-1 s-1)
 !> @param[in]     rdz_tq_bl           1/dz (m-1)
 !> @param[in]     dtrdz_tq_bl         dt/(rho*r*r*dz) (s kg-1)
-!> @param[in]     zhsc                Height at top of decoupled stratocumulus layer (m) 
-!> @param[in]     level_ent           Level of surface mixed layer inversion 
+!> @param[in]     zhsc                Height at top of decoupled stratocumulus layer (m)
+!> @param[in]     level_ent           Level of surface mixed layer inversion
 !> @param[in]     level_ent_dsc       Level of decoupled stratocumulus inversion
 !> @param[in]     ent_we_lim          Rho * entrainment rate at surface ML inversion (kg m-2 s-1)
 !> @param[in]     ent_t_frac          Fraction of time surface ML inversion is above level
-!> @param[in]     ent_zrzi            Level height as fraction of SML inversion height above ML base 
+!> @param[in]     ent_zrzi            Level height as fraction of SML inversion height above ML base
 !> @param[in]     ent_we_lim_dsc      Rho * entrainment rate at DSC inversion (kg m-2 s-1)
 !> @param[in]     ent_t_frac_dsc      Fraction of time DSC inversion is above level
 !> @param[in]     ent_zrzi_dsc        Level height as fraction of DSC inversion height above DSC ML base
 !> @param[in]     dms_conc_ocean      DMS concentration in seawater (nmol l-1)
-!> @param[in]     dust_flux           Dust emission fluxes in CLASSIC size divisions (kg m-2 s-1) 
+!> @param[in]     dust_flux           Dust emission fluxes in CLASSIC size divisions (kg m-2 s-1)
 !> @param[in,out] surf_wetness        Surface wetness prognostic (dimensionless)
 !> @param[in]     emiss_bc_biomass    Black C emissions from biomass burning (kg m-2 s-1)
 !> @param[in]     emiss_om_biomass    Organic matter emissions from biomass burning expressed as C (kg m-2 s-1)
 !> @param[in]     emiss_so2_nat       SO2 natural emissions expressed as S (kg m-2 s-1)
-!> @param[in]     emiss_bc_biofuel    Black C biofuel emissions (kg m-2 s-1) 
+!> @param[in]     emiss_bc_biofuel    Black C biofuel emissions (kg m-2 s-1)
 !> @param[in]     emiss_bc_fossil     Black C fossil fuel emissions (kg m-2 s-1)
 !> @param[in]     emiss_dms_land      DMS emissions from land surface (kg m-2 s-1)
 !> @param[in]     emiss_monoterp      Monoterpene emissions expressed as C
@@ -342,12 +342,12 @@ contains
 !> @param[in]     ndf_2d              Number of DOFs per cell for 2D fields
 !> @param[in]     undf_2d             Number of unique DOFs for 2D fields
 !> @param[in]     map_2d              Dofmap for cell for 2D fields
-!> @param[in]     ndf_ent             Number of DOFs per cell for entrainment levels 
-!> @param[in]     undf_ent            Number of unique DOFs for entrainment levels 
-!> @param[in]     map_ent             Dofmap for cell for entrainment levels 
-!> @param[in]     ndf_dust            Number of DOFs per cell for dust divisions 
-!> @param[in]     undf_dust           Number of unique DOFs for dust divisions 
-!> @param[in]     map_dust            Dofmap for cell for dust divisions 
+!> @param[in]     ndf_ent             Number of DOFs per cell for entrainment levels
+!> @param[in]     undf_ent            Number of unique DOFs for entrainment levels
+!> @param[in]     map_ent             Dofmap for cell for entrainment levels
+!> @param[in]     ndf_dust            Number of DOFs per cell for dust divisions
+!> @param[in]     undf_dust           Number of unique DOFs for dust divisions
+!> @param[in]     map_dust            Dofmap for cell for dust divisions
 
 subroutine aerosol_ukca_code( nlayers,                                         &
                               h2o2,                                            &
@@ -677,7 +677,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
                               fldname_lai_pft,                                 &
                               fldname_canht_pft,                               &
                               nlev_ent_tr_mix
-                              
+
   use log_mod,          only: log_event, log_scratch_space, LOG_LEVEL_ERROR
 
   ! UM modules
@@ -735,13 +735,13 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   integer(kind=i_def), intent(in) :: undf_dust
   integer(kind=i_def), dimension(ndf_dust), intent(in) :: map_dust
 
-  real(kind=r_def), intent(in out), dimension(undf_wth) :: h2o2 
-  real(kind=r_def), intent(in out), dimension(undf_wth) :: dms 
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: h2o2
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: dms
   real(kind=r_def), intent(in out), dimension(undf_wth) :: so2
-  real(kind=r_def), intent(in out), dimension(undf_wth) :: h2so4 
-  real(kind=r_def), intent(in out), dimension(undf_wth) :: dmso 
-  real(kind=r_def), intent(in out), dimension(undf_wth) :: monoterpene 
-  real(kind=r_def), intent(in out), dimension(undf_wth) :: secondary_organic 
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: h2so4
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: dmso
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: monoterpene
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: secondary_organic
   real(kind=r_def), intent(in out), dimension(undf_wth) :: n_nuc_sol
   real(kind=r_def), intent(in out), dimension(undf_wth) :: nuc_sol_su
   real(kind=r_def), intent(in out), dimension(undf_wth) :: nuc_sol_om
@@ -805,7 +805,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   real(kind=r_def), intent(in out), dimension(undf_wth) :: pvol_du_acc_ins
   real(kind=r_def), intent(in out), dimension(undf_wth) :: pvol_du_cor_ins
 
-  integer(kind=i_timestep), intent(in) :: timestep_number 
+  integer(kind=i_timestep), intent(in) :: timestep_number
   integer(kind=i_def), intent(in) :: current_time_year
   integer(kind=i_def), intent(in) :: current_time_month
   integer(kind=i_def), intent(in) :: current_time_day
@@ -823,62 +823,62 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   real(kind=r_def), intent(in), dimension(undf_wth) :: o3
   real(kind=r_def), intent(in), dimension(undf_wth) :: no3
-  real(kind=r_def), intent(in), dimension(undf_wth) :: oh 
-  real(kind=r_def), intent(in), dimension(undf_wth) :: ho2 
-  real(kind=r_def), intent(in), dimension(undf_wth) :: h2o2_limit 
+  real(kind=r_def), intent(in), dimension(undf_wth) :: oh
+  real(kind=r_def), intent(in), dimension(undf_wth) :: ho2
+  real(kind=r_def), intent(in), dimension(undf_wth) :: h2o2_limit
   real(kind=r_def), intent(in), dimension(undf_wth) :: theta_wth
   real(kind=r_def), intent(in), dimension(undf_w3) :: exner_in_w3
   real(kind=r_def), intent(in), dimension(undf_wth) :: exner_in_wth
   real(kind=r_def), intent(in), dimension(undf_wth) :: u3_in_wth
-  real(kind=r_def), intent(in), dimension(undf_wth) :: m_v_n 
-  real(kind=r_def), intent(in), dimension(undf_wth) :: m_cl_n 
-  real(kind=r_def), intent(in), dimension(undf_wth) :: m_ci_n 
+  real(kind=r_def), intent(in), dimension(undf_wth) :: m_v_n
+  real(kind=r_def), intent(in), dimension(undf_wth) :: m_cl_n
+  real(kind=r_def), intent(in), dimension(undf_wth) :: m_ci_n
   real(kind=r_def), intent(in), dimension(undf_w3) :: height_w3
-  real(kind=r_def), intent(in), dimension(undf_wth) :: height_wth 
-  real(kind=r_def), intent(in), dimension(undf_wth) :: ls_rain_3d 
-  real(kind=r_def), intent(in), dimension(undf_wth) :: ls_snow_3d 
+  real(kind=r_def), intent(in), dimension(undf_wth) :: height_wth
+  real(kind=r_def), intent(in), dimension(undf_wth) :: ls_rain_3d
+  real(kind=r_def), intent(in), dimension(undf_wth) :: ls_snow_3d
   real(kind=r_def), intent(in), dimension(undf_wth) :: autoconv
-  real(kind=r_def), intent(in), dimension(undf_wth) :: accretion 
-  real(kind=r_def), intent(in), dimension(undf_wth) :: rim_cry 
-  real(kind=r_def), intent(in), dimension(undf_wth) :: rim_agg 
-  real(kind=r_def), intent(in), dimension(undf_wth) :: tke_bl 
-  real(kind=r_def), intent(in), dimension(undf_wth) :: conv_rain_3d 
-  real(kind=r_def), intent(in), dimension(undf_wth) :: conv_snow_3d 
-  real(kind=r_def), intent(in), dimension(undf_wth) :: cf_bulk 
+  real(kind=r_def), intent(in), dimension(undf_wth) :: accretion
+  real(kind=r_def), intent(in), dimension(undf_wth) :: rim_cry
+  real(kind=r_def), intent(in), dimension(undf_wth) :: rim_agg
+  real(kind=r_def), intent(in), dimension(undf_wth) :: tke_bl
+  real(kind=r_def), intent(in), dimension(undf_wth) :: conv_rain_3d
+  real(kind=r_def), intent(in), dimension(undf_wth) :: conv_snow_3d
+  real(kind=r_def), intent(in), dimension(undf_wth) :: cf_bulk
   real(kind=r_def), intent(in), dimension(undf_wth) :: cf_liq
-  real(kind=r_def), intent(in), dimension(undf_tile) :: tile_fraction 
-  real(kind=r_def), intent(in), dimension(undf_tile) :: tile_temperature 
+  real(kind=r_def), intent(in), dimension(undf_tile) :: tile_fraction
+  real(kind=r_def), intent(in), dimension(undf_tile) :: tile_temperature
   real(kind=r_def), intent(in), dimension(undf_tile) :: tile_heat_flux
-  real(kind=r_def), intent(in), dimension(undf_tile) :: gc_tile 
-  real(kind=r_def), intent(in), dimension(undf_pft) :: leaf_area_index 
-  real(kind=r_def), intent(in), dimension(undf_pft) :: canopy_height 
-  real(kind=r_def), intent(in), dimension(undf_soil) :: soil_moisture 
+  real(kind=r_def), intent(in), dimension(undf_tile) :: gc_tile
+  real(kind=r_def), intent(in), dimension(undf_pft) :: leaf_area_index
+  real(kind=r_def), intent(in), dimension(undf_pft) :: canopy_height
+  real(kind=r_def), intent(in), dimension(undf_soil) :: soil_moisture
   real(kind=r_def), intent(in), dimension(undf_2d) :: latitude
-  real(kind=r_def), intent(in), dimension(undf_2d) :: longitude 
+  real(kind=r_def), intent(in), dimension(undf_2d) :: longitude
   real(kind=r_def), intent(in), dimension(undf_2d) ::                          &
     sin_stellar_declination_rts
   real(kind=r_def), intent(in), dimension(undf_2d) :: stellar_eqn_of_time_rts
-  real(kind=r_def), intent(in), dimension(undf_2d) :: soil_roughness 
-  real(kind=r_def), intent(in), dimension(undf_2d) :: z0m 
-  real(kind=r_def), intent(in), dimension(undf_2d) :: ustar 
+  real(kind=r_def), intent(in), dimension(undf_2d) :: soil_roughness
+  real(kind=r_def), intent(in), dimension(undf_2d) :: z0m
+  real(kind=r_def), intent(in), dimension(undf_2d) :: ustar
   real(kind=r_def), intent(in), dimension(undf_2d) :: wspd10m
   real(kind=r_def), intent(in), dimension(undf_2d) :: chloro_sea
   real(kind=r_def), intent(in), dimension(undf_2d) :: zh
-  real(kind=r_def), intent(in), dimension(undf_w3) :: wetrho_in_w3 
-  real(kind=r_def), intent(in), dimension(undf_w3) :: rhokh_bl 
+  real(kind=r_def), intent(in), dimension(undf_w3) :: wetrho_in_w3
+  real(kind=r_def), intent(in), dimension(undf_w3) :: rhokh_bl
   real(kind=r_def), intent(in), dimension(undf_w3) :: rdz_tq_bl
   real(kind=r_def), intent(in), dimension(undf_wth) :: dtrdz_tq_bl
-  real(kind=r_def), intent(in), dimension(undf_2d) :: zhsc 
-  integer(kind=i_def), intent(in), dimension(undf_2d) :: level_ent 
-  integer(kind=i_def), intent(in), dimension(undf_2d) :: level_ent_dsc 
-  real(kind=r_def), intent(in), dimension(undf_ent) :: ent_we_lim 
-  real(kind=r_def), intent(in), dimension(undf_ent) :: ent_t_frac 
+  real(kind=r_def), intent(in), dimension(undf_2d) :: zhsc
+  integer(kind=i_def), intent(in), dimension(undf_2d) :: level_ent
+  integer(kind=i_def), intent(in), dimension(undf_2d) :: level_ent_dsc
+  real(kind=r_def), intent(in), dimension(undf_ent) :: ent_we_lim
+  real(kind=r_def), intent(in), dimension(undf_ent) :: ent_t_frac
   real(kind=r_def), intent(in), dimension(undf_ent) :: ent_zrzi
   real(kind=r_def), intent(in), dimension(undf_ent) :: ent_we_lim_dsc
-  real(kind=r_def), intent(in), dimension(undf_ent) :: ent_t_frac_dsc 
+  real(kind=r_def), intent(in), dimension(undf_ent) :: ent_t_frac_dsc
   real(kind=r_def), intent(in), dimension(undf_ent) :: ent_zrzi_dsc
   real(kind=r_def), intent(in), dimension(undf_2d) :: dms_conc_ocean
-  real(kind=r_def), intent(in), dimension(undf_dust) :: dust_flux 
+  real(kind=r_def), intent(in), dimension(undf_dust) :: dust_flux
   real(kind=r_def), intent(inout), dimension(undf_2d) :: surf_wetness
   real(kind=r_def), intent(in), dimension(undf_wth) :: emiss_bc_biomass
   real(kind=r_def), intent(in), dimension(undf_wth) :: emiss_om_biomass
@@ -899,7 +899,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   ! Model time at previous time step
   integer(i_um) :: previous_time(7)
 
-  ! Prognostics to be updated in the time step 
+  ! Prognostics to be updated in the time step
   real(r_um), allocatable :: tracer(:,:) ! Tracer fields
   real(r_um), allocatable :: ntp(:,:)    ! NTP fields
                                          ! (for microphysics & RADAER)
@@ -927,35 +927,35 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   ! Working variables
 
-  integer(i_um) :: n_fields   ! Number of fields in a group 
+  integer(i_um) :: n_fields   ! Number of fields in a group
   integer(i_um) :: n_land_pts ! Number of land points
   integer(i_um) :: i
-  integer(i_um) :: j 
-  integer(i_um) :: k 
+  integer(i_um) :: j
+  integer(i_um) :: k
   integer(i_um) :: error_code
 
   integer(i_um) :: n_surft_pts(n_land_tile)
-                              ! Number of land points that include surface type 
+                              ! Number of land points that include surface type
   integer(i_um) :: surft_index(n_land_tile)
-                              ! Indices of land points that include surface type 
+                              ! Indices of land points that include surface type
   real(r_um) :: frac_land     ! Land fraction of cell
   real(r_um) :: frac_sea      ! Sea fraction of cell
   real(r_um) :: frac_seaice   ! Sea fraction with respect to sea area
-  real(r_um) :: meanval       ! Arbitrary mean value 
+  real(r_um) :: meanval       ! Arbitrary mean value
 
   real(r_um) :: z0m_soil_gb(land_field) ! Soil roughness length (m)
 
   real(r_um) :: frac_surft( land_field, n_land_tile )
                               ! Fraction of surf. type with respect to land area
   real(r_um) :: z0_surft( land_field, n_land_tile )
-                              ! Surface roughness length on tiles (m) 
+                              ! Surface roughness length on tiles (m)
   real(r_um) :: lai_pft( land_field, n_land_tile )
                               ! Leaf area index of plant functional type
-  real(r_um) :: canht_pft( land_field, n_land_tile ) 
+  real(r_um) :: canht_pft( land_field, n_land_tile )
                               ! Canopy_height of plant functional type (m)
   real(r_um) :: rho_r2        ! Density * r * r
-  real(r_um) :: exner_rho_top ! Exner pressure at top rho level 
-  real(r_um) :: exner_theta_top ! Exner pressure at top theta level 
+  real(r_um) :: exner_rho_top ! Exner pressure at top rho level
+  real(r_um) :: exner_theta_top ! Exner pressure at top theta level
 
   logical :: l_land           ! Land/sea indicator (True for land point)
 
@@ -993,7 +993,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   allocate(tracer( nlayers, n_fields ))
   tracer = 0.0_r_um
 
-  do i = 1, n_fields 
+  do i = 1, n_fields
     select case(tracer_names(i))
     case(fldname_h2o2)
       tracer( :, i ) =                                                         &
@@ -1106,7 +1106,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   allocate(ntp(nlayers, n_fields))
   ntp = 0.0_r_um
 
-  do i = 1, n_fields 
+  do i = 1, n_fields
     select case(ntp_names(i))
     case(fldname_cloud_drop_no_conc)
       ntp( :, i ) =                                                            &
@@ -1221,7 +1221,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
     case(fldname_pvol_du_cor_ins)
       ntp( :, i ) =                                                            &
         real( pvol_du_cor_ins( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
-    case default  
+    case default
       write( log_scratch_space, '(A,A)' )                                      &
         'Missing required UKCA NTP: ', ntp_names(i)
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
@@ -1268,7 +1268,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   call urban_param_assoc(urban_param, urban_param_data)
 
   if (l_land) then
-    ! Tile fractions with respect to land area  
+    ! Tile fractions with respect to land area
     do i = 1, n_land_tile
       frac_surft( 1, i ) =                                                     &
         real( tile_fraction( map_tile(1) + i - 1 ), r_um ) / frac_land
@@ -1316,7 +1316,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   end do
 
   ! Drivers in flat grid groups (scalar values)
- 
+
   n_fields = size(env_names_flat_integer)
   allocate(environ_flat_integer(n_fields))
   environ_flat_integer = 0
@@ -1324,9 +1324,9 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   do i = 1, n_fields
     select case(env_names_flat_integer(i))
     case(fldname_kent)
-      environ_flat_integer(i) = int( level_ent(map_2d(1)), i_um ) 
+      environ_flat_integer(i) = int( level_ent(map_2d(1)), i_um )
     case(fldname_kent_dsc)
-      environ_flat_integer(i) = int( level_ent_dsc(map_2d(1)), i_um ) 
+      environ_flat_integer(i) = int( level_ent_dsc(map_2d(1)), i_um )
     case default
       write( log_scratch_space, '(A,A)' )                                      &
         'Missing required UKCA environment field: ', env_names_flat_integer(i)
@@ -1335,10 +1335,10 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   end do
 
   n_fields = size(env_names_flat_real)
-  allocate(environ_flat_real(n_fields)) 
+  allocate(environ_flat_real(n_fields))
   environ_flat_real = 0.0_r_um
 
-  do i = 1, n_fields 
+  do i = 1, n_fields
     select case(env_names_flat_real(i))
     case(fldname_latitude)
       ! Latitude (degrees N)
@@ -1378,7 +1378,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
           real( tile_fraction( map_tile(1) + j - 1 ), r_um ) *                 &
           real( tile_temperature( map_tile(1) + j - 1 ), r_um )
       end do
-      environ_flat_real(i) = meanval 
+      environ_flat_real(i) = meanval
     case(fldname_pstar)
       ! Surface air pressure
       environ_flat_real(i) = p_zero *                                          &
@@ -1397,7 +1397,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
           real( tile_fraction( map_tile(1) + j - 1 ), r_um ) *                 &
           real( tile_heat_flux( map_tile(1) + j - 1 ), r_um )
       end do
-      environ_flat_real(i) = meanval 
+      environ_flat_real(i) = meanval
     case(fldname_zbl)
       ! Boundary layer height
       environ_flat_real(i) = real( zh(map_2d(1)), r_um )
@@ -1417,19 +1417,19 @@ subroutine aerosol_ukca_code( nlayers,                                         &
       ! Dust emission flux in division 1
       environ_flat_real(i) = real( dust_flux(map_dust(1) + 0), r_um )
     case(fldname_dust_flux_div2)
-      ! Dust emission flux in division 2 
+      ! Dust emission flux in division 2
       environ_flat_real(i) = real( dust_flux(map_dust(1) + 1), r_um )
     case(fldname_dust_flux_div3)
-      ! Dust emission flux in division 3 
+      ! Dust emission flux in division 3
       environ_flat_real(i) = real( dust_flux(map_dust(1) + 2), r_um )
     case(fldname_dust_flux_div4)
-      ! Dust emission flux in division 4 
+      ! Dust emission flux in division 4
       environ_flat_real(i) = real( dust_flux(map_dust(1) + 3), r_um )
     case(fldname_dust_flux_div5)
-      ! Dust emission flux in division 5 
+      ! Dust emission flux in division 5
       environ_flat_real(i) = real( dust_flux(map_dust(1) + 4), r_um )
     case(fldname_dust_flux_div6)
-      ! Dust emission flux in division 6 
+      ! Dust emission flux in division 6
       environ_flat_real(i) = real( dust_flux(map_dust(1) + 5), r_um )
     case(fldname_zhsc)
       ! Height at top of decoupled stratocumulus layer
@@ -1469,8 +1469,8 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   end do
 
   n_fields = size(env_names_flat_logical)
-  allocate(environ_flat_logical(n_fields)) 
-  environ_flat_logical = .false. 
+  allocate(environ_flat_logical(n_fields))
+  environ_flat_logical = .false.
 
   do i = 1, n_fields
     select case(env_names_flat_logical(i))
@@ -1487,7 +1487,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   ! Drivers in flat grid plant functional type tile group (1D fields)
 
   n_fields = size(env_names_flatpft_real)
-  allocate(environ_flatpft_real( npft, n_fields )) 
+  allocate(environ_flatpft_real( npft, n_fields ))
   environ_flatpft_real = 0.0_r_um
 
   do i = 1, n_fields
@@ -1510,7 +1510,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   ! Drivers in full-height grid group (1D fields)
 
   n_fields = size(env_names_fullht_real)
-  allocate(environ_fullht_real( nlayers, n_fields )) 
+  allocate(environ_fullht_real( nlayers, n_fields ))
   environ_fullht_real = 0.0_r_um
 
   do i = 1, n_fields
@@ -1536,7 +1536,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
       environ_fullht_real( :, i ) =                                            &
         real( h2o2_limit( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
     case(fldname_theta)
-      ! Potential temperature 
+      ! Potential temperature
       environ_fullht_real( :, i ) =                                            &
         real( theta_wth( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
     case(fldname_exner_theta_lev)
@@ -1566,7 +1566,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
       environ_fullht_real( :, i ) =                                            &
         real( m_ci_n( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
     case(fldname_bulk_cloud_frac)
-      ! Bulk cloud fraction 
+      ! Bulk cloud fraction
       environ_fullht_real( :, i ) =                                            &
         real( cf_bulk( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
     case(fldname_ls_rain3d)
@@ -1590,10 +1590,10 @@ subroutine aerosol_ukca_code( nlayers,                                         &
         ! Density * r * r
         rho_r2 = real( wetrho_in_w3( map_w3(1) + k - 1 ) *                     &
                        (r_rho_levels( 1, 1, k )**2 ), r_um )
-        environ_fullht_real( k, i) = rho_r2 
-      end do 
+        environ_fullht_real( k, i) = rho_r2
+      end do
     case(fldname_liq_cloud_frac)
-      ! Liquid cloud fraction 
+      ! Liquid cloud fraction
       environ_fullht_real( :, i ) =                                            &
         real( cf_liq( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
     case(fldname_autoconv)
@@ -1605,7 +1605,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
       environ_fullht_real( :, i ) =                                            &
         real( accretion( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
     case(fldname_rim_cry)
-      ! Riming rate for ice crystals 
+      ! Riming rate for ice crystals
       environ_fullht_real( :, i ) =                                            &
         real( rim_cry( map_wth(1) + 1 : map_wth(1) + nlayers ), r_um )
     case(fldname_rim_agg)
@@ -1626,7 +1626,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   ! Drivers in full-height plus level zero grid group (1D fields)
 
   n_fields = size(env_names_fullht0_real)
-  allocate(environ_fullht0_real( 0:nlayers, n_fields )) 
+  allocate(environ_fullht0_real( 0:nlayers, n_fields ))
   environ_fullht0_real = 0.0_r_um
 
   do i = 1, n_fields
@@ -1649,7 +1649,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   ! Drivers in full-height plus one grid group (1D fields)
 
   n_fields = size(env_names_fullhtp1_real)
-  allocate(environ_fullhtp1_real( nlayers + 1, n_fields )) 
+  allocate(environ_fullhtp1_real( nlayers + 1, n_fields ))
   environ_fullhtp1_real = 0.0_r_um
 
   do i = 1, n_fields
@@ -1664,7 +1664,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
       exner_rho_top = real( exner_in_w3( map_w3(1) + nlayers - 1 ), r_um )
       exner_theta_top = real( exner_in_wth( map_wth(1) + nlayers ), r_um )
       environ_fullhtp1_real( nlayers + 1, i ) =                                &
-        exner_rho_top + 2.0_r_um * (exner_theta_top - exner_rho_top)  
+        exner_rho_top + 2.0_r_um * (exner_theta_top - exner_rho_top)
     case default
       write( log_scratch_space, '(A,A)' )                                      &
         'Missing required UKCA environment field: ', env_names_fullhtp1_real(i)
@@ -1675,14 +1675,14 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   ! Drivers in boundary layer levels group (1D fields)
 
   n_fields = size(env_names_bllev_real)
-  allocate(environ_bllev_real( bl_levels, n_fields )) 
+  allocate(environ_bllev_real( bl_levels, n_fields ))
   environ_bllev_real = 0.0_r_um
 
   do i = 1, n_fields
     select case(env_names_bllev_real(i))
-    
+
     case(fldname_rhokh_rdz)
-      ! Mixing coefficient: eddy diffusivity * rho / dz 
+      ! Mixing coefficient: eddy diffusivity * rho / dz
       do k = 2, bl_levels
         environ_bllev_real( k, i ) = real( rhokh_bl( map_w3(1) + k - 1 ) *     &
                                            rdz_tq_bl( map_w3(1) + k - 1 ), r_um)
@@ -1705,13 +1705,13 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   ! Drivers in entrainment layers group (1D fields)
 
   n_fields = size(env_names_entlev_real)
-  allocate(environ_entlev_real( nlev_ent_tr_mix, n_fields )) 
+  allocate(environ_entlev_real( nlev_ent_tr_mix, n_fields ))
   environ_entlev_real = 0.0_r_um
 
   do i = 1, n_fields
     select case(env_names_entlev_real(i))
     case(fldname_we_lim)
-      ! rho * entrainment rate at surface mixed layer inversion 
+      ! rho * entrainment rate at surface mixed layer inversion
       environ_entlev_real( :, i ) =                                            &
         real( ent_we_lim( map_ent(1) + 0 : map_ent(1) + nlev_ent_tr_mix - 1 ), &
               r_um )
@@ -1720,14 +1720,14 @@ subroutine aerosol_ukca_code( nlayers,                                         &
       environ_entlev_real( :, i ) =                                            &
         real( ent_t_frac( map_ent(1) + 0 : map_ent(1) + nlev_ent_tr_mix - 1 ), &
               r_um )
-    case(fldname_zrzi) 
+    case(fldname_zrzi)
       ! Level height as fraction of surface mixed layer inversion height above
-      ! ML base 
+      ! ML base
       environ_entlev_real( :, i ) =                                            &
         real( ent_zrzi( map_ent(1) + 0 : map_ent(1) + nlev_ent_tr_mix - 1 ),   &
               r_um )
     case(fldname_we_lim_dsc)
-      ! rho * entrainment rate at decoupled stratocumulus inversion 
+      ! rho * entrainment rate at decoupled stratocumulus inversion
       environ_entlev_real( :, i ) = real(                                      &
         ent_we_lim_dsc( map_ent(1) + 0 : map_ent(1) + nlev_ent_tr_mix - 1 ),   &
         r_um )
@@ -1738,7 +1738,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
         r_um )
     case(fldname_zrzi_dsc)
       ! Level height as fraction of decoupled stratocumulus inversion height
-      ! above DSC ML base 
+      ! above DSC ML base
       environ_entlev_real( :, i ) = real(                                      &
         ent_zrzi_dsc( map_ent(1) + 0 : map_ent(1) + nlev_ent_tr_mix - 1 ),     &
         r_um )
@@ -1752,7 +1752,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   ! Drivers in land point group (1D fields)
 
   n_fields = size(env_names_land_real)
-  allocate(environ_land_real( n_land_pts, n_fields )) 
+  allocate(environ_land_real( n_land_pts, n_fields ))
   environ_land_real = 0.0_r_um
 
   if (l_land) then
@@ -1775,7 +1775,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   ! Drivers in land-point tile groups (2D fields)
 
   n_fields = size(env_names_landtile_real)
-  allocate(environ_landtile_real( n_land_pts, n_land_tile, n_fields )) 
+  allocate(environ_landtile_real( n_land_pts, n_land_tile, n_fields ))
   environ_landtile_real = 0.0_r_um
 
   if (l_land) then
@@ -1783,7 +1783,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
       select case(env_names_landtile_real(i))
       case(fldname_frac_surft)
         do j = 1, n_land_tile
-          environ_landtile_real( 1, j, i ) = frac_surft( 1, j ) 
+          environ_landtile_real( 1, j, i ) = frac_surft( 1, j )
         end do
       case(fldname_tstar_surft)
         do j = 1, n_land_tile
@@ -1792,7 +1792,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
         end do
       case(fldname_z0_surft)
         do j = 1, n_land_tile
-          environ_landtile_real( 1, j, i ) = z0_surft( 1, j ) 
+          environ_landtile_real( 1, j, i ) = z0_surft( 1, j )
         end do
       case default
         write( log_scratch_space, '(A,A)' )                                    &
@@ -1804,8 +1804,8 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   endif
 
   n_fields = size(env_names_landtile_logical)
-  allocate(environ_landtile_logical( n_land_pts, n_land_tile, n_fields) ) 
-  environ_landtile_logical = .false. 
+  allocate(environ_landtile_logical( n_land_pts, n_land_tile, n_fields) )
+  environ_landtile_logical = .false.
 
   if (l_land) then
     do i = 1, n_fields
@@ -1830,11 +1830,11 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   ! Drivers in land-point plant functional type tile group (2D fields)
 
   n_fields = size(env_names_landpft_real)
-  allocate(environ_landpft_real( n_land_pts, npft, n_fields )) 
+  allocate(environ_landpft_real( n_land_pts, npft, n_fields ))
   environ_landpft_real = 0.0_r_um
 
   if (l_land) then
-    do i = 1, n_fields 
+    do i = 1, n_fields
       select case(env_names_landpft_real(i))
       case(fldname_lai_pft)
         ! Leaf area index
@@ -1953,7 +1953,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   if (error_code > 0) then
     write( log_scratch_space, '(A)' )                                          &
-      trim(ukca_errmsg) // ' in UKCA procedure ' // trim(ukca_errproc) 
+      trim(ukca_errmsg) // ' in UKCA procedure ' // trim(ukca_errproc)
     call log_event( log_scratch_space, LOG_LEVEL_ERROR )
   end if
 
@@ -1979,7 +1979,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   ! Tracers
 
-  do i = 1, size(tracer_names) 
+  do i = 1, size(tracer_names)
     select case(tracer_names(i))
     case(fldname_h2o2)
       h2o2( map_wth(1) + 1 : map_wth(1) + nlayers ) =                          &
@@ -2118,7 +2118,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   ! Non-transported prognostics
 
-  do i = 1, size(ntp_names) 
+  do i = 1, size(ntp_names)
     select case(ntp_names(i))
     case(fldname_cloud_drop_no_conc)
       ! Impose lower limit on CDNC (5 cm-3)
@@ -2130,143 +2130,143 @@ subroutine aerosol_ukca_code( nlayers,                                         &
        ! UKCA output not currently used
     case(fldname_drydp_ait_sol)
       drydp_ait_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       drydp_ait_sol( map_wth(1) + 0 ) = drydp_ait_sol( map_wth(1) + 1 )
     case(fldname_drydp_acc_sol)
       drydp_acc_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       drydp_acc_sol( map_wth(1) + 0 ) = drydp_acc_sol( map_wth(1) + 1 )
     case(fldname_drydp_cor_sol)
       drydp_cor_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       drydp_cor_sol( map_wth(1) + 0 ) = drydp_cor_sol( map_wth(1) + 1 )
     case(fldname_drydp_ait_ins)
       drydp_ait_ins( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       drydp_ait_ins( map_wth(1) + 0 ) = drydp_ait_ins( map_wth(1) + 1 )
     case(fldname_drydp_acc_ins)
       drydp_acc_ins( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       drydp_acc_ins( map_wth(1) + 0 ) = drydp_acc_ins( map_wth(1) + 1 )
     case(fldname_drydp_cor_ins)
       drydp_cor_ins( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       drydp_cor_ins( map_wth(1) + 0 ) = drydp_cor_ins( map_wth(1) + 1 )
     case(fldname_wetdp_ait_sol)
       wetdp_ait_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       wetdp_ait_sol( map_wth(1) + 0 ) = wetdp_ait_sol( map_wth(1) + 1 )
     case(fldname_wetdp_acc_sol)
       wetdp_acc_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       wetdp_acc_sol( map_wth(1) + 0 ) = wetdp_acc_sol( map_wth(1) + 1 )
     case(fldname_wetdp_cor_sol)
       wetdp_cor_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       wetdp_cor_sol( map_wth(1) + 0 ) = wetdp_cor_sol( map_wth(1) + 1 )
     case(fldname_rhopar_ait_sol)
       rhopar_ait_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =                &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       rhopar_ait_sol( map_wth(1) + 0 ) = rhopar_ait_sol( map_wth(1) + 1 )
     case(fldname_rhopar_acc_sol)
       rhopar_acc_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =                &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       rhopar_acc_sol( map_wth(1) + 0 ) = rhopar_acc_sol( map_wth(1) + 1 )
     case(fldname_rhopar_cor_sol)
       rhopar_cor_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =                &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       rhopar_cor_sol( map_wth(1) + 0 ) = rhopar_cor_sol( map_wth(1) + 1 )
     case(fldname_rhopar_ait_ins)
       rhopar_ait_ins( map_wth(1) + 1 : map_wth(1) + nlayers ) =                &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       rhopar_ait_ins( map_wth(1) + 0 ) = rhopar_ait_ins( map_wth(1) + 1 )
     case(fldname_rhopar_acc_ins)
       rhopar_acc_ins( map_wth(1) + 1 : map_wth(1) + nlayers ) =                &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       rhopar_acc_ins( map_wth(1) + 0 ) = rhopar_acc_ins( map_wth(1) + 1 )
     case(fldname_rhopar_cor_ins)
       rhopar_cor_ins( map_wth(1) + 1 : map_wth(1) + nlayers ) =                &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       rhopar_cor_ins( map_wth(1) + 0 ) = rhopar_cor_ins( map_wth(1) + 1 )
     case(fldname_pvol_su_ait_sol)
       pvol_su_ait_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       pvol_su_ait_sol( map_wth(1) + 0 ) = pvol_su_ait_sol( map_wth(1) + 1 )
     case(fldname_pvol_bc_ait_sol)
       pvol_bc_ait_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       pvol_bc_ait_sol( map_wth(1) + 0 ) = pvol_bc_ait_sol( map_wth(1) + 1 )
     case(fldname_pvol_om_ait_sol)
       pvol_om_ait_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       pvol_om_ait_sol( map_wth(1) + 0 ) = pvol_om_ait_sol( map_wth(1) + 1 )
     case(fldname_pvol_wat_ait_sol)
       pvol_wat_ait_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =              &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       pvol_wat_ait_sol( map_wth(1) + 0 ) = pvol_wat_ait_sol( map_wth(1) + 1 )
     case(fldname_pvol_su_acc_sol)
       pvol_su_acc_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       pvol_su_acc_sol( map_wth(1) + 0 ) = pvol_su_acc_sol( map_wth(1) + 1 )
     case(fldname_pvol_bc_acc_sol)
       pvol_bc_acc_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       pvol_bc_acc_sol( map_wth(1) + 0 ) = pvol_bc_acc_sol( map_wth(1) + 1 )
     case(fldname_pvol_om_acc_sol)
       pvol_om_acc_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       pvol_om_acc_sol( map_wth(1) + 0 ) = pvol_om_acc_sol( map_wth(1) + 1 )
     case(fldname_pvol_ss_acc_sol)
       pvol_ss_acc_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       pvol_ss_acc_sol( map_wth(1) + 0 ) = pvol_ss_acc_sol( map_wth(1) + 1 )
     case(fldname_pvol_du_acc_sol)
       pvol_du_acc_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       pvol_du_acc_sol( map_wth(1) + 0 ) = pvol_du_acc_sol( map_wth(1) + 1 )
     case(fldname_pvol_wat_acc_sol)
       pvol_wat_acc_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =              &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       pvol_wat_acc_sol( map_wth(1) + 0 ) = pvol_wat_acc_sol( map_wth(1) + 1 )
     case(fldname_pvol_su_cor_sol)
       pvol_su_cor_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       pvol_su_cor_sol( map_wth(1) + 0 ) = pvol_su_cor_sol( map_wth(1) + 1 )
     case(fldname_pvol_bc_cor_sol)
       pvol_bc_cor_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       pvol_bc_cor_sol( map_wth(1) + 0 ) = pvol_bc_cor_sol( map_wth(1) + 1 )
     case(fldname_pvol_om_cor_sol)
       pvol_om_cor_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       pvol_om_cor_sol( map_wth(1) + 0 ) = pvol_om_cor_sol( map_wth(1) + 1 )
     case(fldname_pvol_ss_cor_sol)
       pvol_ss_cor_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       pvol_ss_cor_sol( map_wth(1) + 0 ) = pvol_ss_cor_sol( map_wth(1) + 1 )
     case(fldname_pvol_du_cor_sol)
       pvol_du_cor_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       pvol_du_cor_sol( map_wth(1) + 0 ) = pvol_du_cor_sol( map_wth(1) + 1 )
     case(fldname_pvol_wat_cor_sol)
       pvol_wat_cor_sol( map_wth(1) + 1 : map_wth(1) + nlayers ) =              &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       pvol_wat_cor_sol( map_wth(1) + 0 ) = pvol_wat_cor_sol( map_wth(1) + 1 )
     case(fldname_pvol_bc_ait_ins)
       pvol_bc_ait_ins( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       pvol_bc_ait_ins( map_wth(1) + 0 ) = pvol_bc_ait_ins( map_wth(1) + 1 )
     case(fldname_pvol_om_ait_ins)
       pvol_om_ait_ins( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       pvol_om_ait_ins( map_wth(1) + 0 ) = pvol_om_ait_ins( map_wth(1) + 1 )
     case(fldname_pvol_du_acc_ins)
       pvol_du_acc_ins( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       pvol_du_acc_ins( map_wth(1) + 0 ) = pvol_du_acc_ins( map_wth(1) + 1 )
     case(fldname_pvol_du_cor_ins)
       pvol_du_cor_ins( map_wth(1) + 1 : map_wth(1) + nlayers ) =               &
-        real( ntp( :, i ), r_def ) 
+        real( ntp( :, i ), r_def )
       pvol_du_cor_ins( map_wth(1) + 0 ) = pvol_du_cor_ins( map_wth(1) + 1 )
     end select
   end do

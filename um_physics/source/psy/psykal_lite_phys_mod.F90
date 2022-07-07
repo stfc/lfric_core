@@ -209,6 +209,9 @@ contains
 &ngstress_w2, fd_tau_w2)
     use bl_exp_du_kernel_mod, only: bl_exp_du_code
     use mesh_mod, only: mesh_type
+
+    implicit none
+
     type(field_type), intent(in) :: tau_w2, tau_land_w2, tau_ssi_w2, rhokm_w2, rdz, u_physics, surf_interp_w2, ngstress_w2, &
 &fd_tau_w2
     integer(kind=i_def) cell
@@ -298,6 +301,9 @@ contains
 &height_w2)
     use bl_imp_du_kernel_mod, only: bl_imp_du_code
     use mesh_mod, only: mesh_type
+
+    implicit none
+
     integer(kind=i_def), intent(in) :: outer
     type(field_type), intent(in) :: du_bl, dissip, tau_w2, wind10m_w2, wind10m_neut_w2, tau_land_w2, tau_ssi_w2, pseudotau_w2, &
 &rhokm_w2, rdz, dtrdz, wetrho_in_w2, u_physics, u_physics_star, surf_interp_w2, du_conv_w2, dw_bl, da, height_w1, height_w2
@@ -406,10 +412,10 @@ contains
   !> Contains the Psy-layer to build the stochastic physics
   !> forcing pattern. At the moment it requires to pass the arrays
   !> stph_spectral_coeffc and stph_spectral_coeffs via the kernel argument.
-  !> Psyclone does not recognize arrays in the argument yet 
+  !> Psyclone does not recognize arrays in the argument yet
   !> this functionality is being developed in PSyclone ticket 1312
   !> at https://github.com/stfc/PSyclone/issues/1312
-  !> Hence this module could be removed once the PSyclone ticket is 
+  !> Hence this module could be removed once the PSyclone ticket is
   !> completed
   subroutine invoke_spectral_2_cs_kernel_type(fp_spt, longitude, pnm_star, height_wth, &
     stph_spectral_coeffc, stph_spectral_coeffs, &
@@ -418,6 +424,9 @@ contains
 
   use spectral_2_cs_kernel_mod, ONLY: spectral_2_cs_code
   use mesh_mod, ONLY: mesh_type
+
+  implicit none
+
   integer(KIND=i_def), intent(in) :: spt_level_bottom, spt_level_top, spt_n_max, spt_spectral_dim
   type(field_type), intent(in) :: fp_spt, longitude, pnm_star, height_wth
   integer(KIND=i_def) cell

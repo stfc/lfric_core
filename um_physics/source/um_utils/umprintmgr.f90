@@ -67,9 +67,9 @@ module umprintmgr
 
     end subroutine umprint
 
-    ! Dummy routine 
+    ! Dummy routine
     subroutine umprintflush
     implicit none
     end subroutine umprintflush
-    
+
 end module umprintmgr

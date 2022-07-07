@@ -29,8 +29,8 @@ module pmsl_alg_mod
 contains
 
   !> @brief Calculate pressure at mean sea level
-  !> @details Basic formation is based on the old UM diagnostic which is 
-  !>          described in UM Documentation Paper 80. 
+  !> @details Basic formation is based on the old UM diagnostic which is
+  !>          described in UM Documentation Paper 80.
   !>          https://code.metoffice.gov.uk/doc/um/latest/papers/umdp_080.pdf
   !>          Initial version just calculates PMSL with no smoothing over
   !>          high ground. The UM diagnostic included smoothing of the field
@@ -76,8 +76,8 @@ contains
     exner_wth       => derived_fields%get_field('exner_in_wth')
     height_w3       => get_height(W3, exner_w3%get_mesh_id())
     height_wth      => get_height(Wtheta, theta_wth%get_mesh_id())
-    
-    ! Set up PMSL field and make it writeable 
+
+    ! Set up PMSL field and make it writeable
     call pmsl%initialise( vector_space = &
                     function_space_collection%get_fs(twod_mesh, 0, W3) )
 

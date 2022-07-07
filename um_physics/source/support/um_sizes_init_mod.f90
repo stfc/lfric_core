@@ -67,7 +67,7 @@ contains
     ! This needs to match the number of cells passed to physics kernels.
     row_length = int( ncells, i_um )
     rows       = 1
- 
+
     ! ----------------------------------------------------------------
     ! More model dimensions, this time from atm_step_local
     ! ----------------------------------------------------------------
@@ -165,7 +165,7 @@ contains
 
     end if
 
-    if ( leonard_term ) then 
+    if ( leonard_term ) then
 
       if(allocated(thetal_inc_leonard))deallocate(thetal_inc_leonard)
       allocate ( thetal_inc_leonard(row_length, rows, number_of_layers), source=rmdi )

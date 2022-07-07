@@ -42,19 +42,19 @@ module pmsl_kernel_mod
 contains
 
   !> @brief Calculate pressure at mean sea level
-  !> @details Basic formation is based on the old UM diagnostic which is 
-  !>          described in UM Documentation Paper 80. 
+  !> @details Basic formation is based on the old UM diagnostic which is
+  !>          described in UM Documentation Paper 80.
   !>          https://code.metoffice.gov.uk/doc/um/latest/papers/umdp_080.pdf
   !>          Initial version just calculates PMSL with no smoothing over
   !>          high ground. The UM diagnostic included smoothing of the field
   !>          for orography over 500m. This will be added later.
   !> @param[in]     nlayers     The number of layers
   !> @param[in]     exner_w3    exner pressure in w3 space
-  !> @param[in]     exner_wth   exner pressure in theta space    
+  !> @param[in]     exner_wth   exner pressure in theta space
   !> @param[in]     theta_wth   potential temperature
   !> @param[in]     height_w3   Height of w3 levels above mean sea level
   !> @param[in]     height_wth  Height of wth levels above mean sea level
-  !> @param[in]     levelupper  Level above boundary layer to use for PMSL calculation    
+  !> @param[in]     levelupper  Level above boundary layer to use for PMSL calculation
   !> @param[in/out] pmsl        pressure at mean sea level
   !> @param[in]     ndf_w3      Number of degrees of freedom per cell for wrho
   !> @param[in]     undf_w3     Number of total degrees of freedom for wrho

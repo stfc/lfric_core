@@ -124,7 +124,7 @@ contains
                                   visibility_no_precip,     &
                                   ndf_w3,                   &
                                   undf_w3,                  &
-                                  map_w3,                   & 
+                                  map_w3,                   &
                                   ndf_wth,                  &
                                   undf_wth,                 &
                                   map_wth,                  &
@@ -162,7 +162,7 @@ contains
     real(kind=r_def), intent(in), dimension(undf_w3)    :: moist_flux_bl
     real(kind=r_def), intent(in), dimension(undf_w3)    :: taux
     real(kind=r_def), intent(in), dimension(undf_w3)    :: tauy
-    ! Note that taux and tauy are actually on wtheta in the vertical but  
+    ! Note that taux and tauy are actually on wtheta in the vertical but
     ! are mapped from tau_w2 by map_physics_winds (to w3) in bl_imp_alg
     real(kind=r_def), intent(in), dimension(undf_wth)   :: exner_in_wth
     real(kind=r_def), intent(in), dimension(undf_wth)   :: mci
@@ -246,7 +246,7 @@ contains
         .not. associated(fog_fraction, empty_real_data)           .or.       &
         .not. associated(dew_point, empty_real_data) ) then
       ! surface pressure
-      p_star(1,1)    = p_zero*(exner_in_wth(map_wth(1) + 0))**(1.0_r_def/kappa) 
+      p_star(1,1)    = p_zero*(exner_in_wth(map_wth(1) + 0))**(1.0_r_def/kappa)
       ! level 1 of aerosol (using the standard default of 10 for now)
       aerosol1(1,1)  = 10.0_r_def
       ! copy of screen variables

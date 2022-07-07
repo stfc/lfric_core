@@ -166,7 +166,7 @@ contains
          z_asl_base_of_levels, z_asl_centre_of_levels
 
     ! Certain cloud amount diagnostics are values between certain height ranges.
-    ! Height of the transition between two ranges are defined as 
+    ! Height of the transition between two ranges are defined as
     ! e.g. low_to_medium which is transition from low cloud amount to medium.
     ! Height are defined based on temporally-fixed ICAO (International Civil
     ! Aviation Organization) standard atmosphere pressure levels for:
@@ -183,18 +183,18 @@ contains
     ! When looking for cloud base sometimes want much smaller amount of cloud.
     real(kind=r_def), parameter :: low_cld_cover_for_cld_base = 0.05_r_def
     ! For tracking whether cloud has been found.
-    logical(kind=l_def) :: found 
+    logical(kind=l_def) :: found
     ! Cloud-base height diagnostic is often used by the aviation community,
     ! so the units need to be converted from metres to kilofeet
     real(kind=r_def), parameter :: m_to_kfeet = 0.001_r_def / feet_to_metres
     ! Max range of ceilometers used to ignore any cloud beyond range.
     real(kind=r_def), parameter :: ceilometer_range = 6.0e3_r_def
-    ! If no model levels are found in a certain height range category, set the 
-    ! cloud fraction it to missing data but don't use rmdi=-huge as that will 
-    ! make it hard to do quickviews as the dynamic range of the data will get 
+    ! If no model levels are found in a certain height range category, set the
+    ! cloud fraction it to missing data but don't use rmdi=-huge as that will
+    ! make it hard to do quickviews as the dynamic range of the data will get
     ! compressed. Instead use unphysical value of the same order of magnitude.
     real(kind=r_def), parameter :: cld_mdi = -0.999_r_def
-    
+
     ! Tolerance of cloud fraction for resetting of cloud
     real(kind=r_def), parameter :: cld_tol = 0.001_r_def
 
@@ -263,9 +263,9 @@ contains
             ( 1.0_r_def - max(combined_cld_amount(k+1),combined_cld_amount(k)) )&
             / ( 1.0_r_def - combined_cld_amount(k+1) )
         else
-          ! Overcast, overlapped cloud cover must be too. But need to avoid 
+          ! Overcast, overlapped cloud cover must be too. But need to avoid
           ! divide by zero. Set this to 0.0, so next line gives 1.0
-          work_scalar = 0.0_r_def 
+          work_scalar = 0.0_r_def
         end if
       end do
       cld_amount_maxrnd(map_2d(1)) = 1.0_r_def - work_scalar
@@ -276,11 +276,11 @@ contains
       do k = 1, nlayers
         ! NB: We are considering the range of a ceilometer, so the height
         ! needs to be above ground level (agl) rather than above sea level (asl).
-        z_agl_centre_of_levels(k)=height_wth(map_wth(1)+k)-height_wth(map_wth(1)+0) 
+        z_agl_centre_of_levels(k)=height_wth(map_wth(1)+k)-height_wth(map_wth(1)+0)
         if ( z_agl_centre_of_levels(k) <= ceilometer_range ) then
           ceil_combined_cld_amount(k) = combined_cld_amount(k)
         else
-          ! Simple filtering where any model cloud above a certain height is 
+          ! Simple filtering where any model cloud above a certain height is
           ! assumed not detectable by ceilometer and hence removed for fairer comparison.
           ceil_combined_cld_amount(k) = 0.0_r_def
         end if
@@ -293,9 +293,9 @@ contains
             ( 1.0_r_def - max( ceil_combined_cld_amount(k+1), ceil_combined_cld_amount(k) )) &
             / ( 1.0_r_def - ceil_combined_cld_amount(k+1) )
         else
-          ! Overcast, overlapped cloud cover must be too. But need to avoid 
+          ! Overcast, overlapped cloud cover must be too. But need to avoid
           ! divide by zero. Set this to 0.0, so next line gives 1.0
-          work_scalar = 0.0_r_def 
+          work_scalar = 0.0_r_def
         end if
       end do
       ceil_cld_amount_maxrnd(map_2d(1)) = 1.0_r_def - work_scalar
@@ -313,7 +313,7 @@ contains
       z_asl_centre_of_levels(1) = height_wth(map_wth(1) + 1 )
       do k = 2, nlayers
         ! NB: these height are above sea level (asl) not above ground level.
-        z_asl_base_of_levels(k)   = height_w3(map_w3(1)   + k-1 ) 
+        z_asl_base_of_levels(k)   = height_w3(map_w3(1)   + k-1 )
         z_asl_centre_of_levels(k) = height_wth(map_wth(1) + k   )
       end do
     end if
@@ -350,18 +350,18 @@ contains
     if (.not. associated(very_low_cld_amount, empty_real_data) ) then
       found = .false.
       do k = nlayers, 1, -1
-        if ( z_asl_centre_of_levels(k) < very_low_to_low .and. & 
+        if ( z_asl_centre_of_levels(k) < very_low_to_low .and. &
             .not. found ) then
           k_top = k
           found = .true.
-        end if 
+        end if
       end do
       if ( found ) then
         very_low_cld_amount(map_2d(1)) = maxval(combined_cld_amount(1:k_top))
       else
         ! Orography at this location is high enough that no levels are in
         ! desired height range. So set to missing data but don't use -huge
-        ! as that will make quick view of the data hard due to 
+        ! as that will make quick view of the data hard due to
         ! compressing of dynamic range
         very_low_cld_amount(map_2d(1)) = cld_mdi
       end if
@@ -376,7 +376,7 @@ contains
             .not. found ) then
           k_bot = k
           found = .true.
-        end if 
+        end if
       end do
       found = .false.
       do k = nlayers, 1, -1
@@ -384,7 +384,7 @@ contains
             .not. found ) then
           k_top = k
           found = .true.
-        end if 
+        end if
       end do
       if ( found ) then
         ! A layer has been found whose top is within required height range.
@@ -406,7 +406,7 @@ contains
             .not. found ) then
           k_bot = k
           found = .true.
-        end if 
+        end if
       end do
       found = .false.
       do k = nlayers, 1, -1
@@ -414,7 +414,7 @@ contains
             .not. found ) then
           k_top = k
           found = .true.
-        end if 
+        end if
       end do
       if ( found ) then
         ! A layer has been found whose top is within required height range.
@@ -436,7 +436,7 @@ contains
             .not. found ) then
           k_bot = k
           found = .true.
-        end if 
+        end if
       end do
       found = .false.
       do k = nlayers, 1, -1
@@ -444,7 +444,7 @@ contains
             .not. found ) then
           k_top = k
           found = .true.
-        end if 
+        end if
       end do
       if ( found ) then
         ! A layer has been found whose top is within required height range.
@@ -466,7 +466,7 @@ contains
             .not. found ) then
           k_bot = k
           found = .true.
-        end if 
+        end if
       end do
       very_high_cld_amount(map_2d(1)) = maxval(combined_cld_amount(k_bot:nlayers))
     end if

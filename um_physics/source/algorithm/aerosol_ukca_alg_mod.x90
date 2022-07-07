@@ -17,7 +17,7 @@ module aerosol_ukca_alg_mod
 contains
 
   !>@brief Runs the UKCA GLOMAP-mode aerosol scheme
-  !>@details The UKCA GLOMAP-mode aerosol scheme is run with aerosol pre-cursor 
+  !>@details The UKCA GLOMAP-mode aerosol scheme is run with aerosol pre-cursor
   !>         species provided by UKCA's Offline Oxidants chemistry scheme
   !>         to calculate cloud droplet number concentration (CDNC) and the
   !>         aerosol fields required by RADAER
@@ -29,9 +29,9 @@ contains
   !>@param[in] turbulence_fields     Fields for turbulence scheme
   !>@param[in] convection_fields     Fields for convection scheme
   !>@param[in] cloud_fields          Fields for cloud scheme
-  !>@param[in] surface_fields        Fields for surface scheme 
+  !>@param[in] surface_fields        Fields for surface scheme
   !>@param[in] soil_fields           Fields for soil hydrology scheme
-  !>@param[in] state                 Dynamics state 
+  !>@param[in] state                 Dynamics state
   !>@param[in] mr                    Mixing ratios
   !>@param[in] timestep_number       Time step number
 
@@ -83,7 +83,7 @@ contains
     type( field_collection_type ), intent(in) :: soil_fields
     type( field_collection_type ), intent(in) :: chemistry_fields
     type( field_collection_type ), intent(in) :: aerosol_fields
-    type( field_type ), intent(in) :: state(:) 
+    type( field_type ), intent(in) :: state(:)
     type( field_type ), intent(in) :: mr(:)
     integer( i_timestep ), intent(in) :: timestep_number
 
@@ -102,7 +102,7 @@ contains
     type( field_type ), pointer :: sin_stellar_declination_rts => null()
     type( field_type ), pointer :: stellar_eqn_of_time_rts => null()
 
-    ! Microphysics fields 
+    ! Microphysics fields
     type( field_type ), pointer :: ls_rain_3d => null()
     type( field_type ), pointer :: ls_snow_3d => null()
     type( field_type ), pointer :: autoconv => null()
@@ -243,9 +243,9 @@ contains
     type( field_type ), pointer :: surf_wetness => null()
 
     ! Derived fields (to be derived from current state after modification
-    ! during the timestep) 
+    ! during the timestep)
     type( field_type ), pointer :: exner_in_wth ! Exner pressure in Wtheta
-    type( field_type ), pointer :: w_in_wth     ! Vertical component of winds 
+    type( field_type ), pointer :: w_in_wth     ! Vertical component of winds
     type( field_type ), pointer :: wetrho_in_w3 ! Wet density in W3
 
     ! Time variables
@@ -376,7 +376,7 @@ contains
     cor_ins_du => aerosol_fields%get_field('cor_ins_du')
 
     cloud_drop_no_conc => aerosol_fields%get_field('cloud_drop_no_conc')
-    drydp_ait_sol => aerosol_fields%get_field('drydp_ait_sol') 
+    drydp_ait_sol => aerosol_fields%get_field('drydp_ait_sol')
     drydp_acc_sol => aerosol_fields%get_field('drydp_acc_sol')
     drydp_cor_sol => aerosol_fields%get_field('drydp_cor_sol')
     drydp_ait_ins => aerosol_fields%get_field('drydp_ait_ins')
@@ -659,7 +659,7 @@ contains
       call pvol_bc_ait_sol%write_field('aerosol__pvol_bc_ait_sol')
       call pvol_om_ait_sol%write_field('aerosol__pvol_om_ait_sol')
       call cloud_drop_no_conc%write_field('aerosol__cloud_drop_no_conc')
-      call drydp_ait_sol%write_field('aerosol__drydp_ait_sol') 
+      call drydp_ait_sol%write_field('aerosol__drydp_ait_sol')
       call drydp_acc_sol%write_field('aerosol__drydp_acc_sol')
       call drydp_cor_sol%write_field('aerosol__drydp_cor_sol')
       call drydp_ait_ins%write_field('aerosol__drydp_ait_ins')

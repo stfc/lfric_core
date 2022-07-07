@@ -33,6 +33,7 @@ OPERATE_ON ?= lfric_atm                                  \
               miniapps/lfric_coupled                     \
               miniapps/transport                         \
               miniapps/multires_coupling                 \
+              um_physics                                 \
               lfricinputs
 
 export SUITE_GROUP ?= developer

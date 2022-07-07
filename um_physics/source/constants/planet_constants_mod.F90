@@ -141,10 +141,10 @@ subroutine set_planet_constants()
   ! Set derived constants
   two_omega         = 2.0_r_um * omega
 
-  select case (spin) 
+  select case (spin)
   case (spin_user)
     s2r = hour_angle_inc/rsec_per_day
-  case default 
+  case default
     s2r = earth_dha/rsec_per_day
   end select
 

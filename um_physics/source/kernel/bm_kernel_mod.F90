@@ -80,9 +80,9 @@ contains
   !> @param[in]     height_wth    Theta-level height in wth
   !> @param[in]     gradrinr      Gradient Richardson Number in wth
   !> @param[in]     zh            Mixed-layer height
-  !> @param[in]     zhsc          Decoupled layer height 
-  !> @param[in]     inv_depth     Depth of BL top inversion layer 
-  !> @param[in]     bl_type_ind   Diagnosed BL types 
+  !> @param[in]     zhsc          Decoupled layer height
+  !> @param[in]     inv_depth     Depth of BL top inversion layer
+  !> @param[in]     bl_type_ind   Diagnosed BL types
   !> @param[in,out] m_v           Vapour mixing ratio in wth
   !> @param[in,out] m_cl          Cloud liquid mixing ratio in wth
   !> @param[in,out] m_ci          Ice liquid mixing ratio in wth

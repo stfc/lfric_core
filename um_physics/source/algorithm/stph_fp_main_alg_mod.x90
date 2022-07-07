@@ -77,7 +77,7 @@ module stph_fp_main_alg_mod
 
   real(kind=r_def), allocatable, save :: stph_spectral_coeffc(:)
   real(kind=r_def), allocatable, save :: stph_spectral_coeffs(:)
-  
+
 
   if ( subroutine_timers ) call timer("stph_fp_main_alg")
 
@@ -103,7 +103,7 @@ module stph_fp_main_alg_mod
     ! Set coefficients to zero
     stph_spectral_coeffc = 0.0_r_def
     stph_spectral_coeffs = 0.0_r_def
-    
+
     ! Assign dummy values for testing,
     ! to be replaced by 1AR stochastically evolving
     ! values
@@ -123,7 +123,7 @@ module stph_fp_main_alg_mod
   ! at https://github.com/stfc/PSyclone/issues/1312
   ! Uncomment lines below (invoke to spectral_2_cs_kernel_type), an remove
   ! call to invoke_spectral_2_cs_kernel_type
-  
+
   ! call invoke(spectral_2_cs_kernel_type(fp_spt, longitude,    &
   !                                       Pnm_star, height_wth, &
   !                                       stph_spectral_coeffc, &
@@ -133,7 +133,7 @@ module stph_fp_main_alg_mod
   !                                       spt_n_max,            &
   !                                       spt_spectral_dim      &
   !                                       ))
-  
+
   call invoke_spectral_2_cs_kernel_type(fp_spt, longitude, pnm_star, height_wth,    &
                                           stph_spectral_coeffc, stph_spectral_coeffs, &
                                           spt_level_bottom, spt_level_top, spt_n_max, &

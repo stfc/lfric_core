@@ -65,7 +65,7 @@ contains
   !>@param[in,out] surface_fields    Fields for surface scheme
   !>@param[in]     soil_fields       Fields for soil hydrology scheme
   !>@param[in]     snow_fields       Fields for snow scheme
-  !>@param[in]     microphysics_fields Fields for microphysics scheme 
+  !>@param[in]     microphysics_fields Fields for microphysics scheme
   !>@param[in]     outer             Outer loop counter
   !>@param[in]     clock             The clock object
   subroutine bl_imp_alg(dtheta_bl, du_bl, mr,                            &
@@ -234,7 +234,7 @@ contains
     type( field_type ) :: surf_sw_net, surf_radnet
     type( field_type ) :: surf_lw_up, surf_lw_down
     type( field_type ) :: grid_surface_temperature
-  
+
     type( mesh_type ), pointer :: mesh => null()
 
     if ( subroutine_timers ) call timer("bl_imp_alg")
@@ -489,7 +489,7 @@ contains
     ! Output diagnostics on last iteration only
     if (write_diag .and. use_xios_io .and. outer == outer_iterations) then
 
-      ! Calculate zonal and meridional wind speeds - done here as it's 
+      ! Calculate zonal and meridional wind speeds - done here as it's
       ! needed for coupling
       call zh%copy_field_properties(w10m)
       call map_physics_winds(u10m, v10m, w10m, wind10m_w2)
@@ -513,7 +513,7 @@ contains
       ! Calculate zonal and meridional wind stresses
       call zh%copy_field_properties(tauz_ssi)
       call map_physics_winds(taux_ssi, tauy_ssi, tauz_ssi, tau_ssi_w2)
- 
+
       ! Output the BL diagnostics
       if (mod(clock%get_step(),diagnostic_frequency) == 0) then
         call output_diags_for_bl_imp(zh, du_bl, tile_heat_flux,                &

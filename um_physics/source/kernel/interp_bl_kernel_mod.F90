@@ -5,9 +5,9 @@
 !-----------------------------------------------------------------------------
 
 !> @brief Interpolates BL momentum variables from W3 to W2 dofs
-!> @detail Takes all the variables required for BL momentum mixing and
-!>         interpolates them from their lowest order W3 dof to W2 dofs
-!>         so that wind increments can be calculated in their native space
+!> @details Takes all the variables required for BL momentum mixing and
+!>          interpolates them from their lowest order W3 dof to W2 dofs
+!>          so that wind increments can be calculated in their native space
 
 module interp_bl_kernel_mod
 

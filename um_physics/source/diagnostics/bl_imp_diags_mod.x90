@@ -373,7 +373,7 @@ contains
   !> @param[in]     ls_rain                  Surface large-scale  rainfall rate
   !> @param[in]     ls_snow                  Surface large-scale snowfall rate
   !> @param[in]     lsca_2d                  2D large scale precip fraction
-  !> @param[in]     conv_rain                Surface convective rainfall rate 
+  !> @param[in]     conv_rain                Surface convective rainfall rate
   !> @param[in]     conv_snow                Surface convective snowfall rate
   !> @param[in]     cca_2d                   2D convective cloud fraction
   !> @param[in,out] dmv_bl                   BL increment to vapour mixing ratio

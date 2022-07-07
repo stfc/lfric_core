@@ -264,7 +264,7 @@ contains
                    setval_c(dust_flux,             0.0_r_def), &
                    ! CDNC and particle properties prior to their calculation
                    ! at the first chemistry timestep.
-                   ! Note: zero partial volume values (pvol_*) here cause 
+                   ! Note: zero partial volume values (pvol_*) here cause
                    ! RADAER to avoid calculation of non-zero optical properties
                    ! for aerosol introduced by emissions since these would
                    ! be invalid prior to the availability of consistent
@@ -363,10 +363,10 @@ contains
                    setval_c(soil_sand,             0.0_r_def), &
                    setval_c(surf_wetness,          0.0_r_def), &
                    setval_c(dust_mrel,             0.0_r_def), &
-                   setval_c(dust_flux,             0.0_r_def), & 
+                   setval_c(dust_flux,             0.0_r_def), &
                    ! Default values of CDNC for microphysics and
                    ! particle properties for RADAER if not output by the
-                   ! GLOMAP climatology scheme. 
+                   ! GLOMAP climatology scheme.
                    ! N.B. CDNC lower limit = 5.0e6.
                    setval_c(cloud_drop_no_conc,  1.0e8_r_def), &
                    setval_c(drydp_ait_sol,         0.0_r_def), &
@@ -463,9 +463,9 @@ contains
                    setval_c(soil_sand,             0.0_r_def), &
                    setval_c(surf_wetness,          0.0_r_def), &
                    setval_c(dust_mrel,             0.0_r_def), &
-                   setval_c(dust_flux,             0.0_r_def), & 
+                   setval_c(dust_flux,             0.0_r_def), &
                    ! CDNC for use in microphysics and particle properties
-                   ! for use in RADAER. 
+                   ! for use in RADAER.
                    setval_c(cloud_drop_no_conc,  1.0e8_r_def), &
                    setval_c(drydp_ait_sol,      1.0e-7_r_def), &
                    setval_c(drydp_acc_sol,      1.0e-7_r_def), &
@@ -551,8 +551,8 @@ contains
                    setval_c(soil_sand,             0.0_r_def), &
                    setval_c(surf_wetness,          0.0_r_def), &
                    setval_c(dust_mrel,             0.0_r_def), &
-                   setval_c(dust_flux,             0.0_r_def), & 
-                   ! CDNC and particle properties 
+                   setval_c(dust_flux,             0.0_r_def), &
+                   ! CDNC and particle properties
                    ! N.B. CDNC lower limit = 5.0e6
                    setval_c(cloud_drop_no_conc,  5.0e6_r_def), &
                    setval_c(drydp_ait_sol,         0.0_r_def), &

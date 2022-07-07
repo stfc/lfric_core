@@ -69,8 +69,8 @@ module conv_gr_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! cape_diluted
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! conv_rain
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! conv_snow
-         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! conv_rain_3d 
-         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! conv_snow_3d 
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! conv_rain_3d
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! conv_snow_3d
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! cca_2d
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! dd_mf_cb
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! massflux_up
@@ -91,12 +91,12 @@ module conv_gr_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! dcff_conv
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! dbcf_conv
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! h2o2
-         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! dms 
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! dms
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! so2
-         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! h2so4 
-         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! dmso 
-         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! monoterpene 
-         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! secondary_organic 
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! h2so4
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! dmso
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! monoterpene
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! secondary_organic
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! n_nuc_sol
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! nuc_sol_su
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! nuc_sol_om
@@ -119,7 +119,7 @@ module conv_gr_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! n_ait_ins
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! ait_ins_bc
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! ait_ins_om
-         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! n_acc_ins 
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! n_acc_ins
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! acc_ins_du
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! n_cor_ins
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! cor_ins_du
@@ -235,11 +235,11 @@ contains
   !> @param[in,out] dbcf_conv            Increment to bulk cloud fraction from convection
   !> @param[in,out] h2o2                 Hydrogen peroxide m.m.r.
   !> @param[in,out] dms                  Dimethyl sulfide m.m.r.
-  !> @param[in,out] so2                  Sulfur dioxide m.m.r.      
-  !> @param[in,out] h2so4                Sulfuric acid m.m.r.           
-  !> @param[in,out] dmso                 Dimethyl sulfoxide m.m.r.         
-  !> @param[in,out] monoterpene          Monoterpene m.m.r.         
-  !> @param[in,out] secondary organic    Secondary organic m.m.r.           
+  !> @param[in,out] so2                  Sulfur dioxide m.m.r.
+  !> @param[in,out] h2so4                Sulfuric acid m.m.r.
+  !> @param[in,out] dmso                 Dimethyl sulfoxide m.m.r.
+  !> @param[in,out] monoterpene          Monoterpene m.m.r.
+  !> @param[in,out] secondary organic    Secondary organic m.m.r.
   !> @param[in,out] n_nuc_sol            Aerosol field: n.m.r. of soluble nucleation mode
   !> @param[in,out] nuc_sol_su           Aerosol field: m.m.r. of H2SO4 in soluble nucleation mode
   !> @param[in,out] nuc_sol_om           Aerosol field: m.m.r. of organic matter in soluble nucleation mode
@@ -584,12 +584,12 @@ contains
                                    conv_rain, conv_snow, cca_2d, dd_mf_cb
 
     real(kind=r_def), intent(in out), dimension(undf_wth) :: h2o2
-    real(kind=r_def), intent(in out), dimension(undf_wth) :: dms 
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: dms
     real(kind=r_def), intent(in out), dimension(undf_wth) :: so2
-    real(kind=r_def), intent(in out), dimension(undf_wth) :: h2so4 
-    real(kind=r_def), intent(in out), dimension(undf_wth) :: dmso 
-    real(kind=r_def), intent(in out), dimension(undf_wth) :: monoterpene 
-    real(kind=r_def), intent(in out), dimension(undf_wth) :: secondary_organic 
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: h2so4
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: dmso
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: monoterpene
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: secondary_organic
     real(kind=r_def), intent(in out), dimension(undf_wth) :: n_nuc_sol
     real(kind=r_def), intent(in out), dimension(undf_wth) :: nuc_sol_su
     real(kind=r_def), intent(in out), dimension(undf_wth) :: nuc_sol_om

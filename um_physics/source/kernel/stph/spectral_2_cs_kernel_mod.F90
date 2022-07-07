@@ -4,9 +4,9 @@
 !under which the code may be used.
 !-------------------------------------------------------------------------------
 !> @brief Update spectral coefficients and perform spectra to cubesphere transformation
-!> @details This kernel updates the spectral coefficient with the random component for the 
-!!          SPT forcing pattern, then applies the phase shifting dependent 
-!!          on the SPT vertical level, and finally it peforms the spectral 
+!> @details This kernel updates the spectral coefficient with the random component for the
+!!          SPT forcing pattern, then applies the phase shifting dependent
+!!          on the SPT vertical level, and finally it peforms the spectral
 !!          to cubedsphere transformation for each level where SPT is active.
 module spectral_2_cs_kernel_mod
   ! TO DO after PSyclone ticket 1312
@@ -42,25 +42,25 @@ module spectral_2_cs_kernel_mod
   !---------------------------------------------------------------------------
 
   ! Spectral coefficients (to be updated everytimestep)
-  
+
   ! TO DO after PSyclone ticket 1312
   ! at https://github.com/stfc/PSyclone/issues/1312
   ! Once GH_ARRAY and NRANKS.
   ! Uncomment lines below and removed the next "type ... :: spectral_2_cs_kernel_type" call.
-  
+
   ! !> Metadata describing the kernel to PSyclone
   ! !>
   ! type, public, extends(kernel_type) :: spectral_2_cs_kernel_type
   !   private
   !   !type(arg_type) :: meta_args(10) = (/                                   &
   !        arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                   & ! fp
-  !        arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), & ! longitude 
+  !        arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), & ! longitude
   !        arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_2), & ! Pnm_star
   !        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                   & ! height_wth
-  !        arg_type(GH_ARRAY, GH_REAL, GH_READ, NRANKS*1),                  & ! stph_spectral_coeffc    
-  !        arg_type(GH_ARRAY, GH_REAL, GH_READ, NRANKS*1),                  & ! stph_spectral_coeffs         
-  !        arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                        & ! spt_level_bottom   
-  !        arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                        & ! spt_level_top   
+  !        arg_type(GH_ARRAY, GH_REAL, GH_READ, NRANKS*1),                  & ! stph_spectral_coeffc
+  !        arg_type(GH_ARRAY, GH_REAL, GH_READ, NRANKS*1),                  & ! stph_spectral_coeffs
+  !        arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                        & ! spt_level_bottom
+  !        arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                        & ! spt_level_top
   !        arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                        & ! spt_n_max
   !        arg_type(GH_SCALAR, GH_INTEGER, GH_READ)                         & ! spectral_dim
   !        /)
@@ -76,11 +76,11 @@ module spectral_2_cs_kernel_mod
     private
     type(arg_type) :: meta_args(8) = (/                                   &
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                   & ! fp
-         arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), & ! longitude 
+         arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), & ! longitude
          arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_2), & ! Pnm_star
          arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                   & ! height_wth
-         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                        & ! spt_level_bottom   
-         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                        & ! spt_level_top   
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                        & ! spt_level_bottom
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                        & ! spt_level_top
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                        & ! spt_n_max
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ)                         & ! spectral_dim
          /)
@@ -93,7 +93,7 @@ module spectral_2_cs_kernel_mod
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
-  
+
   public :: spectral_2_cs_code
 contains
 
@@ -165,7 +165,7 @@ contains
     real(kind=r_def), intent(in),    dimension(dims_array(1)) :: stph_spectral_coeffc, &
                                                                  stph_spectral_coeffs
     ! SPT scalars
-    integer(kind=i_def), intent(in) :: spt_level_bottom    
+    integer(kind=i_def), intent(in) :: spt_level_bottom
     integer(kind=i_def), intent(in) :: spt_level_top
     integer(kind=i_def), intent(in) :: spt_n_max
     integer(kind=i_def), intent(in) :: spt_spectral_dim
@@ -182,7 +182,7 @@ contains
 
     ! Integers for iteration
     integer(kind=i_def) :: k,m,n, n_row
-    
+
     ! Initialize phase shifting variables
     n_row=0
     do n= 1,spt_n_max
@@ -195,19 +195,19 @@ contains
         coeffs_phase(n_row+m) = 0.0_r_def
       end do
     end do
-    
+
     !!!! Compute the inverse transformation for each SPT level
     do k= spt_level_bottom, spt_level_top
-      
+
       ! Apply vertical scaling Level 1 = no change -> 12km Level = max change (=pi)
       kr= height_wth(map_wth(1) + k)/12.0e3_r_def
-      
+
       n_row=0
       do n = 1, spt_n_max
         n_row= n_row + n
         do m = 0, n
           ! Modulus of coefficeints
-          my_coeff_rad(n_row+m) = SQRT(stph_spectral_coeffc(n_row+m)**2 + & 
+          my_coeff_rad(n_row+m) = SQRT(stph_spectral_coeffc(n_row+m)**2 + &
                                        stph_spectral_coeffs(n_row+m)**2)
           ! Determine angle from sin and cos wave components (single step)
           my_phi_spt(n_row+m) = ATAN2(stph_spectral_coeffs(n_row+m), &
@@ -221,7 +221,7 @@ contains
                              kr * my_phishft_spt(n_row+m))
         end do
       end do
-    
+
     ! Do spectral to cubed-sphere transformation at the current k level
     n_row=0
     do n= 1,spt_n_max

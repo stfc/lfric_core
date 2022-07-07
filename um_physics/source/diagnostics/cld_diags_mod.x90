@@ -143,8 +143,8 @@ contains
                                    cld_amount_rnd,         & ! calculated...
                                    cld_amount_maxrnd,      &
                                    ceil_cld_amount_maxrnd, &
-                                   cld_base_altitude,      &  
-                                   low_cld_base_altitude,  & 
+                                   cld_base_altitude,      &
+                                   low_cld_base_altitude,  &
                                    very_low_cld_amount,    &
                                    low_cld_amount,         &
                                    medium_cld_amount,      &
@@ -204,7 +204,7 @@ contains
     type( field_type ) :: ls_fraction
     type( field_type ) :: theta_updated
     type( field_type ) :: icing_condensate
-    type( field_type ) :: conv_cond 
+    type( field_type ) :: conv_cond
     ! Iterator for field collection
     type(field_collection_iterator_type)  :: iterator
     ! A pointer used for retrieving fields from collections
@@ -213,7 +213,7 @@ contains
     character(str_def) :: name
 
     if ( subroutine_timers ) call timer("cld_diags")
-  
+
     if (cld_amount_max_flag         .or. &
         cld_amount_rnd_flag         .or. &
         cld_amount_maxrnd_flag      .or. &
@@ -320,7 +320,7 @@ contains
       ! Get fields required to compute in-cloud convective condensate
       ccw     => convection_fields%get_field('ccw')
       cca     => convection_fields%get_field('cca')
-   
+
       call theta%copy_field_properties(conv_cond)
 
       call invoke( inc_X_plus_Y( icing_condensate, mr(imr_r) ),                &

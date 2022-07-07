@@ -653,9 +653,9 @@ subroutine radaer_code( nlayers,                                               &
     ukca_modal_wtv_um(1,k,(mode_ait_sol-1))   = pvol_wat_ait_sol(map_wth(1) + k)
     ukca_modal_wtv_um(1,k,(mode_acc_sol-1))   = pvol_wat_acc_sol(map_wth(1) + k)
     ukca_modal_wtv_um(1,k,(mode_cor_sol-1))   = pvol_wat_cor_sol(map_wth(1) + k)
-    ukca_modal_wtv_um(1,k,(mode_ait_insol-1)) = 0.0_r_um 
-    ukca_modal_wtv_um(1,k,(mode_acc_insol-1)) = 0.0_r_um 
-    ukca_modal_wtv_um(1,k,(mode_cor_insol-1)) = 0.0_r_um 
+    ukca_modal_wtv_um(1,k,(mode_ait_insol-1)) = 0.0_r_um
+    ukca_modal_wtv_um(1,k,(mode_acc_insol-1)) = 0.0_r_um
+    ukca_modal_wtv_um(1,k,(mode_cor_insol-1)) = 0.0_r_um
 
     ukca_wet_diam_um(1,k,(mode_ait_sol-1))    = wetdp_ait_sol(map_wth(1) + k)
     ukca_wet_diam_um(1,k,(mode_acc_sol-1))    = wetdp_acc_sol(map_wth(1) + k)

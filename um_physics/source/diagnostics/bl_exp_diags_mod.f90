@@ -70,7 +70,7 @@ contains
   !> @param[in] dsldzm            Liquid potential temperature gradient in wth
   !> @param[in] gradrinr          Gradient Richardson number in wth
   !> @param[in] rhokh_bl          Heat eddy diffusivity on BL levels
-  !> @param[in] tke_bl            Turbulent kinetic energy (m2 s-2) 
+  !> @param[in] tke_bl            Turbulent kinetic energy (m2 s-2)
   !> @param[in] dtrdz_tq_bl       dt/(rho*r*r*dz) in wth
   !> @param[in] rdz_tq_bl         1/dz in w3
   !> @param[in] zhsc              Height of decoupled layer top
@@ -123,7 +123,7 @@ contains
                                          gc_tile, soil_respiration, ustar,     &
                                          z0m_eff
     type( field_type ),  intent(in)   :: dust_flux
-                                         
+
 
     if ( subroutine_timers ) call timer("bl_exp_diags")
 
@@ -134,29 +134,29 @@ contains
     call wvar%write_field('turbulence__wvar')
     call dsldzm%write_field('turbulence__dsldzm')
     call gradrinr%write_field('turbulence__gradrinr')
-    call rhokh_bl%write_field('turbulence__rhokh') 
-    call tke_bl%write_field('turbulence__tke') 
-    call dtrdz_tq_bl%write_field('turbulence__dtrdz_tq') 
-    call rdz_tq_bl%write_field('turbulence__rdz_tq') 
-    call zhsc%write_field('turbulence__zhsc') 
-    call level_ent%write_field('turbulence__level_ent') 
-    call level_ent_dsc%write_field('turbulence__level_ent_dsc') 
-    call ent_we_lim%write_field('turbulence__ent_we_lim') 
-    call ent_t_frac%write_field('turbulence__ent_t_frac') 
-    call ent_zrzi%write_field('turbulence__ent_zrzi') 
-    call ent_we_lim_dsc%write_field('turbulence__ent_we_lim_dsc') 
-    call ent_t_frac_dsc%write_field('turbulence__ent_t_frac_dsc') 
-    call ent_zrzi_dsc%write_field('turbulence__ent_zrzi_dsc') 
+    call rhokh_bl%write_field('turbulence__rhokh')
+    call tke_bl%write_field('turbulence__tke')
+    call dtrdz_tq_bl%write_field('turbulence__dtrdz_tq')
+    call rdz_tq_bl%write_field('turbulence__rdz_tq')
+    call zhsc%write_field('turbulence__zhsc')
+    call level_ent%write_field('turbulence__level_ent')
+    call level_ent_dsc%write_field('turbulence__level_ent_dsc')
+    call ent_we_lim%write_field('turbulence__ent_we_lim')
+    call ent_t_frac%write_field('turbulence__ent_t_frac')
+    call ent_zrzi%write_field('turbulence__ent_zrzi')
+    call ent_we_lim_dsc%write_field('turbulence__ent_we_lim_dsc')
+    call ent_t_frac_dsc%write_field('turbulence__ent_t_frac_dsc')
+    call ent_zrzi_dsc%write_field('turbulence__ent_zrzi_dsc')
     ! Prognostic fields from surface collection
     call tile_fraction%write_field('surface__tile_fraction')
     call z0m_tile%write_field('surface__z0m_tile')
     call z0m%write_field('surface__z0m')
     call z0m_eff%write_field('surface__z0m_eff')
     call net_prim_prod%write_field('surface__net_prim_prod')
-    call gc_tile%write_field('surface__gc_tile') 
+    call gc_tile%write_field('surface__gc_tile')
     call ustar%write_field('surface__ustar')
     ! Prognostic fields from aerosol collection
-    call dust_flux%write_field('aerosol__dust_flux') 
+    call dust_flux%write_field('aerosol__dust_flux')
 
     ! Diagnostics computed in the kernel
     if (zht_flag) &

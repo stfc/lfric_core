@@ -51,7 +51,7 @@ module bl_exp_du_kernel_mod
 
 contains
 
-  !> @brief Code based on the same underlying science as the UM BL scheme 
+  !> @brief Code based on the same underlying science as the UM BL scheme
   !>        but designed for cell faces
   !> @param[in]     nlayers        The number of layers in a column
   !> @param[in,out] tau            Turbulent stress

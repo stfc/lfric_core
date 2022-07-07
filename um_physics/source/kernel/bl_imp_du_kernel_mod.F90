@@ -67,7 +67,7 @@ module bl_imp_du_kernel_mod
 
 contains
 
-  !> @brief Code based on the same underlying science as the UM BL scheme 
+  !> @brief Code based on the same underlying science as the UM BL scheme
   !>        but designed for cell faces
   !> @param[in]     nlayers        Number of layers
   !> @param[in]     outer          Outer loop counter

@@ -202,7 +202,7 @@ contains
               dimension_name = "test_axis_non_spatial_dimension_2", &
               dimension_category = CATEGORICAL, &
               help_text = "Test axis non-spatial dimension help text_2", &
-              axis_definition = [character(str_short) :: 'A','B','C','D','E'], &
+              label_definition = [character(str_short) :: 'A','B','C','D','E'], &
               non_spatial_units = "test_unit_2")], &
       standard_name = "surface_altitude", &
       synonyms = [ &
