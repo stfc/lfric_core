@@ -125,6 +125,20 @@ module coupler_update_prognostics_mod
 
          fld_ptr1 => null()
 
+      case ("lf_sunocean")
+         call fld%log_minmax(LOG_LEVEL_DEBUG,  'Ocean surface U from coupler')
+         fld_ptr1 => depository%get_field('sea_u_current')
+         call invoke( multi_insert_kernel_type(fld_ptr1, fld, &
+                                 first_sea_tile, n_sea_tile ) )
+         fld_ptr1 => null()
+
+      case ("lf_svnocean")
+         call fld%log_minmax(LOG_LEVEL_DEBUG,  'Ocean surface v from coupler')
+         fld_ptr1 => depository%get_field('sea_v_current')
+         call invoke( multi_insert_kernel_type(fld_ptr1, fld, &
+                                 first_sea_tile, n_sea_tile ) )
+         fld_ptr1 => null()
+
       case default
          write(log_scratch_space, '(3A)' )                                     &
                                "PROBLEM coupler_update_prognostics variable ", &

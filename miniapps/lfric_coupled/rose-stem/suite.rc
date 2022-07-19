@@ -805,7 +805,7 @@
                       # we would expect.
                       #
                       test -f $CYLC_TASK_WORK_DIR/lfric_diag.nc && \
-                      cp $CYLC_TASK_WORK_DIR/lfric_diag.nc \
+                      mv $CYLC_TASK_WORK_DIR/lfric_diag.nc \
                          $DESTINATION_DIRECTORY/{{pathFragment}}/results/ || true
 
                       test -f $CYLC_TASK_WORK_DIR/lfric_initial.nc && \
@@ -882,6 +882,7 @@
             RESTART_NTS   = $(echo ${nrun:-1})
             RESTART_NO    = $(echo $[$CYLC_TASK_CYCLE_POINT -1])
             RESTART       = $(if [ $CYLC_TASK_CYCLE_POINT == $CYLC_SUITE_INITIAL_CYCLE_POINT ] && [ $CYLC_TASK_TRY_NUMBER -eq 1 ]; then echo ""; else echo "true"; fi)
+            CONTINUE      = $(if [ $CYLC_TASK_CYCLE_POINT == $CYLC_SUITE_INITIAL_CYCLE_POINT ] && [ $CYLC_TASK_TRY_NUMBER -eq 1 ]; then echo ""; else echo "true"; fi)
             RESTART_START = $(echo $[$RESTART_NO*$RESTART_NTS + 1])
             RESTART_STOP  = $(echo $[$RESTART_NO*$RESTART_NTS + $RESTART_NTS])
             RESTART_READ  = $(if [[ $RESTART ]]; then echo ".true."; else echo ".false."; fi)
@@ -907,6 +908,11 @@
                  ROSE_LAUNCHER_PREOPTS_XIOS  = -n {{XIOS_NPROC}} -N {{2*XIOS_PPNU}} -S {{XIOS_PPNU}} -d 1 -j 1 env OMP_NUM_THREADS=1 env HYPERTHREADS=1
             {% endif %}
             ROSE_LAUNCHER_PREOPTS_LFRIC = -n $TOTAL_RANKS
+            DIAG_MEAN_PERIOD = '1M'
+            UM_ANCIL_TRIP_SEQ_DIR=/dummy
+            UM_ANCIL_TRIP_STOR_DIR=/dummy
+            UM_ANCIL_TRIP_NUMBER=river_number_um
+            NEMO_ANCIL_TRIP_NUMBER=river_number_nemo.nc
         [[[directives]]]
             -l select = {{LFRIC_NODES + OCEAN_NODES + (XIOS_NODES if XIOS_NODES is defined else 0) }}
             -l walltime=00:45:00

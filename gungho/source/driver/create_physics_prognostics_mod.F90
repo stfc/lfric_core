@@ -51,6 +51,7 @@ module create_physics_prognostics_mod
   use spectral_gwd_config_mod,        only : add_cgw
   use microphysics_config_mod,        only : turb_gen_mixph
   use derived_config_mod,             only : l_esm_couple
+  use esm_couple_config_mod,          only : l_esm_couple_test
 #ifdef UM_PHYSICS
   use multidata_field_dimensions_mod, only :                                   &
        get_ndata_val => get_multidata_field_dimension
@@ -943,7 +944,7 @@ contains
     end if
 
     ! Coupling fields might need checkpointing
-    if (surface == surface_jules .and. l_esm_couple) then
+    if (surface == surface_jules .and. (l_esm_couple .OR. l_esm_couple_test)) then
       checkpoint_couple = .true.
     else
       checkpoint_couple = .false.
@@ -991,6 +992,7 @@ contains
     call add_physics_field( surface_fields, depository, prognostic_fields,     &
       adv_fields_last_outer, &
       'canopy_height', pft_space, checkpoint_flag=checkpoint_flag, twod=.true. )
+
 
     ! Sea-ice category fields, might need checkpointing
     call add_physics_field( surface_fields, depository, prognostic_fields,     &
@@ -1106,6 +1108,17 @@ contains
     call add_physics_field( surface_fields, depository, prognostic_fields,     &
       adv_fields_last_outer, &
       'tile_water_extract', vector_space, twod=.true. )
+
+    checkpoint_flag = .false.
+    ! Sea surface currents, should not need checkpointing because they
+    ! come from the coupler
+    call add_physics_field( surface_fields, depository, prognostic_fields,     &
+      adv_fields_last_outer, &
+      'sea_u_current', twod_space, checkpoint_flag=checkpoint_flag, twod=.true. )
+    call add_physics_field( surface_fields, depository, prognostic_fields,     &
+      adv_fields_last_outer, &
+      'sea_v_current', twod_space, checkpoint_flag=checkpoint_flag, twod=.true. )
+
 
 
     !========================================================================

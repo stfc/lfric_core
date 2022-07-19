@@ -162,6 +162,9 @@ contains
          l_10m_neut, alpham, dtice, l_iceformdrag_lupkes,                   &
          l_stability_lupkes, l_use_dtstar_sea, hcap_sea, beta_evap,         &
          l_sice_meltponds, l_sice_meltponds_cice,                           &
+         l_cice_alb, l_saldep_freeze, l_sice_multilayers,                   &
+         l_sice_scattering, l_sice_swpen, l_ssice_albedo,                   &
+         pen_rad_frac_cice, sw_beta_cice,                                   &
          buddy_sea, cdn_hw_sea, cdn_max_sea, u_cdn_hw, u_cdn_max,           &
          i_high_wind_drag, ip_hwdrag_null, ip_hwdrag_limited,               &
          ip_hwdrag_reduced_v1
@@ -289,7 +292,6 @@ contains
     l_sice_heatflux      = sice_heatflux
     ! Code has not been included to support this being false as configurations
     ! should be moving to the new code
-    l_tstar_sice_new     = .true.
     l_use_dtstar_sea     = use_variable_sst
     if (use_variable_sst) hcap_sea = real(heat_cap_sea, r_um)
     nice                 = n_sea_ice_tile
@@ -302,13 +304,34 @@ contains
     z0h_z0m_sice         = 0.2_r_um
     z0sice               = 5.0e-4_r_um
 
+    ! Setup switches that vary depending if the model is
+    ! coupled to an ocean/sea-ice model or not.
     if (l_esm_couple) then
       l_sice_meltponds      = .true.
       l_sice_meltponds_cice = .true.
+      l_tstar_sice_new      = .false.
+      l_cice_alb            = .true.
+      l_saldep_freeze       = .true.
+      l_sice_multilayers    = .true.
+      l_sice_scattering     = .true.
+      l_ssice_albedo        = .true.
     else
       l_sice_meltponds      = .false.
       l_sice_meltponds_cice = .false.
+      l_tstar_sice_new      = .true.
+      l_cice_alb            = .false.
+      l_saldep_freeze       = .false.
+      l_sice_multilayers    = .false.
+      l_sice_scattering     = .false.
+      l_ssice_albedo        = .false.
     end if
+
+    ! Currently shortwave penetrating radiation into sea ice is not
+    ! included in LFRic coupled models. These settings will need to
+    ! change when this code goes in.
+    l_sice_swpen          = .false.
+    pen_rad_frac_cice     = 0.4_r_um
+    sw_beta_cice          = 0.6_r_um
 
     ! Check the contents of the sea_seaice parameters module
     call check_jules_sea_seaice()

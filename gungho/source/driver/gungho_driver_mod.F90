@@ -50,7 +50,7 @@ module gungho_driver_mod
 #endif
 #ifdef COUPLED
   use esm_couple_config_mod,      only : l_esm_couple_test
-  use coupler_mod,                only : cpl_snd, cpl_rcv
+  use coupler_mod,                only : cpl_snd, cpl_rcv, cpl_fld_update
   use coupler_diagnostics_mod,    only : save_sea_ice_frac_previous
 #endif
 
@@ -123,9 +123,6 @@ contains
 
     implicit none
 
-#ifdef COUPLED
-    integer(i_def)             :: cpl_step
-#endif
     class(clock_type), pointer :: clock => null()
 
     write(log_scratch_space,'(A)') 'Running '//program_name//' ...'
@@ -145,16 +142,16 @@ contains
 #ifdef COUPLED
       if(l_esm_couple) then
 
-         cpl_step = clock%get_step() - clock%get_first_step()
-
-         write(log_scratch_space, *) 'Coupling step ', cpl_step
+         write(log_scratch_space, *) 'Coupling timestep: ', clock%get_step() - 1
          call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
          call save_sea_ice_frac_previous(model_data%depository)
 
+         ! Receive all incoming (ocean/seaice fields) from the coupler
          call cpl_rcv(model_data%cpl_rcv, model_data%depository, clock)
 
-         call cpl_snd(model_data%cpl_snd, model_data%depository, clock, cpl_step)
+         ! Send all outgoing (ocean/seaice driving fields) to the coupler
+         call cpl_snd(model_data%cpl_snd, model_data%depository, clock)
 
       endif
 #endif
@@ -200,6 +197,15 @@ contains
 #endif
 
     end do ! end ts loop
+
+#ifdef COUPLED
+    if (l_esm_couple) then
+       ! Ensure coupling fields are updated at the end of a cycle to ensure the values
+       ! stored in and recovered from checkpoint dumps are correct and reproducible
+       ! when (re)starting subsequent runs!
+       call cpl_fld_update(model_data%cpl_snd, model_data%depository, clock)
+    endif
+#endif
 
   end subroutine run
 

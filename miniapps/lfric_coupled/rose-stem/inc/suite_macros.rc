@@ -397,6 +397,9 @@
 
 {%-       set label = (compiler|lower + '_' + precision + '-bit_' + build|lower) %}
 
+{%-       if compiler in TARGET_PERFORM_INTEGRATION_TESTS %}
+            export_source => integration_test_with_{{label}}
+{%-       endif %}
             export_source => compile_{{projectName}}_with_{{label}}
             export_source => compile_mesh_tools_with_{{mesh_label}}
 {%-       if compiler in TARGET_PERFORM_UNIT_TESTS %}
