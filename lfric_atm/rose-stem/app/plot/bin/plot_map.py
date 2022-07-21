@@ -131,7 +131,7 @@ def do_plot(datapath, plotfield, plotpath='.', plotlevel=0):
     plt.title(plotfield[varname]+', min = '+str(field_min)
                                 +', max = '+str(field_max) )
     plt.xlim([np.min(x_coord), np.max(x_coord)])
-    plt.ylim([-90, 90])
+    plt.ylim([np.min(y_coord), np.max(y_coord)])
 
     plt.savefig(plotpath+'/'+plotfield[varname]+'.png', bbox_inches='tight')
 
