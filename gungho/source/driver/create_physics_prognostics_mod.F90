@@ -23,6 +23,9 @@ module create_physics_prognostics_mod
                                              LOG_LEVEL_INFO,    &
                                              LOG_LEVEL_ERROR
   use mesh_mod,                       only : mesh_type
+  use mixing_config_mod,              only : smagorinsky
+  use physics_config_mod,             only : stochastic_physics_placement,     &
+                                             stochastic_physics_placement_fast
   use pure_abstract_field_mod,        only : pure_abstract_field_type
   use radiation_config_mod,           only : n_radstep, cloud_representation,  &
                                              cloud_representation_combined,    &
@@ -213,12 +216,19 @@ contains
     call add_physics_field( derived_fields, depository, prognostic_fields,     &
       adv_fields_last_outer, &
       'exner_wth_n',   wtheta_space )
-    call add_physics_field( derived_fields, depository, prognostic_fields,     &
-      adv_fields_last_outer, &
-      'theta_star',     wtheta_space )
-    call add_physics_field( derived_fields, depository, prognostic_fields,     &
-      adv_fields_last_outer, &
-      'shear',          wtheta_space )
+
+    if ( boundary_layer == boundary_layer_um .or. &
+         convection     == convection_um     .or. &
+         smagorinsky ) then
+
+      call add_physics_field( derived_fields, depository, prognostic_fields,     &
+        adv_fields_last_outer, &
+        'theta_star',     wtheta_space )
+      call add_physics_field( derived_fields, depository, prognostic_fields,     &
+        adv_fields_last_outer, &
+        'shear',          wtheta_space )
+
+    end if
 
     ! W3 fields
     call add_physics_field( derived_fields, depository, prognostic_fields,     &
@@ -236,15 +246,22 @@ contains
     call add_physics_field( derived_fields, depository, prognostic_fields,     &
       adv_fields_last_outer, &
       'wetrho_in_w3',  w3_space )
-    call add_physics_field( derived_fields, depository, prognostic_fields,     &
-      adv_fields_last_outer, &
-      'u_in_w3_star', w3_space )
-    call add_physics_field( derived_fields, depository, prognostic_fields,     &
-      adv_fields_last_outer, &
-      'v_in_w3_star', w3_space )
-    call add_physics_field( derived_fields, depository, prognostic_fields,     &
-      adv_fields_last_outer, &
-      'w_in_w3_star', w3_space )
+
+    if ( boundary_layer               == boundary_layer_um .or.                  &
+         convection                   == convection_um     .or.                  &
+         stochastic_physics_placement == stochastic_physics_placement_fast ) then
+
+      call add_physics_field( derived_fields, depository, prognostic_fields,     &
+        adv_fields_last_outer, &
+        'u_in_w3_star', w3_space )
+      call add_physics_field( derived_fields, depository, prognostic_fields,     &
+        adv_fields_last_outer, &
+        'v_in_w3_star', w3_space )
+      call add_physics_field( derived_fields, depository, prognostic_fields,     &
+        adv_fields_last_outer, &
+        'w_in_w3_star', w3_space )
+
+    end if
 
     ! W2 fields
     call add_physics_field( derived_fields, depository, prognostic_fields,     &

@@ -14,6 +14,12 @@ module si_diagnostics_mod
   use field_indices_mod,        only: igh_u, igh_t, igh_p
   use formulation_config_mod,   only: use_physics, moisture_formulation, &
                                       moisture_formulation_dry
+  use physics_config_mod,       only: blayer_placement,                 &
+                                      blayer_placement_fast,            &
+                                      convection_placement,             &
+                                      convection_placement_fast,        &
+                                      stochastic_physics_placement,     &
+                                      stochastic_physics_placement_fast
   use physics_mappings_alg_mod, only: map_physics_winds
   use mr_indices_mod,           only: nummr, imr_v, imr_cl, imr_ci
   use io_config_mod,            only: subroutine_timers
@@ -135,7 +141,11 @@ contains
 
     ! These diagnostics use the predictor values, hence only make sense with
     ! physics on
-    if (use_physics) then
+    if (use_physics .and.                                                       &
+             (blayer_placement == blayer_placement_fast .or.                    &
+             convection_placement == convection_placement_fast .or.             &
+             stochastic_physics_placement == stochastic_physics_placement_fast) &
+       ) then
 
       ! Advection increments
       ! Difference between X_after_adv or X_star and X_after_slow
