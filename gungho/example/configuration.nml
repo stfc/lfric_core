@@ -153,34 +153,40 @@ stretching_method='linear',
 &solver
   method                         = 'chebyshev'
   preconditioner                 = 'diagonal'
-  maximum_iterations             = 400
-  fixed_iterations               = 13
+  maximum_iterations             = 13
   tolerance                      = 1.0e-12
   gcrk                           = 18
-  diagnostic_norm                = .true.
+  monitor_convergence            = .true.
+  fail_on_non_converged          = .false.
+  jacobi_relaxation              = 0.5
 /
 
 &mixed_solver
   eliminate_variables            = 'analytic'
   si_method                      = 'block_gcr'
   si_preconditioner              = 'pressure'
-  si_maximum_iterations          = 10
-  gcrk                           = 18
-  si_tolerance                   = 1.0e-6
+  si_maximum_iterations          = 1
+  gcrk                           = 4
+  si_tolerance                   = 1.0e-1
   guess_np1                      = .false.
-  reference_reset_freq           = 4
+  reference_reset_freq           = 2
   normalise                      = .true.
   split_w                        = .true.
+  monitor_convergence            = .true.
+  fail_on_non_converged          = .true.
+  jacobi_relaxation              = 0.5
 /
 
 &helmholtz_solver
   gcrk                           = 18
   method                         = 'prec_only'
-  diagnostic_norm                = .false.
   preconditioner                 = 'multigrid'
   si_pressure_tolerance          = 1.0e-6
   si_pressure_maximum_iterations = 100
   normalise                      = .true.
+  monitor_convergence            = .false.
+  fail_on_non_converged          = .false.
+  jacobi_relaxation              = 0.5
 /
 
 &subgrid

@@ -123,7 +123,10 @@ contains
                                              si_preconditioner_pressure, &
                                              si_preconditioner_diagonal, &
                                              si_preconditioner_none,     &
-                                             si_diagnostic_norm
+                                             si_fail_on_non_converged => &
+                                               fail_on_non_converged,    &
+                                             si_monitor_convergence =>   &
+                                               monitor_convergence
 
     use helmholtz_solver_config_mod,   only: si_pressure_maximum_iterations,             &
                                              helmholtz_gcrk => gcrk,                     &
@@ -140,7 +143,13 @@ contains
                                              preconditioner_none,                        &
                                              preconditioner_tridiagonal,                 &
                                              preconditioner_multigrid,                   &
-                                             diagnostic_norm
+                                             si_pressure_fail_on_non_converged =>        &
+                                               fail_on_non_converged,                    &
+                                             si_pressure_monitor_convergence =>          &
+                                               monitor_convergence,                      &
+                                             si_pressure_jacobi_relaxation =>            &
+                                                 jacobi_relaxation
+
     implicit none
 
     ! Mesh
@@ -265,60 +274,70 @@ contains
     select type(gw_pressure_solver)
     type is ( conjugate_gradient_type )
        ! BiCGStab solver
-       gw_pressure_solver = conjugate_gradient_type( gw_pressure_operator,           &
-                                                     gw_pressure_preconditioner,     &
-                                                     si_pressure_tolerance,          &
-                                                     gw_pressure_solver_a_tol,       &
-                                                     si_pressure_maximum_iterations)
+       gw_pressure_solver = conjugate_gradient_type( gw_pressure_operator,            &
+                                                     gw_pressure_preconditioner,      &
+                                                     si_pressure_tolerance,           &
+                                                     gw_pressure_solver_a_tol,        &
+                                                     si_pressure_maximum_iterations,  &
+                                                     si_pressure_monitor_convergence, &
+                                                     si_pressure_fail_on_non_converged )
     type is ( bicgstab_type )
        ! BiCGStab solver
-       gw_pressure_solver = bicgstab_type( gw_pressure_operator,           &
-                                           gw_pressure_preconditioner,     &
-                                           si_pressure_tolerance,          &
-                                           gw_pressure_solver_a_tol,       &
-                                           si_pressure_maximum_iterations)
+       gw_pressure_solver = bicgstab_type( gw_pressure_operator,            &
+                                           gw_pressure_preconditioner,      &
+                                           si_pressure_tolerance,           &
+                                           gw_pressure_solver_a_tol,        &
+                                           si_pressure_maximum_iterations,  &
+                                           si_pressure_monitor_convergence, &
+                                           si_pressure_fail_on_non_converged)
     type is ( gmres_type )
        ! GMRES solver
-       gw_pressure_solver = gmres_type( gw_pressure_operator,           &
-                                        gw_pressure_preconditioner,     &
-                                        helmholtz_gcrk,                 &
-                                        si_pressure_tolerance,          &
-                                        gw_pressure_solver_a_tol,       &
-                                        si_pressure_maximum_iterations)
+       gw_pressure_solver = gmres_type( gw_pressure_operator,            &
+                                        gw_pressure_preconditioner,      &
+                                        helmholtz_gcrk,                  &
+                                        si_pressure_tolerance,           &
+                                        gw_pressure_solver_a_tol,        &
+                                        si_pressure_maximum_iterations,  &
+                                        si_pressure_monitor_convergence, &
+                                        si_pressure_fail_on_non_converged)
 
     type is ( fgmres_type )
        ! FGMRES solver
-       gw_pressure_solver = fgmres_type( gw_pressure_operator,           &
-                                         gw_pressure_preconditioner,     &
-                                         helmholtz_gcrk,                 &
-                                         si_pressure_tolerance,          &
-                                         gw_pressure_solver_a_tol,       &
-                                         si_pressure_maximum_iterations)
+       gw_pressure_solver = fgmres_type( gw_pressure_operator,            &
+                                         gw_pressure_preconditioner,      &
+                                         helmholtz_gcrk,                  &
+                                         si_pressure_tolerance,           &
+                                         gw_pressure_solver_a_tol,        &
+                                         si_pressure_maximum_iterations,  &
+                                         si_pressure_monitor_convergence, &
+                                         si_pressure_fail_on_non_converged)
 
     type is ( gcr_type )
        ! GCR solver
-       gw_pressure_solver = gcr_type( gw_pressure_operator,           &
-                                      gw_pressure_preconditioner,     &
-                                      helmholtz_gcrk,                 &
-                                      si_pressure_tolerance,          &
-                                      gw_pressure_solver_a_tol,       &
-                                      si_pressure_maximum_iterations)
+       gw_pressure_solver = gcr_type( gw_pressure_operator,            &
+                                      gw_pressure_preconditioner,      &
+                                      helmholtz_gcrk,                  &
+                                      si_pressure_tolerance,           &
+                                      gw_pressure_solver_a_tol,        &
+                                      si_pressure_maximum_iterations,  &
+                                      si_pressure_monitor_convergence, &
+                                      si_pressure_fail_on_non_converged)
     type is ( jacobi_type )
        ! Jacobi solver
-       gw_pressure_solver = jacobi_type( gw_pressure_operator,           &
-                                         gw_pressure_preconditioner,     &
-                                         si_pressure_tolerance,          &
-                                         gw_pressure_solver_a_tol,       &
-                                         si_pressure_maximum_iterations, &
-                                         rho_relax = 1.0_r_def)
+       gw_pressure_solver = jacobi_type( gw_pressure_operator,              &
+                                         gw_pressure_preconditioner,        &
+                                         si_pressure_tolerance,             &
+                                         gw_pressure_solver_a_tol,          &
+                                         si_pressure_maximum_iterations,    &
+                                         si_pressure_monitor_convergence,   &
+                                         si_pressure_fail_on_non_converged, &
+                                         si_pressure_jacobi_relaxation )
 
     type is ( precondition_only_type )
        ! Precondition only solver
        gw_pressure_solver = precondition_only_type( gw_pressure_operator,       &
                                                     gw_pressure_preconditioner, &
-                                                    si_pressure_tolerance,      &
-                                                    gw_pressure_solver_a_tol,   &
-                                                    diagnostic_norm)
+                                                    si_pressure_monitor_convergence )
 
     class default
        call log_event("Can not initialise pressure solver",LOG_LEVEL_ERROR)
@@ -351,40 +370,48 @@ contains
                                                   gw_mixed_preconditioner, &
                                                   si_tolerance,            &
                                                   gw_mixed_solver_a_tol,   &
-                                                  si_maximum_iterations)
+                                                  si_maximum_iterations,   &
+                                                  si_monitor_convergence,  &
+                                                  si_fail_on_non_converged)
     type is ( bicgstab_type )
        gw_mixed_solver = bicgstab_type( gw_mixed_operator,       &
                                         gw_mixed_preconditioner, &
                                         si_tolerance,            &
                                         gw_mixed_solver_a_tol,   &
-                                        si_maximum_iterations)
+                                        si_maximum_iterations,   &
+                                        si_monitor_convergence,  &
+                                        si_fail_on_non_converged)
     type is ( gmres_type )
        gw_mixed_solver = gmres_type( gw_mixed_operator,       &
                                      gw_mixed_preconditioner, &
                                      mixed_gcrk,              &
                                      si_tolerance,            &
                                      gw_mixed_solver_a_tol,   &
-                                     si_maximum_iterations)
+                                     si_maximum_iterations,   &
+                                     si_monitor_convergence,  &
+                                     si_fail_on_non_converged)
     type is ( fgmres_type )
        gw_mixed_solver = fgmres_type( gw_mixed_operator,       &
                                       gw_mixed_preconditioner, &
                                       mixed_gcrk,              &
                                       si_tolerance,            &
                                       gw_mixed_solver_a_tol,   &
-                                      si_maximum_iterations)
+                                      si_maximum_iterations,   &
+                                      si_monitor_convergence,  &
+                                      si_fail_on_non_converged)
     type is ( gcr_type )
        gw_mixed_solver = gcr_type( gw_mixed_operator,       &
                                    gw_mixed_preconditioner, &
                                    mixed_gcrk,              &
                                    si_tolerance,            &
                                    gw_mixed_solver_a_tol,   &
-                                   si_maximum_iterations)
+                                   si_maximum_iterations,   &
+                                   si_monitor_convergence,  &
+                                   si_fail_on_non_converged)
     type is ( precondition_only_type )
        gw_mixed_solver = precondition_only_type( gw_mixed_operator,       &
                                                  gw_mixed_preconditioner, &
-                                                 si_tolerance,            &
-                                                 gw_mixed_solver_a_tol,   &
-                                                 si_diagnostic_norm)
+                                                 si_monitor_convergence)
     class default
        call log_event("Can not initialise mixed solver",LOG_LEVEL_ERROR)
     end select

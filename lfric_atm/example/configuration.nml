@@ -106,8 +106,10 @@ use_wavedynamics=.false.,
 vector_invariant=.false.,
 /
 &helmholtz_solver
+fail_on_non_converged=.true.
 gcrk=8,
 method='bicgstab',
+monitor_convergence=.true.
 normalise=.true.,
 preconditioner='tridiagonal',
 si_pressure_a_tol=1.0e-8,
@@ -219,8 +221,10 @@ run_log_level='info',
 /
 &mixed_solver
 eliminate_variables='discrete',
+fail_on_non_converged=.true.
 gcrk=8,
 guess_np1=.false.,
+monitor_convergence=.true.
 mixed_solver_a_tol=1.0e-3,
 normalise=.true.,
 reference_reset_freq=1,
@@ -264,11 +268,11 @@ rd=287.05,
 scaling_factor=1.0,
 /
 &solver
-diagnostic_norm=.false.,
-fixed_iterations=13,
+fail_on_non_converged=.true.
 gcrk=18,
-maximum_iterations=399,
+maximum_iterations=13,
 method='chebyshev',
+monitor_convergence=.false.
 preconditioner='diagonal',
 tolerance=1.0e-6,
 /

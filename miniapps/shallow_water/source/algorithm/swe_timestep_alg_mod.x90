@@ -134,18 +134,26 @@ contains
                                            si_preconditioner,          &
                                            si_preconditioner_pressure, &
                                            si_preconditioner_diagonal, &
-                                           si_preconditioner_none
+                                           si_preconditioner_none,     &
+                                           si_fail_on_non_converged => &
+                                             fail_on_non_converged,    &
+                                           si_monitor_convergence =>   &
+                                             monitor_convergence
 
-    use helmholtz_solver_config_mod, only: si_pressure_maximum_iterations, &
-                                           helmholtz_gcrk => gcrk,         &
-                                           si_pressure_tolerance,          &
-                                           helmholtz_method => method,     &
-                                           method_cg,                      &
-                                           method_bicgstab,                &
-                                           method_gmres,                   &
-                                           method_fgmres,                  &
-                                           method_gcr,                     &
-                                           method_prec_only
+    use helmholtz_solver_config_mod, only: si_pressure_maximum_iterations,    &
+                                           helmholtz_gcrk => gcrk,            &
+                                           si_pressure_tolerance,             &
+                                           helmholtz_method => method,        &
+                                           method_cg,                         &
+                                           method_bicgstab,                   &
+                                           method_gmres,                      &
+                                           method_fgmres,                     &
+                                           method_gcr,                        &
+                                           method_prec_only,                  &
+                                           helmholtz_fail_on_non_converged => &
+                                             fail_on_non_converged,           &
+                                           helmholtz_monitor_convergence =>   &
+                                             monitor_convergence
     implicit none
 
     ! Mesh
@@ -156,8 +164,6 @@ contains
     type(field_type), intent(in) :: geopot
     type(field_type), intent(in) :: buoyancy
     type(field_type), intent(in) :: q
-
-    logical :: diagnostic_norm=.false.
 
     !=== Create internal state field arrays ================================!
     state     = field_vector_type(bundle_size)
@@ -197,50 +203,58 @@ contains
 
       ! Allocate and construct geopotential solver of correct type
       if (helmholtz_method == METHOD_BICGSTAB) then
-         allocate ( swe_geopot_solver, source =      &
-           bicgstab_type( swe_geopot_operator,       &
-                          swe_geopot_preconditioner, &
-                          si_pressure_tolerance,     &
-                          swe_geopot_solver_a_tol,   &
-                          si_pressure_maximum_iterations) )
+         allocate ( swe_geopot_solver, source =           &
+           bicgstab_type( swe_geopot_operator,            &
+                          swe_geopot_preconditioner,      &
+                          si_pressure_tolerance,          &
+                          swe_geopot_solver_a_tol,        &
+                          si_pressure_maximum_iterations, &
+                          helmholtz_monitor_convergence,  &
+                          helmholtz_fail_on_non_converged) )
       else if (helmholtz_method == METHOD_CG) then
-         allocate ( swe_geopot_solver, source =                &
-           conjugate_gradient_type( swe_geopot_operator,       &
-                                    swe_geopot_preconditioner, &
-                                    si_pressure_tolerance,     &
-                                    swe_geopot_solver_a_tol,   &
-                                    si_pressure_maximum_iterations) )
+         allocate ( swe_geopot_solver, source =                     &
+           conjugate_gradient_type( swe_geopot_operator,            &
+                                    swe_geopot_preconditioner,      &
+                                    si_pressure_tolerance,          &
+                                    swe_geopot_solver_a_tol,        &
+                                    si_pressure_maximum_iterations, &
+                                    helmholtz_monitor_convergence,  &
+                                    helmholtz_fail_on_non_converged) )
       else if (helmholtz_method == METHOD_GMRES) then
-         allocate ( swe_geopot_solver, source =   &
-           gmres_type( swe_geopot_operator,       &
-                       swe_geopot_preconditioner, &
-                       helmholtz_gcrk,            &
-                       si_pressure_tolerance,     &
-                       swe_geopot_solver_a_tol,   &
-                       si_pressure_maximum_iterations) )
+         allocate ( swe_geopot_solver, source =        &
+           gmres_type( swe_geopot_operator,            &
+                       swe_geopot_preconditioner,      &
+                       helmholtz_gcrk,                 &
+                       si_pressure_tolerance,          &
+                       swe_geopot_solver_a_tol,        &
+                       si_pressure_maximum_iterations, &
+                       helmholtz_monitor_convergence,  &
+                       helmholtz_fail_on_non_converged) )
       else if (helmholtz_method == METHOD_FGMRES) then
-         allocate ( swe_geopot_solver, source =    &
-           fgmres_type( swe_geopot_operator,       &
-                        swe_geopot_preconditioner, &
-                        helmholtz_gcrk,            &
-                        si_pressure_tolerance,     &
-                        swe_geopot_solver_a_tol,   &
-                        si_pressure_maximum_iterations) )
+         allocate ( swe_geopot_solver, source =         &
+           fgmres_type( swe_geopot_operator,            &
+                        swe_geopot_preconditioner,      &
+                        helmholtz_gcrk,                 &
+                        si_pressure_tolerance,          &
+                        swe_geopot_solver_a_tol,        &
+                        si_pressure_maximum_iterations, &
+                        helmholtz_monitor_convergence,  &
+                        helmholtz_fail_on_non_converged) )
       else if (helmholtz_method == METHOD_GCR) then
-         allocate ( swe_geopot_solver, source = &
-           gcr_type( swe_geopot_operator,       &
-                     swe_geopot_preconditioner, &
-                     helmholtz_gcrk,            &
-                     si_pressure_tolerance,     &
-                     swe_geopot_solver_a_tol,   &
-                     si_pressure_maximum_iterations) )
+         allocate ( swe_geopot_solver, source =      &
+           gcr_type( swe_geopot_operator,            &
+                     swe_geopot_preconditioner,      &
+                     helmholtz_gcrk,                 &
+                     si_pressure_tolerance,          &
+                     swe_geopot_solver_a_tol,        &
+                     si_pressure_maximum_iterations, &
+                     helmholtz_monitor_convergence,  &
+                     helmholtz_fail_on_non_converged) )
       else if (helmholtz_method == METHOD_PREC_ONLY) then
          allocate ( swe_geopot_solver, source =               &
            precondition_only_type( swe_geopot_operator,       &
                                    swe_geopot_preconditioner, &
-                                   si_pressure_tolerance,     &
-                                   swe_geopot_solver_a_tol,   &
-                                   diagnostic_norm) )
+                                   helmholtz_monitor_convergence ) )
       else
          call log_event("Unknown geopotential solver specified",LOG_LEVEL_ERROR)
       end if
@@ -268,14 +282,18 @@ contains
                          swe_mixed_preconditioner, &
                          si_tolerance,             &
                          swe_mixed_solver_a_tol,   &
-                         si_maximum_iterations) )
+                         si_maximum_iterations,    &
+                         si_monitor_convergence,   &
+                         si_fail_on_non_converged) )
       else if (si_method == SI_METHOD_CG) then
         allocate ( swe_mixed_solver, source =                &
           conjugate_gradient_type( swe_mixed_operator,       &
                                    swe_mixed_preconditioner, &
                                    si_tolerance,             &
                                    swe_mixed_solver_a_tol,   &
-                                   si_maximum_iterations) )
+                                   si_maximum_iterations,    &
+                                   si_monitor_convergence,   &
+                                   si_fail_on_non_converged) )
       else if (si_method == SI_METHOD_GMRES) then
         allocate ( swe_mixed_solver, source =   &
           gmres_type( swe_mixed_operator,       &
@@ -283,7 +301,9 @@ contains
                       mixed_gcrk,               &
                       si_tolerance,             &
                       swe_mixed_solver_a_tol,   &
-                      si_maximum_iterations) )
+                      si_maximum_iterations,    &
+                      si_monitor_convergence,   &
+                      si_fail_on_non_converged) )
       else if (si_method == SI_METHOD_FGMRES) then
         allocate ( swe_mixed_solver, source =    &
           fgmres_type( swe_mixed_operator,       &
@@ -291,7 +311,9 @@ contains
                        mixed_gcrk,               &
                        si_tolerance,             &
                        swe_mixed_solver_a_tol,   &
-                       si_maximum_iterations) )
+                       si_maximum_iterations,    &
+                       si_monitor_convergence,   &
+                       si_fail_on_non_converged) )
       else if (si_method == SI_METHOD_GCR) then
         allocate ( swe_mixed_solver, source = &
           gcr_type( swe_mixed_operator,       &
@@ -299,14 +321,14 @@ contains
                     mixed_gcrk,               &
                     si_tolerance,             &
                     swe_mixed_solver_a_tol,   &
-                    si_maximum_iterations) )
+                    si_maximum_iterations,    &
+                    si_monitor_convergence,   &
+                    si_fail_on_non_converged) )
       else if (si_method == SI_METHOD_PREC_ONLY) then
         allocate ( swe_mixed_solver, source =               &
           precondition_only_type( swe_mixed_operator,       &
                                   swe_mixed_preconditioner, &
-                                  si_tolerance,             &
-                                  swe_mixed_solver_a_tol,   &
-                                  diagnostic_norm) )
+                                  si_monitor_convergence) )
       else
          call log_event("Unknown mixed solver specified",LOG_LEVEL_ERROR)
       end if

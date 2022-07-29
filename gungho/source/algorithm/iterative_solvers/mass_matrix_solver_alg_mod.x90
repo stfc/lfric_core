@@ -75,8 +75,9 @@ contains
                                              preconditioner,                   &
                                              preconditioner_diagonal,          &
                                              preconditioner_none,              &
-                                             diagnostic_norm,                  &
-                                             fixed_iterations
+                                             monitor_convergence,              &
+                                             fail_on_non_converged,            &
+                                             jacobi_relaxation
     use fem_constants_mod,             only: get_mass_matrix,                  &
                                              get_mass_matrix_diagonal,         &
                                              get_inverse_w3_mass_matrix
@@ -220,48 +221,58 @@ contains
                                                        mass_matrix_preconditioner, &
                                                        tolerance,                  &
                                                        solver_a_tol,               &
-                                                       maximum_iterations)
+                                                       maximum_iterations,         &
+                                                       monitor_convergence,        &
+                                                       fail_on_non_converged )
       type is ( bicgstab_type )
          mass_matrix_solver = bicgstab_type( mass_matrix_operator,       &
                                              mass_matrix_preconditioner, &
                                              tolerance,                  &
                                              solver_a_tol,               &
-                                             maximum_iterations)
+                                             maximum_iterations,         &
+                                             monitor_convergence,        &
+                                             fail_on_non_converged )
       type is ( gmres_type )
          mass_matrix_solver = gmres_type( mass_matrix_operator,       &
                                           mass_matrix_preconditioner, &
                                           gcrk,                       &
                                           tolerance,                  &
                                           solver_a_tol,               &
-                                          maximum_iterations)
+                                          maximum_iterations,         &
+                                          monitor_convergence,        &
+                                          fail_on_non_converged )
       type is ( fgmres_type )
          mass_matrix_solver = fgmres_type( mass_matrix_operator,       &
                                            mass_matrix_preconditioner, &
                                            gcrk,                       &
                                            tolerance,                  &
                                            solver_a_tol,               &
-                                           maximum_iterations)
+                                           maximum_iterations,         &
+                                           monitor_convergence,        &
+                                           fail_on_non_converged )
       type is ( gcr_type )
          mass_matrix_solver = gcr_type( mass_matrix_operator,       &
                                         mass_matrix_preconditioner, &
                                         gcrk,                       &
                                         tolerance,                  &
                                         solver_a_tol,               &
-                                        maximum_iterations)
+                                        maximum_iterations,         &
+                                        monitor_convergence,        &
+                                        fail_on_non_converged )
 
       type is ( precondition_only_type )
          mass_matrix_solver = precondition_only_type( mass_matrix_operator,       &
                                                       mass_matrix_preconditioner, &
-                                                      tolerance,                  &
-                                                      solver_a_tol,               &
-                                                      diagnostic_norm)
+                                                      monitor_convergence )
       type is ( jacobi_type )
          mass_matrix_solver = jacobi_type( mass_matrix_operator,       &
                                            mass_matrix_preconditioner, &
                                            tolerance,                  &
                                            solver_a_tol,               &
                                            maximum_iterations,         &
-                                           rho_relax = 0.5_r_def )
+                                           monitor_convergence,        &
+                                           fail_on_non_converged,      &
+                                           jacobi_relaxation )
       type is ( chebyshev_type )
          call get_minmax_eigenvalues(lmin, lmax, fs)
          mass_matrix_solver = chebyshev_type( mass_matrix_operator,       &
@@ -269,9 +280,9 @@ contains
                                               tolerance,                  &
                                               solver_a_tol,               &
                                               maximum_iterations,         &
-                                              lmin, lmax,                 &
-                                              diagnostic_norm,            &
-                                              fixed_iterations)
+                                              monitor_convergence,        &
+                                              fail_on_non_converged,      &
+                                              lmin, lmax )
       class default
          call log_event("Can not initialise mass matrix solver",LOG_LEVEL_ERROR)
       end select

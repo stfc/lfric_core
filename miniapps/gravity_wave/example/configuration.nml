@@ -122,18 +122,22 @@ scaling_factor = 125.0
 /
 
 &solver
+fail_on_non_converged=.true.
 gcrk = 1
 maximum_iterations = 399
 method = 'bicgstab'
+monitor_convergence=.true.
 preconditioner = 'diagonal'
 tolerance = 1.0e-12
 /
 
 &mixed_solver
 eliminate_variables='none',
+fail_on_non_converged=.true.
 gcrk = 4
 guess_np1 = .false.
 mixed_solver_a_tol = 1.e-6
+monitor_convergence=.true.
 normalise = .true.
 reference_reset_freq = 1
 si_maximum_iterations = 20
@@ -144,9 +148,10 @@ split_w = .false.
 /
 
 &helmholtz_solver
-diagnostic_norm = .false.
+fail_on_non_converged=.true.
 gcrk = 18
 method = 'bicgstab'
+monitor_convergence=.true.
 normalise = .true.
 preconditioner = 'multigrid'
 si_pressure_maximum_iterations = 100

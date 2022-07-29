@@ -44,6 +44,10 @@ module iterative_solver_mod
      real(kind=r_def)                              :: a_tol
      ! maximal number of iterations
      integer(kind=i_def)                           :: max_iter
+     ! monitor the error
+     logical(kind=l_def)                           :: monitor_convergence
+     ! fail if solver does not converge
+     logical(kind=l_def)                           :: fail_on_non_converged
    contains
      procedure (apply_interface), deferred :: apply
   end type abstract_iterative_solver_type
@@ -87,13 +91,16 @@ module iterative_solver_mod
 
   ! the constructor will be in a submodule
   interface
-     module function cg_constructor( lin_op, prec, r_tol, a_tol, max_iter) &
+     module function cg_constructor( lin_op, prec, r_tol, a_tol, max_iter, &
+                                     monitor_convergence, fail_on_non_converged) &
           result(self)
        class(abstract_linear_operator_type), target, intent(in) :: lin_op
        class(abstract_preconditioner_type),  target, intent(in) :: prec
        real(kind=r_def),                             intent(in) :: r_tol
        real(kind=r_def),                             intent(in) :: a_tol
        integer(kind=i_def),                          intent(in) :: max_iter
+       logical(kind=l_def),                          intent(in) :: monitor_convergence
+       logical(kind=l_def),                          intent(in) :: fail_on_non_converged
        type(conjugate_gradient_type) :: self
      end function
   end interface
@@ -120,13 +127,16 @@ module iterative_solver_mod
   end interface
 
   interface
-     module function bicgstab_constructor( lin_op, prec, r_tol, a_tol, max_iter) &
+     module function bicgstab_constructor( lin_op, prec, r_tol, a_tol, max_iter, &
+                                           monitor_convergence, fail_on_non_converged) &
           result(self)
        class(abstract_linear_operator_type), target, intent(in) :: lin_op
        class(abstract_preconditioner_type),  target, intent(in) :: prec
        real(kind=r_def),                             intent(in) :: r_tol
        real(kind=r_def),                             intent(in) :: a_tol
        integer(kind=i_def),                          intent(in) :: max_iter
+       logical(kind=l_def),                          intent(in) :: monitor_convergence
+       logical(kind=l_def),                          intent(in) :: fail_on_non_converged
        type(bicgstab_type) :: self
      end function
   end interface
@@ -155,7 +165,8 @@ module iterative_solver_mod
   end interface
 
   interface
-     module function gmres_constructor( lin_op, prec, gcrk, r_tol, a_tol, max_iter) &
+     module function gmres_constructor( lin_op, prec, gcrk, r_tol, a_tol, max_iter, &
+                                        monitor_convergence, fail_on_non_converged) &
           result(self)
        class(abstract_linear_operator_type), target, intent(in) :: lin_op
        class(abstract_preconditioner_type),  target, intent(in) :: prec
@@ -163,6 +174,8 @@ module iterative_solver_mod
        real(kind=r_def),                             intent(in) :: r_tol
        real(kind=r_def),                             intent(in) :: a_tol
        integer(kind=i_def),                          intent(in) :: max_iter
+       logical(kind=l_def),                          intent(in) :: monitor_convergence
+       logical(kind=l_def),                          intent(in) :: fail_on_non_converged
        type(gmres_type) :: self
      end function gmres_constructor
   end interface
@@ -190,7 +203,8 @@ module iterative_solver_mod
   end interface
 
   interface
-     module function fgmres_constructor( lin_op, prec, gcrk, r_tol, a_tol, max_iter) &
+     module function fgmres_constructor( lin_op, prec, gcrk, r_tol, a_tol, max_iter, &
+                                         monitor_convergence, fail_on_non_converged) &
           result(self)
        class(abstract_linear_operator_type), target, intent(in) :: lin_op
        class(abstract_preconditioner_type),  target, intent(in) :: prec
@@ -198,6 +212,8 @@ module iterative_solver_mod
        real(kind=r_def),                             intent(in) :: r_tol
        real(kind=r_def),                             intent(in) :: a_tol
        integer(kind=i_def),                          intent(in) :: max_iter
+       logical(kind=l_def),                          intent(in) :: monitor_convergence
+       logical(kind=l_def),                          intent(in) :: fail_on_non_converged
        type(fgmres_type) :: self
      end function fgmres_constructor
   end interface
@@ -225,7 +241,8 @@ module iterative_solver_mod
   end interface
 
   interface
-     module function gcr_constructor( lin_op, prec, gcrk, r_tol, a_tol, max_iter) &
+     module function gcr_constructor( lin_op, prec, gcrk, r_tol, a_tol, max_iter, &
+                                      monitor_convergence, fail_on_non_converged) &
           result(self)
        class(abstract_linear_operator_type), target, intent(in) :: lin_op
        class(abstract_preconditioner_type),  target, intent(in) :: prec
@@ -233,6 +250,8 @@ module iterative_solver_mod
        real(kind=r_def),                             intent(in) :: r_tol
        real(kind=r_def),                             intent(in) :: a_tol
        integer(kind=i_def),                          intent(in) :: max_iter
+       logical(kind=l_def),                          intent(in) :: monitor_convergence
+       logical(kind=l_def),                          intent(in) :: fail_on_non_converged
        type(gcr_type) :: self
      end function gcr_constructor
   end interface
@@ -261,7 +280,8 @@ module iterative_solver_mod
   end interface
 
   interface
-     module function block_gcr_constructor( lin_op, prec, gcrk, r_tol, a_tol, max_iter) &
+     module function block_gcr_constructor( lin_op, prec, gcrk, r_tol, a_tol, max_iter, &
+                                            monitor_convergence, fail_on_non_converged ) &
           result(self)
        class(abstract_linear_operator_type), target, intent(in) :: lin_op
        class(abstract_preconditioner_type),  target, intent(in) :: prec
@@ -269,6 +289,9 @@ module iterative_solver_mod
        real(kind=r_def),                             intent(in) :: r_tol
        real(kind=r_def),                             intent(in) :: a_tol
        integer(kind=i_def),                          intent(in) :: max_iter
+       logical(kind=l_def),                          intent(in) :: monitor_convergence
+       logical(kind=l_def),                          intent(in) :: fail_on_non_converged
+
        type(block_gcr_type) :: self
      end function block_gcr_constructor
   end interface
@@ -299,13 +322,12 @@ module iterative_solver_mod
 
   ! the constructor will be in a submodule
   interface
-     module function precondition_only_constructor( lin_op, prec, r_tol, a_tol, diagnostic_norm) &
+     module function precondition_only_constructor( lin_op, prec, &
+                                                    monitor_convergence ) &
           result(self)
        class(abstract_linear_operator_type), target, intent(in) :: lin_op
        class(abstract_preconditioner_type),  target, intent(in) :: prec
-       real(kind=r_def),                             intent(in) :: r_tol
-       real(kind=r_def),                             intent(in) :: a_tol
-       logical(kind=l_def),                          intent(in) :: diagnostic_norm
+       logical(kind=l_def),                          intent(in) :: monitor_convergence
        type(precondition_only_type) :: self
      end function
   end interface
@@ -322,7 +344,7 @@ module iterative_solver_mod
 
   type, public, extends(abstract_iterative_solver_type) :: jacobi_type
      private
-     real(kind=r_def) :: rho_relax ! Overrelaxation factor
+     real(kind=r_def)    :: rho_relax ! Overrelaxation factor
    contains
      procedure :: apply => jacobi_solve
      procedure :: jacobi_solve
@@ -335,7 +357,8 @@ module iterative_solver_mod
 
   ! the constructor will be in a submodule
   interface
-     module function jacobi_constructor( lin_op, prec, r_tol, a_tol, max_iter, &
+     module function jacobi_constructor( lin_op, prec, r_tol, a_tol, max_iter,       &
+                                         monitor_convergence, fail_on_non_converged, &
                                          rho_relax) &
           result(self)
        class(abstract_linear_operator_type), target, intent(in) :: lin_op
@@ -343,6 +366,8 @@ module iterative_solver_mod
        real(kind=r_def),                             intent(in) :: r_tol
        real(kind=r_def),                             intent(in) :: a_tol
        integer(kind=i_def),                          intent(in) :: max_iter
+       logical(kind=l_def),                          intent(in) :: monitor_convergence
+       logical(kind=l_def),                          intent(in) :: fail_on_non_converged
        real(kind=r_def),                             intent(in) :: rho_relax
        type(jacobi_type) :: self
      end function
@@ -361,8 +386,6 @@ module iterative_solver_mod
   type, public, extends(abstract_iterative_solver_type) :: chebyshev_type
      private
      real(kind=r_def) :: lmin, lmax
-     logical(kind=l_def) :: diagnostic_norm
-     integer(kind=i_def) :: fixed_iter
    contains
      procedure :: apply => chebyshev_solve
      procedure :: chebyshev_solve
@@ -375,17 +398,18 @@ module iterative_solver_mod
 
   ! the constructor will be in a submodule
   interface
-     module function chebyshev_constructor( lin_op, prec, r_tol, a_tol, max_iter, lmin, lmax, diagnostic_norm, fixed_iter) &
+     module function chebyshev_constructor( lin_op, prec, r_tol, a_tol, max_iter, &
+                                            monitor_convergence, fail_on_non_converged, lmin, lmax) &
           result(self)
        class(abstract_linear_operator_type), target, intent(in) :: lin_op
        class(abstract_preconditioner_type),  target, intent(in) :: prec
        real(kind=r_def),                             intent(in) :: r_tol
        real(kind=r_def),                             intent(in) :: a_tol
        integer(kind=i_def),                          intent(in) :: max_iter
+       logical(kind=l_def),                          intent(in) :: monitor_convergence
+       logical(kind=l_def),                          intent(in) :: fail_on_non_converged
        real(kind=r_def),                             intent(in) :: lmin
        real(kind=r_def),                             intent(in) :: lmax
-       logical(kind=l_def),                          intent(in) :: diagnostic_norm
-       integer(kind=i_def),                          intent(in) :: fixed_iter
        type(chebyshev_type) :: self
      end function
   end interface
@@ -411,21 +435,31 @@ contains
   !> @param[in] r_tol real, the relative tolerance halting condition
   !> @param[in] a_tol real, the absolute tolerance halting condition
   !> @param[in] max_inter, integer the maximum number of iterations
+  !> @param[in] monitor_convergence Monitor the convergence and error in the
+  !!                                solver
+  !> @param[in] fail_on_non_converged Exit with error if the solver does not
+  !!                                  converge
   !> @return the constructed conjugate gradient solver
-  module function cg_constructor(lin_op, prec, r_tol, a_tol, max_iter) result(self)
+  module function cg_constructor(lin_op, prec, r_tol, a_tol, max_iter, &
+                                 monitor_convergence, fail_on_non_converged) result(self)
     implicit none
     class(abstract_linear_operator_type), target, intent(in) :: lin_op
     class(abstract_preconditioner_type),  target, intent(in) :: prec
     real(kind=r_def),                             intent(in) :: r_tol
     real(kind=r_def),                             intent(in) :: a_tol
     integer(kind=i_def),                          intent(in) :: max_iter
+    logical(kind=l_def),                          intent(in) :: monitor_convergence
+    logical(kind=l_def),                          intent(in) :: fail_on_non_converged
+
     type(conjugate_gradient_type) :: self
 
-    self%lin_op => lin_op
-    self%prec   => prec
-    self%r_tol  = r_tol
-    self%a_tol  = a_tol
-    self%max_iter    = max_iter
+    self%lin_op                => lin_op
+    self%prec                  => prec
+    self%r_tol                 = r_tol
+    self%a_tol                 = a_tol
+    self%max_iter              = max_iter
+    self%monitor_convergence   = monitor_convergence
+    self%fail_on_non_converged = fail_on_non_converged
 
   end function
 
@@ -444,7 +478,7 @@ contains
     integer(kind=i_def) :: iter
     real(kind=r_def)    :: alpha, beta
     real(kind=r_def)    :: r_nrm, r_nrm_0, r_nrm_old, rz, rz_new
-    logical             :: converged
+    logical(kind=l_def) :: converged
 
     ! temporary vectors
     class(abstract_vector_type), allocatable :: r
@@ -473,9 +507,11 @@ contains
       return
     end if
 
-    write(log_scratch_space,'(A,E15.8)')  &
-         "cg starting ||r|| = ||b - A.x|| = ", r_nrm_0
-    call log_event(log_scratch_space,LOG_LEVEL_DEBUG)
+    if ( self%monitor_convergence ) then
+      write(log_scratch_space,'(A,E15.8)')  &
+           "cg starting ||r|| = ||b - A.x|| = ", r_nrm_0
+      call log_event(log_scratch_space,LOG_LEVEL_DEBUG)
+    end if
 
     call z%set_scalar(0.0_r_def)
     call self%prec%apply(r,z)         ! z = P^{-1}.r
@@ -483,23 +519,28 @@ contains
     r_nrm_old = r_nrm_0
     call p%copy(z)
 
-    write(log_scratch_space,'("iter      ||r_i||        ||r_i||/||r_0||  ||r_i/r_{i-1}||")')
-    call log_event(log_scratch_space,LOG_LEVEL_DEBUG)
+    if ( self%monitor_convergence ) then
+      write(log_scratch_space,'("iter      ||r_i||        ||r_i||/||r_0||  ||r_i/r_{i-1}||")')
+      call log_event(log_scratch_space,LOG_LEVEL_DEBUG)
+    end if
     ! iterate until maximal number of iterations is reached
     do iter=1, self%max_iter
        call self%lin_op%apply(p,z)       ! z = A.p
        alpha = rz / p%dot(z)             ! alpha = <r,z> / <p,A.p>
        call x%axpy(alpha,p)              ! x -> x + alpha*p
        call r%axpy(-alpha,z)             ! r -> r - alpha*A.p
-       r_nrm = r%norm()                  ! r = ||r||_2
-       write(log_scratch_space,'(I6, "    ",E12.5,"   ",E12.5,"   ",F8.4)')&
-            iter, r_nrm, r_nrm/r_nrm_0, r_nrm/r_nrm_old
-       call log_event(log_scratch_space,LOG_LEVEL_DEBUG)
-       ! exit if either absolute or relative tolerance is reached
-       if (      ( r_nrm/r_nrm_0 <= self%r_tol ) &
-            .or. ( r_nrm <= self%a_tol ) ) then
-          converged=.true.
-          exit
+
+       if ( self%monitor_convergence ) then
+         r_nrm = r%norm()                  ! r = ||r||_2
+         write(log_scratch_space,'(I6, "    ",E12.5,"   ",E12.5,"   ",F8.4)')&
+              iter, r_nrm, r_nrm/r_nrm_0, r_nrm/r_nrm_old
+         call log_event(log_scratch_space,LOG_LEVEL_DEBUG)
+         ! exit if either absolute or relative tolerance is reached
+         if (      ( r_nrm/r_nrm_0 <= self%r_tol ) &
+              .or. ( r_nrm <= self%a_tol ) ) then
+            converged=.true.
+            exit
+         end if
        end if
        call self%prec%apply(r,z)         ! z = P^{-1}.r
        rz_new = r%dot(z)                 ! rz_new = <r,z>
@@ -508,14 +549,20 @@ contains
        rz = rz_new
        r_nrm_old = r_nrm
     end do
-    if (converged) then
-       write(log_scratch_space, &
-            '("cg converged after ",I6," iterations")') iter
-       call log_event(log_scratch_space,LOG_LEVEL_INFO)
-    else
-       write(log_scratch_space, &
-            '("cg failed to converge after ",I6," iterations")') iter
-       call log_event(log_scratch_space,LOG_LEVEL_ERROR)
+    if ( self%monitor_convergence ) then
+      if ( converged ) then
+         write(log_scratch_space, &
+              '("cg converged after ",I6," iterations")') iter
+         call log_event(log_scratch_space,LOG_LEVEL_INFO)
+      else
+         write(log_scratch_space, &
+              '("cg failed to converge after ",I6," iterations")') iter
+         if ( self%fail_on_non_converged ) then
+           call log_event(log_scratch_space,LOG_LEVEL_ERROR)
+         else
+           call log_event(log_scratch_space,LOG_LEVEL_INFO)
+         end if
+      end if
     end if
 
   end subroutine cg_solve
@@ -533,8 +580,13 @@ contains
   !> @param[in] r_tol real, the relative tolerance halting condition
   !> @param[in] a_tol real, the absolute tolerance halting condition
   !> @param[in] max_inter, integer the maximum number of iterations
+  !> @param[in] monitor_convergence Monitor the convergence and error in the
+  !!                                solver
+  !> @param[in] fail_on_non_converged Exit with error if the solver does not
+  !!                                  converge
   !> @return the constructed conjugate gradient solver
-  module function bicgstab_constructor( lin_op, prec, r_tol, a_tol, max_iter) &
+  module function bicgstab_constructor( lin_op, prec, r_tol, a_tol, max_iter, &
+                                        monitor_convergence, fail_on_non_converged) &
        result(self)
     implicit none
     class(abstract_linear_operator_type), target, intent(in) :: lin_op
@@ -542,15 +594,20 @@ contains
     real(kind=r_def),                             intent(in) :: r_tol
     real(kind=r_def),                             intent(in) :: a_tol
     integer(kind=i_def),                          intent(in) :: max_iter
+    logical(kind=l_def),                          intent(in) :: monitor_convergence
+    logical(kind=l_def),                          intent(in) :: fail_on_non_converged
     type(bicgstab_type) :: self
 
     write(log_scratch_space,'(A)') "bicgstab_constructor:"
     call log_event(log_scratch_space, LOG_LEVEL_INFO)
-    self%lin_op => lin_op
-    self%prec   => prec
-    self%r_tol  = r_tol
-    self%a_tol  = a_tol
-    self%max_iter = max_iter
+    self%lin_op                => lin_op
+    self%prec                  => prec
+    self%r_tol                 = r_tol
+    self%a_tol                 = a_tol
+    self%max_iter              = max_iter
+    self%monitor_convergence   = monitor_convergence
+    self%fail_on_non_converged = fail_on_non_converged
+
   end function bicgstab_constructor
 
   !> bicgstab solve. Over-rides the abstract interface to do the actual solve.
@@ -597,7 +654,7 @@ contains
 
     sc_err = r%norm()
 
-  ! Check if r == 0 (to avoid divide by zero problems)
+    ! Check if r == 0 (to avoid divide by zero problems)
     if ( sc_err < EPS ) then
        write( log_scratch_space, '(A,E15.8)' ) &
             "bicgstab converged in 0 iterations... ||b|| = ", sc_err
@@ -606,9 +663,11 @@ contains
     end if
 
     sc_err = max(sc_err,self%a_tol)
-    write( log_scratch_space, '(A,E15.8)' ) &
-         " bicgstab starting ... ||r|| = ||b - A.x|| = ", sc_err
-    call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+    if ( self%monitor_convergence ) then
+      write( log_scratch_space, '(A,E15.8)' ) &
+           " bicgstab starting ... ||r|| = ||b - A.x|| = ", sc_err
+      call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+    end if
 
     alpha = 1.0_r_def
     omega = 1.0_r_def
@@ -664,24 +723,30 @@ contains
        rho_old = rho
 
        ! check for convergence
-       err = r%norm()/sc_err
-       write( log_scratch_space, '(A,I4,A, E15.8)' ) "bicgstab[", &
-            iter, "]: res = ", err
-       call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+       if ( self%monitor_convergence ) then
+         err = r%norm()/sc_err
+         write( log_scratch_space, '(A,I4,A, E15.8)' ) "bicgstab[", &
+              iter, "]: res = ", err
+         call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
 
-       if (err < self%r_tol) then
-          write( log_scratch_space, '(A, I4, A, E15.8)' ) &
-             "bicgstab:converged in ", iter,              &
-             " iters, final=", err
-        call log_event( log_scratch_space, LOG_LEVEL_INFO )
-        exit
+         if (err < self%r_tol) then
+            write( log_scratch_space, '(A, I4, A, E15.8)' ) &
+               "bicgstab:converged in ", iter,              &
+               " iters, final=", err
+          call log_event( log_scratch_space, LOG_LEVEL_INFO )
+          exit
+        end if
       end if
     end do
 
-    if(iter >= self%max_iter) then
+    if(iter >= self%max_iter .and. self%monitor_convergence) then
        write(log_scratch_space, '(A, I3, A, E15.8)') &
            "bicgstab: NOT converged in", iter, " iters, Res=", err
-      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      if ( self%fail_on_non_converged ) then
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      else
+        call log_event( log_scratch_space, LOG_LEVEL_INFO )
+      end if
     end if
 
   end subroutine bicgstab_solve
@@ -699,8 +764,13 @@ contains
   !> @param[in] r_tol real, the relative tolerance halting condition
   !> @param[in] a_tol real, the absolute tolerance halting condition
   !> @param[in] max_iter, integer the maximum number of iterations
+  !> @param[in] monitor_convergence Monitor the convergence and error in the
+  !!                                solver
+  !> @param[in] fail_on_non_converged Exit with error if the solver does not
+  !!                                  converge
   !> @return the constructed GMRES solver
-  module function gmres_constructor( lin_op, prec, gcrk, r_tol, a_tol, max_iter) &
+  module function gmres_constructor( lin_op, prec, gcrk, r_tol, a_tol, max_iter, &
+                                     monitor_convergence, fail_on_non_converged) &
        result(self)
     implicit none
     class(abstract_linear_operator_type), target, intent(in) :: lin_op
@@ -709,14 +779,19 @@ contains
     real(kind=r_def),                             intent(in) :: r_tol
     real(kind=r_def),                             intent(in) :: a_tol
     integer(kind=i_def),                          intent(in) :: max_iter
+    logical(kind=l_def),                          intent(in) :: monitor_convergence
+    logical(kind=l_def),                          intent(in) :: fail_on_non_converged
     type(gmres_type) :: self
 
-    self%lin_op => lin_op
-    self%prec   => prec
-    self%gcrk   = gcrk
-    self%r_tol  = r_tol
-    self%a_tol  = a_tol
-    self%max_iter    = max_iter
+    self%lin_op                => lin_op
+    self%prec                  => prec
+    self%gcrk                  = gcrk
+    self%r_tol                 = r_tol
+    self%a_tol                 = a_tol
+    self%max_iter              = max_iter
+    self%monitor_convergence   = monitor_convergence
+    self%fail_on_non_converged = fail_on_non_converged
+
   end function gmres_constructor
 
   !> gmres_solve. Over-rides the abstract interface to do the actual solve.
@@ -766,11 +841,13 @@ contains
       return
     end if
 
-    sc_err = max(sc_err,self%a_tol)
-    write( log_scratch_space, '(A,E15.8,":",E15.8)' ) &
-         "GMRES starting ... ||r|| = ||b - A.x||", res%norm(),sc_err
-    call log_event(log_scratch_space, LOG_LEVEL_INFO)
-    init_err = sc_err
+    if ( self%monitor_convergence ) then
+      sc_err = max(sc_err,self%a_tol)
+      write( log_scratch_space, '(A,E15.8,":",E15.8)' ) &
+           "GMRES starting ... ||r|| = ||b - A.x||", res%norm(),sc_err
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+      init_err = sc_err
+    end if
 
     !initial guess
     call x%duplicate(s)
@@ -848,30 +925,36 @@ contains
           call x%axpy(u(iv), s)
        end do
 
-       ! check for convergence
        call Ax%set_scalar(0.0_r_def)
        call self%lin_op%apply(x, Ax)
        call res%copy(Ax)
        call res%aypx(-1.0_r_def, b)
 
-       res_norm = res%norm()
-       err = res_norm/sc_err
-       if (err < self%r_tol ) then
-          write( log_scratch_space, '(A, I2, A, E12.4, A, E15.8)' ) &
-               "GMRES solver_algorithm: converged in ", &
-               iter, " iters, init=", init_err, " final=", err
-          call log_event( log_scratch_space, LOG_LEVEL_INFO )
-          exit ! break out of loop
+       ! check for convergence
+       if ( self%monitor_convergence ) then
+         res_norm = res%norm()
+         err = res_norm/sc_err
+         if (err < self%r_tol ) then
+            write( log_scratch_space, '(A, I2, A, E12.4, A, E15.8)' ) &
+                 "GMRES solver_algorithm: converged in ", &
+                 iter, " iters, init=", init_err, " final=", err
+            call log_event( log_scratch_space, LOG_LEVEL_INFO )
+            exit ! break out of loop
+         end if
        end if
 
     end do
 
-    if( (iter >= self%max_iter .and. err > self%r_tol ) &
-         .or. ieee_is_nan(err) ) then
-       write( log_scratch_space, '(A, I3, A, E15.8)')    &
-            "GMRES solver_algorithm: NOT converged in ", &
-            self%max_iter, " iters, Res=", err
-       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    if ( self%monitor_convergence ) then
+      write( log_scratch_space, '(A, I3, A, E15.8)')    &
+             "GMRES solver_algorithm: NOT converged in ", &
+              self%max_iter, " iters, Res=", err
+      if( (iter >= self%max_iter .and. err > self%r_tol .and. self%fail_on_non_converged ) &
+           .or. ieee_is_nan(err) ) then
+         call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      else
+         call log_event( log_scratch_space, LOG_LEVEL_INFO )
+      end if
     end if
 
     deallocate(h, g, u)
@@ -890,8 +973,13 @@ contains
   !> @param[in] r_tol real, the relative tolerance halting condition
   !> @param[in] a_tol real, the absolute tolerance halting condition
   !> @param[in] max_iter, integer the maximum number of iterations
+  !> @param[in] monitor_convergence Monitor the convergence and error in the
+  !!                                solver
+  !> @param[in] fail_on_non_converged Exit with error if the solver does not
+  !!                                  converge
   !> @return the constructed fGMRES solver
-  module function fgmres_constructor( lin_op, prec, gcrk, r_tol, a_tol, max_iter) &
+  module function fgmres_constructor( lin_op, prec, gcrk, r_tol, a_tol, max_iter, &
+                                      monitor_convergence, fail_on_non_converged) &
        result(self)
     implicit none
     class(abstract_linear_operator_type), target, intent(in) :: lin_op
@@ -900,14 +988,19 @@ contains
     real(kind=r_def),                             intent(in) :: r_tol
     real(kind=r_def),                             intent(in) :: a_tol
     integer(kind=i_def),                          intent(in) :: max_iter
+    logical(kind=l_def),                          intent(in) :: monitor_convergence
+    logical(kind=l_def),                          intent(in) :: fail_on_non_converged
     type(fgmres_type) :: self
 
-    self%lin_op => lin_op
-    self%prec   => prec
-    self%gcrk   = gcrk
-    self%r_tol  = r_tol
-    self%a_tol  = a_tol
-    self%max_iter    = max_iter
+    self%lin_op                => lin_op
+    self%prec                  => prec
+    self%gcrk                  = gcrk
+    self%r_tol                 = r_tol
+    self%a_tol                 = a_tol
+    self%max_iter              = max_iter
+    self%monitor_convergence   = monitor_convergence
+    self%fail_on_non_converged = fail_on_non_converged
+
   end function fgmres_constructor
 
   !> fgmres_solve. Over-rides the abstract interface to do the actual solve.
@@ -960,13 +1053,15 @@ contains
       return
     end if
 
-    sc_err = max(sc_err,self%a_tol)
-    write( log_scratch_space, '(A,E15.8,":",E15.8)' ) &
-         "fGMRES starting ... ||b|| = ", b%norm(),sc_err
-    call log_event(log_scratch_space, LOG_LEVEL_INFO)
-    init_err = sc_err
+    if ( self%monitor_convergence ) then
+      sc_err = max(sc_err,self%a_tol)
+      write( log_scratch_space, '(A,E15.8,":",E15.8)' ) &
+           "fGMRES starting ... ||b|| = ", b%norm(),sc_err
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+      init_err = sc_err
+    end if
 
-    !initial guess
+    ! Initial guess
     call x%duplicate(s)
     call x%duplicate(w)
     call s%copy(res)
@@ -1046,13 +1141,16 @@ contains
        call res%aypx(-1.0_r_def, b)
 
        beta = res%norm()
-       err = beta/sc_err
-       if (err < self%r_tol ) then
-          write( log_scratch_space, '(A, I2, A, E12.4, A, E15.8)' ) &
-               "fGMRES solver_algorithm: converged in ", &
-               iter, " iters, init=", init_err, " final=", err
-          call log_event( log_scratch_space, LOG_LEVEL_INFO )
-          exit ! break out of loop
+
+       if ( self%monitor_convergence ) then
+         err = beta/sc_err
+         if (err < self%r_tol ) then
+            write( log_scratch_space, '(A, I2, A, E12.4, A, E15.8)' ) &
+                 "fGMRES solver_algorithm: converged in ", &
+                 iter, " iters, init=", init_err, " final=", err
+            call log_event( log_scratch_space, LOG_LEVEL_INFO )
+            exit ! break out of loop
+         end if
        end if
 
        call s%copy(res)
@@ -1063,12 +1161,16 @@ contains
        g(1) = beta
     end do
 
-    if( (iter >= self%max_iter .and. err > self%r_tol ) &
+    if( (iter >= self%max_iter .and. err > self%r_tol .and. self%monitor_convergence) &
          .or. ieee_is_nan(err) ) then
        write( log_scratch_space, '(A, I3, A, E15.8)')    &
             "fGMRES solver_algorithm: NOT converged in ", &
             self%max_iter, " iters, Res=", err
-       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+       if ( self%fail_on_non_converged .or. ieee_is_nan(err) ) then
+         call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+       else
+         call log_event( log_scratch_space, LOG_LEVEL_INFO )
+       end if
     end if
 
     call x%axpy(1.0_r_def, dx)
@@ -1090,8 +1192,13 @@ contains
   !> @param[in] r_tol real, the relative tolerance halting condition
   !> @param[in] a_tol real, the absolute tolerance halting condition
   !> @param[in] max_iter, integer the maximum number of iterations
+  !> @param[in] monitor_convergence Monitor the convergence and error in the
+  !!                                solver
+  !> @param[in] fail_on_non_converged Exit with error if the solver does not
+  !!                                  converge
   !> @return the constructed GCR solver
-  module function gcr_constructor( lin_op, prec, gcrk, r_tol, a_tol, max_iter) &
+  module function gcr_constructor( lin_op, prec, gcrk, r_tol, a_tol, max_iter, &
+                                   monitor_convergence, fail_on_non_converged) &
        result(self)
     implicit none
     class(abstract_linear_operator_type), target, intent(in) :: lin_op
@@ -1100,14 +1207,18 @@ contains
     real(kind=r_def),                             intent(in) :: r_tol
     real(kind=r_def),                             intent(in) :: a_tol
     integer(kind=i_def),                          intent(in) :: max_iter
+    logical(kind=l_def),                          intent(in) :: monitor_convergence
+    logical(kind=l_def),                          intent(in) :: fail_on_non_converged
     type(gcr_type) :: self
 
-    self%lin_op => lin_op
-    self%prec   => prec
-    self%gcrk   = gcrk
-    self%r_tol  = r_tol
-    self%a_tol  = a_tol
-    self%max_iter    = max_iter
+    self%lin_op                => lin_op
+    self%prec                  => prec
+    self%gcrk                  = gcrk
+    self%r_tol                 = r_tol
+    self%a_tol                 = a_tol
+    self%max_iter              = max_iter
+    self%monitor_convergence   = monitor_convergence
+    self%fail_on_non_converged = fail_on_non_converged
   end function gcr_constructor
 
   !> gcr_solve. Over-rides the abstract interface to do the actual solve.
@@ -1160,11 +1271,13 @@ contains
       return
     end if
 
-    sc_err = max(sc_err,self%a_tol)
-    write( log_scratch_space, '(A,E15.8,":",E15.8)' ) &
-         "GCR starting ... ||b|| = ", b%norm(),sc_err
-    call log_event(log_scratch_space, LOG_LEVEL_INFO)
-    init_err = sc_err
+    if ( self%monitor_convergence ) then
+      sc_err = max(sc_err,self%a_tol)
+      write( log_scratch_space, '(A,E15.8,":",E15.8)' ) &
+           "GCR starting ... ||b|| = ", b%norm(),sc_err
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+      init_err = sc_err
+    end if
 
     allocate(v(self%gcrk), source=x)
     allocate(Pv(self%gcrk), source=x)
@@ -1191,23 +1304,32 @@ contains
           call dx%axpy(alpha, Pv(iv))
           call res%axpy(-alpha, v(iv))
 
-          err = res%norm()/sc_err
-          iv_final = iv
-          if (err < self%r_tol ) exit
+          if ( self%monitor_convergence ) then
+            err = res%norm()/sc_err
+            iv_final = iv
+            if (err < self%r_tol ) exit
+          end if
         end do
-        write( log_scratch_space, '(A, I2, A, I2, A, E12.4, A, E15.8)' ) &
-             "GCR solver_algorithm: [",iter,",",iv_final, &
-             "], iters, init=", init_err, " final=", err
-        call log_event( log_scratch_space, LOG_LEVEL_INFO )
-        if (err < self%r_tol ) exit
+
+        if ( self%monitor_convergence ) then
+          write( log_scratch_space, '(A, I2, A, I2, A, E12.4, A, E15.8)' ) &
+               "GCR solver_algorithm: [",iter,",",iv_final, &
+               "], iters, init=", init_err, " final=", err
+          call log_event( log_scratch_space, LOG_LEVEL_INFO )
+          if (err < self%r_tol ) exit
+        end if
     end do
 
-    if( (iter >= self%max_iter .and. err > self%r_tol ) &
+    if( (iter >= self%max_iter .and. err > self%r_tol .and. self%monitor_convergence ) &
          .or. ieee_is_nan(err) ) then
        write( log_scratch_space, '(A, I3, A, E15.8)')    &
             "GCR solver_algorithm: NOT converged in ", &
             self%max_iter, " iters, Res=", err
-       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+       if ( self%fail_on_non_converged .or. ieee_is_nan(err) ) then
+         call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+       else
+         call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+       end if
     end if
 
     call x%axpy(1.0_r_def, dx)
@@ -1228,8 +1350,13 @@ contains
   !> @param[in] r_tol real, the relative tolerance halting condition
   !> @param[in] a_tol real, the absolute tolerance halting condition
   !> @param[in] max_iter, integer the maximum number of iterations
+  !> @param[in] monitor_convergence Monitor the convergence and error in the
+  !!                                solver
+  !> @param[in] fail_on_non_converged Exit with error if the solver does not
+  !!                                  converge
   !> @return the constructed GCR solver
-  module function block_gcr_constructor( lin_op, prec, gcrk, r_tol, a_tol, max_iter) &
+  module function block_gcr_constructor( lin_op, prec, gcrk, r_tol, a_tol, max_iter, &
+                                         monitor_convergence, fail_on_non_converged ) &
        result(self)
     implicit none
     class(abstract_linear_operator_type), target, intent(in) :: lin_op
@@ -1238,14 +1365,19 @@ contains
     real(kind=r_def),                             intent(in) :: r_tol
     real(kind=r_def),                             intent(in) :: a_tol
     integer(kind=i_def),                          intent(in) :: max_iter
+    logical(kind=l_def),                          intent(in) :: monitor_convergence
+    logical(kind=l_def),                          intent(in) :: fail_on_non_converged
     type(block_gcr_type) :: self
 
-    self%lin_op => lin_op
-    self%prec   => prec
-    self%gcrk   = gcrk
-    self%r_tol  = r_tol
-    self%a_tol  = a_tol
-    self%max_iter    = max_iter
+    self%lin_op                => lin_op
+    self%prec                  => prec
+    self%gcrk                  = gcrk
+    self%r_tol                 = r_tol
+    self%a_tol                 = a_tol
+    self%max_iter              = max_iter
+    self%monitor_convergence   = monitor_convergence
+    self%fail_on_non_converged = fail_on_non_converged
+
   end function
 
   !> block_gcr_solve. Over-rides the abstract interface to do the actual solve.
@@ -1280,7 +1412,7 @@ contains
     real(kind=r_def), allocatable, dimension(:) :: initial_error, final_error, relative_error, scaled_error
     integer(kind=i_def)                         :: n_fields, n
 
-    logical, allocatable :: converged(:)
+    logical(kind=l_def), allocatable :: converged(:)
 
     n_fields = x%vector_size()
     allocate( initial_error(n_fields), final_error(n_fields), &
@@ -1300,18 +1432,19 @@ contains
     call res%copy(b)
     call res%axpy(-1.0_r_def, Ax)
 
-    ! if the input field has error smaller than the product of absolute and relative
-    ! tolerance, then use this for the initial error.  This will ensure convergence
-    ! in a single iteration.
-    do n = 1,n_fields
-      initial_error(n) = max(b%field_norm(n), self%a_tol*self%r_tol)
-    end do
-    init_err = sum(initial_error)
+    if ( self%monitor_convergence ) then
+      ! if the input field has error smaller than the product of absolute and relative
+      ! tolerance, then use this for the initial error.  This will ensure convergence
+      ! in a single iteration.
+      do n = 1,n_fields
+        initial_error(n) = max(b%field_norm(n), self%a_tol*self%r_tol)
+      end do
+      init_err = sum(initial_error)
 
-
-    write( log_scratch_space, '(A,E15.8,":",E15.8)' ) &
-         "BLOCK_GCR starting ... ||b|| = ", b%norm(),init_err
-    call log_event(log_scratch_space, LOG_LEVEL_INFO)
+      write( log_scratch_space, '(A,E15.8,":",E15.8)' ) &
+           "BLOCK_GCR starting ... ||b|| = ", b%norm(),init_err
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    end if
 
     allocate(v(self%gcrk), source=x)
     allocate(Pv(self%gcrk), source=x)
@@ -1339,52 +1472,64 @@ contains
           call dx%axpy(alpha, Pv(iv))
           call res%axpy(-alpha, v(iv))
 
-          iv_final = iv
-          do n = 1,n_fields
-            final_error(n) = res%field_norm(n)
-          end do
-          aerr = sum(final_error)
-          err = sum(final_error/initial_error)
-          do n = 1,n_fields
-            if (final_error(n)/initial_error(n) < self%r_tol &
-               .or. final_error(n) < self%a_tol )then
-              ! This field is converged
-              converged(n) = .true.
+          if ( self%monitor_convergence ) then
+
+            iv_final = iv
+            do n = 1,n_fields
+              final_error(n) = res%field_norm(n)
+            end do
+            aerr = sum(final_error)
+            err = sum(final_error/initial_error)
+            do n = 1,n_fields
+              if (final_error(n)/initial_error(n) < self%r_tol &
+                 .or. final_error(n) < self%a_tol )then
+                ! This field is converged
+                converged(n) = .true.
+              end if
+            end do
+            if (all(converged))then
+              exit
+            else
+              converged(:)=.false.
             end if
-          end do
-          if (all(converged))then
-            exit
-          else
-            converged(:)=.false.
-          end if
 
-          relative_error = final_error/initial_error
-          do n = 1,n_fields
-            write( log_scratch_space, '(A, I2, 3E16.8)') 'Intermediate BLOCK_GCR errors (I/F/R): ', &
-               n, initial_error(n), final_error(n), relative_error(n)
-            call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
-          end do
+            relative_error = final_error/initial_error
+            do n = 1,n_fields
+              write( log_scratch_space, '(A, I2, 3E16.8)') 'Intermediate BLOCK_GCR errors (I/F/R): ', &
+                 n, initial_error(n), final_error(n), relative_error(n)
+              call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+            end do
+
+         end if
         end do
-        write( log_scratch_space, '(A, I2, A, I2, A, E12.4, A, E15.8, A, E15.8)' ) &
-             "BLOCK_GCR solver_algorithm: [",iter,",",iv_final, &
-             "], iters, init=", init_err, " final=", err, " abs=", aerr
+        if ( self%monitor_convergence ) then
+          write( log_scratch_space, '(A, I2, A, I2, A, E12.4, A, E15.8, A, E15.8)' ) &
+               "BLOCK_GCR solver_algorithm: [",iter,",",iv_final, &
+               "], iters, init=", init_err, " final=", err, " abs=", aerr
+          call log_event( log_scratch_space, LOG_LEVEL_INFO )
+          if (all(converged)) exit
+        end if
+    end do
+
+    if ( self%monitor_convergence ) then
+      relative_error = final_error/initial_error
+      do n = 1,n_fields
+        write( log_scratch_space, '(A, I2, 3E16.8)') 'BLOCK_GCR field errors (Init/Final/Rel): ', &
+          n, initial_error(n), final_error(n), relative_error(n)
         call log_event( log_scratch_space, LOG_LEVEL_INFO )
-        if (all(converged)) exit
-    end do
+      end do
 
-    relative_error = final_error/initial_error
-    do n = 1,n_fields
-      write( log_scratch_space, '(A, I2, 3E16.8)') 'BLOCK_GCR field errors (Init/Final/Rel): ', &
-        n, initial_error(n), final_error(n), relative_error(n)
-      call log_event( log_scratch_space, LOG_LEVEL_INFO )
-    end do
-
-    if( (iter >= self%max_iter .and. err > self%r_tol ) &
-         .or. ieee_is_nan(err) ) then
-       write( log_scratch_space, '(A, I3, A, E15.8)')    &
-            "BLOCK_GCR solver_algorithm: NOT converged in ", &
-            self%max_iter, " iters, Res=", err
-       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      if( (iter >= self%max_iter .and. err > self%r_tol) &
+           .or. ieee_is_nan(err) ) then
+         write( log_scratch_space, '(A, I3, A, E15.8)')    &
+              "BLOCK_GCR solver_algorithm: NOT converged in ", &
+              self%max_iter, " iters, Res=", err
+        if ( self%fail_on_non_converged ) then
+           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        else
+           call log_event( log_scratch_space, LOG_LEVEL_INFO )
+        end if
+      end if
     end if
 
     call x%axpy(1.0_r_def, dx)
@@ -1402,28 +1547,24 @@ contains
   !! points the linear operator and preconditioner at those passed in.
   !> @param[in] lin_op The linear operator the solver will use
   !> @param[in] prec The preconditioner the solver will use
-  !> @param[in] r_tol real, the relative tolerance halting condition
-  !> @param[in] a_tol real, the absolute tolerance halting condition
-  !> @param[in] diagnostic_norm, logical controls printing (and computation) of residual
-  !!norm
+  !> @param[in] monitor_convergence Monitor the convergence and error in the
+  !!                                solver
   !> @return the constructed conjugate gradient solver
-  module function precondition_only_constructor(lin_op, prec, r_tol, a_tol, diagnostic_norm) result(self)
+  module function precondition_only_constructor(lin_op, prec, monitor_convergence) result(self)
     implicit none
     class(abstract_linear_operator_type), target, intent(in) :: lin_op
     class(abstract_preconditioner_type),  target, intent(in) :: prec
-    real(kind=r_def),                             intent(in) :: r_tol
-    real(kind=r_def),                             intent(in) :: a_tol
-    logical(kind=l_def),                          intent(in) :: diagnostic_norm
+    logical(kind=l_def),                          intent(in) :: monitor_convergence
     type(precondition_only_type) :: self
 
-    self%lin_op => lin_op
-    self%prec   => prec
-    self%r_tol  = r_tol
-    self%a_tol  = a_tol
-    self%d_norm = diagnostic_norm
-    if( .not.self%d_norm ) then
-       call log_event("Precondition only:No diagnostic norm output", LOG_LEVEL_INFO)
+    self%lin_op              => lin_op
+    self%prec                => prec
+    self%monitor_convergence = monitor_convergence
+
+    if( .not. self%monitor_convergence ) then
+       call log_event("Precondition only: No diagnostic norm output", LOG_LEVEL_INFO)
     end if
+
   end function
 
   !> Precondition only solve. Over-rides the abstract interface to do the actual solve.
@@ -1445,7 +1586,7 @@ contains
     call log_event("Precondition only starting", LOG_LEVEL_INFO)
     call self%prec%apply(b,x)         ! x = P^{-1}.b
 
-    if( self%d_norm ) then
+    if( self%monitor_convergence ) then
        ! Compute initial and final error
        call b%duplicate(res)
        call res%copy(b)
@@ -1470,7 +1611,7 @@ end submodule precondition_only_smod
 !  Submodule with procedures for Jacobi solver !!
 submodule(iterative_solver_mod) jacobi_smod
 contains
-  !> constructs a <code>Jacobi</code> solver
+  !> Constructs a <code>Jacobi</code> solver
   !! sets the values for the solver such as the residual (r_tol) and
   !! points the linear operator and preconditioner at those passed in.
   !> @param[in] lin_op The linear operator the solver will use
@@ -1478,9 +1619,14 @@ contains
   !> @param[in] r_tol real, the relative tolerance halting condition
   !> @param[in] a_tol real, the absolute tolerance halting condition
   !> @param[in] max_inter, integer the maximum number of iterations
+  !> @param[in] monitor_convergence Monitor the convergence and error in the
+  !!                                solver
+  !> @param[in] fail_on_non_converged Exit with error if the solver does not
+  !!                                  converge
   !> @param[in] rho_relax, overrelaxation factor
   !> @return the constructed jacobi solver
-  module function jacobi_constructor(lin_op, prec, r_tol, a_tol, max_iter, &
+  module function jacobi_constructor(lin_op, prec, r_tol, a_tol, max_iter,       &
+                                     monitor_convergence, fail_on_non_converged, &
                                      rho_relax) result(self)
     implicit none
     class(abstract_linear_operator_type), target, intent(in) :: lin_op
@@ -1488,15 +1634,19 @@ contains
     real(kind=r_def),                             intent(in) :: r_tol
     real(kind=r_def),                             intent(in) :: a_tol
     integer(kind=i_def),                          intent(in) :: max_iter
+    logical(kind=l_def),                          intent(in) :: monitor_convergence
+    logical(kind=l_def),                          intent(in) :: fail_on_non_converged
     real(kind=r_def),                             intent(in) :: rho_relax
     type(jacobi_type) :: self
 
-    self%lin_op    => lin_op
-    self%prec      => prec
-    self%r_tol     = r_tol
-    self%a_tol     = a_tol
-    self%max_iter  = max_iter
-    self%rho_relax = rho_relax
+    self%lin_op                => lin_op
+    self%prec                  => prec
+    self%r_tol                 = r_tol
+    self%a_tol                 = a_tol
+    self%max_iter              = max_iter
+    self%monitor_convergence   = monitor_convergence
+    self%fail_on_non_converged = fail_on_non_converged
+    self%rho_relax             = rho_relax
 
   end function
 
@@ -1514,7 +1664,7 @@ contains
     ! written in terms of abstract types
     integer(kind=i_def) :: iter
     real(kind=r_def)    :: r_nrm, r_nrm_0
-    logical             :: converged
+    logical(kind=l_def) :: converged
 
     ! temporary vectors
     class(abstract_vector_type), allocatable :: r
@@ -1536,30 +1686,43 @@ contains
       call r%axpy(-1.0_r_def, b) ! r = r - b = Ax - b
 
       ! Check for convergence
-      r_nrm = r%norm()
-      if ( iter == 1 ) r_nrm_0 = r_nrm
-      write(log_scratch_space, &
-           '("  jacobi iteration ",I6,": ||r|| = ",E12.4," ||r||/||r_0|| = ",E12.4)') iter, r_nrm, r_nrm/r_nrm_0
-       call log_event(log_scratch_space,LOG_LEVEL_INFO)
+      if ( self%monitor_convergence ) then
+        r_nrm = r%norm()
+        if ( iter == 1 ) r_nrm_0 = r_nrm
+        write(log_scratch_space, &
+             '("  jacobi iteration ",I6,": ||r|| = ",E12.4," ||r||/||r_0|| = ",E12.4)') iter, r_nrm, r_nrm/r_nrm_0
+         call log_event(log_scratch_space,LOG_LEVEL_INFO)
 
-      if (      ( r_nrm/r_nrm_0 <= self%r_tol ) &
-           .or. ( r_nrm <= self%a_tol ) ) then
-         converged=.true.
-         exit
+        if (      ( r_nrm/r_nrm_0 <= self%r_tol ) &
+             .or. ( r_nrm <= self%a_tol ) ) then
+           converged=.true.
+           exit
+        end if
       end if
 
       call self%prec%apply(r, z) ! z = P^{-1}.r = P^{-1}.(Ax - b)
       call x%axpy(const, z) ! x = x + const*z = x + const*P^{-1}(Ax - b)
 
     end do
-    if (converged) then
-       write(log_scratch_space, &
-            '("jacobi converged after ",I6," iterations")') iter
-       call log_event(log_scratch_space,LOG_LEVEL_INFO)
-    else
-       write(log_scratch_space, &
-            '("jacobi failed to converge after ",I6," iterations")') iter
-       call log_event(log_scratch_space,LOG_LEVEL_ERROR)
+
+    if ( self%monitor_convergence ) then
+      if (converged) then
+         write(log_scratch_space, &
+              '("jacobi converged after ",I6," iterations")') iter
+         call log_event(log_scratch_space,LOG_LEVEL_INFO)
+      else
+         write(log_scratch_space, &
+              '("jacobi failed to converge after ",I6," iterations")') iter
+         if ( self%fail_on_non_converged ) then
+           ! Reached maximum number of iterations so flag failure to converge as
+           ! an error
+           call log_event(log_scratch_space,LOG_LEVEL_ERROR)
+         else
+           ! Only performing a fixed number of iterations to so flag failure to converge as
+           ! information only
+           call log_event(log_scratch_space,LOG_LEVEL_INFO)
+         end if
+      end if
     end if
 
   end subroutine jacobi_solve
@@ -1576,34 +1739,37 @@ contains
   !> @param[in] r_tol real, the relative tolerance halting condition
   !> @param[in] a_tol real, the absolute tolerance halting condition
   !> @param[in] max_inter, integer the maximum number of iterations
+  !> @param[in] monitor_convergence Monitor the convergence and error in the
+  !!                                solver
+  !> @param[in] fail_on_non_converged Exit with error if the solver does not
+  !!                                  converge
   !> @param[in] lmin Lower bound on the eigenvalues of the matrix
   !> @param[in] lmax Upper bound on the eigenvalues of the matrix
-  !> @param[in] diagnostic_norm, logical controls printing (and computation) of residual
-  !> @param[in] fixed_iter Number of iterations to perform
-  !!norm
   !> @return the constructed chebyshev solver
-  module function chebyshev_constructor(lin_op, prec, r_tol, a_tol, max_iter, lmin, lmax, diagnostic_norm, fixed_iter) result(self)
+  module function chebyshev_constructor(lin_op, prec, r_tol, a_tol, max_iter,       &
+                                        monitor_convergence, fail_on_non_converged, &
+                                        lmin, lmax) result(self)
     implicit none
     class(abstract_linear_operator_type), target, intent(in) :: lin_op
     class(abstract_preconditioner_type),  target, intent(in) :: prec
     real(kind=r_def),                             intent(in) :: r_tol
     real(kind=r_def),                             intent(in) :: a_tol
     integer(kind=i_def),                          intent(in) :: max_iter
+    logical(kind=l_def),                          intent(in) :: monitor_convergence
+    logical(kind=l_def),                          intent(in) :: fail_on_non_converged
     real(kind=r_def),                             intent(in) :: lmin
     real(kind=r_def),                             intent(in) :: lmax
-    logical(kind=l_def),                          intent(in) :: diagnostic_norm
-    integer(kind=i_def),                          intent(in) :: fixed_iter
     type(chebyshev_type) :: self
 
-    self%lin_op          => lin_op
-    self%prec            => prec
-    self%r_tol           = r_tol
-    self%a_tol           = a_tol
-    self%max_iter        = max_iter
-    self%lmin            = lmin
-    self%lmax            = lmax
-    self%diagnostic_norm = diagnostic_norm
-    self%fixed_iter      = fixed_iter
+    self%lin_op                => lin_op
+    self%prec                  => prec
+    self%r_tol                 = r_tol
+    self%a_tol                 = a_tol
+    self%max_iter              = max_iter
+    self%monitor_convergence   = monitor_convergence
+    self%fail_on_non_converged = fail_on_non_converged
+    self%lmin                  = lmin
+    self%lmax                  = lmax
 
   end function
 
@@ -1638,7 +1804,7 @@ contains
     call x%duplicate(z)
     call x%duplicate(r)
 
-    if ( self%diagnostic_norm ) init_norm = max(1.0_r_def, b%norm())
+    if ( self%monitor_convergence ) init_norm = max(1.0_r_def, b%norm())
 
     ! Set up scalars
     a1 = 2.0_r_def/(self%lmax - self%lmin)
@@ -1646,7 +1812,7 @@ contains
     a_over_b = a1/a2
     w = 1.0_r_def
 
-    do iter = 1, self%fixed_iter
+    do iter = 1, self%max_iter
 
       ! r = b-M*xo
       call self%lin_op%apply(xo,z)
@@ -1671,13 +1837,17 @@ contains
 
     end do
     ! residiual = norm(b - M*x)
-    if ( self%diagnostic_norm ) then
+    if ( self%monitor_convergence ) then
       call self%lin_op%apply(x,z) ! z = M.x
       call z%axpy(-1.0_r_def, b)  ! z = M.x-b
       final_norm = z%norm()
       write(log_scratch_space, &
-          '("chebyshev[",I4,"], redidual = ",E16.8)') self%fixed_iter, final_norm/init_norm
-      call log_event(log_scratch_space,LOG_LEVEL_INFO)
+          '("chebyshev[",I4,"], redidual = ",E16.8)') self%max_iter, final_norm/init_norm
+      if ( self%fail_on_non_converged ) then
+        call log_event(log_scratch_space,LOG_LEVEL_ERROR)
+      else
+        call log_event(log_scratch_space,LOG_LEVEL_INFO)
+      end if
     end if
 
   end subroutine chebyshev_solve

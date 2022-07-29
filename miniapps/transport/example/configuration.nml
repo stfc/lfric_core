@@ -133,9 +133,11 @@ vertical_limit='exponential',
 n_dep_pt_iterations=1,
 /
 &solver
+fail_on_non_converged=.true.
 gcrk=1,
 maximum_iterations=399,
 method='gcr',
+monitor_convergence=.true.
 preconditioner='diagonal',
 tolerance=1.0e-6,
 /

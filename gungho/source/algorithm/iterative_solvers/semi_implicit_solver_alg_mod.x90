@@ -107,7 +107,13 @@ contains
                                              si_preconditioner_pressure,                 &
                                              si_preconditioner_diagonal,                 &
                                              si_preconditioner_none,                     &
-                                             si_diagnostic_norm
+                                             si_monitor_convergence =>                   &
+                                                             monitor_convergence,        &
+                                             si_fail_on_non_converged =>                 &
+                                                             fail_on_non_converged,      &
+                                             mixed_jacobi_relaxation =>                  &
+                                                             jacobi_relaxation
+
 
     use helmholtz_solver_config_mod,   only: si_pressure_maximum_iterations,             &
                                              helmholtz_gcrk => gcrk,                     &
@@ -126,7 +132,12 @@ contains
                                              preconditioner_diagonal,                    &
                                              preconditioner_tridiagonal,                 &
                                              preconditioner_multigrid,                   &
-                                             diagnostic_norm
+                                             si_pressure_monitor_convergence =>          &
+                                                              monitor_convergence,       &
+                                             si_pressure_fail_on_non_converged =>        &
+                                                              fail_on_non_converged,     &
+                                             si_pressure_jacobi_relaxation =>            &
+                                                             jacobi_relaxation
 
     implicit none
 
@@ -177,49 +188,57 @@ contains
     select case( helmholtz_method )
     case (METHOD_BICGSTAB)
        allocate ( pressure_solver, &
-                  source = bicgstab_type( pressure_operator,         &
-                                        pressure_preconditioner,     &
-                                        si_pressure_tolerance,       &
-                                        si_pressure_a_tol,           &
-                                        si_pressure_maximum_iterations) )
+                  source = bicgstab_type( pressure_operator,             &
+                                        pressure_preconditioner,         &
+                                        si_pressure_tolerance,           &
+                                        si_pressure_a_tol,               &
+                                        si_pressure_maximum_iterations,  &
+                                        si_pressure_monitor_convergence, &
+                                        si_pressure_fail_on_non_converged) )
     case(METHOD_CG)
        allocate ( pressure_solver, &
-                  source = conjugate_gradient_type( pressure_operator,         &
-                                                  pressure_preconditioner,     &
-                                                  si_pressure_tolerance,       &
-                                                  si_pressure_a_tol,           &
-                                                  si_pressure_maximum_iterations) )
+                  source = conjugate_gradient_type( pressure_operator,             &
+                                                  pressure_preconditioner,         &
+                                                  si_pressure_tolerance,           &
+                                                  si_pressure_a_tol,               &
+                                                  si_pressure_maximum_iterations,  &
+                                                  si_pressure_monitor_convergence, &
+                                                  si_pressure_fail_on_non_converged) )
     case(METHOD_GMRES)
        allocate ( pressure_solver, &
-                  source = gmres_type( pressure_operator,         &
-                                     pressure_preconditioner,     &
-                                     helmholtz_gcrk,              &
-                                     si_pressure_tolerance,       &
-                                     si_pressure_a_tol,           &
-                                     si_pressure_maximum_iterations) )
+                  source = gmres_type( pressure_operator,             &
+                                     pressure_preconditioner,         &
+                                     helmholtz_gcrk,                  &
+                                     si_pressure_tolerance,           &
+                                     si_pressure_a_tol,               &
+                                     si_pressure_maximum_iterations,  &
+                                     si_pressure_monitor_convergence, &
+                                     si_pressure_fail_on_non_converged) )
     case(METHOD_FGMRES)
        allocate ( pressure_solver, &
-                  source = fgmres_type( pressure_operator,         &
-                                      pressure_preconditioner,     &
-                                      helmholtz_gcrk,              &
-                                      si_pressure_tolerance,       &
-                                      si_pressure_a_tol,           &
-                                      si_pressure_maximum_iterations) )
+                  source = fgmres_type( pressure_operator,             &
+                                      pressure_preconditioner,         &
+                                      helmholtz_gcrk,                  &
+                                      si_pressure_tolerance,           &
+                                      si_pressure_a_tol,               &
+                                      si_pressure_maximum_iterations,  &
+                                      si_pressure_monitor_convergence, &
+                                      si_pressure_fail_on_non_converged) )
     case(METHOD_GCR)
        allocate ( pressure_solver, &
-                  source = gcr_type( pressure_operator,         &
-                                   pressure_preconditioner,     &
-                                   helmholtz_gcrk,              &
-                                   si_pressure_tolerance,       &
-                                   si_pressure_a_tol,           &
-                                   si_pressure_maximum_iterations) )
+                  source = gcr_type( pressure_operator,             &
+                                   pressure_preconditioner,         &
+                                   helmholtz_gcrk,                  &
+                                   si_pressure_tolerance,           &
+                                   si_pressure_a_tol,               &
+                                   si_pressure_maximum_iterations,  &
+                                   si_pressure_monitor_convergence, &
+                                   si_pressure_fail_on_non_converged) )
     case(METHOD_PREC_ONLY)
        allocate ( pressure_solver, &
-                  source = precondition_only_type( pressure_operator,         &
-                                                 pressure_preconditioner,     &
-                                                 si_pressure_tolerance,       &
-                                                 si_pressure_a_tol,           &
-                                                 diagnostic_norm) )
+                  source = precondition_only_type( pressure_operator,               &
+                                                   pressure_preconditioner,         &
+                                                   si_pressure_monitor_convergence) )
     case(METHOD_JACOBI)
        allocate ( pressure_solver,                                 &
                   source = jacobi_type( pressure_operator,         &
@@ -227,7 +246,9 @@ contains
                            si_pressure_tolerance,                  &
                            si_pressure_a_tol,                      &
                            si_pressure_maximum_iterations,         &
-                           rho_relax = 1.0_r_def ) )
+                           si_pressure_monitor_convergence,        &
+                           si_pressure_fail_on_non_converged,      &
+                           si_pressure_jacobi_relaxation ) )
     case default
        call log_event("Unknown pressure solver specified",LOG_LEVEL_ERROR)
     end select
@@ -259,65 +280,78 @@ contains
     select case(si_method)
     case(SI_METHOD_BICGSTAB)
        allocate ( mixed_solver, &
-                  source = bicgstab_type( mixed_operator,  &
-                                     mixed_preconditioner, &
-                                     si_tolerance,         &
-                                     mixed_solver_a_tol,   &
-                                     si_maximum_iterations) )
+                  source = bicgstab_type( mixed_operator,    &
+                                     mixed_preconditioner,   &
+                                     si_tolerance,           &
+                                     mixed_solver_a_tol,     &
+                                     si_maximum_iterations,  &
+                                     si_monitor_convergence, &
+                                     si_fail_on_non_converged) )
     case(SI_METHOD_CG)
        allocate ( mixed_solver, &
-                  source = conjugate_gradient_type( mixed_operator,  &
-                                               mixed_preconditioner, &
-                                               si_tolerance,         &
-                                               mixed_solver_a_tol,   &
-                                               si_maximum_iterations) )
+                  source = conjugate_gradient_type( mixed_operator,    &
+                                               mixed_preconditioner,   &
+                                               si_tolerance,           &
+                                               mixed_solver_a_tol,     &
+                                               si_maximum_iterations,  &
+                                               si_monitor_convergence, &
+                                               si_fail_on_non_converged) )
     case(SI_METHOD_GMRES)
        allocate ( mixed_solver, &
-                  source = gmres_type( mixed_operator,  &
-                                  mixed_preconditioner, &
-                                  mixed_gcrk,           &
-                                  si_tolerance,         &
-                                  mixed_solver_a_tol,   &
-                                  si_maximum_iterations) )
+                  source = gmres_type( mixed_operator,    &
+                                  mixed_preconditioner,   &
+                                  mixed_gcrk,             &
+                                  si_tolerance,           &
+                                  mixed_solver_a_tol,     &
+                                  si_maximum_iterations,  &
+                                  si_monitor_convergence, &
+                                  si_fail_on_non_converged) )
     case(SI_METHOD_FGMRES)
        allocate ( mixed_solver, &
-                  source = fgmres_type( mixed_operator,  &
-                                   mixed_preconditioner, &
-                                   mixed_gcrk,           &
-                                   si_tolerance,         &
-                                   mixed_solver_a_tol,   &
-                                   si_maximum_iterations) )
+                  source = fgmres_type( mixed_operator,    &
+                                   mixed_preconditioner,   &
+                                   mixed_gcrk,             &
+                                   si_tolerance,           &
+                                   mixed_solver_a_tol,     &
+                                   si_maximum_iterations,  &
+                                   si_monitor_convergence, &
+                                   si_fail_on_non_converged) )
     case(SI_METHOD_BLOCK_GCR)
        allocate ( mixed_solver, &
-                  source = block_gcr_type( mixed_operator,  &
-                                      mixed_preconditioner, &
-                                      mixed_gcrk,           &
-                                      si_tolerance,         &
-                                      mixed_solver_a_tol,   &
-                                      si_maximum_iterations) )
+                  source = block_gcr_type( mixed_operator,         &
+                                           mixed_preconditioner,   &
+                                           mixed_gcrk,             &
+                                           si_tolerance,           &
+                                           mixed_solver_a_tol,     &
+                                           si_maximum_iterations,  &
+                                           si_monitor_convergence, &
+                                           si_fail_on_non_converged) )
+
     case(SI_METHOD_GCR)
        allocate ( mixed_solver, &
-                  source = gcr_type( mixed_operator,  &
-                                mixed_preconditioner, &
-                                mixed_gcrk,           &
-                                si_tolerance,         &
-                                mixed_solver_a_tol,   &
-                                si_maximum_iterations) )
+                  source = gcr_type( mixed_operator,         &
+                                     mixed_preconditioner,   &
+                                     mixed_gcrk,             &
+                                     si_tolerance,           &
+                                     mixed_solver_a_tol,     &
+                                     si_maximum_iterations,  &
+                                     si_monitor_convergence, &
+                                     si_fail_on_non_converged) )
     case(SI_METHOD_PREC_ONLY)
        allocate ( mixed_solver, &
-                  source = precondition_only_type( mixed_operator,  &
-                                              mixed_preconditioner, &
-                                              si_tolerance,         &
-                                              mixed_solver_a_tol,   &
-                                              si_diagnostic_norm) )
+                  source = precondition_only_type( mixed_operator,       &
+                                                   mixed_preconditioner, &
+                                                   si_monitor_convergence ) )
     case(SI_METHOD_JACOBI)
        allocate ( mixed_solver, &
-                  source = jacobi_type( mixed_operator,        &
-                                        mixed_preconditioner,  &
-                                        si_tolerance,          &
-                                        mixed_solver_a_tol,    &
-                                        si_maximum_iterations, &
-                                        rho_relax = 1.0_r_def ) )
+                  source = jacobi_type( mixed_operator,           &
+                                        mixed_preconditioner,     &
+                                        si_tolerance,             &
+                                        mixed_solver_a_tol,       &
+                                        si_maximum_iterations,    &
+                                        si_monitor_convergence,   &
+                                        si_fail_on_non_converged, &
+                                        mixed_jacobi_relaxation ) )
     case default
        call log_event("Unknown mixed solver specified",LOG_LEVEL_ERROR)
     end select

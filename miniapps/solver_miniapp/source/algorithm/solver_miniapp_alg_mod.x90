@@ -36,9 +36,12 @@ module solver_miniapp_alg_mod
                                              method, method_cg, method_bicgstab, &
                                              method_gmres, method_jacobi,        &
                                              method_gcr, method_fgmres,          &
-                                             method_prec_only, diagnostic_norm,  &
-                                             preconditioner_diagonal, &
-                                             gcrk
+                                             method_prec_only,                   &
+                                             preconditioner_diagonal,            &
+                                             gcrk,                               &
+                                             fail_on_non_converged,              &
+                                             monitor_convergence,                &
+                                             jacobi_relaxation
 
   implicit none
 
@@ -122,7 +125,8 @@ contains
        allocate( conjugate_gradient_type :: solver )
        select type( solver )
        type is ( conjugate_gradient_type )
-          solver = conjugate_gradient_type( op, prec, tolerance, tolerance, maximum_iterations )
+          solver = conjugate_gradient_type( op, prec, tolerance, tolerance, maximum_iterations, &
+                                            monitor_convergence, fail_on_non_converged )
 
        class default
          ! Catch type error
@@ -133,7 +137,8 @@ contains
        allocate( bicgstab_type :: solver )
        select type( solver )
        type is ( bicgstab_type )
-          solver = bicgstab_type( op, prec, tolerance, tolerance, maximum_iterations )
+          solver = bicgstab_type( op, prec, tolerance, tolerance, maximum_iterations, &
+                                  monitor_convergence, fail_on_non_converged )
        class default
          ! Catch type error
           call log_event("solver_miniapp_alg: solver type failure: Should be BiCGstab",LOG_LEVEL_ERROR)
@@ -143,7 +148,8 @@ contains
        allocate( gmres_type :: solver )
        select type( solver )
        type is ( gmres_type )
-          solver = gmres_type( op, prec, gcrk, tolerance, tolerance, maximum_iterations )
+          solver = gmres_type( op, prec, gcrk, tolerance, tolerance, maximum_iterations, &
+                               monitor_convergence, fail_on_non_converged )
        class default
          ! Catch type error
           call log_event("solver_miniapp_alg: solver type failure: Should be GMRES",LOG_LEVEL_ERROR)
@@ -153,7 +159,9 @@ contains
        allocate( jacobi_type :: solver )
        select type( solver )
        type is ( jacobi_type )
-          solver = jacobi_type( op, prec, tolerance, tolerance, maximum_iterations, rho_relax = 0.5_r_def )
+          solver = jacobi_type( op, prec, tolerance, tolerance, maximum_iterations, &
+                                monitor_convergence, fail_on_non_converged, &
+                                jacobi_relaxation )
 
        class default
          ! Catch type error
@@ -165,7 +173,8 @@ contains
        select type( solver )
        type is ( gcr_type )
           solver = gcr_type( op, prec, gcrk, tolerance, tolerance, &
-                             maximum_iterations )
+                             maximum_iterations, &
+                             monitor_convergence, fail_on_non_converged )
        class default
           ! Catch type error
           call log_event("solver_miniapp_alg: solver type failure: Should be GCR",LOG_LEVEL_ERROR)
@@ -175,7 +184,8 @@ contains
        allocate( fgmres_type :: solver )
        select type( solver )
        type is ( fgmres_type )
-          solver = fgmres_type( op, prec, gcrk, tolerance, tolerance, maximum_iterations )
+          solver = fgmres_type( op, prec, gcrk, tolerance, tolerance, maximum_iterations, &
+                                monitor_convergence, fail_on_non_converged )
        class default
          ! Catch type error
           call log_event("solver_miniapp_alg: solver type failure: Should be FGMRES",LOG_LEVEL_ERROR)
@@ -185,7 +195,7 @@ contains
        allocate( precondition_only_type :: solver )
        select type( solver )
        type is ( precondition_only_type )
-          solver = precondition_only_type( op, prec, tolerance, tolerance, diagnostic_norm )
+          solver = precondition_only_type( op, prec, monitor_convergence )
        class default
          ! Catch type error
           call log_event("solver_miniapp_alg: solver type failure: Should be FGMRES",LOG_LEVEL_ERROR)
