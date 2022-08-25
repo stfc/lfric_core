@@ -368,7 +368,7 @@
           ) }}
 
         [[[environment]]]
-            WORKING_DIR           = {{get_target_property( PRIMARY_TARGET, 'build_root')}}/{{label}}
+            WORKING_DIR           = {{get_target_property( PRIMARY_TARGET, 'build_root')}}/{{label}}/{{projectName}}
             TARGET                = build
             PROFILE               = {{build}}
             LFRIC_TARGET_PLATFORM = {{TARGET_OPT}}
@@ -436,7 +436,7 @@
             DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{mesh_label}}
             MESH_DIR              = $OUTPUT_ROOT/{{mesh_label}}/meshes
             BIN_DIR               = $OUTPUT_ROOT/{{mesh_label}}/bin
-            WORKING_DIR           = {{get_target_property( PRIMARY_TARGET, 'build_root')}}/{{mesh_label}}
+            WORKING_DIR           = {{get_target_property( PRIMARY_TARGET, 'build_root')}}/{{mesh_label}}/mesh_tools
             TARGET                = build
             PROFILE               = {{mesh_build}}
             LFRIC_TARGET_PLATFORM = {{TARGET_OPT}}
