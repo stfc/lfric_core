@@ -135,8 +135,6 @@ contains
     real(dp_xios), allocatable :: W0_data(:), W2H_data(:), WTheta_data(:), W3_data(:)
     real(dp_xios), allocatable :: W0_result(:), W2H_result(:), WTheta_result(:), W3_result(:)
 
-    integer(i_def) :: i
-
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Setup expected data arrays
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -179,6 +177,7 @@ contains
 
     call W2H_field%initialise( this%w2h_fs )
     test_proxy = W2H_field%get_proxy()
+    test_proxy%data = W2H_data
     call write_field_edge("W2H_field", test_proxy)
 
     allocate(W2H_result(size(W2H_data)))
@@ -191,6 +190,7 @@ contains
 
     call WTheta_field%initialise( this%wth_fs )
     test_proxy = WTheta_field%get_proxy()
+    test_proxy%data = WTheta_data
     call write_field_face("WTheta_field", test_proxy)
 
     allocate(WTheta_result(size(WTheta_data)))
@@ -199,6 +199,7 @@ contains
 
     call W3_field%initialise( this%w3_fs )
     test_proxy = W3_field%get_proxy()
+    test_proxy%data = W3_data
     call write_field_face("W3_field", test_proxy)
 
     allocate(W3_result(size(W3_data)))
