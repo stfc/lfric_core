@@ -468,7 +468,7 @@ contains
                             derived_fields,      &
                             microphysics_fields, &
                             convection_fields,   &
-                            theta)
+                            theta, u)
       spectral_gwd_done = .true. ! Collect this increment later on
     end if
 
@@ -483,7 +483,7 @@ contains
                                dtheta_orographic_drag, &
                                derived_fields,         &
                                orography_fields,       &
-                               theta,                  &
+                               theta, u,               &
                                mr_n)
       orographic_drag_done = .true. ! Collect this increment later on
     end if
