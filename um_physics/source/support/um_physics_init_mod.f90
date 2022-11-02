@@ -563,7 +563,7 @@ contains
         efrac               = 1.0_r_um
         ent_dp_power        = 1.00_r_um
         ent_fac_md          = 1.00_r_um
-        ent_opt_dp          = 3
+        ent_opt_dp          = 7
         ent_opt_md          = 6
         fdet_opt            = 2
         iconv_mid           = 1

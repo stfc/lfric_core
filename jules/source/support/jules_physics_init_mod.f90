@@ -200,7 +200,7 @@ contains
          Improve_Initial_Guess, formdrag, beta_cnv_bl, fd_hill_option,      &
          i_modiscopt, l_land_ice_imp, no_drag, effective_z0,                &
          capped_lowhill, explicit_stress, l_anthrop_heat_src, l_urban2t,    &
-         l_vary_z0m_soil
+         l_vary_z0m_soil, l_mo_buoyancy_calc
     use jules_urban_mod, only: anthrop_heat_scale, l_moruses_albedo,        &
          l_moruses_emissivity, l_moruses_rough, l_moruses_storage,          &
          l_moruses_storage_thin, check_jules_urban, print_nlist_jules_urban
@@ -474,6 +474,7 @@ contains
     if (srf_ex_cnv_gust_in) srf_ex_cnv_gust = IP_SrfExWithCnv
     l_epot_corr        = .true.
     l_land_ice_imp     = .true.
+    l_mo_buoyancy_calc = .true.
     l_anthrop_heat_src = l_anthrop_heat_src_in
     l_urban2t          = l_urban2t_in
     l_vary_z0m_soil    = l_variable_soil_z0m

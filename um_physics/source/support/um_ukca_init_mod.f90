@@ -548,7 +548,7 @@ contains
            biom_aer_ems_scaling=2.0_r_um,                                      &
            ! GLOMAP feedback configuration options
            l_ukca_radaer=.true.,                                               &
-           l_ukca_tune_bc=.true.,                                              &
+           l_ukca_tune_bc=.false.,                                             &
            i_ukca_activation_scheme=ukca_activation_arg,                       &
            i_ukca_nwbins=20,                                                   &
            ! Callback procedures
