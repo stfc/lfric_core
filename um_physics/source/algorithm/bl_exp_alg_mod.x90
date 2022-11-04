@@ -180,6 +180,7 @@ contains
     type( field_type ), pointer :: sea_ice_temperature => null()
     type( field_type ), pointer :: sea_ice_conductivity => null()
     type( field_type ), pointer :: tile_temperature    => null()
+    type( field_type ), pointer :: tile_lw_grey_albedo => null()
     type( field_type ), pointer :: surface_conductance => null()
     type( field_type ), pointer :: canopy_water        => null()
     type( field_type ), pointer :: tile_heat_flux      => null()
@@ -362,6 +363,7 @@ contains
     call surface_fields%get_field('sea_ice_temperature', sea_ice_temperature)
     call surface_fields%get_field('sea_ice_conductivity', sea_ice_conductivity)
     call surface_fields%get_field('tile_temperature', tile_temperature)
+    call surface_fields%get_field('tile_lw_grey_albedo', tile_lw_grey_albedo)
     call surface_fields%get_field('surface_conductance', surface_conductance)
     call surface_fields%get_field('canopy_water', canopy_water)
     call surface_fields%get_field('tile_heat_flux', tile_heat_flux)
@@ -490,7 +492,7 @@ contains
                            soil_respiration,                                   &
                            thermal_cond_wet_soil, sea_ice_temperature,         &
                            sea_ice_conductivity,                               &
-                           tile_temperature,                                   &
+                           tile_temperature, tile_lw_grey_albedo,              &
                            tile_snow_mass, n_snow_layers, snow_depth,          &
                            snow_layer_thickness, snow_layer_ice_mass,          &
                            snow_layer_liq_mass, snow_layer_temp,               &

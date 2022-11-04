@@ -102,6 +102,7 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr,                        &
   ! Unpacked fields from collections
   type( field_type ), pointer :: tile_fraction       => null()
   type( field_type ), pointer :: tile_temperature    => null()
+  type( field_type ), pointer :: tile_lw_grey_albedo => null()
 
   type( field_type ), pointer :: exner_in_wth        => null()
   type( field_type ), pointer :: rho_in_wth          => null()
@@ -197,6 +198,7 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr,                        &
 
   call surface_fields%get_field('tile_fraction', tile_fraction)
   call surface_fields%get_field('tile_temperature', tile_temperature)
+  call surface_fields%get_field('tile_lw_grey_albedo', tile_lw_grey_albedo)
 
   call radiation_fields%get_field('lw_down_surf', lw_down_surf)
   call radiation_fields%get_field('sw_down_surf', sw_down_surf)
@@ -357,6 +359,7 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr,                        &
   call log_event( 'LW inputs:',         LOG_LEVEL_DEBUG )
   call log_field_alg( tile_temperature, LOG_LEVEL_DEBUG )
   call log_field_alg( tile_lw_albedo,   LOG_LEVEL_DEBUG )
+  call log_field_alg( tile_lw_grey_albedo,LOG_LEVEL_DEBUG )
 
   call invoke( lw_kernel_type(                                              &
                  lw_heating_rate, lw_down_surf, lw_up_surf,                 &
@@ -373,6 +376,7 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr,                        &
                  sigma_mc, cca, ccw, cloud_drop_no_conc,                    &
                  tile_fraction, tile_temperature,                           &
                  tile_lw_albedo, tile_lwinc_albedo,                         &
+                 tile_lw_grey_albedo,                                       &
                  sulphuric, aer_mix_ratio,                                  &
                  aer_lw_absorption, aer_lw_scattering, aer_lw_asymmetry,    &
                  latitude, longitude, rad_this_tstep, rad_inc_this_tstep,   &

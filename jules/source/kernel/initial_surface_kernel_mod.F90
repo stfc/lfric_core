@@ -20,9 +20,14 @@ module initial_surface_kernel_mod
   use kernel_mod,    only: kernel_type
 
   use idealised_config_mod,   only: test, test_snow
-  use jules_control_init_mod, only: n_land_tile, n_sea_ice_tile, &
+  use jules_control_init_mod, only: n_land_tile, &
+       n_sea_tile, n_sea_ice_tile, &
        first_sea_tile, first_sea_ice_tile, n_surf_tile
   use surface_config_mod,     only: surf_tile_fracs
+  use jules_surface_types_mod, only: npft
+  use nvegparm, only: emis_nvg
+  use pftparm, only: emis_pft
+  use jules_sea_seaice_mod, only: emis_sea, emis_sice
 
   implicit none
 
@@ -31,10 +36,11 @@ module initial_surface_kernel_mod
   !> Kernel metadata for Psyclone
   type, public, extends(kernel_type) :: initial_surface_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                                    &
+    type(arg_type) :: meta_args(5) = (/                                    &
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)  &
          /)
     integer :: operates_on = CELL_COLUMN
@@ -46,22 +52,24 @@ module initial_surface_kernel_mod
 
 contains
 
-  !> @param[in]     nlayers          The number of layers
-  !> @param[in,out] tile_fraction    Surface tile fractions
-  !> @param[in,out] leaf_area_index  Leaf Area Index
-  !> @param[in,out] canopy_height    Canopy height (m)
-  !> @param[in,out] tile_temperature Surface tile temperatures (K)
-  !> @param[in]     ndf_tile         Number of DOFs per cell for tiles
-  !> @param[in]     undf_tile        Number of total DOFs for tiles
-  !> @param[in]     map_tile         Dofmap for cell for surface tiles
-  !> @param[in]     ndf_pft          Number of DOFs per cell for PFTs
-  !> @param[in]     undf_pft         Number of total DOFs for PFTs
-  !> @param[in]     map_pft          Dofmap for cell for PFTs
+  !> @param[in]     nlayers             The number of layers
+  !> @param[in,out] tile_fraction       Surface tile fractions
+  !> @param[in,out] leaf_area_index     Leaf Area Index
+  !> @param[in,out] canopy_height       Canopy height (m)
+  !> @param[in,out] tile_temperature    Surface tile temperatures (K)
+  !> @param[in,out] tile_lw_grey_albedo Surface tile grey albedo
+  !> @param[in]     ndf_tile            Number of DOFs per cell for tiles
+  !> @param[in]     undf_tile           Number of total DOFs for tiles
+  !> @param[in]     map_tile            Dofmap for cell for surface tiles
+  !> @param[in]     ndf_pft             Number of DOFs per cell for PFTs
+  !> @param[in]     undf_pft            Number of total DOFs for PFTs
+  !> @param[in]     map_pft             Dofmap for cell for PFTs
   subroutine initial_surface_code(nlayers,                       &
                                   tile_fraction,                 &
                                   leaf_area_index,               &
                                   canopy_height,                 &
                                   tile_temperature,              &
+                                  tile_lw_grey_albedo,           &
                                   ndf_tile, undf_tile, map_tile, &
                                   ndf_pft, undf_pft, map_pft)
 
@@ -76,6 +84,7 @@ contains
 
     real(kind=r_def), intent(inout) :: tile_fraction(undf_tile)
     real(kind=r_def), intent(inout) :: tile_temperature(undf_tile)
+    real(kind=r_def), intent(inout) :: tile_lw_grey_albedo(undf_tile)
 
     real(kind=r_def), intent(inout) :: leaf_area_index(undf_pft)
     real(kind=r_def), intent(inout) :: canopy_height(undf_pft)
@@ -122,6 +131,24 @@ contains
 
     do i = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
       tile_temperature(map_tile(1)+i-1) = 265.0_r_def
+    end do
+
+    ! Initialise grey_albedos for all tiles
+
+    do i = 1, n_land_tile
+      if (i <= npft) then
+        tile_lw_grey_albedo(map_tile(1)+i-1) = 1.0_r_def - real(emis_pft(i), r_def)
+      else
+        tile_lw_grey_albedo(map_tile(1)+i-1) = 1.0_r_def - real(emis_nvg(i-npft), r_def)
+      endif
+    end do
+
+    do i = first_sea_tile, first_sea_tile + n_sea_tile - 1
+      tile_lw_grey_albedo(map_tile(1)+i-1) = 1.0_r_def - real(emis_sea, r_def)
+    end do
+
+    do i = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
+      tile_lw_grey_albedo(map_tile(1)+i-1) = 1.0_r_def - real(emis_sice, r_def)
     end do
 
   end subroutine initial_surface_code

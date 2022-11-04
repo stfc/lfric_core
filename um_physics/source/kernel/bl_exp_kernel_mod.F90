@@ -40,9 +40,11 @@ module bl_exp_kernel_mod
   use jules_surface_config_mod, only : formdrag, formdrag_dist_drag
   use surface_config_mod,     only : albedo_obs, sea_surf_alg, &
                                      sea_surf_alg_fixed_roughness, &
-                                     buddy_sea, buddy_sea_on
+                                     buddy_sea, buddy_sea_on, &
+                                     emis_method_soil, emis_method_soil_fixed
   use timestepping_config_mod, only: outer_iterations
   use water_constants_mod,     only: tfs
+  use jules_surface_types_mod, only: soil
 
   implicit none
 
@@ -55,7 +57,7 @@ module bl_exp_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_exp_kernel_type
     private
-    type(arg_type) :: meta_args(151) = (/                                      &
+    type(arg_type) :: meta_args(152) = (/                                      &
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! theta_in_wth
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      W3),                       &! rho_in_w3
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! wetrho_in_wth
@@ -97,6 +99,7 @@ module bl_exp_kernel_mod
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_4),&! sea_ice_temperature
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_4),&! sea_ice_conductivity
          arg_type(GH_FIELD, GH_REAL,  GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2),&! tile_temperature
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! tile_lw_grey_albedo
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! tile_snow_mass
          arg_type(GH_FIELD, GH_INTEGER,  GH_READ,   ANY_DISCONTINUOUS_SPACE_2),&! n_snow_layers
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! snow_depth
@@ -264,6 +267,7 @@ contains
   !> @param[in]     sea_ice_temperature    Bulk temperature of sea-ice (K)
   !> @param[in]     sea_ice_conductivity   Sea ice thermal conductivity (W m-2 K-1)
   !> @param[in,out] tile_temperature       Surface tile temperatures
+  !> @param[in]     tile_lw_grey_albedo    Surface tile longwave grey albedo
   !> @param[in]     tile_snow_mass         Snow mass on tiles (kg/m2)
   !> @param[in]     n_snow_layers          Number of snow layers on tiles
   !> @param[in]     snow_depth             Snow depth on tiles
@@ -462,6 +466,7 @@ contains
                          sea_ice_temperature,                   &
                          sea_ice_conductivity,                  &
                          tile_temperature,                      &
+                         tile_lw_grey_albedo,                   &
                          tile_snow_mass,                        &
                          n_snow_layers,                         &
                          snow_depth,                            &
@@ -807,6 +812,7 @@ contains
 
     real(kind=r_def), intent(in) :: tile_fraction(undf_tile)
     real(kind=r_def), intent(inout) :: tile_temperature(undf_tile)
+    real(kind=r_def), intent(in) :: tile_lw_grey_albedo(undf_tile)
     real(kind=r_def), intent(in) :: tile_snow_mass(undf_tile)
     integer(kind=i_def), intent(in) :: n_snow_layers(undf_tile)
     real(kind=r_def), intent(in) :: snow_depth(undf_tile)
@@ -1359,6 +1365,13 @@ contains
       tstar_surft(1, i) = real(tile_temperature(map_tile(1)+i-1), r_um)
       tstar_land = tstar_land + frac_surft(1, i) * tstar_surft(1, i)
     end do
+
+    ! LW grey emissivities
+    do i = 1, n_land_tile
+      fluxes%emis_surft(1, i) = 1.0_r_um - real(tile_lw_grey_albedo(map_tile(1)+i-1), r_um)
+    end do
+
+    if (emis_method_soil /= emis_method_soil_fixed) fluxes%l_emis_surft_set(soil)=.TRUE.
 
     ! Sea temperature
     ! Default to temperature over frozen sea as the initialisation

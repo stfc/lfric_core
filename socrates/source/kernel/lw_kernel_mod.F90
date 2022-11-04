@@ -37,7 +37,7 @@ public :: lw_code
 ! Contains the metadata needed by the PSy layer.
 type, extends(kernel_type) :: lw_kernel_type
   private
-  type(arg_type) :: meta_args(66) = (/ &
+  type(arg_type) :: meta_args(67) = (/ &
     arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     Wtheta),                    & ! lw_heating_rate
     arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), & ! lw_down_surf
     arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), & ! lw_up_surf
@@ -76,6 +76,7 @@ type, extends(kernel_type) :: lw_kernel_type
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! tile_temperature
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_3), & ! tile_lw_albedo
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_7), & ! tile_lwinc_albedo
+    arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! tile_lw_grey_albedo
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta),                    & ! sulphuric
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_4), & ! aer_mix_ratio
     arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_5), & ! aer_lw_absorption
@@ -155,6 +156,7 @@ contains
 ! @param[in]     tile_temperature         Surface tile temperature
 ! @param[in]     tile_lw_albedo           LW tile albedos
 ! @param[in]     tile_lwinc_albedo        LWINC tile albedos
+! @param[in]     tile_lw_grey_albedo      LW tile grey albedos
 ! @param[in]     sulphuric                Sulphuric acid aerosol
 ! @param[in]     aer_mix_ratio            MODE aerosol mixing ratios
 ! @param[in]     aer_lw_absorption        MODE aerosol LW absorption
@@ -225,6 +227,7 @@ subroutine lw_code(nlayers,                                                    &
                    sigma_mc, cca, ccw, cloud_drop_no_conc,                     &
                    tile_fraction, tile_temperature,                            &
                    tile_lw_albedo, tile_lwinc_albedo,                          &
+                   tile_lw_grey_albedo,                                        &
                    sulphuric, aer_mix_ratio,                                   &
                    aer_lw_absorption, aer_lw_scattering, aer_lw_asymmetry,     &
                    latitude, longitude, rad_this_tstep, rad_inc_this_tstep,    &
@@ -315,6 +318,7 @@ subroutine lw_code(nlayers,                                                    &
   real(r_def), dimension(undf_tile),  intent(in) :: tile_temperature
   real(r_def), dimension(undf_rtile), intent(in) :: tile_lw_albedo
   real(r_def), dimension(undf_itile), intent(in) :: tile_lwinc_albedo
+  real(r_def), dimension(undf_tile),  intent(in) :: tile_lw_grey_albedo
   real(r_def), dimension(undf_wth),   intent(in) :: sulphuric
   real(r_def), dimension(undf_mode),  intent(in) :: aer_mix_ratio
   real(r_def), dimension(undf_rmode), intent(in) :: &
@@ -712,7 +716,7 @@ subroutine lw_code(nlayers,                                                    &
     call bones(n_profile, nlayers,                                             &
       n_tile                 = n_surf_tile,                                    &
       l_grey_emis_correction = .true.,                                         &
-      grey_albedo_tile_1d    = tile_lw_albedo(rtile_1:rtile_ntile),            &
+      grey_albedo_tile_1d    = tile_lw_grey_albedo(tile_1:tile_last),          &
       frac_tile_1d           = tile_fraction(tile_1:tile_last),                &
       t_tile_1d              = tile_temperature(tile_1:tile_last),             &
       heating_rate_1d_rts    = lw_heating_rate_rts(wth_1:wth_nlayers),         &

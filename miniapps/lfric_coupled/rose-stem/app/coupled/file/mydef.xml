@@ -184,6 +184,7 @@
 	<field id="checkpoint_canopy_height" name="canopy_height" long_name="canopy_height" unit="m" domain_ref="face" axis_ref="plant_func_types" />
 	<field id="checkpoint_tile_fraction" name="tile_fraction" long_name="surface_tile_fraction" unit="1" domain_ref="face" axis_ref="surface_tiles" />
 	<field id="checkpoint_tile_temperature" name="tile_temperature" long_name="surface_tile_temperature" unit="K" domain_ref="face" axis_ref="surface_tiles" />
+	<field id="checkpoint_tile_lw_grey_albedo" name="tile_lw_grey_albedo" long_name="surface_tile_lw_grey_albedo" unit="1" domain_ref="face" axis_ref="surface_tiles" />
 	<field id="checkpoint_screen_temperature" name="screen_temperature" long_name="screen_temperature_on_tiles" unit="K" domain_ref="face" axis_ref="surface_tiles" />
 	<field id="checkpoint_time_since_transition" name="time_since_transition" long_name="time_since_decoupled_screen_transition" unit="s" domain_ref="face" />
 	<field id="checkpoint_canopy_water" name="tile_canopy_water" long_name="canopy_water_content_on_tiles" unit="kg m-2" domain_ref="face" axis_ref="surface_tiles" />
@@ -1036,6 +1037,7 @@
 	<field id="restart_canopy_height" name="canopy_height" long_name="canopy_height" unit="m" operation="instant" domain_ref="face" axis_ref="plant_func_types" />
 	<field id="restart_tile_fraction" name="tile_fraction" long_name="tile_fraction" unit="1" operation="instant" domain_ref="face" axis_ref="surface_tiles" />
 	<field id="restart_tile_temperature" name="tile_temperature" long_name="tile_temperature" unit="K" operation="instant" domain_ref="face" axis_ref="surface_tiles" />
+	<field id="restart_tile_lw_grey_albedo" name="tile_lw_grey_albedo" long_name="tile_lw_grey_albedo" unit="1" operation="instant" domain_ref="face" axis_ref="surface_tiles" />
 	<field id="restart_screen_temperature" name="screen_temperature" long_name="screen_temperature_on_tiles" unit="K" operation="instant" domain_ref="face" axis_ref="surface_tiles" />
 	<field id="restart_time_since_transition" name="time_since_transition" long_name="time_since_decoupled_screen_transition" unit="s" operation="instant" domain_ref="face" />
 	<field id="restart_canopy_water" name="tile_canopy_water" long_name="canopy_water_content_on_tiles" unit="kg m-2" operation="instant" domain_ref="face" axis_ref="surface_tiles" />

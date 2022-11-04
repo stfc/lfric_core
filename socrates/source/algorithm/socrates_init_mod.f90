@@ -11,29 +11,36 @@ use constants_mod, only: r_def, i_def
 
 implicit none
 
+integer(i_def), pointer :: n_band_exclude(:)
+integer(i_def), pointer :: index_exclude(:,:)
 real(r_def), pointer :: wavelength_short(:)
 real(r_def), pointer :: wavelength_long(:)
 real(r_def), pointer :: weight_blue(:)
 
 integer(i_def) :: n_sw_band, n_lw_band
-integer(i_def), allocatable :: sw_n_band_exclude(:), sw_index_exclude(:, :)
-integer(i_def), allocatable :: lw_n_band_exclude(:), lw_index_exclude(:, :)
+integer(i_def), allocatable, target :: sw_n_band_exclude(:)
+integer(i_def), allocatable, target :: sw_index_exclude(:, :)
+integer(i_def), allocatable, target :: lw_n_band_exclude(:)
+integer(i_def), allocatable, target :: lw_index_exclude(:, :)
 real(r_def), allocatable, target :: &
   sw_wavelength_short(:), sw_wavelength_long(:), sw_weight_blue(:)
-real(r_def), allocatable :: lw_wavelength_short(:), lw_wavelength_long(:)
+real(r_def), allocatable, target :: &
+  lw_wavelength_short(:), lw_wavelength_long(:)
 
 integer(i_def) :: n_swinc_band, n_lwinc_band
-integer(i_def), allocatable :: swinc_n_band_exclude(:)
-integer(i_def), allocatable :: swinc_index_exclude(:, :)
-integer(i_def), allocatable :: lwinc_n_band_exclude(:)
-integer(i_def), allocatable :: lwinc_index_exclude(:, :)
+integer(i_def), allocatable, target :: swinc_n_band_exclude(:)
+integer(i_def), allocatable, target :: swinc_index_exclude(:, :)
+integer(i_def), allocatable, target :: lwinc_n_band_exclude(:)
+integer(i_def), allocatable, target :: lwinc_index_exclude(:, :)
 real(r_def), allocatable, target :: &
   swinc_wavelength_short(:), swinc_wavelength_long(:), swinc_weight_blue(:)
-real(r_def), allocatable :: lwinc_wavelength_short(:), lwinc_wavelength_long(:)
+real(r_def), allocatable, target :: &
+  lwinc_wavelength_short(:), lwinc_wavelength_long(:)
 
 private
 public :: socrates_init, &
-  wavelength_short, wavelength_long, weight_blue, &
+  wavelength_short, wavelength_long, &
+  weight_blue, n_band_exclude, index_exclude, &
   n_sw_band, sw_n_band_exclude, sw_index_exclude, &
   sw_wavelength_short, sw_wavelength_long, sw_weight_blue, &
   n_lw_band, lw_n_band_exclude, lw_index_exclude, &

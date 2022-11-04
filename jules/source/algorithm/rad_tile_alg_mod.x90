@@ -25,10 +25,15 @@ use radiation_config_mod,          only: l_planet_grey_surface, &
                                          l_inc_radstep, n_inc_radstep
 use section_choice_config_mod,     only: surface, surface_jules
 
-use socrates_init_mod, only: wavelength_short, wavelength_long, weight_blue, &
+use socrates_init_mod, only: wavelength_short, wavelength_long, &
+  n_band_exclude, index_exclude, weight_blue, &
   n_sw_band, sw_wavelength_short, sw_wavelength_long, sw_weight_blue, &
   n_swinc_band, swinc_wavelength_short, swinc_wavelength_long, &
-  swinc_weight_blue, n_lw_band, n_lwinc_band
+  swinc_weight_blue, &
+  n_lw_band, lw_wavelength_short, lw_wavelength_long, &
+  lw_n_band_exclude, lw_index_exclude, &
+  n_lwinc_band, lwinc_wavelength_short, lwinc_wavelength_long, &
+  lwinc_n_band_exclude, lwinc_index_exclude
 
 use sw_rad_tile_kernel_mod, only: sw_rad_tile_kernel_type
 use lw_rad_tile_kernel_mod, only: lw_rad_tile_kernel_type
@@ -50,9 +55,9 @@ contains
 ! @param[in,out] tile_lw_albedo         Tile LW albedos (1 - emissivity)
 ! @param[in,out] tile_lwinc_albedo      Tile LWINC albedos (1 - emissivity)
 ! @param[in]     derived_fields         Derived fields
-! @param[in,out] radition_fields        Fields for radiation scheme
+! @param[in,out] radiation_fields       Fields for radiation scheme
 ! @param[in]     orography_fields       Fields for orog drag scheme
-! @param[in]     surface_fields         Fields for surface scheme
+! @param[in,out] surface_fields         Fields for surface scheme
 ! @param[in]     soil_fields            Fields for soil hydrology scheme
 ! @param[in]     snow_fields            Fields for snow scheme
 ! @param[in]     twod_mesh              Current 2d mesh
@@ -75,7 +80,7 @@ subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
   type( field_collection_type ), intent(in)    :: derived_fields
   type( field_collection_type ), intent(inout) :: radiation_fields
   type( field_collection_type ), intent(in)    :: orography_fields
-  type( field_collection_type ), intent(in)    :: surface_fields
+  type( field_collection_type ), intent(inout) :: surface_fields
   type( field_collection_type ), intent(in)    :: soil_fields
   type( field_collection_type ), intent(in)    :: snow_fields
   type( mesh_type ), pointer,    intent(in)    :: twod_mesh
@@ -88,6 +93,7 @@ subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
   type( field_type ), pointer :: leaf_area_index   => null()
   type( field_type ), pointer :: canopy_height     => null()
   type( field_type ), pointer :: tile_temperature  => null()
+  type( field_type ), pointer :: tile_lw_grey_albedo => null()
   type( field_type ), pointer :: albedo_obs_scaling => null()
   type( field_type ), pointer :: chloro_sea        => null()
   type( field_type ), pointer :: sea_ice_thickness => null()
@@ -135,6 +141,8 @@ subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
                     twod_mesh, 0, W3, n_lw_band * n_surf_tile )
   call tile_lw_albedo%initialise(vector_space)
 
+  call surface_fields%get_field('tile_lw_grey_albedo', tile_lw_grey_albedo)
+
   if (l_inc_radstep) then
     ! Radiation increments use different spectral files with fewer bands
     vector_space => function_space_collection%get_fs( &
@@ -160,7 +168,8 @@ subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
     planet_lw_albedo = 1.0_r_def - planet_emissivity
     call invoke(setval_c(tile_sw_direct_albedo,  planet_albedo), &
                 setval_c(tile_sw_diffuse_albedo, planet_albedo), &
-                setval_c(tile_lw_albedo,         planet_lw_albedo))
+                setval_c(tile_lw_albedo,         planet_lw_albedo), &
+                setval_c(tile_lw_grey_albedo,    planet_lw_albedo))
     if (l_inc_radstep) then
      call invoke(setval_c(tile_swinc_direct_albedo,  planet_albedo), &
                  setval_c(tile_swinc_diffuse_albedo, planet_albedo), &
@@ -243,14 +252,28 @@ subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
           cos_zenith_angle_rts, urbhwr, urbztm, urbalbwl, urbalbrd, &
           n_swinc_band))
 
+        wavelength_short => lwinc_wavelength_short
+        wavelength_long => lwinc_wavelength_long
+        n_band_exclude => lwinc_n_band_exclude
+        index_exclude => lwinc_index_exclude
         call invoke(lw_rad_tile_kernel_type(tile_lwinc_albedo, &
-                                            tile_fraction, n_lwinc_band))
+                                            tile_lw_grey_albedo, &
+                                            tile_fraction, &
+                                            tile_temperature, &
+                                            n_lwinc_band))
       end if
     end if
 
     ! LW albedos always required
+    wavelength_short => lw_wavelength_short
+    wavelength_long => lw_wavelength_long
+    n_band_exclude => lw_n_band_exclude
+    index_exclude => lw_index_exclude
     call invoke(lw_rad_tile_kernel_type(tile_lw_albedo, &
-                                        tile_fraction, n_lw_band))
+                                        tile_lw_grey_albedo, &
+                                        tile_fraction, &
+                                        tile_temperature, &
+                                        n_lw_band))
 
   end if
 

@@ -64,6 +64,7 @@ contains
     type( field_type ), pointer :: leaf_area_index     => null()
     type( field_type ), pointer :: canopy_height       => null()
     type( field_type ), pointer :: tile_temperature    => null()
+    type( field_type ), pointer :: tile_lw_grey_albedo => null()
     type( field_type ), pointer :: screen_temperature  => null()
     type( field_type ), pointer :: time_since_transition => null()
     type( field_type ), pointer :: gc_tile             => null()
@@ -99,6 +100,7 @@ contains
     call surface_fields%get_field('leaf_area_index', leaf_area_index)
     call surface_fields%get_field('canopy_height', canopy_height)
     call surface_fields%get_field('tile_temperature', tile_temperature)
+    call surface_fields%get_field('tile_lw_grey_albedo', tile_lw_grey_albedo)
     call surface_fields%get_field('screen_temperature', screen_temperature)
     call surface_fields%get_field('time_since_transition', time_since_transition)
     call surface_fields%get_field('gc_tile', gc_tile)
@@ -143,15 +145,14 @@ contains
                  setval_c(time_since_transition, rmdi),                       &
                  ! Initialise fields which vary with surface tile
                  initial_surface_kernel_type( tile_fraction, leaf_area_index, &
-                                             canopy_height, tile_temperature),&
+                                             canopy_height, tile_temperature, &
+                                             tile_lw_grey_albedo ),           &
                  ! Sea ice conductivity will use either this fixed value or
                  ! it will get overwritten by the coupler
                  setval_c(sea_ice_conductivity, default_conductivity ),       &
                  ! Initialise melt ponds to zero
                  setval_c(melt_pond_fraction, 0.0_r_def ),                    &
                  setval_c(melt_pond_depth, 0.0_r_def ))
-
-
 
   end subroutine init_surface_fields_alg
 

@@ -1038,6 +1038,9 @@ contains
     call add_physics_field( surface_fields, depository, prognostic_fields,     &
       adv_fields_last_outer, &
       'canopy_water', surft_space, checkpoint_flag=checkpoint_flag, twod=.true. )
+    call add_physics_field( surface_fields, depository, prognostic_fields,     &
+      adv_fields_last_outer, &
+      'tile_lw_grey_albedo', surft_space, checkpoint_flag=checkpoint_flag, twod=.true. )
 
     vector_space=>function_space_collection%get_fs(twod_mesh, 0, W3,           &
          get_ndata_val('land_tile_rad_band'))

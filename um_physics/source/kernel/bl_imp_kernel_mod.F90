@@ -38,6 +38,8 @@ module bl_imp_kernel_mod
   use jules_control_init_mod,    only : n_sea_ice_tile
   use water_constants_mod,       only : tfs, lc, lf
   use derived_config_mod,        only : l_esm_couple
+  use surface_config_mod,        only : emis_method_soil, emis_method_soil_fixed
+  use jules_surface_types_mod,   only: soil
 
   implicit none
 
@@ -50,7 +52,7 @@ module bl_imp_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_imp_kernel_type
     private
-    type(arg_type) :: meta_args(105) = (/                                         &
+    type(arg_type) :: meta_args(106) = (/                                         &
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                &! outer
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! theta_in_wth
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! wetrho_in_w3
@@ -74,6 +76,7 @@ module bl_imp_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_4),&! sea_ice_temperature
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_4),&! sea_ice_conductivity
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2),&! tile_temperature
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! tile_lw_grey_albedo
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2),&! screen_temperature
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1),&! time_since_transition
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! latitude
@@ -196,6 +199,7 @@ contains
   !> @param[in,out] sea_ice_temperature  Bulk temperature of sea-ice (K)
   !> @param[in]     sea_ice_conductivity Sea ice thermal conductivity (W m-2 K-1)
   !> @param[in,out] tile_temperature     Surface tile temperatures
+  !> @param[in]     tile_lw_grey_albedo  Surface tile longwave grey albedo
   !> @param[in,out] screen_temperature   Tiled screen level liquid temperature
   !> @param[in,out] time_since_transition Time since decoupled screen transition
   !> @param[in]     latitude             Latitude of cell centre
@@ -329,6 +333,7 @@ contains
                          sea_ice_temperature,                &
                          sea_ice_conductivity,               &
                          tile_temperature,                   &
+                         tile_lw_grey_albedo,                &
                          screen_temperature,                 &
                          time_since_transition,              &
                          latitude,                           &
@@ -575,6 +580,7 @@ contains
 
     real(kind=r_def), intent(in)    :: tile_fraction(undf_tile)
     real(kind=r_def), intent(inout) :: tile_temperature(undf_tile)
+    real(kind=r_def), intent(in)    :: tile_lw_grey_albedo(undf_tile)
     real(kind=r_def), intent(inout) :: screen_temperature(undf_tile)
     real(kind=r_def), intent(inout) :: time_since_transition(undf_2d)
     real(kind=r_def), intent(in)    :: latitude(undf_2d)
@@ -1259,9 +1265,12 @@ contains
       flake = 0.0
       flake(1,lake) = 1.0
       ! recalculate the surface emissivity
-      fluxes%emis_surft(1,1:npft) = emis_pft(1:npft)
-      fluxes%emis_surft(1,npft+1:npft+nnvg) = emis_nvg(1:nnvg)
+      do i = 1, n_land_tile
+        fluxes%emis_surft(1, i) = 1.0_r_um - real(tile_lw_grey_albedo(map_tile(1)+i-1), r_um)
+      end do
     end if
+
+    if (emis_method_soil /= emis_method_soil_fixed) fluxes%l_emis_surft_set(soil)=.TRUE.
 
     i_tile = 0
     do i = 1, n_land_tile

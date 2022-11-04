@@ -168,6 +168,7 @@ contains
     type( field_type ), pointer :: sea_ice_temperature => null()
     type( field_type ), pointer :: sea_ice_conductivity => null()
     type( field_type ), pointer :: tile_temperature    => null()
+    type( field_type ), pointer :: tile_lw_grey_albedo => null()
     type( field_type ), pointer :: screen_temperature  => null()
     type( field_type ), pointer :: time_since_transition => null()
     type( field_type ), pointer :: canopy_water        => null()
@@ -323,6 +324,7 @@ contains
     call surface_fields%get_field('sea_ice_temperature', sea_ice_temperature)
     call surface_fields%get_field('sea_ice_conductivity', sea_ice_conductivity)
     call surface_fields%get_field('tile_temperature', tile_temperature)
+    call surface_fields%get_field('tile_lw_grey_albedo', tile_lw_grey_albedo)
     call surface_fields%get_field('screen_temperature', screen_temperature)
     call surface_fields%get_field('time_since_transition', time_since_transition)
     call surface_fields%get_field('canopy_water', canopy_water)
@@ -461,7 +463,8 @@ contains
                            peak_to_trough_orog, silhouette_area_orog,          &
                            sea_ice_thickness, sea_ice_temperature,             &
                            sea_ice_conductivity,                               &
-                           tile_temperature, screen_temperature,               &
+                           tile_temperature, tile_lw_grey_albedo,              &
+                           screen_temperature,                                 &
                            time_since_transition, latitude,                    &
                            tile_snow_mass, n_snow_layers,                      &
                            snow_depth, canopy_water, soil_temperature,         &
