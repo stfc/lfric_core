@@ -68,6 +68,7 @@ contains
     ! 2D fields
     soil_moisture_content_flag = .true.
     call soil_moist_sat%copy_field_properties(soil_moisture_content)
+    call invoke(setval_c(soil_moisture_content, 0.0_r_def))
 
     grid_canopy_water_flag = .true.
     call soil_moist_sat%copy_field_properties(grid_canopy_water)
@@ -77,9 +78,11 @@ contains
 
     surface_runoff_flag = .true.
     call soil_moist_sat%copy_field_properties(surface_runoff)
+    call invoke(setval_c(surface_runoff, 0.0_r_def))
 
     sub_surface_runoff_flag = .true.
     call soil_moist_sat%copy_field_properties(sub_surface_runoff)
+    call invoke(setval_c(sub_surface_runoff, 0.0_r_def))
 
     ! surface tiled fields
     throughfall_flag = .true.

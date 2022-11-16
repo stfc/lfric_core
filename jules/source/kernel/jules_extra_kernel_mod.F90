@@ -16,7 +16,7 @@ module jules_extra_kernel_mod
                                       ANY_DISCONTINUOUS_SPACE_3, &
                                       ANY_DISCONTINUOUS_SPACE_4, &
                                       ANY_DISCONTINUOUS_SPACE_5, &
-                                      CELL_COLUMN
+                                      DOMAIN
   use constants_mod,           only : i_def, i_um, r_def, r_um
   use kernel_mod,              only : kernel_type
   use empty_data_mod,          only : empty_real_data
@@ -91,7 +91,7 @@ module jules_extra_kernel_mod
          arg_type(GH_FIELD, GH_REAL, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), & ! surface_runoff
          arg_type(GH_FIELD, GH_REAL, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1)  & ! sub_surface_runoff
         /)
-    integer :: operates_on = CELL_COLUMN
+    integer :: operates_on = DOMAIN
   contains
     procedure, nopass :: jules_extra_code
   end type
@@ -180,7 +180,7 @@ contains
   !> @param[in]     undf_snow              Unique DOFs per cell for snow layers
   !> @param[in]     map_snow               DOFmap for cells for snow layers
   subroutine jules_extra_code(             &
-               nlayers,                    &
+               nlayers, seg_len,           &
                ls_rain,                    &
                conv_rain,                  &
                ls_snow,                    &
@@ -349,12 +349,9 @@ contains
                                         chemvars_nullify, chemvars_dealloc
     use coastal,                  only: coastal_type
 
-    use nlsizes_namelist_mod, only: row_length, rows, land_pts => land_field,  &
+    use nlsizes_namelist_mod, only: land_pts => land_field,  &
                                     sm_levels, ntiles, bl_levels
     use UM_ParCore, only: nproc
-
-    ! Spatially varying fields used from modules
-    use trignometric_mod, only: cos_theta_latitude
 
     ! Jules related subroutines
     use sparm_mod, only             : sparm
@@ -365,16 +362,16 @@ contains
     implicit none
 
     ! Arguments
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers, seg_len
     integer(kind=i_def), intent(in) :: ndf_2d, undf_2d, ndf_tile, undf_tile,  &
                                        ndf_pft, undf_pft, ndf_soil,           &
                                        undf_soil, ndf_snow, undf_snow
 
-    integer(kind=i_def), dimension(ndf_2d),    intent(in) :: map_2d
-    integer(kind=i_def), dimension(ndf_tile),  intent(in) :: map_tile
-    integer(kind=i_def), dimension(ndf_pft),   intent(in) :: map_pft
-    integer(kind=i_def), dimension(ndf_soil),  intent(in) :: map_soil
-    integer(kind=i_def), dimension(ndf_snow),  intent(in) :: map_snow
+    integer(kind=i_def), dimension(ndf_2d, seg_len),    intent(in) :: map_2d
+    integer(kind=i_def), dimension(ndf_tile, seg_len),  intent(in) :: map_tile
+    integer(kind=i_def), dimension(ndf_pft, seg_len),   intent(in) :: map_pft
+    integer(kind=i_def), dimension(ndf_soil, seg_len),  intent(in) :: map_soil
+    integer(kind=i_def), dimension(ndf_snow, seg_len),  intent(in) :: map_snow
 
     real(kind=r_def), dimension(undf_2d), intent(in) :: ls_rain, conv_rain,   &
                                                         ls_snow, conv_snow,   &
@@ -441,7 +438,7 @@ contains
     real(kind=r_def), pointer, intent(inout) :: sub_surface_runoff(:)
 
     ! Local variables for the kernel
-    integer(kind=i_def) :: i, j, n, i_snow
+    integer(kind=i_def) :: i, j, n, i_snow, m, l
 
 !------------------------------------------------------------------------------
     ! JULES surf_couple_extra subroutine arguments declared using JULESvn5.4
@@ -460,24 +457,22 @@ contains
     ! Logical (module intent=in)
     logical :: smlt, stf_sub_surf_roff
 
-    logical, dimension(row_length,rows) :: land_sea_mask
+    logical, dimension(seg_len, 1) :: land_sea_mask
 
     ! Real variables (module intent=in)
     ! Driving data
-    real(r_um), dimension(row_length, rows) :: ls_graup_ij, &
-         u_1_ij, v_1_ij, cca_2d_ij, soil_clay_ij,                             &
+    real(r_um), dimension(seg_len, 1) :: ls_graup_ij,                         &
+         u_1_ij, v_1_ij, cca_2d_ij, soil_clay_ij, cos_theta_latitude,         &
          flash_rate_ancil, pop_den_ancil, wealth_index_ancil, flandg, rho_star
 
     ! State
-    real(r_um), dimension(land_pts, ntiles) ::                                &
-    ! Fluxes
-         tile_frac, u_s_std_surft
+    real(r_um), dimension(:,:), allocatable :: u_s_std_surft
 
-    real(r_um), dimension(land_pts, nsoilt) :: fexp_soilt, gamtot_soilt,      &
+    real(r_um), dimension(:,:), allocatable :: fexp_soilt, gamtot_soilt,      &
          ti_mean_soilt, ti_sig_soilt, a_fsat_soilt, c_fsat_soilt,             &
          a_fwet_soilt, c_fwet_soilt
 
-    real(r_um), dimension(land_pts) :: npp_gb, frac_agr_gb
+    real(r_um), dimension(:), allocatable :: npp_gb, frac_agr_gb
 
     ! River routing
     real(r_um), dimension(aocpl_row_length) :: xpa
@@ -486,7 +481,7 @@ contains
     real(r_um), dimension(aocpl_p_rows) :: ypa, yua
     real(r_um), dimension(0:aocpl_p_rows) :: yva
     real(r_um), dimension(river_row_length, river_rows) :: trivdir, trivseq
-    real(r_um), dimension(row_length, rows) :: r_area, slope, flowobs1,       &
+    real(r_um), dimension(seg_len, 1) :: r_area, slope, flowobs1,       &
          r_inext, r_jnext, r_land
 
 
@@ -494,15 +489,16 @@ contains
     integer(i_um) :: a_steps_since_riv, asteps_since_triffid
 
     ! Real variables (module intent = in out)
-    real(r_um), dimension(row_length, rows) :: substore, surfstore, flowin,   &
+    real(r_um), dimension(seg_len, 1) :: substore, surfstore, flowin,   &
          bflowin, acc_lake_evap
 
     real(r_um), dimension(river_row_length, river_rows) :: twatstor
 
-    real(r_um), dimension(land_pts) :: dhf_surf_minus_soil,                   &
+
+    real(r_um), dimension(:), allocatable :: dhf_surf_minus_soil,             &
          ls_rainfrac_gb, tot_surf_runoff, tot_sub_runoff, inlandout_atm_gb
 
-    real(r_um), dimension(land_pts, nsoilt) :: hcons_soilt, fsat_soilt,       &
+    real(r_um), dimension(:,:), allocatable :: hcons_soilt, fsat_soilt,       &
          fwetl_soilt, zw_soilt, sthzw_soilt
 
     !-----------------------------------------------------------------------
@@ -550,6 +546,32 @@ contains
     !-----------------------------------------------------------------------
     ! Initialisation of JULES data and pointer types
     !-----------------------------------------------------------------------
+    ! Land tile fractions
+    flandg = 0.0_r_um
+    land_pts = 0
+    do i = 1, seg_len
+      do n = 1, n_land_tile
+        flandg(i,1) = flandg(i,1) + real(tile_fraction(map_tile(1,i)+n-1), r_um)
+      end do
+    end do
+    flandg = min(flandg, 1.0_r_um)
+
+    do i = 1, seg_len
+      if (flandg(i,1) > 0.0_r_um) then
+        land_pts = land_pts + 1
+        land_sea_mask(i,1) = .true.
+      else
+        land_sea_mask(i,1) = .false.
+      end if
+    end do
+
+    if (land_pts == 0) then
+      ! If there's no land, we can just exit here (but need to set
+      ! land_pts back to 1 for reasons given at the end of the routine)
+      land_pts = 1
+      return
+    end if
+
     call crop_vars_alloc(land_pts, t_i_length, t_j_length,                    &
                      nsurft, ncpft,nsoilt, sm_levels, l_crop, irr_crop,       &
                      irr_crop_doell, crop_vars_data)
@@ -575,8 +597,6 @@ contains
 
     if (can_rad_mod == 6) then
       jules_vars%diff_frac = 0.4_r_um
-    else
-      jules_vars%diff_frac = 0.0_r_um
     end if
 
     call psparms_alloc(land_pts,t_i_length,t_j_length,                        &
@@ -638,14 +658,27 @@ contains
     call chemvars_assoc(chemvars, chemvars_data)
 
     !-------------------------------------------------------------------
+    l = 0
+    do i = 1, seg_len
+      if (flandg(i,1) > 0.0_r_um) then
+        l = l+1
+        ainfo%land_index(l) = i
+      end if
+    end do
 
     ! Data from 2D fields
-    forcing%ls_rain_ij(1,1)  = ls_rain(map_2d(1))   ! Large-scale rainfall rate
-    forcing%con_rain_ij(1,1) = conv_rain(map_2d(1)) ! Convective rainfall rate
-    forcing%ls_snow_ij(1,1)  = ls_snow(map_2d(1))   ! Large-scale snowfall rate
-    forcing%con_snow_ij(1,1) = conv_snow(map_2d(1)) ! Convective snowfallfall rate
-    ls_rainfrac_gb(1) = lsca_2d(map_2d(1))  ! Large-scale cloud amount
-    cca_2d_ij(1,1)   = cca_2d(map_2d(1))    ! Convective cloud amount
+    do i = 1, seg_len
+      forcing%ls_rain_ij(i,1) = ls_rain(map_2d(1,i))   ! Large-scale rainfall rate
+      forcing%con_rain_ij(i,1) = conv_rain(map_2d(1,i)) ! Convective rainfall rate
+      forcing%ls_snow_ij(i,1) = ls_snow(map_2d(1,i))   ! Large-scale snowfall rate
+      forcing%con_snow_ij(i,1) = conv_snow(map_2d(1,i)) ! Convective snowfallfall rate
+      cca_2d_ij(i,1)   = cca_2d(map_2d(1,i))    ! Convective cloud amount
+    end do
+
+    allocate(ls_rainfrac_gb(land_pts))
+    do l = 1, land_pts
+      ls_rainfrac_gb(l) = lsca_2d(map_2d(1,ainfo%land_index(l)))  ! Large-scale cloud amount
+    end do
 
     !----------------------------------------------------------------------
     ! Surface fields as needed by Jules
@@ -653,189 +686,203 @@ contains
 
     ! Ancillaries:
     ! Land tile fractions (frac_surft)
-    flandg = 0.0_r_um
-    do i = 1, n_land_tile
-      flandg = flandg + real(tile_fraction(map_tile(1)+i-1), r_um)
-      ainfo%frac_surft(1, i)     = real(tile_fraction(map_tile(1)+i-1), r_um)
-      fluxes%ei_surft(1, i)       = real(snowice_sublimation(map_tile(1)+i-1), r_um)
-      fluxes%surf_htf_surft(1, i) = real(surf_heat_flux(map_tile(1)+i-1), r_um)
-      fluxes%ecan_surft(1, i)     = real(canopy_evap(map_tile(1)+i-1), r_um)
+    do l = 1, land_pts
+      do n = 1, n_land_tile
+        ainfo%frac_surft(l, n) = real(tile_fraction(map_tile(1,ainfo%land_index(l))+n-1), r_um) &
+             / flandg(ainfo%land_index(l), 1)
+        fluxes%ei_surft(l, n) = real(snowice_sublimation(map_tile(1,ainfo%land_index(l))+n-1), r_um)
+        fluxes%surf_htf_surft(l, n) = real(surf_heat_flux(map_tile(1,ainfo%land_index(l))+n-1), r_um)
+        fluxes%ecan_surft(l, n) = real(canopy_evap(map_tile(1,ainfo%land_index(l))+n-1), r_um)
+      end do
     end do
-    flandg = min(flandg, 1.0_r_um)
-
-    ! Jules requires fractions with respect to the land area
-    if (flandg(1, 1) > 0.0_r_um) then
-      land_pts = 1
-      ainfo%land_index = 1
-      ainfo%frac_surft(1, 1:n_land_tile) = ainfo%frac_surft(1, 1:n_land_tile) / flandg(1, 1)
-      land_sea_mask = .true.
-    else
-      land_pts = 0
-      ainfo%land_index = 0
-      land_sea_mask = .false.
-    end if
 
     ! Logical flags controlling diagnostic calculations
     smlt = .false.
     stf_sub_surf_roff = .false.
 
-    ! GPW fudge: set tile_frac = frac_surft
-    tile_frac = ainfo%frac_surft
-
     ! Set type_pts and type_index
-    call tilepts(land_pts, ainfo%frac_surft, surft_pts, ainfo%surft_index,ainfo%l_lice_point)
+    call tilepts(land_pts, ainfo%frac_surft, surft_pts, ainfo%surft_index, &
+         ainfo%l_lice_point)
 
     ! Vegetation prognostics (for TRIFFID)
-    do n = 1, npft
-      ! Leaf area index
-      progs%lai_pft(1, n) = real(leaf_area_index(map_pft(1)+n-1), r_um)
-      ! Canopy height
-      progs%canht_pft(1, n) = real(canopy_height(map_pft(1)+n-1), r_um)
-      ! Unloading rate of snow from plant functional types
-      jules_vars%unload_backgrnd_pft(1, n) = real(snow_unload_rate(map_pft(1)+n-1), r_um)
+    do l = 1, land_pts
+      do n = 1, npft
+        ! Leaf area index
+        progs%lai_pft(l, n) = real(leaf_area_index(map_pft(1,ainfo%land_index(l))+n-1), r_um)
+        ! Canopy height
+        progs%canht_pft(l, n) = real(canopy_height(map_pft(1,ainfo%land_index(l))+n-1), r_um)
+        ! Unloading rate of snow from plant functional types
+        jules_vars%unload_backgrnd_pft(l, n) = real(snow_unload_rate(map_pft(1,ainfo%land_index(l))+n-1), r_um)
+      end do
     end do
 
     ! Soil roughness
-    psparms%z0m_soil_gb = real(soil_roughness(map_2d(1)), r_um)
-    urban_param%ztm_gb  = real(urbztm(map_2d(1)), r_um)
+    do l = 1, land_pts
+      psparms%z0m_soil_gb(l) = real(soil_roughness(map_2d(1,ainfo%land_index(l))), r_um)
+    end do
+    if (l_urban2t) then
+      do l = 1, land_pts
+        urban_param%ztm_gb(l)  = real(urbztm(map_2d(1,ainfo%land_index(l))), r_um)
+      end do
+    end if
 
     ! Get catch_snow_surft and catch_surft from call to sparm
-    call sparm(land_pts, n_land_tile, surft_pts, ainfo%surft_index,                   &
-               ainfo%frac_surft, progs%canht_pft, progs%lai_pft, psparms%z0m_soil_gb, &
-               psparms%catch_snow_surft, psparms%catch_surft,                         &
-               psparms%z0_surft, psparms%z0h_bare_surft, urban_param%ztm_gb)
+    call sparm(land_pts, n_land_tile, surft_pts, ainfo%surft_index,            &
+               ainfo%frac_surft, progs%canht_pft, progs%lai_pft,               &
+               psparms%z0m_soil_gb, psparms%catch_snow_surft,                  &
+               psparms%catch_surft, psparms%z0_surft, psparms%z0h_bare_surft,  &
+               urban_param%ztm_gb)
 
     ! Decrease in saturated conductivity of soil with depth
+    allocate(fexp_soilt(land_pts, nsoilt))
     fexp_soilt = decrease_sath_cond
 
-    ! Mean grid box topographic index
-    ti_mean_soilt = real(mean_topog_index(map_2d(1)), r_um)
-
-    ! a saturated soil fraction
-    a_fsat_soilt = real(a_sat_frac(map_2d(1)), r_um)
-
-    ! c saturated soil fraction
-    c_fsat_soilt = real(c_sat_frac(map_2d(1)), r_um)
-
-    ! a soil wetness fraction
-    a_fwet_soilt = real(a_wet_frac(map_2d(1)), r_um)
-
-    ! c soil wetness fraction
-    c_fwet_soilt = real(c_wet_frac(map_2d(1)), r_um)
-
-    ! Net primary productivity diagnostic
-    npp_gb = real(net_prim_prod(map_2d(1)), r_um)
+    allocate(ti_mean_soilt(land_pts, nsoilt))
+    allocate(a_fsat_soilt(land_pts, nsoilt))
+    allocate(c_fsat_soilt(land_pts, nsoilt))
+    allocate(a_fwet_soilt(land_pts, nsoilt))
+    allocate(c_fwet_soilt(land_pts, nsoilt))
+    allocate(npp_gb(land_pts))
+    do l = 1, land_pts
+      ! Mean grid box topographic index
+      ti_mean_soilt(l,1) = real(mean_topog_index(map_2d(1,ainfo%land_index(l))), r_um)
+      ! a saturated soil fraction
+      a_fsat_soilt(l,1) = real(a_sat_frac(map_2d(1,ainfo%land_index(l))), r_um)
+      ! c saturated soil fraction
+      c_fsat_soilt(l,1) = real(c_sat_frac(map_2d(1,ainfo%land_index(l))), r_um)
+      ! a soil wetness fraction
+      a_fwet_soilt(l,1) = real(a_wet_frac(map_2d(1,ainfo%land_index(l))), r_um)
+      ! c soil wetness fraction
+      c_fwet_soilt(l,1) = real(c_wet_frac(map_2d(1,ainfo%land_index(l))), r_um)
+      ! Net primary productivity diagnostic
+      npp_gb(l) = real(net_prim_prod(map_2d(1,ainfo%land_index(l))), r_um)
+    end do
 
     ! Prognostics:
     ! Land tile temperatures
-    do i = 1, n_land_tile
-      progs%tstar_surft(1, i) = real(tile_temperature(map_tile(1)+i-1), r_um)
+    do l = 1, land_pts
+      do n = 1, n_land_tile
+        progs%tstar_surft(l, n) = real(tile_temperature(map_tile(1,ainfo%land_index(l))+n-1), r_um)
+      end do
     end do
 
     ! Soil ancillaries and prognostics
-    psparms%satcon_soilt(1, 1, 0) = real(soil_cond_sat(map_2d(1)), r_um)
-    do i = 1, sm_levels
-    ! Volumetric soil moisture at wilting point (smvcwt_soilt)
-      psparms%smvcwt_soilt(1, 1, i) = real(soil_moist_wilt(map_2d(1)), r_um)
-    ! Volumetric soil moisture at critical point (smvccl_soilt)
-      psparms%smvccl_soilt(1, 1, i) = real(soil_moist_crit(map_2d(1)), r_um)
-    ! Volumetric soil moisture at saturation (smvcst_soilt)
-      psparms%smvcst_soilt(1, 1, i) = real(soil_moist_sat(map_2d(1)), r_um)
-    ! Saturated soil conductivity (satcon_soilt)
-      psparms%satcon_soilt(1, 1, i) = real(soil_cond_sat(map_2d(1)), r_um)
-    ! Soil thermal capacity (hcap_soilt)
-      psparms%hcap_soilt(1, 1, i) = real(soil_thermal_cap(map_2d(1)), r_um)
-    ! Saturated soil water suction (sathh_soilt)
-      psparms%sathh_soilt(1, 1, i) = real(soil_suction_sat(map_2d(1)), r_um)
-    ! Clapp and Hornberger b coefficient (bexp_soilt)
-      psparms%bexp_soilt(1, 1, i) = real(clapp_horn_b(map_2d(1)), r_um)
-    ! Soil temperature (t_soil_soilt)
-      progs%t_soil_soilt(1, 1, i) = real(soil_temperature(map_soil(1)+i-1), r_um)
-    ! Soil moisture content (kg m-2, soil_layer_moisture/smcl_soilt)
-      progs%smcl_soilt(1, 1, i) = real(soil_moisture(map_soil(1)+i-1), r_um)
-    ! Unfrozen soil moisture proportion (sthu_soilt)
-      psparms%sthu_soilt(1, 1, i) = real(unfrozen_soil_moisture(map_soil(1)+i-1), r_um)
-    ! Frozen soil moisture proportion (sthf_soilt)
-      psparms%sthf_soilt(1, 1, i) = real(frozen_soil_moisture(map_soil(1)+i-1), r_um)
-    ! Water extraction (ext_soilt [=ext in bl_kernel))
-      fluxes%ext_soilt(1, 1, i) = real(water_extraction(map_soil(1)+i-1), r_um)
+    do l = 1, land_pts
+      psparms%satcon_soilt(l, 1, 0) = real(soil_cond_sat(map_2d(1,ainfo%land_index(l))), r_um)
+      do m = 1, sm_levels
+        ! Volumetric soil moisture at wilting point (smvcwt_soilt)
+        psparms%smvcwt_soilt(l,1,m) = real(soil_moist_wilt(map_2d(1,ainfo%land_index(l))), r_um)
+        ! Volumetric soil moisture at critical point (smvccl_soilt)
+        psparms%smvccl_soilt(l,1,m) = real(soil_moist_crit(map_2d(1,ainfo%land_index(l))), r_um)
+        ! Volumetric soil moisture at saturation (smvcst_soilt)
+        psparms%smvcst_soilt(l,1,m) = real(soil_moist_sat(map_2d(1,ainfo%land_index(l))), r_um)
+        ! Saturated soil conductivity (satcon_soilt)
+        psparms%satcon_soilt(l,1,m) = real(soil_cond_sat(map_2d(1,ainfo%land_index(l))), r_um)
+        ! Soil thermal capacity (hcap_soilt)
+        psparms%hcap_soilt(l,1,m) = real(soil_thermal_cap(map_2d(1,ainfo%land_index(l))), r_um)
+        ! Saturated soil water suction (sathh_soilt)
+        psparms%sathh_soilt(l,1,m) = real(soil_suction_sat(map_2d(1,ainfo%land_index(l))), r_um)
+        ! Clapp and Hornberger b coefficient (bexp_soilt)
+        psparms%bexp_soilt(l,1,m) = real(clapp_horn_b(map_2d(1,ainfo%land_index(l))), r_um)
+        ! Soil temperature (t_soil_soilt)
+        progs%t_soil_soilt(l,1,m) = real(soil_temperature(map_soil(1,ainfo%land_index(l))+m-1), r_um)
+        ! Soil moisture content (kg m-2, soil_layer_moisture/smcl_soilt)
+        progs%smcl_soilt(l,1,m) = real(soil_moisture(map_soil(1,ainfo%land_index(l))+m-1), r_um)
+        ! Unfrozen soil moisture proportion (sthu_soilt)
+        psparms%sthu_soilt(l,1,m) = real(unfrozen_soil_moisture(map_soil(1,ainfo%land_index(l))+m-1), r_um)
+        ! Frozen soil moisture proportion (sthf_soilt)
+        psparms%sthf_soilt(l,1,m) = real(frozen_soil_moisture(map_soil(1,ainfo%land_index(l))+m-1), r_um)
+        ! Water extraction (ext_soilt [=ext in bl_kernel))
+        fluxes%ext_soilt(l,1,m) = real(water_extraction(map_soil(1,ainfo%land_index(l))+m-1), r_um)
+      end do
     end do
 
     ! Soil thermal conductivity (hcon_soilt, hcons_soilt)
-    psparms%hcon_soilt = real(soil_thermal_cond(map_2d(1)), r_um)
-    hcons_soilt = real(thermal_cond_wet_soil(map_2d(1)), r_um)
+    allocate(hcons_soilt(land_pts,nsoilt))
+    do l = 1, land_pts
+      psparms%hcon_soilt(l,1,:) = real(soil_thermal_cond(map_2d(1,ainfo%land_index(l))), r_um)
+      hcons_soilt(l,1) = real(thermal_cond_wet_soil(map_2d(1,ainfo%land_index(l))), r_um)
+    end do
 
     ! Soil and land ice ancils dependant on smvcst_soilt
     ! (soil moisture saturation limit)
-    if ( psparms%smvcst_soilt(1, 1, 1) > 0.0_r_um ) then
-      soil_pts = 1
-      ainfo%soil_index = 1
-      ainfo%l_soil_point = .true.
-      lice_pts = 0
-      ainfo%lice_index = 0
-      ainfo%l_lice_point = .false.
-    else
-      soil_pts = 0
-      ainfo%soil_index = 0
-      ainfo%l_soil_point = .false.
-      lice_pts = 1
-      ainfo%lice_index = 1
-      ainfo%l_lice_point = .true.
-    end if
+    soil_pts = 0
+    lice_pts = 0
+    do l = 1, land_pts
+      if ( psparms%smvcst_soilt(l, 1, 1) > 0.0_r_um ) then
+        soil_pts = soil_pts + 1
+        ainfo%soil_index(soil_pts) = l
+        ainfo%l_soil_point(l) = .true.
+      else
+        lice_pts = lice_pts + 1
+        ainfo%lice_index(lice_pts) = l
+        ainfo%l_lice_point(l) = .true.
+      end if
+    end do
 
     ! Calculate the infiltration rate
     call infiltration_rate(land_pts, ntiles, surft_pts, ainfo%surft_index, &
-                           psparms%satcon_soilt, ainfo%frac_surft, psparms%infil_surft)
+                           psparms%satcon_soilt, ainfo%frac_surft,         &
+                           psparms%infil_surft)
 
     ! Canopy water on each tile (canopy_surft)
-    do i = 1, n_land_tile
-      progs%canopy_surft(1, i) = real(canopy_water(map_tile(1)+i-1), r_um)
+    do l = 1, land_pts
+      do n = 1, n_land_tile
+        progs%canopy_surft(l, n) = real(canopy_water(map_tile(1,ainfo%land_index(l))+n-1), r_um)
+      end do
     end do
 
     ! Snow prognostics
-    i_snow = 0
-    do i = 1, n_land_tile
-      ! Lying snow mass on land tiles
-      progs%snow_surft(1, i) = real(tile_snow_mass(map_tile(1)+i-1), r_um)
-      ! Snow grain size on tiles (microns)
-      progs%rgrain_surft(1, i) = real(tile_snow_rgrain(map_tile(1)+i-1), r_um)
-      ! Number of snow layers on tiles (nsnow_surft)
-      progs%nsnow_surft(1, i) = n_snow_layers(map_tile(1)+i-1)
-      ! Snow depth on tiles (snowdepth_surft)
-      progs%snowdepth_surft(1, i) = real(snow_depth(map_tile(1)+i-1), r_um)
-      ! Snow mass under canopy
-      progs%snow_grnd_surft(1, i) = real(snow_under_canopy(map_tile(1)+i-1), r_um)
-      ! Snowpack density (rho_snow_grnd_surft)
-      progs%rho_snow_grnd_surft(1, i) = real(snowpack_density(map_tile(1)+i-1), r_um)
-      do j = 1, nsmax
-        ! Thickness of snow layers
-        progs%ds_surft(1, i, j) = real(snow_layer_thickness(map_snow(1)+i_snow), r_um)
-        ! Mass of ice in snow layers
-        progs%sice_surft(1, i, j) = real(snow_layer_ice_mass(map_snow(1)+i_snow), r_um)
-        ! Mass of liquid in snow layers
-        progs%sliq_surft(1, i, j) = real(snow_layer_liq_mass(map_snow(1)+i_snow), r_um)
-        ! Temperature of snow layers
-        progs%tsnow_surft(1, i, j) = real(snow_layer_temp(map_snow(1)+i_snow), r_um)
-        ! Grain size of snow layers
-        progs%rgrainl_surft(1, i, j) = real(snow_layer_rgrain(map_snow(1)+i_snow), r_um)
-        ! Counting from 0 so increment here
-        i_snow = i_snow + 1
+    do l = 1, land_pts
+      i_snow = 0
+      do n = 1, n_land_tile
+        ! Lying snow mass on land tiles
+        progs%snow_surft(l,n) = real(tile_snow_mass(map_tile(1,ainfo%land_index(l))+n-1), r_um)
+        ! Snow grain size on tiles (microns)
+        progs%rgrain_surft(l,n) = real(tile_snow_rgrain(map_tile(1,ainfo%land_index(l))+n-1), r_um)
+        ! Number of snow layers on tiles (nsnow_surft)
+        progs%nsnow_surft(l,n) = n_snow_layers(map_tile(1,ainfo%land_index(l))+n-1)
+        ! Snow depth on tiles (snowdepth_surft)
+        progs%snowdepth_surft(l,n) = real(snow_depth(map_tile(1,ainfo%land_index(l))+n-1), r_um)
+        ! Snow mass under canopy
+        progs%snow_grnd_surft(l,n) = real(snow_under_canopy(map_tile(1,ainfo%land_index(l))+n-1), r_um)
+        ! Snowpack density (rho_snow_grnd_surft)
+        progs%rho_snow_grnd_surft(l,n) = real(snowpack_density(map_tile(1,ainfo%land_index(l))+n-1), r_um)
+        do j = 1, nsmax
+          ! Thickness of snow layers
+          progs%ds_surft(l,n,j) = real(snow_layer_thickness(map_snow(1,ainfo%land_index(l))+i_snow), r_um)
+          ! Mass of ice in snow layers
+          progs%sice_surft(l,n,j) = real(snow_layer_ice_mass(map_snow(1,ainfo%land_index(l))+i_snow), r_um)
+          ! Mass of liquid in snow layers
+          progs%sliq_surft(l,n,j) = real(snow_layer_liq_mass(map_snow(1,ainfo%land_index(l))+i_snow), r_um)
+          ! Temperature of snow layers
+          progs%tsnow_surft(l,n,j) = real(snow_layer_temp(map_snow(1,ainfo%land_index(l))+i_snow), r_um)
+          ! Grain size of snow layers
+          progs%rgrainl_surft(l,n,j) = real(snow_layer_rgrain(map_snow(1,ainfo%land_index(l))+i_snow), r_um)
+          ! Counting from 0 so increment here
+          i_snow = i_snow + 1
+        end do
       end do
     end do
 
     ! Snow melt
-    do i = 1, n_land_tile
-      fluxes%melt_surft(1, i) = real(snowice_melt(map_tile(1)+i-1), r_um)
+    do l = 1, land_pts
+      do n = 1, n_land_tile
+        fluxes%melt_surft(l,n) = real(snowice_melt(map_tile(1,ainfo%land_index(l))+n-1), r_um)
+      end do
     end do
 
-    ! Soil saturated fraction
-    fsat_soilt = real(soil_sat_frac(map_2d(1)), r_um)
-
-    ! Water table depth
-    zw_soilt = real(water_table(map_2d(1)), r_um)
-
-    ! Soil wetness below soil column
-    sthzw_soilt = real(wetness_under_soil(map_2d(1)), r_um)
+    allocate(fsat_soilt(land_pts, nsoilt))
+    allocate(zw_soilt(land_pts, nsoilt))
+    allocate(sthzw_soilt(land_pts, nsoilt))
+    do l = 1, land_pts
+      ! Soil saturated fraction
+      fsat_soilt(l,1) = real(soil_sat_frac(map_2d(1,ainfo%land_index(l))), r_um)
+      ! Water table depth
+      zw_soilt(l,1) = real(water_table(map_2d(1,ainfo%land_index(l))), r_um)
+      ! Soil wetness below soil column
+      sthzw_soilt(l,1) = real(wetness_under_soil(map_2d(1,ainfo%land_index(l))), r_um)
+    end do
 
   !----------------------------------------------------------------------------
   ! Call to surf_couple_extra using JULESvn5.4 standalone variable names
@@ -847,15 +894,25 @@ contains
     !sw_surft is not set in this kernel so will not pick up appropriate values
     !This will affect water resource, irrigation and lakes once coupled to LFRic
 
+    allocate(u_s_std_surft(land_pts, ntiles))
+    allocate(gamtot_soilt(land_pts, nsoilt))
+    allocate(ti_sig_soilt(land_pts, nsoilt))
+    allocate(fwetl_soilt(land_pts, nsoilt))
+    allocate(frac_agr_gb(land_pts))
+    allocate(dhf_surf_minus_soil(land_pts))
+    allocate(tot_surf_runoff(land_pts))
+    allocate(tot_sub_runoff(land_pts))
+    allocate(inlandout_atm_gb(land_pts))
+
     call surf_couple_extra(                                                   &
     !Driving data and associated INTENT(IN)
     u_1_ij, v_1_ij,                                                           &
 
     !Misc INTENT(IN)
-    a_step, smlt, tile_frac, hcons_soilt, rho_star,                           &
+    a_step, smlt, ainfo%frac_surft, hcons_soilt, rho_star,                    &
 
     !IN
-    land_pts, row_length, rows, river_row_length, river_rows,                 &
+    land_pts, seg_len, 1, river_row_length, river_rows,                       &
     ls_graup_ij, cca_2d_ij, nsurft, surft_pts,                                &
     lice_pts, soil_pts, stf_sub_surf_roff,fexp_soilt,                         &
     gamtot_soilt, ti_mean_soilt, ti_sig_soilt, flash_rate_ancil,              &
@@ -892,87 +949,111 @@ contains
     work_vars_cbl                                                             &
     )
 
+    deallocate(inlandout_atm_gb)
+    deallocate(tot_sub_runoff)
+    deallocate(tot_surf_runoff)
+    deallocate(dhf_surf_minus_soil)
+    deallocate(frac_agr_gb)
+    deallocate(fwetl_soilt)
+    deallocate(ti_sig_soilt)
+    deallocate(gamtot_soilt)
+    deallocate(u_s_std_surft)
+
   !---------------------------------------------------------------------------
   ! Return the updated prognostic values to jules_prognostics.
 
+    do n = 1, n_land_tile
+      do l = 1, land_pts
+        ! Canopy water on each tile (canopy_surft)
+        canopy_water(map_tile(1,ainfo%land_index(l))+n-1) = real(progs%canopy_surft(l,n), r_def)
+        ! Lying snow mass on land tiles
+        tile_snow_mass(map_tile(1,ainfo%land_index(l))+n-1) = real(progs%snow_surft(l,n), r_def)
+        ! Number of snow layers on tiles (nsnow_surft)
+        n_snow_layers(map_tile(1,ainfo%land_index(l))+n-1) = progs%nsnow_surft(l,n)
+        ! Snow depth on tiles (snowdepth_surft)
+        snow_depth(map_tile(1,ainfo%land_index(l))+n-1) = real(progs%snowdepth_surft(l,n), r_def)
+        ! Snow grain size on tiles (microns)
+        tile_snow_rgrain(map_tile(1,ainfo%land_index(l))+n-1) = real(progs%rgrain_surft(l,n), r_def)
+        ! Snow mass under canopy
+        snow_under_canopy(map_tile(1,ainfo%land_index(l))+n-1) = real(progs%snow_grnd_surft(l,n), r_def)
+        ! Snowpack density (rho_snow_grnd_surft)
+        snowpack_density(map_tile(1,ainfo%land_index(l))+n-1) = real(progs%rho_snow_grnd_surft(l,n), r_def)
+        ! Total snow and ice melt
+        snowice_melt(map_tile(1,ainfo%land_index(l))+n-1) = real(fluxes%melt_surft(l,n), r_def)
+      end do
+    end do
     i_snow = 0
-    do i = 1, n_land_tile
-      ! Canopy water on each tile (canopy_surft)
-      canopy_water(map_tile(1)+i-1) = real(progs%canopy_surft(1, i), r_def)
-      ! Lying snow mass on land tiles
-      tile_snow_mass(map_tile(1)+i-1) = real(progs%snow_surft(1, i), r_def)
-      ! Number of snow layers on tiles (nsnow_surft)
-      n_snow_layers(map_tile(1)+i-1) = progs%nsnow_surft(1, i)
-      ! Snow depth on tiles (snowdepth_surft)
-      snow_depth(map_tile(1)+i-1) = real(progs%snowdepth_surft(1, i), r_def)
-      ! Snow grain size on tiles (microns)
-      tile_snow_rgrain(map_tile(1)+i-1) = real(progs%rgrain_surft(1, i), r_def)
-      ! Snow mass under canopy
-      snow_under_canopy(map_tile(1)+i-1) = real(progs%snow_grnd_surft(1, i), r_def)
-      ! Snowpack density (rho_snow_grnd_surft)
-      snowpack_density(map_tile(1)+i-1) = real(progs%rho_snow_grnd_surft(1, i), r_def)
-      ! Total snow and ice melt
-      snowice_melt(map_tile(1)+i-1) = real(fluxes%melt_surft(1, i), r_def)
+    do n = 1, n_land_tile
       do j = 1, nsmax
-        ! Thickness of snow layers
-        snow_layer_thickness(map_snow(1)+i_snow) = real(progs%ds_surft(1, i, j), r_def)
-        ! Mass of ice in snow layers
-        snow_layer_ice_mass(map_snow(1)+i_snow) = real(progs%sice_surft(1, i, j), r_def)
-        ! Mass of liquid in snow layers
-        snow_layer_liq_mass(map_snow(1)+i_snow) = real(progs%sliq_surft(1, i, j), r_def)
-        ! Temperature of snow layers
-        snow_layer_temp(map_snow(1)+i_snow) = real(progs%tsnow_surft(1, i, j), r_def)
-        ! Grain size of snow layers
-        snow_layer_rgrain(map_snow(1)+i_snow) = real(progs%rgrainl_surft(1, i, j), r_def)
+        do l = 1, land_pts
+          ! Thickness of snow layers
+          snow_layer_thickness(map_snow(1,ainfo%land_index(l))+i_snow) = real(progs%ds_surft(l,n,j), r_def)
+          ! Mass of ice in snow layers
+          snow_layer_ice_mass(map_snow(1,ainfo%land_index(l))+i_snow) = real(progs%sice_surft(l,n,j), r_def)
+          ! Mass of liquid in snow layers
+          snow_layer_liq_mass(map_snow(1,ainfo%land_index(l))+i_snow) = real(progs%sliq_surft(l,n,j), r_def)
+          ! Temperature of snow layers
+          snow_layer_temp(map_snow(1,ainfo%land_index(l))+i_snow) = real(progs%tsnow_surft(l,n,j), r_def)
+          ! Grain size of snow layers
+          snow_layer_rgrain(map_snow(1,ainfo%land_index(l))+i_snow) = real(progs%rgrainl_surft(l,n,j), r_def)
+        end do
         ! Counting from 0 so increment here
         i_snow = i_snow + 1
       end do
     end do
 
-    do i = 1, sm_levels
-      ! Soil temperature (t_soil_soilt)
-      soil_temperature(map_soil(1)+i-1) = real(progs%t_soil_soilt(1, 1, i), r_def)
-      ! Soil moisture content (kg m-2, soil_layer_moisture)
-      soil_moisture(map_soil(1)+i-1) = real(progs%smcl_soilt(1, 1, i), r_def)
-      ! Unfrozen soil moisture proportion (sthu_soilt)
-      unfrozen_soil_moisture(map_soil(1)+i-1) = real(psparms%sthu_soilt(1, 1, i), r_def)
-      ! Frozen soil moisture proportion (sthf_soilt)
-      frozen_soil_moisture(map_soil(1)+i-1) = real(psparms%sthf_soilt(1, 1, i), r_def)
+    do m = 1, sm_levels
+      do l = 1, land_pts
+        ! Soil temperature (t_soil_soilt)
+        soil_temperature(map_soil(1,ainfo%land_index(l))+m-1) = real(progs%t_soil_soilt(l,1,m), r_def)
+        ! Soil moisture content (kg m-2, soil_layer_moisture)
+        soil_moisture(map_soil(1,ainfo%land_index(l))+m-1) = real(progs%smcl_soilt(l,1,m), r_def)
+        ! Unfrozen soil moisture proportion (sthu_soilt)
+        unfrozen_soil_moisture(map_soil(1,ainfo%land_index(l))+m-1) = real(psparms%sthu_soilt(l,1,m), r_def)
+        ! Frozen soil moisture proportion (sthf_soilt)
+        frozen_soil_moisture(map_soil(1,ainfo%land_index(l))+m-1) = real(psparms%sthf_soilt(l,1,m), r_def)
+      end do
     end do
 
-    ! Soil saturated fraction
-    soil_sat_frac(map_2d(1)) = real(fsat_soilt(1,1), r_def)
-
-    ! Water table depth
-    water_table(map_2d(1)) = real(zw_soilt(1,1), r_def)
-
-    ! Wetness below soil column
-    wetness_under_soil(map_2d(1)) = real(sthzw_soilt(1,1), r_def)
+    do l = 1, land_pts
+      ! Soil saturated fraction
+      soil_sat_frac(map_2d(1,ainfo%land_index(l))) = real(fsat_soilt(l,1), r_def)
+      ! Water table depth
+      water_table(map_2d(1,ainfo%land_index(l))) = real(zw_soilt(l,1), r_def)
+      ! Wetness below soil column
+      wetness_under_soil(map_2d(1,ainfo%land_index(l))) = real(sthzw_soilt(l,1), r_def)
+    end do
 
     if (.not. associated(soil_moisture_content, empty_real_data) ) then
-      if (land_sea_mask(1,1)) then
-        soil_moisture_content(map_2d(1)) = progs%smc_soilt(1,1)
-      else
-        soil_moisture_content(map_2d(1)) = 0.0_r_def
-      end if
+      do l = 1, land_pts
+        soil_moisture_content(map_2d(1,ainfo%land_index(l))) = progs%smc_soilt(l,1)
+      end do
     end if
 
     if (.not. associated(grid_snow_mass, empty_real_data) ) then
-      grid_snow_mass(map_2d(1)) = progs%snow_mass_ij(1,1)
+      do i = 1, seg_len
+        grid_snow_mass(map_2d(1,i)) = progs%snow_mass_ij(i,1)
+      end do
     end if
 
     if (.not. associated(throughfall, empty_real_data) ) then
-      do i = 1, n_land_tile
-        throughfall(map_tile(1)+i-1) = fluxes%tot_tfall_surft(1,i)
+      do n = 1, n_land_tile
+        do l = 1, land_pts
+          throughfall(map_tile(1,ainfo%land_index(l))+n-1) = fluxes%tot_tfall_surft(l,n)
+        end do
       end do
     end if
 
     if (.not. associated(surface_runoff, empty_real_data) ) then
-      surface_runoff(map_2d(1)) = fluxes%surf_roff_gb(1)
+      do l = 1, land_pts
+        surface_runoff(map_2d(1,ainfo%land_index(l))) = fluxes%surf_roff_gb(l)
+      end do
     end if
 
     if (.not. associated(sub_surface_runoff, empty_real_data) ) then
-      sub_surface_runoff(map_2d(1)) = fluxes%sub_surf_roff_gb(1)
+      do l = 1, land_pts
+        sub_surface_runoff(map_2d(1,ainfo%land_index(l))) = fluxes%sub_surf_roff_gb(l)
+      end do
     end if
 
     ! Reset land_pts to 1 before exit
@@ -984,6 +1065,19 @@ contains
     ! back to 1 so that variables are dimensioned correctly on the next
     ! kernel call.
     land_pts = 1
+
+    deallocate(ls_rainfrac_gb)
+    deallocate(fexp_soilt)
+    deallocate(ti_mean_soilt)
+    deallocate(a_fsat_soilt)
+    deallocate(c_fsat_soilt)
+    deallocate(a_fwet_soilt)
+    deallocate(c_fwet_soilt)
+    deallocate(npp_gb)
+    deallocate(hcons_soilt)
+    deallocate(fsat_soilt)
+    deallocate(zw_soilt)
+    deallocate(sthzw_soilt)
 
     call ancil_info_nullify(ainfo)
     call ancil_info_dealloc(ainfo_data)
