@@ -340,15 +340,23 @@ contains
     ! Set stash flags and arrays
     if (.not. associated(taux_orog_blk, empty_real_data) ) then
       tau_x_blk_flag = .true.
+    else
+      tau_x_blk_flag = .false.
     end if
     if (.not. associated(tauy_orog_blk, empty_real_data) ) then
       tau_y_blk_flag = .true.
+    else
+      tau_y_blk_flag = .false.
     end if
     if (.not. associated(taux_orog_gwd, empty_real_data) ) then
       tau_x_orog_gwd_flag = .true.
+    else
+      tau_x_orog_gwd_flag = .false.
     end if
     if (.not. associated(tauy_orog_gwd, empty_real_data) ) then
       tau_y_orog_gwd_flag = .true.
+    else
+      tau_y_orog_gwd_flag = .false.
     end if
 
     ! Call routine to setup orographic drag fields

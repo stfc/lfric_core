@@ -47,6 +47,7 @@ contains
     use spectral_gwd_kernel_mod, only: spectral_gwd_kernel_type
     use drag_incs_kernel_mod, only: drag_incs_kernel_type
     use geometric_constants_mod, only: get_latitude, get_height
+    use um_sizes_init_mod,      only: um_sizes_init
 
    implicit none
 
@@ -90,6 +91,7 @@ contains
 
     type( mesh_type ), pointer :: mesh      => null()
     type( mesh_type ), pointer :: twod_mesh => null()
+    integer( kind=i_def ) :: ncells
 
     if ( subroutine_timers ) call timer("spectral_gwd_alg")
 
@@ -127,6 +129,9 @@ contains
                                 tau_west_spectral_gwd,         &
                                 tau_north_spectral_gwd)
 
+    ncells = mesh%get_last_edge_cell()
+    call um_sizes_init(ncells)
+
     call invoke(                                                            &
                 ! Set vertical wind inc to zero for mapping back of winds
                 setval_c(dw_spectral_gwd, 0.0_r_def),                       &
@@ -147,6 +152,8 @@ contains
                 ! Convert temperature to potential temperature
                 X_divideby_Y ( dtheta_spectral_gwd, dtemp_spectral_gwd,     &
                                exner_in_wth) )
+
+    call um_sizes_init(1_i_def)
 
     if ( subroutine_timers ) call timer("spectral_gwd_alg")
 
