@@ -70,16 +70,7 @@
 {%- set canned_configurations = ['lfric_atm'] %}
 
 {%- set groups = {
-  'user':[
-    'run_application("lfric_atm", "proto_ral_seuk",
-                     resolutions=[("seuk_MG",50.0)],
-                     env={"crun":2, "nrun":72,
-                          "directives":{"default":{"mpi_parts":16,
-                                                   "threads":1,
- 		                                   "wallclock":"00:10:00"} } },
- 		     plotstr="plot_map.py -ral $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR")',
-],
-  'rce': [
+ 'rce': [
     'run_application("lfric_atm", "basic_rce", checkkgo=False,
                      resolutions=[("BiP64x64-100x100_MG",5.0)],
                      env={"crun":12, "nrun":720,
