@@ -86,6 +86,12 @@ contains
       call log_event( message, LOG_LEVEL_ERROR )
     end if
 
+    close( unit=unit_number, iostat=status, iomsg=message )
+    if ( status /= 0 ) then
+      message = 'Problem closing file ' // TRIM(filename)
+      call log_event( message, LOG_LEVEL_ERROR )
+    end if
+
     call release_io_unit( unit_number )
 
     message = 'Successful namelist read from ' // TRIM(filename)
