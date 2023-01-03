@@ -1,0 +1,89 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Initialisation functionality for the da_dev miniapp
+
+!> @details Handles init of prognostic fields and through the call to
+!>          runtime_contants the coordinate fields and fem operators
+
+module da_dev_model_init_mod
+
+  use constants_mod,                  only : r_def
+  use driver_model_data_mod,          only : model_data_type
+  use field_mod,                      only : field_type
+  use fs_continuity_mod,              only : W2, W3, Wtheta
+  use log_mod,                        only : log_event,       &
+                                             LOG_LEVEL_INFO
+  use mesh_mod,                       only : mesh_type
+  use da_dev_utils_mod,               only : add_real_field
+
+  implicit none
+
+  contains
+
+  !> @brief  Create the da_dev miniapp model_data
+  !>
+  !> @param[in] mesh           Mesh to use for field initialisation
+  !> @param[inout] model_data  model_data to store miniapp fields in
+  subroutine create_da_model_data( mesh, model_data)
+
+    implicit none
+
+    type(mesh_type), intent(in), pointer        :: mesh
+    type( model_data_type ), intent(inout)      :: model_data
+
+    call log_event( 'da_dev: Initialising miniapp ...', LOG_LEVEL_INFO )
+
+    call model_data%depository%initialise(name = 'depository', table_len=100)
+
+    ! Create fields and add them to model_data
+    call add_real_field( model_data, mesh, Wtheta, "theta" )
+    call add_real_field( model_data, mesh, W3,     "rho"   )
+    call add_real_field( model_data, mesh, W3,     "exner" )
+
+    call log_event( 'da_dev: Miniapp initialised', LOG_LEVEL_INFO )
+
+  end subroutine create_da_model_data
+
+  !> @brief  Initialise the da_dev miniapp model_data
+  !>
+  !> @param[inout] model_data  model_data to initialised
+  subroutine initialise_da_model_data( model_data )
+
+    implicit none
+
+    type( model_data_type ), intent(inout)      :: model_data
+
+    call log_event( 'da_dev: initialise_da_model_data - start', LOG_LEVEL_INFO )
+
+    ! Initialise fields in model_data
+    call initialise_real_field( model_data, "theta" )
+    call initialise_real_field( model_data, "rho"   )
+    call initialise_real_field( model_data, "exner" )
+
+    call log_event( 'da_dev: initialise_da_model_data - end', LOG_LEVEL_INFO )
+
+  end subroutine initialise_da_model_data
+
+  !> @brief  Initialise real-valued fields to zero
+  !>
+  !> @param[inout] model_data  The model data object to add a field to
+  !> @param[in]   field_name  The name of the new field
+  subroutine initialise_real_field(model_data, field_name)
+    implicit none
+
+    type(model_data_type), intent(inout)  :: model_data
+    character(*), intent(in)              :: field_name
+
+    type(field_type), pointer :: field_ptr
+
+    ! get field and set equal to 0
+    call model_data % depository % get_field(field_name, field_ptr)
+    call invoke(setval_c(field_ptr, 0.0_r_def))
+
+  end subroutine initialise_real_field
+
+end module da_dev_model_init_mod

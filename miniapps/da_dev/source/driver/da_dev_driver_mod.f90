@@ -25,7 +25,7 @@ module da_dev_driver_mod
                                       get_io_context
   use io_context_mod,           only: io_context_type
   use field_mod,                only: field_type
-  use da_dev_init_mod,          only: init_da_dev
+  use da_dev_model_init_mod,    only: create_da_model_data, initialise_da_model_data
   use log_mod,                  only: log_event,          &
                                       log_scratch_space,  &
                                       LOG_LEVEL_ALWAYS,   &
@@ -37,7 +37,7 @@ module da_dev_driver_mod
   use da_dev_mod,               only: load_configuration
   use da_dev_increment_alg_mod, only: da_dev_increment_alg
   use da_dev_init_files_mod,    only: init_da_dev_files
-  use da_dev_config_mod,        only: pseudomodel, write_data, test_field
+  use da_dev_config_mod,        only: write_data, test_field
   use lfric_xios_read_mod,      only: read_state
   use lfric_xios_write_mod,     only: write_state
   use lfric_xios_context_mod,   only: lfric_xios_context_type
@@ -45,36 +45,67 @@ module da_dev_driver_mod
   implicit none
 
   private
-  public initialise, run, finalise
+  ! LFRic-API
+  public initialise_lfric_comm, initialise_lfric, finalise_lfric, step_lfric
+  ! To run local LFRic mini-app
+  public run, initialise_model, finalise_model
 
   character(*), parameter :: program_name = "da_dev"
 
-  type(model_data_type)  :: model_data
-  type(model_clock_type), allocatable :: model_clock
+  type(model_clock_type), allocatable, public :: model_clock
 
   ! Coordinate field
   type(field_type), target, dimension(3) :: chi
   type(field_type), target               :: panel_id
-  type(mesh_type),  pointer              :: mesh      => null()
-  type(mesh_type),  pointer              :: twod_mesh => null()
+  type(mesh_type),  pointer, public      :: mesh      => null()
+  type(mesh_type),  pointer, public      :: twod_mesh => null()
 
 contains
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Sets up communicators before LFRic is initialised.
+  !>
+  subroutine initialise_lfric_comm( model_communicator, world_communicator )
+
+    implicit none
+
+    integer(i_native), intent(out)          :: model_communicator
+    integer(i_native), optional, intent(in) :: world_communicator
+
+    call log_event( 'Initialising comms start', LOG_LEVEL_ALWAYS )
+
+    if (present(world_communicator)) then
+      call init_comm( program_name, model_communicator, world_communicator )
+    else
+      call init_comm( program_name, model_communicator )
+    endif
+
+    call log_event( 'Initialising comms done', LOG_LEVEL_ALWAYS )
+
+  end subroutine initialise_lfric_comm
+
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Sets up required state in preparation for run.
   !>
-  subroutine initialise()
+  subroutine initialise_lfric( model_communicator, filename )
 
     implicit none
 
-    character(:), allocatable              :: filename
-    integer(i_native)                      :: model_communicator
+    integer(i_native), intent(in)          :: model_communicator
+    character(len=*), optional, intent(in) :: filename
+
+    character(:), allocatable              :: filename_local
     procedure(filelist_populator), pointer :: fl_populator => null()
+    logical :: dummy
 
-    call init_comm( program_name, model_communicator )
-
-    call get_initial_filename( filename )
-    call load_configuration( filename, program_name )
+    if (present(filename)) then
+      call load_configuration( filename, program_name )
+    else
+      call get_initial_filename( filename_local )
+      call load_configuration( filename_local, program_name )
+    endif
 
     call init_logger( model_communicator, program_name )
 
@@ -103,24 +134,42 @@ contains
     call init_io( program_name, model_communicator, chi, panel_id, &
                   model_clock, get_calendar(), populate_filelist=fl_populator )
 
-    ! Initialise DA may eventually go here
+    ! There is a need to do an initial tick of the clock
+    ! so the data from the first time-step can read
+    dummy = model_clock%tick()
 
-    ! Create and initialise prognostic fields
-    call init_da_dev( mesh, model_data )
+  end subroutine initialise_lfric
 
-  end subroutine initialise
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> initialise the model data (create and read/initialise).
+  !>
+  subroutine initialise_model( model_data )
+
+    implicit none
+
+    type(model_data_type), intent(inout) :: model_data
+
+    ! Create prognostic fields in model_data
+    call create_da_model_data( mesh, model_data )
+
+    ! Initialise prognostic fields in model_data
+    call initialise_da_model_data( model_data )
+
+  end subroutine initialise_model
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Performs time steps.
   !>
-  subroutine run()
+  subroutine run( model_data )
 
     implicit none
+
+    type(model_data_type), intent(inout) :: model_data
 
     call log_event(program_name//": Run begins", LOG_LEVEL_INFO)
 
     do while( model_clock%tick() )
-      call step()
+      call step_lfric( model_data )
     end do
 
     call log_event(program_name//": Run ends", LOG_LEVEL_INFO)
@@ -130,32 +179,28 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Performs a single time step.
   !>
-  subroutine step()
+  subroutine step_lfric( model_data  )
     implicit none
+    type(model_data_type), intent(inout) :: model_data
     type(field_type), pointer  :: working_field => null()
 
     call model_data%depository%get_field( test_field, working_field )
 
-    if ( pseudomodel ) then
-      call read_state( model_data%depository, prefix="read_" )
-    end if
-
-    if( .not. pseudomodel ) then
-      call da_dev_increment_alg( working_field )
-    end if
+    call da_dev_increment_alg( working_field )
 
     if ( write_data ) then
       call write_state( model_data%depository, prefix="write_" )
     end if
 
-  end subroutine step
+  end subroutine step_lfric
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !> Tidies up after a run.
-  !>
-  subroutine finalise()
+  !> Finalise the model data after a run.
+  subroutine finalise_model( model_data )
 
     implicit none
+
+    type(model_data_type), intent(inout) :: model_data
 
     type(field_type), pointer :: working_field => null()
 
@@ -169,7 +214,14 @@ contains
     ! Write checksums to file
     call checksum_alg( program_name, working_field, test_field )
 
-    call log_event( program_name//': Miniapp completed', LOG_LEVEL_INFO )
+  end subroutine finalise_model
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Tidies up after a run.
+  !>
+  subroutine finalise_lfric()
+
+    implicit none
 
     !-------------------------------------------------------------------------
     ! Driver layer finalise
@@ -188,6 +240,6 @@ contains
 
     call final_comm()
 
-  end subroutine finalise
+  end subroutine finalise_lfric
 
 end module da_dev_driver_mod

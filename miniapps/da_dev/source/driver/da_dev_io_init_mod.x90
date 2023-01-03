@@ -1,0 +1,76 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Creation and initialisation of the io model_data
+
+!> @details Handles creation and initialisation of the model_data depository
+!>          used for the purpose of IO in the da_dev mini app
+
+module da_dev_io_init_mod
+
+  use constants_mod,                  only : i_native
+  use driver_model_data_mod,          only : model_data_type
+  use log_mod,                        only : log_event,       &
+                                             LOG_LEVEL_INFO
+  use mesh_mod,                       only : mesh_type
+  use da_dev_utils_mod,               only : add_real_field
+
+  implicit none
+
+  contains
+
+  !> @brief  Create model_data containing the requested set of fields
+  !>
+  !> @param[inout] mesh  model_data to initialised
+  !> @param[inout] field_names  model_data to initialised
+  !> @param[inout] field_fs  model_data to initialised
+  !> @param[inout] model_data  model_data to initialised
+  subroutine create_io_da_model_data( mesh, field_names, field_fs, model_data)
+
+    implicit none
+
+    type(mesh_type), intent(in), pointer   :: mesh
+    character(*), intent(in)               :: field_names(:)
+    integer(i_native), intent(in)          :: field_fs(:)
+    type( model_data_type ), intent(inout) :: model_data
+
+    integer  :: ivar
+
+    call log_event( 'da_dev: create_io_da_model_data - start', LOG_LEVEL_INFO )
+
+    call model_data%depository%initialise(name = 'depository', table_len=100)
+
+    ! Create field and add them to model_data
+    do ivar=1,size(field_names,dim=1)
+      call add_real_field( model_data, mesh, field_fs(ivar), field_names(ivar))
+    enddo
+
+    call log_event( 'da_dev: create_io_da_model_data - end', LOG_LEVEL_INFO )
+
+  end subroutine create_io_da_model_data
+
+  !> @brief  Initialise the model_data via file read
+  !>
+  !> @param[inout] model_data  model_data to initialised
+  subroutine read_da_model_data( model_data, file_prefix )
+
+    use lfric_xios_read_mod,  only : read_state
+
+    implicit none
+
+    type( model_data_type ), intent(inout) :: model_data
+    character(len=*), intent(in)           :: file_prefix
+
+    call log_event( 'da_dev: read_da_model_data - start', LOG_LEVEL_INFO )
+
+    ! read the state from the file - its setup to read over a window ....
+    call read_state( model_data%depository, prefix=file_prefix )
+
+    call log_event( 'da_dev: read_da_model_data - end', LOG_LEVEL_INFO )
+
+  end subroutine read_da_model_data
+
+end module da_dev_io_init_mod

@@ -34,12 +34,15 @@ contains
   !>
   !> @param[in]  program_name       The model name
   !> @param[out] model_communicator The ID for the model communicator
-  subroutine init_comm( program_name, model_communicator )
+  !> @param[in] world_communicator_input The ID for the world communicator that is optionally 
+  !>                                     passed in if mpi has already been initialised.  
+  subroutine init_comm( program_name, model_communicator, world_communicator_input )
 
     implicit none
 
-    character(len=*),       intent(in)  :: program_name
-    integer(kind=i_native), intent(out) :: model_communicator
+    character(len=*),       intent(in)           :: program_name
+    integer(kind=i_native), intent(out)          :: model_communicator
+    integer(kind=i_native), optional, intent(in) :: world_communicator_input
 
     integer(kind=i_native) :: world_communicator = -999
 
@@ -48,8 +51,14 @@ contains
     ! Comm has not been split yet
     comm_is_split = .false.
 
-    ! Initialse mpi and create the default communicator: mpi_comm_world
-    call initialise_comm( world_communicator )
+    ! Get the world communicator
+    if (present(world_communicator_input)) then
+      ! set eqaul to world communicator
+      world_communicator = world_communicator_input
+    else
+      ! Initialse mpi and create the default communicator: mpi_comm_world
+      call initialise_comm( world_communicator )
+    endif
 
 #ifdef MCT
     ! Initialise OASIS coupling and get back the split communicator

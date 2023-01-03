@@ -4,12 +4,12 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-!> @brief Initialisation functionality for the da_dev miniapp
+!> @brief Utility functions for use in the da_dev miniapp
 
-!> @details Handles init of prognostic fields and through the call to
-!>          runtime_contants the coordinate fields and fem operators
+!> @details Handles access to and creation of fields in the model_data
+!> depository
 
-module da_dev_init_mod
+module da_dev_utils_mod
 
   use constants_mod,                  only : r_def, i_native
   use driver_model_data_mod,          only : model_data_type
@@ -19,8 +19,9 @@ module da_dev_init_mod
   use finite_element_config_mod,      only : element_order
   use function_space_collection_mod,  only : function_space_collection
   use fs_continuity_mod,              only : W2, W3, Wtheta
-  use log_mod,                        only : log_event,      &
-                                             LOG_LEVEL_INFO
+  use log_mod,                        only : log_event,       &
+                                             LOG_LEVEL_ERROR, &
+                                             LOG_LEVEL_TRACE
   use mesh_mod,                       only : mesh_type
   use lfric_xios_read_mod,            only : read_field_face, &
                                              read_field_edge
@@ -31,29 +32,34 @@ module da_dev_init_mod
 
   contains
 
-  !> @brief  Initialise the da_dev miniapp
+  !> @brief  Get pointer to field stored in the depository.
   !>
-  !> @param[in] mesh        Mesh to use for field initialisation
-  !> @param[in] model_data  model_data to store miniapp fields in
-  subroutine init_da_dev( mesh, model_data)
+  !> @param[in]    field_name  the name of the field to return
+  !> @param[inout] model_data  model_data containing depository
+  !> @param[inout] field_ptr  pointer to the field requested
+  subroutine get_model_field( field_name, model_data, field_ptr)
 
     implicit none
 
-    type(mesh_type), intent(in), pointer        :: mesh
-    type( model_data_type ), intent(inout)      :: model_data
+    character(*), intent(in)                 :: field_name
+    type( model_data_type ), intent(inout)   :: model_data
+    type(field_type), pointer, intent(inout) :: field_ptr
 
-    call log_event( 'da_dev: Initialising miniapp ...', LOG_LEVEL_INFO )
+    logical :: field_exists
 
-    call model_data%depository%initialise(name = 'depository', table_len=100)
+    call log_event( 'da_dev: get_model_field - start', LOG_LEVEL_TRACE )
 
-    ! Create fields and add them to model_data
-    call add_real_field( model_data, mesh, Wtheta, "theta" )
-    call add_real_field( model_data, mesh, W3,     "rho"   )
-    call add_real_field( model_data, mesh, W3,     "exner" )
+    field_exists = model_data % depository % field_exists(field_name)
+    if (.not.field_exists) then
+      ! Create field and add them to model_data
+      call log_event( 'da_dev: the requested field is not available', LOG_LEVEL_ERROR )
+    endif
+    ! get a pointer to the field
+    call model_data % depository % get_field(field_name, field_ptr)
 
-    call log_event( 'da_dev: Miniapp initialised', LOG_LEVEL_INFO )
+    call log_event( 'da_dev: get_model_field - end', LOG_LEVEL_TRACE )
 
-  end subroutine init_da_dev
+  end subroutine get_model_field
 
   !> @brief  Create and add a real-valued field to the model_data
   !>
@@ -97,4 +103,4 @@ module da_dev_init_mod
 
   end subroutine add_real_field
 
-end module da_dev_init_mod
+end module da_dev_utils_mod

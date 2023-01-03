@@ -10,8 +10,7 @@ module da_dev_init_files_mod
   use file_mod,               only: file_type, FILE_MODE_READ, FILE_MODE_WRITE
   use lfric_xios_file_mod,    only: lfric_xios_file_type
   use time_config_mod,        only: timestep_end
-  use da_dev_config_mod,      only: pseudomodel, &
-                                    write_data
+  use da_dev_config_mod,      only: write_data
   use linked_list_mod,        only: linked_list_type
   use driver_model_data_mod,  only: model_data_type
 
@@ -48,17 +47,15 @@ contains
       )
     end if
 
-    if ( pseudomodel ) then
-      call files_list%insert_item(      &
-        lfric_xios_file_type(           &
-          file_name="read_da_dev",      &
-          xios_id="read_da_dev",        &
-          io_mode=FILE_MODE_READ,       &
-          freq=1,                       &
-          field_group_id="read_fields"  &
-        )                               &
-      )
-    end if
+    call files_list%insert_item(      &
+      lfric_xios_file_type(           &
+        file_name="read_da_dev",      &
+        xios_id="read_da_dev",        &
+        io_mode=FILE_MODE_READ,       &
+        freq=1,                       &
+        field_group_id="read_fields"  &
+      )                               &
+    )
 
   end subroutine init_da_dev_files
 
