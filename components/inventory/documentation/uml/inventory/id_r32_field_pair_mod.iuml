@@ -1,0 +1,10 @@
+' (C) Crown copyright 2022 Met Office. All rights reserved.
+' The file LICENCE, distributed with this code, contains details of the terms
+' under which the code may be used.
+
+class id_r32_field_pair_mod::id_r32_field_pair_type {
+  -field_: field_r32_type
+
+  +initialise( <<in>> field: field_r32_type, <<in>> id: integer ) :
+  +get_field( ) : field_r32_type
+}

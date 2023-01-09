@@ -20,6 +20,7 @@ export ROOT_DIR    ?= ..
 export INTERNAL_DEPENDENCIES = $(ROOT_DIR)/infrastructure \
                                $(ROOT_DIR)/components/driver \
                                $(ROOT_DIR)/components/science \
+                               $(ROOT_DIR)/components/inventory \
                                $(ROOT_DIR)/components/lfric-xios
 
 export LFRIC_TARGET_PLATFORM ?= generic-x86
@@ -149,9 +150,10 @@ build: ALWAYS
 ##############################################################################
 # Unit tests
 #
-unit-tests/%: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source     \
-                                             $(ROOT_DIR)/components/driver/source  \
-                                             $(ROOT_DIR)/components/science/source \
+unit-tests/%: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source       \
+                                             $(ROOT_DIR)/components/driver/source    \
+                                             $(ROOT_DIR)/components/science/source   \
+                                             $(ROOT_DIR)/components/inventory/source \
                                              $(ROOT_DIR)/components/lfric-xios/source
 unit-tests/%: export BIN_DIR      ?= $(PROJECT_DIR)/test
 unit-tests/%: export FFLAGS += -D UNIT_TEST
@@ -168,9 +170,10 @@ unit-tests: unit-tests/run
 ##############################################################################
 # Integration tests
 #
-integration-tests/%: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source     \
-                                                    $(ROOT_DIR)/components/driver/source  \
-                                                    $(ROOT_DIR)/components/science/source \
+integration-tests/%: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source       \
+                                                    $(ROOT_DIR)/components/driver/source    \
+                                                    $(ROOT_DIR)/components/science/source   \
+                                                    $(ROOT_DIR)/components/inventory/source \
                                                     $(ROOT_DIR)/components/lfric-xios/source
 integration-tests/%: export BIN_DIR      ?= $(PROJECT_DIR)/test
 integration-tests/%: export META_FILE_DIR = rose-meta/lfric-gungho/HEAD

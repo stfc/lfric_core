@@ -20,6 +20,7 @@ export ROOT_DIR    ?= ..
 export INTERNAL_DEPENDENCIES = $(ROOT_DIR)/infrastructure \
                                $(ROOT_DIR)/components/driver \
                                $(ROOT_DIR)/components/science \
+                               $(ROOT_DIR)/components/inventory \
                                $(ROOT_DIR)/components/lfric-xios \
                                $(ROOT_DIR)/gungho
 
@@ -152,12 +153,13 @@ build: ALWAYS
 ##############################################################################
 # Unit tests
 #
-unit-tests/%: export ADDITIONAL_EXTRACTION                \
-                  = $(ROOT_DIR)/infrastructure/source     \
-                    $(ROOT_DIR)/components/driver/source  \
-                    $(ROOT_DIR)/components/science/source \
-                    $(ROOT_DIR)/gungho/source             \
-                    $(ROOT_DIR)/gungho/unit-test/support  \
+unit-tests/%: export ADDITIONAL_EXTRACTION                  \
+                  = $(ROOT_DIR)/infrastructure/source       \
+                    $(ROOT_DIR)/components/driver/source    \
+                    $(ROOT_DIR)/components/science/source   \
+                    $(ROOT_DIR)/components/inventory/source \
+                    $(ROOT_DIR)/gungho/source               \
+                    $(ROOT_DIR)/gungho/unit-test/support    \
                     $(ROOT_DIR)/components/lfric-xios/source
 unit-tests/%: export BIN_DIR      ?= $(PROJECT_DIR)/test
 unit-tests/%: export META_FILE_DIR = rose-meta/lfric-linear/HEAD
@@ -173,11 +175,12 @@ unit-tests: unit-tests/run
 ##############################################################################
 # Integration tests
 #
-integration-tests/%: export ADDITIONAL_EXTRACTION =            \
-                         $(ROOT_DIR)/infrastructure/source     \
-                         $(ROOT_DIR)/components/driver/source  \
-                         $(ROOT_DIR)/components/science/source \
-                         $(ROOT_DIR)/gungho/source             \
+integration-tests/%: export ADDITIONAL_EXTRACTION =              \
+                         $(ROOT_DIR)/infrastructure/source       \
+                         $(ROOT_DIR)/components/driver/source    \
+                         $(ROOT_DIR)/components/science/source   \
+                         $(ROOT_DIR)/components/inventory/source \
+                         $(ROOT_DIR)/gungho/source               \
                          $(ROOT_DIR)/components/lfric-xios/source
 integration-tests/%: export BIN_DIR      ?= $(PROJECT_DIR)/test
 integration-tests/%: export CXX_LINK      = true

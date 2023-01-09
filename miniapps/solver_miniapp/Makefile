@@ -21,6 +21,7 @@ export ROOT_DIR    ?= ../..
 export INTERNAL_DEPENDENCIES = $(ROOT_DIR)/infrastructure \
                                $(ROOT_DIR)/components/driver \
                                $(ROOT_DIR)/components/science \
+                               $(ROOT_DIR)/components/inventory \
                                $(ROOT_DIR)/gungho
 
 LFRIC_TARGET_PLATFORM ?= generic-x86

@@ -24,6 +24,7 @@ export EXTERNAL_STATIC_LIBRARIES += psmile.MPI1 mct mpeu scrip
 export INTERNAL_DEPENDENCIES = $(ROOT_DIR)/infrastructure \
                                $(ROOT_DIR)/components/driver \
                                $(ROOT_DIR)/components/science \
+                               $(ROOT_DIR)/components/inventory \
                                $(ROOT_DIR)/components/lfric-xios
 
 export UMPHYSICS_TARGETS = extract-um-physics
@@ -253,6 +254,7 @@ unit-tests/%: export ADDITIONAL_EXTRACTION                   \
                   = $(ROOT_DIR)/infrastructure/source        \
                     $(ROOT_DIR)/components/driver/source     \
                     $(ROOT_DIR)/components/science/source    \
+                    $(ROOT_DIR)/components/inventory/source  \
                     $(ROOT_DIR)/gungho/source                \
                     $(ROOT_DIR)/um_physics/source            \
                     $(ROOT_DIR)/gungho/unit-test/support     \

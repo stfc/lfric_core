@@ -22,6 +22,7 @@ OPERATE_ON ?= lfric_atm                                  \
               components/lfric-xios                      \
               components/coupler-oasis                   \
               components/diagnostics_infrastructure      \
+              components/inventory                       \
               mesh_tools                                 \
               linear                                     \
               miniapps/skeleton                          \

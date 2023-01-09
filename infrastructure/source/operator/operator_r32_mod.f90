@@ -48,7 +48,7 @@ module operator_r32_mod
     final :: operator_r32_destructor
  end type operator_r32_type
 
- !> Psy layer representation of an operatpr
+ !> Psy layer representation of an operator
  !>
  !> This is an accessor class that allows access to the actual operator information
  !> with each element accessed via a public pointer.
@@ -132,7 +132,7 @@ contains
   !> @return The copies operator type
   function operator_r32_type_deep_copy(self) result(other)
     implicit none
-    class(operator_r32_type), intent(inout) :: self
+    class(operator_r32_type), intent(in) :: self
     type(operator_r32_type) :: other
     ! make field_vector
     type( function_space_type ), pointer :: fs_to => null( )

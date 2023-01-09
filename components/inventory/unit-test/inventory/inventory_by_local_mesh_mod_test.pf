@@ -1,0 +1,208 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the inventory_by_local_mesh object
+!>
+module inventory_by_local_mesh_mod_test
+
+    use constants_mod,                 only : i_def, r_def, l_def
+    use function_space_mod,            only : function_space_type
+    use function_space_collection_mod, only : function_space_collection_type, &
+                                              function_space_collection
+    use mesh_collection_mod,           only : mesh_collection_type, &
+                                              mesh_collection
+    use mesh_mod,                      only : mesh_type
+    use halo_routing_collection_mod,   only : halo_routing_collection_type, &
+                                              halo_routing_collection
+    use field_mod,                     only : field_type, field_proxy_type
+    use inventory_by_local_mesh_mod,   only : inventory_by_local_mesh_type
+    use fs_continuity_mod,             only : W3
+    use linked_list_mod,               only : linked_list_item_type
+    use local_mesh_mod,                only : local_mesh_type
+    use pFUnit_Mod
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: inventory_by_local_mesh_test_type
+    private
+    type(function_space_type), pointer :: w3_fs_A => null()
+    type(function_space_type), pointer :: w3_fs_B => null()
+    type(local_mesh_type)              :: unit_test_local_mesh_A
+    type(local_mesh_type)              :: unit_test_local_mesh_B
+    type(mesh_type), pointer           :: mesh_A => null()
+    type(mesh_type), pointer           :: mesh_B => null()
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure get_local_mesh_ptr_A
+    procedure get_local_mesh_ptr_B
+    procedure test_all
+  end type inventory_by_local_mesh_test_type
+
+  integer(i_def), parameter :: element_order = 0
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use mesh_mod, only : mesh_type, PLANE_BI_PERIODIC, PLANE
+
+    implicit none
+
+    class(inventory_by_local_mesh_test_type), intent(inout) :: this
+
+    type(local_mesh_type), pointer :: unit_test_local_mesh_ptr
+    type(mesh_type) :: unit_test_mesh_A, unit_test_mesh_B
+    integer(i_def)  :: mesh_id_A, mesh_id_B
+
+    ! Create top level mesh collection
+    mesh_collection = mesh_collection_type()
+    ! Create top level function space collection
+    function_space_collection = function_space_collection_type()
+    ! Create top level halo_routing collection
+    halo_routing_collection = halo_routing_collection_type()
+
+    call this%unit_test_local_mesh_A%initialise()
+    unit_test_local_mesh_ptr => this%get_local_mesh_ptr_A()
+
+    ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
+    unit_test_mesh_A = mesh_type( PLANE_BI_PERIODIC, unit_test_local_mesh_ptr )
+    mesh_id_A = mesh_collection%add_new_mesh( unit_test_mesh_A )
+    this%mesh_A => mesh_collection%get_mesh( mesh_id_A )
+    this%w3_fs_A => function_space_collection%get_fs( this%mesh_A,   &
+                                                      element_order, &
+                                                      W3 )
+
+    call this%unit_test_local_mesh_B%initialise()
+    unit_test_local_mesh_ptr => this%get_local_mesh_ptr_B()
+
+    unit_test_mesh_B = mesh_type( PLANE, unit_test_local_mesh_ptr )
+    mesh_id_B = mesh_collection%add_new_mesh( unit_test_mesh_B )
+    this%mesh_B => mesh_collection%get_mesh( mesh_id_B )
+    this%w3_fs_B => function_space_collection%get_fs( this%mesh_B,   &
+                                                      element_order, &
+                                                      W3 )
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(inventory_by_local_mesh_test_type), intent(inout) :: this
+
+    call function_space_collection%clear()
+    call mesh_collection%clear()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  function get_local_mesh_ptr_A(this) result(unit_test_local_mesh_ptr)
+    implicit none
+    class(inventory_by_local_mesh_test_type), intent(inout), target :: this
+    type(local_mesh_type), pointer :: unit_test_local_mesh_ptr
+    unit_test_local_mesh_ptr => this%unit_test_local_mesh_A
+  end function get_local_mesh_ptr_A
+
+  function get_local_mesh_ptr_B(this) result(unit_test_local_mesh_ptr)
+    implicit none
+    class(inventory_by_local_mesh_test_type), intent(inout), target :: this
+    type(local_mesh_type), pointer :: unit_test_local_mesh_ptr
+    unit_test_local_mesh_ptr => this%unit_test_local_mesh_B
+  end function get_local_mesh_ptr_B
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @test
+  subroutine test_all( this )
+
+    implicit none
+
+    class(inventory_by_local_mesh_test_type), intent(inout) :: this
+
+    type(local_mesh_type), pointer        :: local_mesh_A => null()
+    type(local_mesh_type), pointer        :: local_mesh_B => null()
+
+    type(field_type)                      :: test_field_A
+    type(field_type)                      :: test_field_B
+    type(field_proxy_type)                :: test_field_A_p
+    type(field_proxy_type)                :: test_field_B_p
+
+    type(field_type), pointer             :: returned_field_A
+    type(field_type), pointer             :: returned_field_B
+    type(field_proxy_type)                :: returned_field_A_p
+    type(field_proxy_type)                :: returned_field_B_p
+
+    type(inventory_by_local_mesh_type), target :: test_inventory_by_local_mesh_A
+    type(inventory_by_local_mesh_type), target :: test_inventory_by_local_mesh_B
+
+    real(r_def), parameter                :: tol = 1.0e-6_r_def
+    integer(i_def)                        :: length
+    logical(l_def)                        :: exists
+
+    !---------------------------- Create fields -------------------------------!
+    ! Create a field object and put 99.0 in the first dof
+    call test_field_A%initialise( this%w3_fs_A )
+    test_field_A_p = test_field_A%get_proxy()
+    test_field_A_p%data(1) = 99.0_r_def
+
+    call test_field_B%initialise( this%w3_fs_B )
+    test_field_B_p = test_field_B%get_proxy()
+    test_field_B_p%data(1) = 54.0_r_def
+
+    local_mesh_A => this%mesh_A%get_local_mesh()
+    local_mesh_B => this%mesh_B%get_local_mesh()
+
+    !----------------- Create inventory 'A' & test extracts ------------!
+    ! Create a inventory_by_local_mesh_A and put fields in it
+    call test_inventory_by_local_mesh_A%initialise(name="test_inventory_of_fields", &
+                                             table_len=5)
+    call test_inventory_by_local_mesh_A%add_field(test_field_A, local_mesh_A)
+    call test_inventory_by_local_mesh_A%add_field(test_field_B, local_mesh_B)
+
+    !--- Check fields exist in inventory
+    exists = test_inventory_by_local_mesh_A%paired_object_exists(local_mesh_A%get_id())
+    @assertTrue(exists)
+    exists = test_inventory_by_local_mesh_A%paired_object_exists(local_mesh_B%get_id())
+    @assertTrue(exists)
+
+    ! Field extracts
+    call test_inventory_by_local_mesh_A%get_field(local_mesh_A, returned_field_A)
+    returned_field_A_p = returned_field_A%get_proxy()
+    ! Check that test_field has 99.0 in the first dof
+    @assertEqual(99.0_r_def, returned_field_A_p%data(1), tol)
+
+    call test_inventory_by_local_mesh_A%get_field(local_mesh_B, returned_field_B)
+    returned_field_B_p = returned_field_B%get_proxy()
+    ! Check that test_field has 54.0 in the first dof
+    @assertEqual(54.0_r_def, returned_field_B_p%data(1), tol)
+
+    ! Check we can remove a field from the inventory
+    call test_inventory_by_local_mesh_A%remove_paired_object(local_mesh_A%get_id())
+    length = test_inventory_by_local_mesh_A%get_length()
+    @assertEqual(1, length)
+
+    ! Check that test_field no longer exists in inventory_by_local_mesh
+    exists = test_inventory_by_local_mesh_A%paired_object_exists(local_mesh_A%get_id())
+    @assertFalse(exists)
+
+    ! Check we can add the field back into the inventory
+    call test_inventory_by_local_mesh_A%add_field(test_field_A, local_mesh_A)
+    call test_inventory_by_local_mesh_A%get_field(local_mesh_A, returned_field_A)
+    returned_field_A_p = returned_field_A%get_proxy()
+    @assertEqual(99.0_r_def, returned_field_A_p%data(1), tol)
+
+  end subroutine test_all
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+end module inventory_by_local_mesh_mod_test

@@ -21,6 +21,7 @@ module skeleton_constants_mod
                                                 W2H, W2V, W3, Wtheta
   use function_space_collection_mod,      only: function_space_collection
   use function_space_mod,                 only: function_space_type
+  use inventory_by_mesh_mod,              only: inventory_by_mesh_type
   use io_config_mod,                      only: subroutine_timers
   use log_mod,                            only: log_event, LOG_LEVEL_INFO, &
                                                 LOG_LEVEL_ERROR
@@ -44,19 +45,18 @@ module skeleton_constants_mod
   ! functions returning pointers to them
 
   ! Mass matrices
-  type(operator_type), target :: mm_w0
-  type(operator_type), target :: mm_w1
-  type(operator_type), target :: mm_w2
-  type(operator_type), target :: mm_w2b
-  type(operator_type), target :: mm_w3
-  type(operator_type), target :: mm_wtheta
+  type(inventory_by_mesh_type) :: mm_w0_inventory
+  type(inventory_by_mesh_type) :: mm_w1_inventory
+  type(inventory_by_mesh_type) :: mm_w2_inventory
+  type(inventory_by_mesh_type) :: mm_w2b_inventory
+  type(inventory_by_mesh_type) :: mm_w3_inventory
+  type(inventory_by_mesh_type) :: mm_wtheta_inventory
 
   ! Differential operators
-  type(operator_type), target :: div
-  type(operator_type), target :: grad
-  type(operator_type), target :: curl
-  type(operator_type), target :: broken_div
-  type(operator_type), target :: im3_div
+  type(inventory_by_mesh_type) :: div_inventory
+  type(inventory_by_mesh_type) :: grad_inventory
+  type(inventory_by_mesh_type) :: curl_inventory
+  type(inventory_by_mesh_type) :: broken_div_inventory
 
   ! Quadrature objects
   type(quadrature_xyoz_type), target  :: qr
@@ -84,6 +84,19 @@ contains
     type(field_type),    target, intent(in) :: chi(:)
     type(field_type),    target, intent(in) :: panel_id
 
+    type(operator_type) :: mm_w0
+    type(operator_type) :: mm_w1
+    type(operator_type) :: mm_w2
+    type(operator_type) :: mm_w2b
+    type(operator_type) :: mm_w3
+    type(operator_type) :: mm_wtheta
+
+    ! Differential operators
+    type(operator_type) :: div
+    type(operator_type) :: grad
+    type(operator_type) :: curl
+    type(operator_type) :: broken_div
+
     ! Internal variables
     type(function_space_type), pointer :: w0_fs     => null()
     type(function_space_type), pointer :: w1_fs     => null()
@@ -100,6 +113,19 @@ contains
     !======================== Create quadrature object ========================!
 
     qr = quadrature_xyoz_type(nqp_exact, quadrature_rule)
+
+    !======================== Initialise inventories ==========================!
+
+    call mm_w0_inventory%initialise(name="mm_w0", table_len=5)
+    call mm_w1_inventory%initialise(name="mm_w1", table_len=5)
+    call mm_w2_inventory%initialise(name="mm_w2", table_len=5)
+    call mm_w2b_inventory%initialise(name="mm_w2b", table_len=5)
+    call mm_w3_inventory%initialise(name="mm_w3", table_len=5)
+    call mm_wtheta_inventory%initialise(name="mm_wtheta", table_len=5)
+    call div_inventory%initialise(name="div", table_len=5)
+    call grad_inventory%initialise(name="grad", table_len=5)
+    call curl_inventory%initialise(name="curl", table_len=5)
+    call broken_div_inventory%initialise(name="broken_div", table_len=5)
 
     !=========== Create function spaces required for setup ==================!
 
@@ -128,7 +154,6 @@ contains
     call grad%initialise( w1_fs, w0_fs )
     call curl%initialise( w2_fs, w1_fs )
     call broken_div%initialise( w3_fs, w2b_fs )
-    call im3_div%initialise( w3_fs, w2_fs )
 
     call invoke( name = "create_de_rham_matrices",                      &
                  compute_derham_matrices_kernel_type(mm_w0, mm_w1,      &
@@ -137,6 +162,19 @@ contains
                                                      grad, curl,        &
                                                      div, broken_div,   &
                                                      chi, panel_id, qr) )
+
+    !===================== Add operators to inventories =======================!
+
+    call mm_w0_inventory%add_operator( mm_w0, mesh )
+    call mm_w1_inventory%add_operator( mm_w1, mesh )
+    call mm_w2_inventory%add_operator( mm_w2, mesh )
+    call mm_w2b_inventory%add_operator( mm_w2b, mesh )
+    call mm_w3_inventory%add_operator( mm_w3, mesh )
+    call mm_wtheta_inventory%add_operator( mm_wtheta, mesh )
+    call div_inventory%add_operator( div, mesh )
+    call grad_inventory%add_operator( grad, mesh )
+    call curl_inventory%add_operator( curl, mesh )
+    call broken_div_inventory%add_operator( broken_div, mesh )
 
     nullify( wtheta_fs )
     nullify( w3_fs  )
@@ -154,13 +192,14 @@ contains
 
   !> @brief Returns a pointer to the div operator
   !> @return The div operator
-  function get_div() result(div_op)
+  function get_div(mesh) result(div_op)
     implicit none
-    type(operator_type),      pointer :: div_op
+    type(mesh_type),       intent(in) :: mesh
+    type(operator_type),   pointer    :: div_op
     character(str_def)                :: op_name
 
     op_name = 'div'
-    div_op => div
+    call div_inventory%get_operator(mesh, div_op)
 
     if (.not. div_op%is_initialised()) then
       call log_event("Divergence operator not initialised", LOG_LEVEL_ERROR)
