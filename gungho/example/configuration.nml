@@ -258,6 +258,7 @@ stretching_method='linear',
   use_density_predictor=.true.
   transport_ageofair=.false.
   ageofair_reset_level=10
+  extended_mesh=.false.
 /
 
 &partitioning

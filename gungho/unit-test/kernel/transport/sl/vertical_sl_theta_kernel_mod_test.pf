@@ -84,7 +84,8 @@ contains
                                  max_vert_cfl_calc = max_vert_cfl_calc_uniform,            &
                                  reversible = (/.false./),                                 &
                                  transport_ageofair=.false.,                               &
-                                 ageofair_reset_level = 10                                 &
+                                 ageofair_reset_level = 10,                                &
+                                 extended_mesh = .false.                                   &
                                  )
 
   end subroutine setUp

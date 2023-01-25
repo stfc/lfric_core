@@ -89,47 +89,51 @@ contains
       if (direction_map(direction) > 0) then
         do j=1, direction_map(direction)
           new_cell = mesh%get_cell_next(direction, cell)
-          ! Only add the cell to the stencil_cells list if it is not already
-          ! added and is greater than 0
-          if (.not.(any(stencil_cells == new_cell)) .and. new_cell > 0) then
-            cells_in_stencil = cells_in_stencil + 1
-            stencil_cells(cells_in_stencil) = new_cell
-          end if
-          ! If new_cell ID is greater than 0 then find the correct direction
-          ! This is to make sure the direction is correct when moving panels
-          if (new_cell > 0) then
-            direction = direction_rotation( mesh, number_of_neighbours, &
-                                            new_cell, cell, 180_i_def )
-            ! If this is a region stencil then find the cells adjacent to the
-            ! new_cell using the stencil depth and a direction 90 degrees from
-            ! the direction of the origin cell
-            if(region) then
-              branch_cell = new_cell
-              ! Get direction 90 degrees from cell
-              direction_branch = direction_rotation( mesh, number_of_neighbours, &
-                                                     branch_cell, cell, -90_i_def )
-              do k=1, st_depth
-                branch_new_cell = mesh%get_cell_next(direction_branch, branch_cell)
-                ! Only add the cell to the stencil_cells list if it isn't already
-                ! added and is greater than 0
-                if ( .not.(any(stencil_cells == branch_new_cell)) &
-                     .and. branch_new_cell > 0 ) then
-                  cells_in_stencil = cells_in_stencil + 1
-                  stencil_cells(cells_in_stencil) = branch_new_cell
-                end if
-                ! If new_cell ID is greater than 0 then find the correct direction
-                ! This is to make sure the direction is correct when moving panels
-                if (branch_new_cell > 0) then
-                  direction_branch = direction_rotation( mesh, &
-                                                         number_of_neighbours, &
-                                                         branch_new_cell, &
-                                                         branch_cell, 180_i_def )
-                  branch_cell = branch_new_cell
-                end if
-              end do
+          if ( new_cell <= mesh%get_ncells_2d() ) then
+            ! Cell is not a ghost cell so check if it needs to be added:
+            ! Only add the cell to the stencil_cells list if it is not already
+            ! added and is greater than 0
+            if (.not.(any(stencil_cells == new_cell)) .and. new_cell > 0) then
+              cells_in_stencil = cells_in_stencil + 1
+              stencil_cells(cells_in_stencil) = new_cell
             end if
-            ! new_cell is now origin cell for next step
-            cell = new_cell
+            ! If new_cell ID is greater than 0 then find the correct direction
+            ! This is to make sure the direction is correct when moving panels
+            if (new_cell > 0) then
+              direction = direction_rotation( mesh, number_of_neighbours, &
+                                              new_cell, cell, 180_i_def )
+              ! If this is a region stencil then find the cells adjacent to the
+              ! new_cell using the stencil depth and a direction 90 degrees from
+              ! the direction of the origin cell
+              if(region) then
+                branch_cell = new_cell
+                ! Get direction 90 degrees from cell
+                direction_branch = direction_rotation( mesh, number_of_neighbours, &
+                                                       branch_cell, cell, -90_i_def )
+                do k=1, st_depth
+                  branch_new_cell = mesh%get_cell_next(direction_branch, branch_cell)
+                  ! Only add the cell to the stencil_cells list if it isn't already
+                  ! added and is greater than 0
+                  if ( .not.(any(stencil_cells == branch_new_cell)) &
+                       .and. branch_new_cell > 0 ) then
+                    cells_in_stencil = cells_in_stencil + 1
+                    stencil_cells(cells_in_stencil) = branch_new_cell
+                  end if
+                  ! If new_cell ID is greater than 0 then find the correct direction
+                  ! This is to make sure the direction is correct when moving panels
+                  if (branch_new_cell > 0) then
+                    direction_branch = direction_rotation( mesh, &
+                                                           number_of_neighbours, &
+                                                           branch_new_cell, &
+                                                           branch_cell, 180_i_def )
+                    branch_cell = branch_new_cell
+                  end if
+                end do
+              end if
+              ! new_cell is now origin cell for next step
+              cell = new_cell
+            end if
+
           end if
         end do
       end if

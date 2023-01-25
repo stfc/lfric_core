@@ -84,7 +84,8 @@ contains
                                  enforce_min_value = (/.false./),                          &
                                  min_value = (/0.0_r_def/),                                &
                                  max_vert_cfl_calc = max_vert_cfl_calc_uniform,            &
-                                 reversible = (/.false./)                                  &
+                                 reversible = (/.false./),                                 &
+                                 extended_mesh = .false.                                   &
                                  )
 
   end subroutine setUp

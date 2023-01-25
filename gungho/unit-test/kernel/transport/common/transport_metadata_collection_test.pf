@@ -106,7 +106,8 @@ contains
                                  ffsl_advective_splitting =                           &
                                               ffsl_advective_splitting_full,          &
                                  max_vert_cfl_calc = max_vert_cfl_calc_uniform,       &
-                                 reversible = (/ .false., .false., .false. /)         &
+                                 reversible = (/ .false., .false., .false. /),        &
+                                 extended_mesh = .false.                              &
                                  )
 
 

@@ -26,6 +26,7 @@ module check_configuration_mod
                                   max_vert_cfl_calc,           &
                                   max_vert_cfl_calc_dep_point, &
                                   equation_form,               &
+                                  extended_mesh,               &
                                   dry_field_name,              &
                                   field_names,                 &
                                   advective_then_flux,         &
@@ -245,6 +246,24 @@ contains
         end if
         if ( mod(fv_vertical_order,2_i_def) /= 0_i_def ) then
           write( log_scratch_space, '(A)' ) 'fv_vertical_order must be even'
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+      end if
+      if ( extended_mesh ) then
+        if ( geometry /= geometry_spherical ) then
+          write( log_scratch_space, '(A)' ) 'Extended_mesh only valid for spherical geometry'
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+        if ( coord_system /=  coord_system_alphabetaz ) then
+          write( log_scratch_space, '(A)' ) 'Extended_mesh only valid for alphabetaz coordinates'
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+        if ( topology /=  topology_fully_periodic) then
+          write( log_scratch_space, '(A)' ) 'Extended_mesh only valid for fully periodic topology'
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+        if ( coord_order /= 1 ) then
+          write( log_scratch_space, '(A)' ) 'Extended_mesh only valid for linear coord_order'
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
       end if

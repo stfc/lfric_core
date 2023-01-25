@@ -26,6 +26,9 @@ module ffsl_1d_flux_alg_mod
   use geometric_constants_mod,        only: get_dz_w3
   use r_tran_operator_mod,            only: r_tran_operator_type
 
+  ! Algorithms
+  use remap_on_extended_mesh_alg_mod, only: remap_on_extended_mesh_alg
+
   ! Kernels
   use ffsl_flux_final_x_kernel_mod,   only: ffsl_flux_final_x_kernel_type
   use ffsl_flux_final_y_kernel_mod,   only: ffsl_flux_final_y_kernel_type
@@ -40,6 +43,9 @@ module ffsl_1d_flux_alg_mod
   use vert_ppm_no_limiter_kernel_mod, only: vert_ppm_no_limiter_kernel_type
 
   use psykal_lite_mod,                only: invoke_dg_matrix_vector_rtran
+
+  ! Configs
+  use transport_config_mod,           only: extended_mesh
 
   implicit none
 
@@ -80,14 +86,14 @@ contains
 
     implicit none
 
-    integer(i_def),   intent(in)    :: direction
-    type(r_tran_field_type), intent(in)    :: field
-    type(r_tran_field_type), intent(in)    :: dep_pts
-    type(r_tran_field_type), intent(in)    :: detj_at_w2
-    integer(i_def),   intent(in)    :: order
-    real(r_tran),     intent(in)    :: dt
-    type(r_tran_field_type), intent(inout) :: flux
-    type(r_tran_field_type), intent(inout) :: increment
+    integer(i_def),                  intent(in)    :: direction
+    type(r_tran_field_type), target, intent(in)    :: field
+    type(r_tran_field_type),         intent(in)    :: dep_pts
+    type(r_tran_field_type),         intent(in)    :: detj_at_w2
+    integer(i_def),                  intent(in)    :: order
+    real(r_tran),                    intent(in)    :: dt
+    type(r_tran_field_type),         intent(inout) :: flux
+    type(r_tran_field_type),         intent(inout) :: increment
 
     ! Mass flux variables
     type(r_tran_field_type) :: mass_flux
@@ -98,6 +104,10 @@ contains
     integer(kind=i_def)          :: stencil_extent
     integer(kind=i_def)          :: cfl_stencil_extent
     real(kind=r_tran)            :: cfl_min, cfl_max
+
+    ! Fields for remapping
+    type(r_tran_field_type), target  :: remap_field
+    type(r_tran_field_type), pointer :: field_ptr => null()
 
     call dep_pts%field_minmax(cfl_min, cfl_max)
     stencil_extent     = int( max( abs(cfl_max), abs(cfl_min) ) ) &
@@ -112,23 +122,31 @@ contains
     call invoke( setval_c(mass_flux,  0.0_r_tran),  &
                  setval_c(difference, 0.0_r_tran)  )
 
+    ! If needed remap the field on an extended cubed sphere
+    if ( extended_mesh ) then
+      call remap_on_extended_mesh_alg(remap_field, field)
+      field_ptr => remap_field
+    else
+      field_ptr => field
+    end if
+
     ! Compute the flux, multiply by Det(J) to get the mass flux,
     ! take the difference and multiply by inverse mass matrix to get increment
     if (direction == x_direction) then
-      call invoke( ffsl_flux_first_x_kernel_type( flux, field, stencil_extent,              &
+      call invoke( ffsl_flux_first_x_kernel_type( flux, field_ptr, stencil_extent,          &
                                                   dep_pts, order, cfl_stencil_extent, dt ), &
                    X_times_Y( mass_flux, flux, detj_at_w2 ),                                &
                    fv_divergence_x_kernel_type( difference, mass_flux ) )
       call invoke_dg_matrix_vector_rtran(increment, difference, m3_inv)
     else if (direction == y_direction) then
-      call invoke( ffsl_flux_first_y_kernel_type( flux, field, stencil_extent, &
+      call invoke( ffsl_flux_first_y_kernel_type( flux, field_ptr, stencil_extent,          &
                                                   dep_pts, order, cfl_stencil_extent, dt ), &
                    X_times_Y( mass_flux, flux, detj_at_w2 ),                                &
                    fv_divergence_y_kernel_type( difference, mass_flux ) )
       call invoke_dg_matrix_vector_rtran(increment, difference, m3_inv)
     end if
 
-    nullify( m3_inv )
+    nullify( m3_inv, field_ptr )
 
   end subroutine ffsl_1d_flux_first
 
@@ -165,16 +183,16 @@ contains
 
     implicit none
 
-    integer(i_def),   intent(in)    :: direction
-    type(r_tran_field_type), intent(in)    :: field_x
-    type(r_tran_field_type), intent(in)    :: field_y
-    type(r_tran_field_type), intent(in)    :: dep_pts
-    type(r_tran_field_type), intent(in)    :: detj_at_w2
-    integer(i_def),   intent(in)    :: order
-    real(r_tran),     intent(in)    :: dt
-    type(field_type), intent(in)    :: panel_id
-    type(r_tran_field_type), intent(inout) :: flux
-    type(r_tran_field_type), intent(inout) :: increment
+    integer(i_def),                  intent(in)    :: direction
+    type(r_tran_field_type), target, intent(in)    :: field_x
+    type(r_tran_field_type), target, intent(in)    :: field_y
+    type(r_tran_field_type),         intent(in)    :: dep_pts
+    type(r_tran_field_type),         intent(in)    :: detj_at_w2
+    integer(i_def),                  intent(in)    :: order
+    real(r_tran),                    intent(in)    :: dt
+    type(field_type),                intent(in)    :: panel_id
+    type(r_tran_field_type),         intent(inout) :: flux
+    type(r_tran_field_type),         intent(inout) :: increment
 
     ! Mass flux variables
     type(r_tran_field_type) :: mass_flux
@@ -184,7 +202,13 @@ contains
     type(r_tran_operator_type), pointer :: m3_inv => null()
     integer(kind=i_def)          :: stencil_extent
     integer(kind=i_def)          :: cfl_stencil_extent
-    real(kind=r_tran)             :: cfl_min, cfl_max
+    real(kind=r_tran)            :: cfl_min, cfl_max
+
+    ! Fields for remapping
+    type(r_tran_field_type), target  :: remap_field_x
+    type(r_tran_field_type), target  :: remap_field_y
+    type(r_tran_field_type), pointer :: field_x_ptr => null()
+    type(r_tran_field_type), pointer :: field_y_ptr => null()
 
     call dep_pts%field_minmax(cfl_min, cfl_max)
     stencil_extent = int( max( abs(cfl_max), abs(cfl_min) ) ) &
@@ -199,10 +223,20 @@ contains
     call invoke( setval_c(mass_flux,  0.0_r_tran),  &
                  setval_c(difference, 0.0_r_tran)  )
 
+    ! If needed remap the field on an extended cubed sphere
+    if ( extended_mesh ) then
+      call remap_on_extended_mesh_alg(remap_field_x, field_x)
+      field_x_ptr => remap_field_x
+      call remap_on_extended_mesh_alg(remap_field_y, field_y)
+      field_y_ptr => remap_field_y
+    else
+      field_x_ptr => field_x
+      field_y_ptr => field_y
+    end if
     ! Compute the flux, multiply by Det(J) to get the mass flux,
     ! take the difference and multiply by inverse mass matrix to get increment
     if (direction == x_direction) then
-      call invoke( ffsl_flux_final_x_kernel_type( flux, field_x, stencil_extent,            &
+      call invoke( ffsl_flux_final_x_kernel_type( flux, field_x_ptr, stencil_extent,        &
                                                   field_y, stencil_extent,                  &
                                                   panel_id, stencil_extent,                 &
                                                   dep_pts, order, cfl_stencil_extent, dt ), &
@@ -210,7 +244,7 @@ contains
                    fv_divergence_x_kernel_type( difference, mass_flux ))
       call invoke_dg_matrix_vector_rtran(increment, difference, m3_inv)
     else if (direction == y_direction) then
-      call invoke( ffsl_flux_final_y_kernel_type( flux, field_x, stencil_extent,            &
+      call invoke( ffsl_flux_final_y_kernel_type( flux, field_x_ptr, stencil_extent,        &
                                                   field_y, stencil_extent,                  &
                                                   panel_id, stencil_extent,                 &
                                                   dep_pts, order, cfl_stencil_extent, dt ), &
@@ -219,7 +253,7 @@ contains
       call invoke_dg_matrix_vector_rtran(increment, difference, m3_inv)
     end if
 
-    nullify( m3_inv )
+    nullify( m3_inv, field_x_ptr, field_y_ptr )
 
   end subroutine ffsl_1d_flux_final
 
@@ -251,8 +285,8 @@ contains
     type(r_tran_field_type), intent(in)    :: field
     type(r_tran_field_type), intent(in)    :: dep_pts
     type(r_tran_field_type), intent(in)    :: detj_at_w2
-    integer(i_def),   intent(in)    :: order
-    real(r_tran),      intent(in)    :: dt
+    integer(i_def),          intent(in)    :: order
+    real(r_tran),            intent(in)    :: dt
     type(r_tran_field_type), intent(inout) :: flux
     type(r_tran_field_type), intent(inout) :: increment
 
@@ -295,7 +329,7 @@ contains
     end if
     ! Multiply by Det(J) to get mass flux, take difference and multiply by inverse
     ! mass matrix to get increment
-    call invoke( X_times_Y(mass_flux, flux, detj_at_w2),                         &
+    call invoke( X_times_Y(mass_flux, flux, detj_at_w2), &
                  fv_divergence_z_kernel_type( difference, mass_flux ))
     call invoke_dg_matrix_vector_rtran(increment, difference, m3_inv)
 

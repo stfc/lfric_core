@@ -77,7 +77,9 @@ function stencil_2D_dofmap_constructor(st_shape, st_depth, ndf, mesh, master_dof
 
   use log_mod,                             only: log_event,         &
                                                  log_scratch_space, &
-                                                 LOG_LEVEL_ERROR
+                                                 LOG_LEVEL_ERROR,   &
+                                                 LOG_LEVEL_INFO,    &
+                                                 LOG_LEVEL_WARNING
   use mesh_mod,                            only: mesh_type
   use reference_element_mod,               only: W, E, N, S, &
                                                  reference_element_type
@@ -133,14 +135,11 @@ function stencil_2D_dofmap_constructor(st_shape, st_depth, ndf, mesh, master_dof
     write( log_scratch_space, '( A, I4, A, I4, A, I4 )' ) &
        'Attempting to create stencil: ', st_shape,' of extent ',st_depth, &
        ' when halo is depth is too small:',mesh%get_halo_depth()
-    call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-  else if (last_halo_index == 0) then
-    ! Stencil extent same as halo depth, so compute stencil for all owned cells
-    ncells = mesh%get_last_edge_cell()
-  else
-    ! Stencil extent smaller than halo depth, so compute stencil into halo
-    ncells = mesh%get_last_halo_cell(last_halo_index)
+    call log_event( log_scratch_space, LOG_LEVEL_WARNING )
   end if
+
+  ! Compute stencil for all cells
+  ncells = mesh%get_last_halo_cell(mesh%get_halo_depth())
 
   ! Allocate the dofmap array for maximum stencil size
   allocate( self%dofmap( ndf, st_depth+1, number_of_neighbours, ncells ) )

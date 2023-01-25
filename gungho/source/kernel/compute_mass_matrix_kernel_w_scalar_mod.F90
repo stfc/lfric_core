@@ -13,12 +13,13 @@ module compute_mass_matrix_kernel_w_scalar_mod
 
   use argument_mod,            only: arg_type, func_type,       &
                                      GH_OPERATOR, GH_FIELD,     &
+                                     GH_LOGICAL, GH_SCALAR,     &
                                      GH_READ, GH_WRITE,         &
                                      GH_REAL, ANY_SPACE_2,      &
                                      ANY_DISCONTINUOUS_SPACE_3, &
                                      GH_BASIS, GH_DIFF_BASIS,   &
                                      CELL_COLUMN, GH_QUADRATURE_XYoZ
-  use constants_mod,           only: i_def, r_single, r_double
+  use constants_mod,           only: i_def, r_single, r_double, l_def
   use coordinate_jacobian_mod, only: coordinate_jacobian
   use fs_continuity_mod,       only: W0, Wtheta, Wchi
   use kernel_mod,              only: kernel_type
@@ -32,10 +33,11 @@ module compute_mass_matrix_kernel_w_scalar_mod
   !---------------------------------------------------------------------------
   type, public, extends(kernel_type) :: compute_mass_matrix_kernel_w_scalar_type
     private
-    type(arg_type) :: meta_args(3) = (/                                      &
-         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, ANY_SPACE_2, ANY_SPACE_2), &
-         arg_type(GH_FIELD*3,  GH_REAL, GH_READ,  Wchi),                     &
-         arg_type(GH_FIELD,    GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
+    type(arg_type) :: meta_args(4) = (/                                          &
+         arg_type(GH_OPERATOR, GH_REAL,    GH_WRITE, ANY_SPACE_2, ANY_SPACE_2),  &
+         arg_type(GH_FIELD*3,  GH_REAL,    GH_READ,  Wchi),                      &
+         arg_type(GH_FIELD,    GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
+         arg_type(GH_SCALAR,   GH_LOGICAL, GH_READ)                              &
          /)
     type(func_type) :: meta_funcs(2) = (/                                    &
          func_type(ANY_SPACE_2, GH_BASIS),                                   &
@@ -68,6 +70,7 @@ contains
   !! @param[in] chi2     2nd coordinate field in Wchi
   !! @param[in] chi3     3rd coordinate field in Wchi
   !! @param[in] panel_id Field giving the ID for mesh panels.
+  !! @param[in] extended_mesh Compute on an extended mesh
   !! @param[in] ndf_w_scalar   The number of degrees of freedom per cell for w_scalar.
   !! @param[in] ndf_chi  The number of degrees of freedom per cell for chi.
   !! @param[in] basis_w_scalar 4-dim array holding SCALAR basis functions evaluated at
@@ -92,6 +95,7 @@ contains
   subroutine compute_mass_matrix_w_scalar_code_r_single(   &
                                  cell, nlayers, ncell_3d, mm,   &
                                  chi1, chi2, chi3, panel_id,    &
+                                 extended_mesh,                 &
                                  ndf_w_scalar, basis_w_scalar,  &
                                  ndf_chi, undf_chi, map_chi,    &
                                  basis_chi, diff_basis_chi,     &
@@ -109,6 +113,8 @@ contains
 
     integer(kind=i_def), dimension(ndf_chi), intent(in) :: map_chi
     integer(kind=i_def), dimension(ndf_pid), intent(in) :: map_pid
+
+    logical(kind=l_def), intent(in) :: extended_mesh
 
     real(kind=r_single), dimension(ndf_w_scalar,ndf_w_scalar,ncell_3d), &
                                           intent(inout) :: mm
@@ -138,7 +144,11 @@ contains
     real(kind=r_single), dimension(nqp_h,nqp_v)     :: dj
     real(kind=r_single), dimension(3,3,nqp_h,nqp_v) :: jac
 
-    ipanel = int(panel_id(map_pid(1)), i_def)
+    if ( extended_mesh ) then
+      ipanel = int(panel_id(1), i_def)
+    else
+      ipanel = int(panel_id(map_pid(1)), i_def)
+    end if
 
     ! loop over layers: Start from 1 as in this loop k is not an offset
     do k = 1, nlayers
@@ -183,6 +193,7 @@ contains
   subroutine compute_mass_matrix_w_scalar_code_mixed_precision(   &
                                  cell, nlayers, ncell_3d, mm,   &
                                  chi1, chi2, chi3, panel_id,    &
+                                 extended_mesh,                 &
                                  ndf_w_scalar, basis_w_scalar,  &
                                  ndf_chi, undf_chi, map_chi,    &
                                  basis_chi, diff_basis_chi,     &
@@ -200,6 +211,8 @@ contains
 
     integer(kind=i_def), dimension(ndf_chi), intent(in) :: map_chi
     integer(kind=i_def), dimension(ndf_pid), intent(in) :: map_pid
+
+    logical(kind=l_def), intent(in) :: extended_mesh
 
     real(kind=r_single), dimension(ndf_w_scalar,ndf_w_scalar,ncell_3d), &
                                           intent(inout) :: mm
@@ -227,7 +240,11 @@ contains
     real(kind=r_double), dimension(nqp_h,nqp_v)     :: dj
     real(kind=r_double), dimension(3,3,nqp_h,nqp_v) :: jac
 
-    ipanel = int(panel_id(map_pid(1)), i_def)
+    if ( extended_mesh ) then
+      ipanel = int(panel_id(1), i_def)
+    else
+      ipanel = int(panel_id(map_pid(1)), i_def)
+    end if
 
     ! loop over layers: Start from 1 as in this loop k is not an offset
     do k = 1, nlayers
@@ -273,6 +290,7 @@ contains
   subroutine compute_mass_matrix_w_scalar_code_r_double(   &
                                  cell, nlayers, ncell_3d, mm,   &
                                  chi1, chi2, chi3, panel_id,    &
+                                 extended_mesh,                 &
                                  ndf_w_scalar, basis_w_scalar,  &
                                  ndf_chi, undf_chi, map_chi,    &
                                  basis_chi, diff_basis_chi,     &
@@ -290,6 +308,8 @@ contains
 
     integer(kind=i_def), dimension(ndf_chi), intent(in) :: map_chi
     integer(kind=i_def), dimension(ndf_pid), intent(in) :: map_pid
+
+    logical(kind=l_def), intent(in) :: extended_mesh
 
     real(kind=r_double), dimension(ndf_w_scalar,ndf_w_scalar,ncell_3d), &
                                           intent(inout) :: mm
@@ -319,7 +339,11 @@ contains
     real(kind=r_double), dimension(nqp_h,nqp_v)     :: dj
     real(kind=r_double), dimension(3,3,nqp_h,nqp_v) :: jac
 
-    ipanel = int(panel_id(map_pid(1)), i_def)
+    if ( extended_mesh ) then
+      ipanel = int(panel_id(1), i_def)
+    else
+      ipanel = int(panel_id(map_pid(1)), i_def)
+    end if
 
     ! loop over layers: Start from 1 as in this loop k is not an offset
     do k = 1, nlayers

@@ -22,6 +22,7 @@ module reconstruct_w3_field_alg_mod
                                       only: combine_multidata_field_kernel_type
   use constants_mod,                  only: r_def, i_def, l_def, str_def
   use geometric_constants_mod,        only: get_coordinates,          &
+                                            get_extended_coordinates, &
                                             get_panel_id
   use fem_constants_mod,              only: get_mass_matrix_diagonal
   use r_tran_field_mod,               only: r_tran_field_type
@@ -36,7 +37,7 @@ module reconstruct_w3_field_alg_mod
                                       only: poly1d_reconstruction_kernel_type
   use poly1d_vert_w3_reconstruction_kernel_mod, &
                                       only: poly1d_vert_w3_reconstruction_kernel_type, &
-                                            poly1d_vert_w3_reconstruction_init, &
+                                            poly1d_vert_w3_reconstruction_init,        &
                                             poly1d_vert_w3_reconstruction_final
   use poly1d_flux_coeffs_kernel_mod,  only: poly1d_flux_coeffs_kernel_type
   use poly1d_vert_flux_coeffs_kernel_mod, &
@@ -51,7 +52,8 @@ module reconstruct_w3_field_alg_mod
                                             fv_horizontal_order,  &
                                             fv_vertical_order,    &
                                             operators_fv,         &
-                                            oned_reconstruction
+                                            oned_reconstruction,  &
+                                            extended_mesh
   use runtime_tools_mod,              only: find_mesh_index,   &
                                             check_initialised_field
   use log_mod,                        only: log_event,         &
@@ -70,7 +72,7 @@ module reconstruct_w3_field_alg_mod
   use transport_metadata_mod,         only: transport_metadata_type
   use polyv_w3_koren_kernel_mod,      only: polyv_w3_koren_kernel_type
   use polyh_w3_koren_kernel_mod,      only: polyh_w3_koren_kernel_type
-  use psykal_lite_mod,               only: invoke_copy_to_rtran
+  use psykal_lite_mod,                only: invoke_copy_to_rtran
 
   use io_config_mod,                  only: subroutine_timers
   use timer_mod,                      only: timer
@@ -151,6 +153,10 @@ contains
     use geometric_constants_mod,       only: get_height
     use transport_config_mod,          only: reversible
 
+    use compute_mass_matrix_kernel_w_scalar_mod, only: compute_mass_matrix_kernel_w_scalar_type
+    use mm_diagonal_kernel_mod,            only: mm_diagonal_kernel_type
+    use operator_mod,                      only: operator_type
+
     implicit none
 
     type(mesh_type), pointer, intent(in) :: mesh
@@ -170,9 +176,9 @@ contains
 
     type(quadrature_rule_gaussian_type )   :: gaussian_quadrature
 
-    type(quadrature_xyoz_type)             :: qr
+    type(quadrature_xyoz_type)             :: qr, qr_fem
     type(quadrature_face_type)             :: qrf
-    type(function_space_type), pointer     :: w3_fs => null()
+    type(function_space_type),     pointer :: w3_fs => null()
     type(field_type)                       :: w3_field
     class(reference_element_type), pointer :: reference_element => null()
     integer(kind=i_def)                    :: face_quad_order
@@ -184,6 +190,9 @@ contains
     type(field_type),              pointer :: height => null()
     integer(kind=i_def)                    :: vertical_order, nlayers
     type(mesh_type),               pointer :: twod_mesh => null()
+
+    type(operator_type) :: mm_w3
+    type(field_type), target :: mm3_diag
 
     reference_element => mesh%get_reference_element()
     mesh_index = find_mesh_index(mesh%get_id())
@@ -271,6 +280,19 @@ contains
         call flux_coeffs_list(mesh_index)%initialise( vector_space = multidata_fs, ndata_first = .false. )
 
         if ( oned_reconstruction ) then
+          if ( extended_mesh ) then
+            chi => get_extended_coordinates(mesh%get_id())
+            call mm_w3%initialise( md_w3%get_function_space(), &
+                                   md_w3%get_function_space() )
+            call mm3_diag%initialise( md_w3%get_function_space() )
+            qr_fem = quadrature_xyoz_type(3, gaussian_quadrature)
+            call invoke( name="mm_w3", &
+                         compute_mass_matrix_kernel_w_scalar_type( &
+                               mm_w3, chi, panel_id, extended_mesh, qr_fem) )
+            call invoke( setval_c(mm3_diag, 0.0_r_def), &
+                         mm_diagonal_kernel_type(mm3_diag, mm_w3) )
+            md_w3 =>  mm3_diag
+          end if
           call invoke(poly1d_flux_coeffs_kernel_type(                          &
                                                 flux_coeffs_list(mesh_index),  &
                                                 md_w3,                         &
@@ -379,11 +401,11 @@ contains
 
     implicit none
 
-    type(r_tran_field_type),       intent(in)    :: field_old
-    type(r_tran_field_type),       intent(inout) :: field_new
-    integer(kind=i_def),           intent(in)    :: direction
-    type(transport_metadata_type), intent(in)    :: transport_metadata
-    logical(kind=l_def),           intent(in)    :: final_rk_stage
+    type(r_tran_field_type), target, intent(in)    :: field_old
+    type(r_tran_field_type),         intent(inout) :: field_new
+    integer(kind=i_def),             intent(in)    :: direction
+    type(transport_metadata_type),   intent(in)    :: transport_metadata
+    logical(kind=l_def),             intent(in)    :: final_rk_stage
 
     type(mesh_type),              pointer :: mesh => null()
     type(r_tran_field_type)               :: field_new_h, field_new_v
@@ -439,11 +461,13 @@ contains
   subroutine hori_w3_reconstruct_alg(field_new, field_old, &
                                      transport_metadata)
 
+    use remap_on_extended_mesh_alg_mod, only: remap_on_extended_mesh_alg
+
     implicit none
 
-    type(r_tran_field_type),       intent(inout) :: field_new
-    type(r_tran_field_type),       intent(in)    :: field_old
-    type(transport_metadata_type), intent(in)    :: transport_metadata
+    type(r_tran_field_type),         intent(inout) :: field_new
+    type(r_tran_field_type), target, intent(in)    :: field_old
+    type(transport_metadata_type),   intent(in)    :: transport_metadata
 
     type(mesh_type),     pointer :: mesh => null()
     integer(kind=i_def)          :: mesh_index
@@ -453,6 +477,9 @@ contains
     integer(kind=i_def), pointer :: flux_2d_stencil_size => null()
     integer(kind=i_def), pointer :: ndata_h => null()
     type(r_tran_field_type),    pointer :: flux_coeffs => null()
+
+    type(r_tran_field_type), target  :: remap_field
+    type(r_tran_field_type), pointer :: field_ptr => null()
 
     if ( subroutine_timers ) call timer('W3 horizontal recon')
 
@@ -465,11 +492,18 @@ contains
     ndata_h => ndata_h_list(mesh_index)
     flux_coeffs => flux_coeffs_list(mesh_index)
 
+    if ( extended_mesh ) then
+      call remap_on_extended_mesh_alg(remap_field, field_old)
+      field_ptr => remap_field
+    else
+      field_ptr => field_old
+    end if
+
     if ( transport_metadata%get_horizontal_monotone() == horizontal_monotone_koren ) then
       ! Compute horizontal components of mass flux with the koren scheme
       call invoke( name="W3_koren_hor_reconstruction",           &
               polyh_w3_koren_kernel_type( field_new,             &
-                                          field_old,             &
+                                          field_ptr,             &
                                           flux_stencil_extent,   &
                                           ndata_h ) )
 
@@ -477,7 +511,7 @@ contains
       ! Use 1d flux reconstruction
       call invoke( name="W3_1dh_reconstruction", &
                   poly1d_reconstruction_kernel_type( field_new,             &
-                                                     field_old,             &
+                                                     field_ptr,             &
                                                      flux_stencil_extent,   &
                                                      flux_coeffs,           &
                                                      ndata_h,               &
@@ -515,14 +549,14 @@ contains
     type(transport_metadata_type), intent(in)    :: transport_metadata
     logical(kind=l_def),           intent(in)    :: final_rk_stage
 
-    type(mesh_type),     pointer :: mesh => null()
-    integer(kind=i_def)          :: mesh_index
-    integer(kind=i_def), pointer :: ndata_v => null()
-    type(r_tran_field_type),    pointer :: vert_flux_coeffs => null()
-    integer(kind=i_def)          :: vertical_order
-    logical(kind=l_def)          :: logspace
-    logical(kind=l_def)          :: reversible
-    integer(kind=i_def)          :: monotonicity
+    type(mesh_type),         pointer :: mesh => null()
+    integer(kind=i_def)              :: mesh_index
+    integer(kind=i_def),     pointer :: ndata_v => null()
+    type(r_tran_field_type), pointer :: vert_flux_coeffs => null()
+    integer(kind=i_def)              :: vertical_order
+    logical(kind=l_def)              :: logspace
+    logical(kind=l_def)              :: reversible
+    integer(kind=i_def)              :: monotonicity
 
     if ( subroutine_timers ) call timer('W3 vertical recon')
 

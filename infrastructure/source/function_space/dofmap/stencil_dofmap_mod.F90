@@ -169,6 +169,10 @@ function stencil_dofmap_constructor(st_shape, st_depth, ndf, mesh, master_dofmap
     ncells = mesh%get_last_halo_cell(last_halo_index)
   end if
 
+  ! Always compute stencils for the full domain (even if they then have smaller
+  ! sizes in the halos)
+  ncells = mesh%get_last_halo_cell(mesh%get_halo_depth())
+
   ! Allocate the dofmap array for maximum stencil size
   allocate( self%dofmap( ndf, self%dofmap_size, ncells ) )
   ! Allocate array for storing individual stencil sizes
@@ -187,6 +191,7 @@ function stencil_dofmap_constructor(st_shape, st_depth, ndf, mesh, master_dofmap
                             stencil_cells, region )
     ! Set actual stencil size for cell
     self%local_size(cell) = cells_in_stencil
+
     ! Create pointer to master dofmap of each cell in stencil and add to
     ! local stencil dofmap
     do i=1, cells_in_stencil

@@ -1,0 +1,73 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Remap a field from the standard cubed sphere mesh into one
+!!        where the panels have been extended
+module remap_on_extended_mesh_alg_mod
+
+  use constants_mod,           only: i_def, l_def
+  use field_mod,               only: field_type
+  use mesh_mod,                only: mesh_type
+  use geometric_constants_mod, only: get_coordinates,          &
+                                     get_extended_coordinates, &
+                                     get_panel_id
+  use psykal_lite_mod,         only: invoke_remap_on_extended_mesh_kernel_type
+  use io_config_mod,           only: subroutine_timers
+  use timer_mod,               only: timer
+
+  implicit none
+
+  private
+  public  :: remap_on_extended_mesh_alg
+
+  contains
+
+  !> @brief Remap a field to remap_field on an extended cubed sphere mesh
+  !> @param[in,out] remap_field Field on extended cubed sphere mesh
+  !> @param[in]     field       Field on standard cubed sphere mesh
+  subroutine remap_on_extended_mesh_alg(remap_field, field)
+
+    implicit none
+
+    type(field_type), intent(inout) :: remap_field
+    type(field_type), intent(in)    :: field
+
+    ! Stencil depth is set to some large number to ensure it containes
+    ! enough points for a centred interpolation. The deeper the halo
+    ! is the larger the stencil needs to be. A depth 6 stencil is
+    ! generally enough for cubic interpolation in a depth 4 halo
+    integer(kind=i_def), parameter :: stencil_depth = 6
+    ! Use linear (=true) or cubic (=false) interpolation
+    logical(kind=l_def), parameter :: linear_remap = .false.
+
+    type(field_type),      pointer :: chi(:) => null(), &
+                                      chi_ext(:) => null(), &
+                                      panel_id => null()
+    type(mesh_type),       pointer :: mesh => null()
+
+    if ( subroutine_timers ) call timer('remap_on_extended_mesh_alg')
+
+    mesh => field%get_mesh()
+    chi => get_coordinates(mesh%get_id())
+    chi_ext => get_extended_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
+    call remap_field%initialise( field%get_function_space() )
+    call invoke( setval_x( remap_field, field ) )
+    call invoke_remap_on_extended_mesh_kernel_type(                 &
+                                           remap_field,             &
+                                           field, stencil_depth,    &
+                                           chi_ext,                 &
+                                           chi, stencil_depth,      &
+                                           panel_id, stencil_depth, &
+                                           linear_remap )
+
+    nullify( chi, chi_ext, panel_id, mesh )
+
+    if ( subroutine_timers ) call timer('remap_on_extended_mesh_alg')
+
+  end subroutine remap_on_extended_mesh_alg
+
+end module remap_on_extended_mesh_alg_mod

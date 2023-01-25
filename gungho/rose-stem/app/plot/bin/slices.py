@@ -41,6 +41,7 @@ from read_data import read_nodal_data
 
 levels = None
 data = None
+data0 = None
 
 
 def make_figure(plotpath, field, component, timestep,
@@ -83,13 +84,17 @@ def make_figure(plotpath, field, component, timestep,
         zi[:, :, p] = griddata((p_data['x'].values, p_data['y'].values),
                                p_data[val_col].values, (xi, yi),
                                method='linear')
+        p_data0 = data0.loc[data0['level'] == levels[p]]
+        zi[:, :, p] -= griddata((p_data0['x'].values, p_data0['y'].values),
+                               p_data0[val_col].values, (xi, yi),
+                               method='linear')
 
     if field == 'constant':
         cc = np.linspace(0.85,1.15, 13)
     else:
         cc = np.linspace(np.amin(data[val_col].values),
                          np.amax(data[val_col].values), 13)
-
+    cc = np.linspace(-0.002, 0.002, 13)
     c_map = cm.summer
 
     # xz plot
@@ -146,6 +151,8 @@ def make_figure(plotpath, field, component, timestep,
         fig = plt.figure(figsize=(10, 5))
         xi, yi = np.meshgrid(x2d, y2d)
         dz = zi[:, :, int(plotlevel)]
+        print("max = ",np.max(dz))
+        print("min = ",np.min(dz))
         cf = plt.contourf(xi * r2d, yi * r2d, dz, cc, cmap=c_map)
         plt.colorbar(cf,  cmap=c_map)
         cl = plt.contour(xi * r2d, yi * r2d, dz, cc, linewidths=0.5,
@@ -200,11 +207,15 @@ if __name__ == "__main__":
 
         for ts in ts_list:
 
+
             filestem = (datapath + "/" + config + "_nodal_" + field + "_"
                         + ts + "*")
+            filestem0 = (datapath + "/" + config + "_nodal_" + field + "_"
+                        + 'T00000' + "*")
 
             if (field != 'u' and field != 'xi' and field != 'wind'):
                 data = read_nodal_data(filestem, ncomp, comp)
+                data0 = read_nodal_data(filestem0, ncomp, comp)
 
                 levels = data.level.unique()
 
@@ -216,6 +227,7 @@ if __name__ == "__main__":
             else:
                 for comp_u in comp:
                     data = read_nodal_data(filestem, ncomp, comp_u)
+                    data0 = read_nodal_data(filestem0, ncomp, comp_u)
 
                     levels = data.level.unique()
 

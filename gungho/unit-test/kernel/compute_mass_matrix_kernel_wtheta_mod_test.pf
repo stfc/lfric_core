@@ -8,7 +8,7 @@
 !>
 module compute_mass_matrix_kernel_wtheta_mod_test
 
-  use constants_mod,                       only : i_def, r_def, r_single, r_double
+  use constants_mod,                       only : i_def, r_def, r_single, r_double, l_def
 
   use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w0_m3x3_q3x3x3_size,     &
                                                   get_wtheta_m3x3_q3x3x3_size, &
@@ -106,6 +106,8 @@ contains
     integer(i_def), allocatable :: map_w0(:,:), map_pid(:,:)
     real(r_single), allocatable :: local_stencil_r32(:,:,:)
 
+    logical(l_def), parameter :: extended_mesh = .false.
+
     ! Canned test data is kept as r_def
     real(r_def),    allocatable :: chi1(:), chi2(:), chi3(:)
     real(r_def),    allocatable :: panel_id(:)
@@ -197,6 +199,7 @@ contains
                                       chi2_r32,                  &
                                       chi3_r32,                  &
                                       panel_id_r32,              &
+                                      extended_mesh,             &
                                       ndf_wtheta,                &
                                       basis_wtheta_r32,          &
                                       ndf_w0,                    &
@@ -267,6 +270,8 @@ contains
 
     integer(i_def), allocatable :: map_w0(:,:), map_pid(:,:)
     real(r_single), allocatable :: local_stencil_r32(:,:,:)
+
+    logical(l_def), parameter :: extended_mesh = .false.
 
     ! Canned test data is kept as r_def
     real(r_def),    allocatable :: chi1(:), chi2(:), chi3(:)
@@ -359,6 +364,7 @@ contains
                                       chi2_r64,                  &
                                       chi3_r64,                  &
                                       panel_id_r64,              &
+                                      extended_mesh,             &
                                       ndf_wtheta,                &
                                       basis_wtheta_r64,          &
                                       ndf_w0,                    &
@@ -429,6 +435,8 @@ contains
 
     integer(i_def), allocatable :: map_w0(:,:), map_pid(:,:)
     real(r_double), allocatable :: local_stencil_r64(:,:,:)
+
+    logical(l_def), parameter :: extended_mesh = .false.
 
     ! Canned test data is kept as r_def
     real(r_def),    allocatable :: chi1(:), chi2(:), chi3(:)
@@ -521,6 +529,7 @@ contains
                                       chi2_r64,                  &
                                       chi3_r64,                  &
                                       panel_id_r64,              &
+                                      extended_mesh,             &
                                       ndf_wtheta,                &
                                       basis_wtheta_r64,          &
                                       ndf_w0,                    &

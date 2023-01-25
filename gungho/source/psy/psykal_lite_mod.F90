@@ -17,10 +17,10 @@ module psykal_lite_mod
   use r_solver_field_mod,           only : r_solver_field_type, r_solver_field_proxy_type
   use r_tran_field_mod,             only : r_tran_field_type, r_tran_field_proxy_type
   use scalar_mod,                   only : scalar_type
-  use operator_mod,                 only : operator_type, operator_proxy_type, &
+  use operator_mod,                 only : operator_type, operator_proxy_type,                   &
                                            r_solver_operator_type, r_solver_operator_proxy_type, &
                                            r_tran_operator_type, r_tran_operator_proxy_type
-  use constants_mod,                only : r_def, i_def, r_double, r_solver, r_tran, cache_block
+  use constants_mod,                only : r_def, i_def, r_double, r_solver, r_tran, l_def, cache_block
   use mesh_mod,                     only : mesh_type
   use function_space_mod,           only : BASIS, DIFF_BASIS
 
@@ -868,7 +868,7 @@ contains
       integer(kind=i_def)             :: max_halo_depth_mesh
       type(mesh_type), pointer        :: mesh => null()
       !
-      ! Initialise field and/or operator proxies
+      ! Initialise stencil dofmaps
       !
       rsolver_field_proxy = rsolver_field%get_proxy()
       field_proxy = field%get_proxy()
@@ -962,6 +962,163 @@ contains
       CALL rdef_field_proxy%set_clean(1)
       !
     end subroutine invoke_copy_to_rdef
+
+    !>@brief Remap a scalar field from the standard cubed sphere mesh onto an extended
+    !!       mesh
+    subroutine invoke_remap_on_extended_mesh_kernel_type(remap_field, field, stencil_depth, &
+                                                         chi_ext, chi, chi_stencil_depth, &
+                                                         panel_id, pid_stencil_depth, &
+                                                         linear_remap)
+
+      use remap_on_extended_mesh_kernel_mod, only: remap_on_extended_mesh_code
+      use function_space_mod,                only: BASIS, DIFF_BASIS
+      use mesh_mod,                          only: mesh_type
+      use stencil_2D_dofmap_mod,             only: stencil_2D_dofmap_type, STENCIL_2D_CROSS
+
+      implicit none
+
+      type(field_type), intent(in) :: remap_field, field, chi_ext(3), chi(3), panel_id
+      logical(kind=l_def), intent(in) :: linear_remap
+      integer(kind=i_def) :: cell, stencil_depth, chi_stencil_depth, pid_stencil_depth
+      integer(kind=i_def) :: df_nodal, df_wchi
+      real(kind=r_def), allocatable :: basis_wchi(:,:,:)
+      integer(kind=i_def) :: dim_wchi
+      real(kind=r_def), pointer :: nodes_remap_field(:,:) => null()
+      integer(kind=i_def) :: nlayers
+      type(field_proxy_type) :: remap_field_proxy, field_proxy, chi_ext_proxy(3), chi_proxy(3), panel_id_proxy
+      integer(kind=i_def), pointer :: map_remap_field(:,:) => null(), map_panel_id(:,:) => null(), map_wchi(:,:) => null()
+      integer(kind=i_def) :: ndf_remap_field, undf_remap_field, ndf_wchi, undf_wchi, ndf_panel_id, undf_panel_id
+      type(mesh_type), pointer :: mesh => null()
+      type(stencil_2d_dofmap_type), pointer :: stencil_map => null()
+      integer(kind=i_def), pointer :: stencil_size(:,:) => null()
+      integer(kind=i_def), pointer :: stencil_dofmap(:,:,:,:) => null()
+      integer(kind=i_def)          :: stencil_max_branch_length
+      integer(kind=i_def), pointer :: wchi_stencil_size(:,:) => null()
+      integer(kind=i_def), pointer :: wchi_stencil_dofmap(:,:,:,:) => null()
+      integer(kind=i_def)          :: wchi_stencil_max_branch_length
+      integer(kind=i_def), pointer :: pid_stencil_size(:,:) => null()
+      integer(kind=i_def), pointer :: pid_stencil_dofmap(:,:,:,:) => null()
+      integer(kind=i_def)          :: pid_stencil_max_branch_length
+      integer(kind=i_def)          :: cell_start, cell_end
+
+      ! Initialise field and/or operator proxies
+      remap_field_proxy = remap_field%get_proxy()
+      field_proxy = field%get_proxy()
+      chi_ext_proxy(1) = chi_ext(1)%get_proxy()
+      chi_ext_proxy(2) = chi_ext(2)%get_proxy()
+      chi_ext_proxy(3) = chi_ext(3)%get_proxy()
+      chi_proxy(1) = chi(1)%get_proxy()
+      chi_proxy(2) = chi(2)%get_proxy()
+      chi_proxy(3) = chi(3)%get_proxy()
+      panel_id_proxy = panel_id%get_proxy()
+
+      ! Initialise number of layers
+      nlayers = remap_field_proxy%vspace%get_nlayers()
+
+      ! Create a mesh object
+      mesh => remap_field_proxy%vspace%get_mesh()
+
+      ! Initialise stencil dofmaps
+      stencil_map => field_proxy%vspace%get_stencil_2d_dofmap(STENCIL_2D_CROSS, stencil_depth)
+      stencil_max_branch_length = stencil_depth + 1_i_def
+      stencil_dofmap => stencil_map%get_whole_dofmap()
+      stencil_size => stencil_map%get_stencil_sizes()
+
+      stencil_map => chi_ext_proxy(1)%vspace%get_stencil_2d_dofmap(STENCIL_2D_CROSS, stencil_depth)
+      wchi_stencil_max_branch_length = stencil_depth + 1_i_def
+      wchi_stencil_dofmap => stencil_map%get_whole_dofmap()
+      wchi_stencil_size => stencil_map%get_stencil_sizes()
+
+      stencil_map => panel_id_proxy%vspace%get_stencil_2d_dofmap(STENCIL_2D_CROSS, stencil_depth)
+      pid_stencil_max_branch_length = stencil_depth + 1_i_def
+      pid_stencil_dofmap => stencil_map%get_whole_dofmap()
+      pid_stencil_size => stencil_map%get_stencil_sizes()
+
+      ! Look-up dofmaps for each function space
+      map_remap_field => remap_field_proxy%vspace%get_whole_dofmap()
+      map_wchi => chi_ext_proxy(1)%vspace%get_whole_dofmap()
+      map_panel_id => panel_id_proxy%vspace%get_whole_dofmap()
+
+      ! Initialise number of DoFs for remap_field
+      ndf_remap_field = remap_field_proxy%vspace%get_ndf()
+      undf_remap_field = remap_field_proxy%vspace%get_undf()
+
+      ! Initialise number of DoFs for wchi
+      ndf_wchi = chi_ext_proxy(1)%vspace%get_ndf()
+      undf_wchi = chi_ext_proxy(1)%vspace%get_undf()
+
+      ! Initialise number of DoFs for panel_id
+      ndf_panel_id = panel_id_proxy%vspace%get_ndf()
+      undf_panel_id = panel_id_proxy%vspace%get_undf()
+
+      ! Initialise evaluator-related quantities for the target function spaces
+      nodes_remap_field => remap_field_proxy%vspace%get_nodes()
+
+      ! Allocate basis/diff-basis arrays
+      dim_wchi = chi_ext_proxy(1)%vspace%get_dim_space()
+      allocate (basis_wchi(dim_wchi, ndf_wchi, ndf_remap_field))
+
+      ! Compute basis/diff-basis arrays
+      do df_nodal = 1,ndf_remap_field
+        do df_wchi = 1,ndf_wchi
+          basis_wchi(:,df_wchi,df_nodal) = chi_ext_proxy(1)%vspace%call_function(BASIS,df_wchi,nodes_remap_field(:,df_nodal))
+        end do
+      end do
+
+      ! Call kernels and communication routines
+      if (field_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN
+        call field_proxy%halo_exchange(depth=mesh%get_halo_depth())
+      end if
+
+      cell_start = mesh%get_last_edge_cell() + 1
+      cell_end   = mesh%get_last_halo_cell(mesh%get_halo_depth())
+
+      !$omp parallel default(shared), private(cell)
+      !$omp do schedule(static)
+      do cell = cell_start, cell_end
+        call remap_on_extended_mesh_code(nlayers, &
+                                         remap_field_proxy%data, &
+                                         field_proxy%data, &
+                                         stencil_size(:,cell), &
+                                         stencil_dofmap(:,:,:,cell), &
+                                         stencil_max_branch_length, &
+                                         chi_ext_proxy(1)%data, &
+                                         chi_ext_proxy(2)%data, &
+                                         chi_ext_proxy(3)%data, &
+                                         chi_proxy(1)%data, &
+                                         chi_proxy(2)%data, &
+                                         chi_proxy(3)%data, &
+                                         wchi_stencil_size(:,cell), &
+                                         wchi_stencil_dofmap(:,:,:,cell), &
+                                         wchi_stencil_max_branch_length, &
+                                         panel_id_proxy%data, &
+                                         pid_stencil_size(:,cell), &
+                                         pid_stencil_dofmap(:,:,:,cell), &
+                                         pid_stencil_max_branch_length, &
+                                         linear_remap, &
+                                         ndf_remap_field, &
+                                         undf_remap_field, &
+                                         map_remap_field(:,cell), &
+                                         ndf_wchi, &
+                                         undf_wchi,&
+                                         map_wchi(:,cell), &
+                                         basis_wchi, &
+                                         ndf_panel_id, &
+                                         undf_panel_id, map_panel_id(:,cell))
+      end do
+      !$omp end do
+
+      ! Set halos dirty/clean for fields modified in the above loop
+      !$omp master
+      call remap_field_proxy%set_clean(mesh%get_halo_depth())
+      !$omp end master
+      !
+      !$omp end parallel
+
+      ! Deallocate basis arrays
+      deallocate (basis_wchi)
+
+    end subroutine invoke_remap_on_extended_mesh_kernel_type
 
 
     ! Psyclone does not currently have native support for builtins with mixed

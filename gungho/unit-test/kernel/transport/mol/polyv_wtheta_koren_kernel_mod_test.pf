@@ -75,7 +75,8 @@ contains
                                  min_value = (/0.0_r_def/),                                &
                                  max_vert_cfl_calc = max_vert_cfl_calc_uniform,            &
                                  transport_ageofair=.false.,                               &
-                                 ageofair_reset_level = 10                                 &
+                                 ageofair_reset_level = 10,                                &
+                                 extended_mesh = .false.                                   &
                                  )
 
   end subroutine setUp

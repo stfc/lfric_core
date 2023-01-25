@@ -322,7 +322,6 @@ contains
     call copy_bundle(mr, mr_n, nummr)
     call moist_mr_transport_alg( mr, mr_n, nummr_to_transport, &
                                  cast_dt, transport_metadata)
-
     nullify(primary_mesh, shifted_mesh)
 
   end subroutine transport_step

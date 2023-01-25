@@ -372,6 +372,7 @@ consistent_metric=.false.,
 dry_field_name='density',
 enforce_min_value=4*.false.,.true.,
 equation_form=1,2,2,1,2
+extended_mesh=.false.
 ffsl_advective_splitting='full',
 ffsl_flux_splitting='full',
 field_names='density','potential_temperature','wind','moisture','tracer',

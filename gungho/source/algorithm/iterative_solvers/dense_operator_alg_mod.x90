@@ -21,7 +21,7 @@ module dense_operator_alg_mod
                                      only : compute_mass_matrix_kernel_w_scalar_type
   use compute_mass_matrix_kernel_w3_mod, &
                                      only : compute_mass_matrix_kernel_w3_type
-  use constants_mod,                 only : r_def, i_def
+  use constants_mod,                 only : r_def, i_def, l_def
   use field_mod,                     only : field_type
   use field_vector_mod,              only : field_vector_type
   use function_space_mod,            only : function_space_type
@@ -91,6 +91,8 @@ contains
     type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: elem, fs_label
 
+    logical(kind=l_def) :: extended_mesh
+
     select type (fv)
 
     type is (field_vector_type)
@@ -115,8 +117,10 @@ contains
       fs_wb => function_space_collection%get_fs(mesh, elem, fs_label)
       call self%mass_w3%initialise(fs_wb, fs_wb)
 
-      call invoke(                                                                 &
-        compute_mass_matrix_kernel_w_scalar_type(self%mass_w0, chi, panel_id, qr), &
+      extended_mesh = .false.
+      call invoke(                                                            &
+        compute_mass_matrix_kernel_w_scalar_type(self%mass_w0, chi, panel_id, &
+                                                 extended_mesh, qr),          &
         compute_mass_matrix_kernel_w3_type(self%mass_w3, chi, panel_id, qr) )
 
     class default

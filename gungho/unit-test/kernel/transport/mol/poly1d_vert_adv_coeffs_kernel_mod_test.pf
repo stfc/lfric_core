@@ -78,7 +78,8 @@ contains
                                  max_vert_cfl_calc = max_vert_cfl_calc_uniform,            &
                                  reversible = (/.false./),                                 &
                                  transport_ageofair=.false.,                               &
-                                 ageofair_reset_level = 10                                 &
+                                 ageofair_reset_level = 10,                                &
+                                 extended_mesh = .false.                                   &
                                  )
     call feign_base_mesh_config( file_prefix='foo',                   &
                                  prime_mesh_name='unit_test',         &

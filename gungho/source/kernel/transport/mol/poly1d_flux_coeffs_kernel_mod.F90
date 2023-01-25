@@ -153,6 +153,7 @@ subroutine poly1d_flux_coeffs_code(one_layer,                  &
                                        geometry_spherical
   use poly_helper_functions_mod, only: local_distance_1d
   use chi_transform_mod,         only: chir2xyz
+  use transport_config_mod,      only: extended_mesh
 
   implicit none
 
@@ -274,7 +275,11 @@ subroutine poly1d_flux_coeffs_code(one_layer,                  &
 
 
   ! Convert x0 to XYZ coordinate system
-  ipanel = int(panel_id(smap_pid(1,1)), i_def)
+  if ( extended_mesh ) then
+    ipanel = int(panel_id(1), i_def)
+  else
+    ipanel = int(panel_id(smap_pid(1,1)), i_def)
+  end if
   chi = x0 + r0
   call chir2xyz(chi(1), chi(2), chi(3), &
                 ipanel, x0(1), x0(2), x0(3))
@@ -299,7 +304,7 @@ subroutine poly1d_flux_coeffs_code(one_layer,                  &
     end do
 
     ! Convert x1 to XYZ coordinate system
-    ipanel = int(panel_id(smap_pid(1,face+1)), i_def)
+    if ( .not. extended_mesh ) ipanel = int(panel_id(smap_pid(1,face+1)), i_def)
     chi = x1 + r0
     call chir2xyz(chi(1), chi(2), chi(3), &
                   ipanel, x1(1), x1(2), x1(3))
@@ -322,7 +327,7 @@ subroutine poly1d_flux_coeffs_code(one_layer,                  &
         end do
 
         ! Convert xq to XYZ coordinate system
-        ipanel = int(panel_id(smap_pid(1, map1d(stencil,face))), i_def)
+        if ( .not. extended_mesh ) ipanel = int(panel_id(smap_pid(1, map1d(stencil,face))), i_def)
         chi = xq + r0
         call chir2xyz(chi(1), chi(2), chi(3), &
                       ipanel, xq(1), xq(2), xq(3))
@@ -354,7 +359,7 @@ subroutine poly1d_flux_coeffs_code(one_layer,                  &
       end do
 
       ! Convert xq to XYZ coordinate system
-      ipanel = int(panel_id(smap_pid(1,1)), i_def)
+      if ( .not. extended_mesh ) ipanel = int(panel_id(smap_pid(1,1)), i_def)
       chi = xq + r0
       call chir2xyz(chi(1), chi(2), chi(3), &
                     ipanel, xq(1), xq(2), xq(3))
