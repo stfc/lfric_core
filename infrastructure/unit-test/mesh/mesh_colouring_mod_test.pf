@@ -118,15 +118,13 @@ subroutine test_compute_colours_cubedsphere(this)
   integer(kind=i_def), pointer :: num_cell_per_colour(:) => null()
   integer(kind=i_def), pointer :: cells_in_colour(:,:)   => null()
 
-  integer(i_def)   :: npanels
   type(mesh_type)  :: mesh
   integer(i_def)   :: err
   character( 200 ) :: message
 
-  npanels = 6
   filename = "data/mesh_C4.nc"
   call ugrid_mesh_data%read_from_file(trim(filename), mesh_name)
-  global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
+  global_mesh = global_mesh_type( ugrid_mesh_data )
   call ugrid_mesh_data%clear()
   global_mesh_ptr => global_mesh
 
@@ -241,14 +239,12 @@ subroutine test_compute_colours_biperiodic(this)
   integer(kind=i_def), pointer :: num_cell_per_colour(:) => null()
   integer(kind=i_def), pointer :: cells_in_colour(:,:)   => null()
 
-  integer(i_def)  :: npanels
   type(mesh_type) :: mesh
   integer(i_def)  :: err
 
-  npanels = 1
   filename = "data/mesh_BiP8x8-750x250.nc"
   call ugrid_mesh_data%read_from_file(trim(filename), mesh_name)
-  global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
+  global_mesh = global_mesh_type( ugrid_mesh_data )
   call ugrid_mesh_data%clear()
   global_mesh_ptr => global_mesh
 
@@ -339,16 +335,14 @@ subroutine test_compute_colours_generic(this)
   integer(kind=i_def), pointer :: num_cell_per_colour(:) => null()
   integer(kind=i_def), pointer :: cells_in_colour(:,:)   => null()
 
-  integer(i_def)  :: npanels
   type(mesh_type) :: mesh
   integer(i_def)  :: err
 
   ! Force colour generator to use generic colour routine by not saying
   ! it's a cubed sphere
-  npanels = IMDI
   filename = "data/mesh_C4.nc"
   call ugrid_mesh_data%read_from_file(trim(filename), mesh_name)
-  global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
+  global_mesh = global_mesh_type( ugrid_mesh_data )
   call ugrid_mesh_data%clear()
   global_mesh_ptr => global_mesh
 

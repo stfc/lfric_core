@@ -119,7 +119,6 @@ contains
     integer :: last_halo_cell
     integer(i_def) :: num_cells_ghost
 
-    integer(i_def) :: npanels
     integer(i_def) :: global_mesh_id
     integer(i_native) :: num_processes
 
@@ -140,9 +139,8 @@ contains
     max_stencil_depth = 1
 
     filename = 'data/mesh_BiP8x8-750x250.nc'
-    npanels  = 1
     call ugrid_mesh_data%read_from_file(trim(filename), mesh_name)
-    global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
+    global_mesh = global_mesh_type( ugrid_mesh_data )
     call ugrid_mesh_data%clear()
     global_mesh_id = global_mesh%get_id()
     call global_mesh_collection%add_new_global_mesh( global_mesh )
@@ -260,7 +258,6 @@ contains
     integer :: last_halo_cell
     integer(i_def) :: num_cells_ghost
 
-    integer(i_def) :: npanels
     integer(i_def) :: global_mesh_id
     integer(i_native) :: num_processes
 
@@ -281,10 +278,9 @@ contains
     max_stencil_depth = 1
 
     filename = 'data/mesh_planar.nc'
-    npanels  = 1
 
     call ugrid_mesh_data%read_from_file(trim(filename), mesh_name)
-    global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
+    global_mesh = global_mesh_type( ugrid_mesh_data )
     call ugrid_mesh_data%clear()
     global_mesh_id = global_mesh%get_id()
     call global_mesh_collection%add_new_global_mesh( global_mesh )
@@ -402,7 +398,6 @@ contains
     integer :: last_halo_cell
     integer(i_def) :: num_cells_ghost
 
-    integer(i_def) :: npanels
     integer(i_def) :: global_mesh_id
     integer(i_native) :: num_processes
 
@@ -423,10 +418,9 @@ contains
     max_stencil_depth = 1
 
     filename = 'data/mesh_trench_x.nc'
-    npanels  = 1
 
     call ugrid_mesh_data%read_from_file(trim(filename), mesh_name)
-    global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
+    global_mesh = global_mesh_type( ugrid_mesh_data )
     call ugrid_mesh_data%clear()
     global_mesh_id = global_mesh%get_id()
     call global_mesh_collection%add_new_global_mesh( global_mesh )
@@ -544,7 +538,6 @@ contains
     integer :: last_halo_cell
     integer(i_def) :: num_cells_ghost
 
-    integer(i_def) :: npanels
     integer(i_def) :: global_mesh_id
     integer(i_native) :: num_processes
 
@@ -565,10 +558,9 @@ contains
     max_stencil_depth = 1
 
     filename = 'data/mesh_trench_y.nc'
-    npanels  = 1
 
     call ugrid_mesh_data%read_from_file(trim(filename), mesh_name)
-    global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
+    global_mesh = global_mesh_type( ugrid_mesh_data )
     call ugrid_mesh_data%clear()
     global_mesh_id = global_mesh%get_id()
     call global_mesh_collection%add_new_global_mesh( global_mesh )
@@ -689,7 +681,6 @@ contains
     integer :: last_halo_cell
     integer(i_def) :: num_cells_ghost
 
-    integer(i_def) :: npanels
     integer(i_def) :: global_mesh_id
 
     character(len = str_max_filename) :: filename
@@ -701,9 +692,8 @@ contains
     max_stencil_depth = 1
 
     filename = 'data/mesh_C4.nc'
-    npanels  = 6
     call ugrid_mesh_data%read_from_file(trim(filename), mesh_name)
-    global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
+    global_mesh = global_mesh_type( ugrid_mesh_data )
     call ugrid_mesh_data%clear()
     global_mesh_id = global_mesh%get_id()
     call global_mesh_collection%add_new_global_mesh( global_mesh )

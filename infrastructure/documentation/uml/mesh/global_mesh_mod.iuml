@@ -37,7 +37,7 @@ class global_mesh_mod::global_mesh_type {
   -cell_coords: real[::] <<allocatable>>
   -vert_on_edge_2d: integer[::] <<allocatable>>
 
-  +<<create>>  global_mesh_constructor( <<in>>ugrid_mesh_data: ugrid_mesh_data_type, <<in>>npanels: integer ): global_mesh_type
+  +<<create>>  global_mesh_constructor( <<in>>ugrid_mesh_data: ugrid_mesh_data_type ): global_mesh_type
   +<<create>>  global_mesh_unit_test_data(): global_mesh_type
   +<<destroy>> global_mesh_destructor()
   +clear()

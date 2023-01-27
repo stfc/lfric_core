@@ -615,31 +615,17 @@ subroutine create_all_base_meshes( input_mesh_file,                 &
   logical(kind=l_def),                       intent(in) :: create_multires_coupling_meshes
   character(len=str_def),          optional, intent(in) :: multires_coupling_mesh_tags(:)
 
-  integer(kind=i_def) :: n_panels
-
-  if (geometry == geometry_spherical .and. &
-      topology == topology_fully_periodic) then
-    n_panels = 6
-  else
-    n_panels = 1
-  end if
-
-  write(log_scratch_space, '(A,I0,A)' )        &
-      'Creating global meshes comprising of ', &
-      n_panels, ' domain(s)'
-  call log_event( log_scratch_space, LOG_LEVEL_INFO )
-
   ! 1.0 Read in prime mesh first by default
   !----------------------------------------------
   write(log_scratch_space,'(A)') &
       'Reading prime global mesh: "'//trim(prime_mesh_name)//'"'
   call log_event(log_scratch_space, LOG_LEVEL_INFO)
 
-  call create_base_meshes( input_mesh_file,             &
-                           [prime_mesh_name], n_panels, &
-                           local_rank, total_ranks,     &
-                           xproc, yproc,                &
-                           stencil_depth,               &
+  call create_base_meshes( input_mesh_file,         &
+                           [prime_mesh_name],       &
+                           local_rank, total_ranks, &
+                           xproc, yproc,            &
+                           stencil_depth,           &
                            partitioner_ptr )
 
   ! 2.0 Read in any other global meshes required
@@ -648,7 +634,6 @@ subroutine create_all_base_meshes( input_mesh_file,                 &
   if ( create_multigrid ) then
     call create_base_meshes( input_mesh_file,         &
                              chain_mesh_tags,         &
-                             n_panels,                &
                              local_rank, total_ranks, &
                              xproc, yproc,            &
                              stencil_depth,           &
@@ -659,7 +644,6 @@ subroutine create_all_base_meshes( input_mesh_file,                 &
        present(multires_coupling_mesh_tags) ) then
     call create_base_meshes( input_mesh_file,             &
                              multires_coupling_mesh_tags, &
-                             n_panels,                    &
                              local_rank, total_ranks,     &
                              xproc, yproc,                &
                              stencil_depth,               &
@@ -674,7 +658,6 @@ end subroutine create_all_base_meshes
 !> @param[in]  input_mesh_file    Input file to load meshes from.
 !> @param[in]  mesh_names[:]      Array of requested mesh names to load
 !!                                from the mesh input file
-!> @param[in]  n_panels           Number of panel domains in global mesh
 !> @param[in]  local_rank         Number of the local MPI rank
 !> @param[in]  total_ranks        Total number of MPI ranks in this job
 !> @param[in]  xproc              Number of ranks in mesh panel x-direction
@@ -683,7 +666,7 @@ end subroutine create_all_base_meshes
 !!                                of stencil.
 !> @param[in]  partitioner_ptr    Mesh partitioning strategy
 subroutine create_base_meshes( input_mesh_file,         &
-                               mesh_names, n_panels,    &
+                               mesh_names,              &
                                local_rank, total_ranks, &
                                xproc, yproc,            &
                                stencil_depth,           &
@@ -694,7 +677,6 @@ subroutine create_base_meshes( input_mesh_file,         &
   character(len=str_max_filename), intent(in) :: input_mesh_file
 
   character(len=str_def), intent(in) :: mesh_names(:)
-  integer(kind=i_def),    intent(in) :: n_panels
   integer(kind=i_def),    intent(in) :: local_rank
   integer(kind=i_def),    intent(in) :: total_ranks
   integer(kind=i_def),    intent(in) :: xproc
@@ -717,7 +699,7 @@ subroutine create_base_meshes( input_mesh_file,         &
       ! Load mesh data into global_mesh
       call ugrid_mesh_data%read_from_file(trim(input_mesh_file), mesh_names(i))
 
-      global_mesh = global_mesh_type( ugrid_mesh_data, n_panels )
+      global_mesh = global_mesh_type( ugrid_mesh_data )
       call ugrid_mesh_data%clear()
 
 

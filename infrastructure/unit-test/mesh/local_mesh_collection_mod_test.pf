@@ -89,7 +89,7 @@ contains
 
     character(len = str_max_filename) :: filename
     character(str_def) :: mesh_name
-    integer(i_def) :: npanels
+
     type(ugrid_mesh_data_type) :: ugrid_mesh_data
     type(global_mesh_type) :: global_mesh
     type(global_mesh_type), pointer :: global_mesh_ptr => null()
@@ -107,9 +107,9 @@ contains
 
     filename = 'data/mesh_BiP8x8-750x250.nc'
     mesh_name = 'unit_test'
-    npanels  = 1
+
     call ugrid_mesh_data%read_from_file(trim(filename), mesh_name)
-    global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
+    global_mesh = global_mesh_type( ugrid_mesh_data )
     call ugrid_mesh_data%clear()
     global_mesh_id = global_mesh%get_id()
     call global_mesh_collection%add_new_global_mesh( global_mesh )

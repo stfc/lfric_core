@@ -1523,6 +1523,16 @@ subroutine assign_attributes(self)
     ierr = nf90_put_att( self%ncid, id, trim(attname), var_value )
     call check_err(ierr, routine, cmess)
 
+  else
+
+    ! Attributes if mesh is a global mesh
+    id = self%mesh_id
+    attname = 'npanels'
+    cmess   = 'Adding attribute "'//trim(attname)// &
+              '" to variable "'//trim(self%mesh_name)//'"'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), self%npanels )
+    call check_err(ierr, routine, cmess)
+
   end if ! LOCAL_MESH_FLAG
 
   return

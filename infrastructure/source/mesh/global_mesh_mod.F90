@@ -246,21 +246,18 @@ contains
   !> the 2D topology of the mesh.
   !>
   !> @param[in] filename         Filename for global 2D mesh(es) ugrid file.
-  !> @param[in] npanels          Number of panels in the mesh.
   !> @param[in] global_mesh_name Name of ugrid mesh topology to create
   !>                             global mesh object from.
   !>
   !> @return Freshly minted global_mesh_type object.
   !>
-  function global_mesh_constructor( ugrid_mesh_data, &
-                                    npanels ) result(self)
+  function global_mesh_constructor( ugrid_mesh_data ) result(self)
 
     use ugrid_mesh_data_mod, only: ugrid_mesh_data_type
 
     implicit none
 
     type(ugrid_mesh_data_type), intent(in) :: ugrid_mesh_data
-    integer(i_def),             intent(in) :: npanels
 
     type(global_mesh_type) :: self
 
@@ -300,13 +297,9 @@ contains
                                    self%edge_on_cell_2d, &
                                    self%vert_on_edge_2d )
 
-    self%npanels = npanels
-
     global_mesh_id_counter = global_mesh_id_counter + 1
 
     call self%set_id(global_mesh_id_counter)
-
-!print*, 'global_mesh_mod, void_cell = ', self%void_cell
 
     select case (trim(geometry))
 

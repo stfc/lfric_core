@@ -67,7 +67,6 @@ character(str_def), parameter :: mesh_names(4) = &
 character(str_max_filename), parameter :: &
                        filename = 'data/mesh_C32_MG.nc'
 
-integer(i_def), parameter :: npanels           = 6_i_def
 integer(i_def), parameter :: local_rank        = 0_i_def
 integer(i_def), parameter :: total_ranks       = 1_i_def
 integer(i_def), parameter :: max_stencil_depth = 0_i_def
@@ -124,7 +123,6 @@ integer(i_def) :: target_local_mesh_id
 integer(i_def) :: mesh_id(4)
 integer(i_def) :: local_mesh_id
 integer(i_def) :: i, j, n, x, y
-integer(i_def) :: npanels = 6
 
 procedure (partitioner_interface), pointer :: partitioner_ptr => null()
 
@@ -143,7 +141,7 @@ function_space_collection = function_space_collection_type()
 ! Create all the meshes: global and local
 do i=1, size(mesh_names)
   call ugrid_mesh_data%read_from_file(trim(filename), mesh_names(i))
-  global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
+  global_mesh = global_mesh_type( ugrid_mesh_data )
   call ugrid_mesh_data%clear()
   call global_mesh_collection%add_new_global_mesh( global_mesh )
   global_mesh_ptr => global_mesh_collection % get_global_mesh( mesh_names(i) )

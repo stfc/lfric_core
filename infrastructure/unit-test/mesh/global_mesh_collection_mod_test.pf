@@ -95,13 +95,11 @@ contains
     character(str_max_filename)     :: filename
 
     integer (i_def) :: global_mesh_id
-    integer (i_def) :: npanels
 
-    npanels  = 6
     filename = CubedSphereFile
 
     call ugrid_mesh_data%read_from_file(trim(filename), mesh_name)
-    global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
+    global_mesh = global_mesh_type( ugrid_mesh_data )
     call ugrid_mesh_data%clear()
     global_mesh_id = global_mesh%get_id()
     call global_mesh_collection%add_new_global_mesh( global_mesh )
@@ -130,13 +128,11 @@ contains
     character(str_max_filename)     :: filename
 
     integer (i_def) :: global_mesh_id
-    integer (i_def) :: npanels
 
-    npanels  = 1
     filename = BiPeriodicFile
 
     call ugrid_mesh_data%read_from_file(trim(filename), mesh_name)
-    global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
+    global_mesh = global_mesh_type( ugrid_mesh_data )
     call ugrid_mesh_data%clear()
     global_mesh_id = global_mesh%get_id()
     call global_mesh_collection%add_new_global_mesh( global_mesh )
@@ -223,7 +219,6 @@ contains
     integer (i_def) :: i, j
     integer (i_def) :: test_integer
     integer (i_def) :: kgo_integer
-    integer (i_def) :: npanels = 6
 
     type(ncdf_quad_type) :: file_handler
 
@@ -235,7 +230,7 @@ contains
 
       call ugrid_mesh_data%read_from_file( trim(filename), &
                                            multigrid_mesh_names(i) )
-      global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
+      global_mesh = global_mesh_type( ugrid_mesh_data )
       call ugrid_mesh_data%clear()
       multigrid_ids(i) = global_mesh%get_id()
       call global_mesh_collection%add_new_global_mesh( global_mesh )
@@ -244,7 +239,7 @@ contains
     do i=1, size(another_chain)
       call ugrid_mesh_data%read_from_file( trim(filename), &
                                            another_chain(i) )
-      global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
+      global_mesh = global_mesh_type( ugrid_mesh_data )
       call ugrid_mesh_data%clear()
       call global_mesh_collection%add_new_global_mesh( global_mesh )
     end do

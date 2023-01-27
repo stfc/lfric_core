@@ -155,7 +155,6 @@ contains
     type(mesh_type)        :: mesh
 
     procedure (partitioner_interface), pointer :: partitioner_ptr => null()
-    integer(i_def)         :: npanels
 
     !Store the MPI communicator for later use
     call store_comm(this%getMpiCommunicator())
@@ -163,7 +162,6 @@ contains
     call initialise_halo_comms( this%getMpiCommunicator() )
 
     partitioner_ptr => partitioner_cubedsphere_serial
-    npanels = 6
 
     ! Extrusion to be used for all meshes
     extrusion = uniform_extrusion_type( radius, domain_top, nlayers, &
@@ -172,7 +170,7 @@ contains
     ! Get coarse mesh
     name = 'C4'
     call ugrid_mesh_data%read_from_file(trim(filename), name)
-    coarse_global_mesh = global_mesh_type( ugrid_mesh_data, npanels)
+    coarse_global_mesh = global_mesh_type( ugrid_mesh_data )
     coarse_global_mesh_ptr => coarse_global_mesh
     call ugrid_mesh_data%clear()
 
@@ -191,7 +189,7 @@ contains
     ! Get fine mesh
     name = 'C8'
     call ugrid_mesh_data%read_from_file(trim(filename), name)
-    fine_global_mesh = global_mesh_type( ugrid_mesh_data, npanels)
+    fine_global_mesh = global_mesh_type( ugrid_mesh_data )
     fine_global_mesh_ptr => fine_global_mesh
     call ugrid_mesh_data%clear()
 

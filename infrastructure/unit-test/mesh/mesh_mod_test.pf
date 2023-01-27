@@ -765,7 +765,6 @@ contains
     integer(i_def) :: source_mesh_id
     integer(i_def) :: target_mesh_id
 
-    integer(i_def), parameter :: npanels = 6
     type(ncdf_quad_type) :: file_handler
     type(mesh_map_type), pointer   :: mesh_map => null()
     integer(i_def), allocatable    :: gid_mesh_map(:,:,:)
@@ -795,7 +794,7 @@ contains
     ! Create all the meshes: global and local
     do i=1, size(mesh_names)
       call ugrid_mesh_data%read_from_file(trim(filename), mesh_names(i))
-      global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
+      global_mesh = global_mesh_type( ugrid_mesh_data )
       call ugrid_mesh_data%clear()
       call global_mesh_collection%add_new_global_mesh( global_mesh )
       global_mesh_ptr => global_mesh_collection % get_global_mesh( mesh_names(i) )

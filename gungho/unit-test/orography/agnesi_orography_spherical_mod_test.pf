@@ -38,7 +38,6 @@ module agnesi_orography_spherical_mod_test
   character(str_def), parameter   :: mesh_name   = 'unit_test'
   character(len=str_max_filename) :: file_prefix = "data/mesh_C16"
   real(r_def),        parameter   :: domain_top  = 1000.0_r_def
-  integer(i_def),     parameter   :: npanels     = 6_i_def
   integer(i_def),     parameter   :: nlayers     = 1_i_def
   integer(i_def),     parameter   :: element_order = 0_i_def
   integer(i_def),     parameter   :: total_ranks   = 1_i_def
@@ -168,7 +167,7 @@ contains
 
     ! Create global mesh
     call ugrid_mesh_data%read_from_file(trim(file_prefix)//'.nc', mesh_name)
-    global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
+    global_mesh = global_mesh_type( ugrid_mesh_data )
     call ugrid_mesh_data%clear()
     global_mesh_ptr => global_mesh
 

@@ -151,7 +151,7 @@ contains
     mesh_name = 'unit_test'
     npanels  = 1
     call ugrid_mesh_data%read_from_file(trim(filename), mesh_name)
-    global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
+    global_mesh = global_mesh_type( ugrid_mesh_data )
     call ugrid_mesh_data%clear()
     global_mesh_id = global_mesh%get_id()
     call global_mesh_collection%add_new_global_mesh( global_mesh )
@@ -449,7 +449,7 @@ contains
     partitioner_ptr => partitioner_cubedsphere_serial
     do i=1, size(mesh_names)
       call ugrid_mesh_data%read_from_file(trim(filename), mesh_names(i))
-      global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
+      global_mesh = global_mesh_type( ugrid_mesh_data )
       call ugrid_mesh_data%clear()
       global_mesh_ptr => global_mesh
       partition = partition_type( global_mesh_ptr, partitioner_ptr, &

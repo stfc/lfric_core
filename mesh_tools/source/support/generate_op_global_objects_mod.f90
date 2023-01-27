@@ -70,7 +70,7 @@ subroutine generate_op_global_objects( ugridders,        &
   integer(i_def), allocatable :: cell_map(:,:,:)
 
   integer(i_def) :: i, target
-  integer(i_def) :: n_maps, n_meshes, npanels
+  integer(i_def) :: n_maps, n_meshes
 
   ! In order to obtain partititon informtion for offline
   ! partititoning, the local mesh objects must be generated
@@ -92,8 +92,7 @@ subroutine generate_op_global_objects( ugridders,        &
   do i=1, n_meshes
 
     call ugrid_data%set_by_ugrid_2d( ugridders(i) )
-    call ugridders(i)%get_metadata( npanels=npanels )
-    global_mesh = global_mesh_type( ugrid_data, npanels )
+    global_mesh = global_mesh_type( ugrid_data )
     call ugrid_data%clear()
     call global_mesh_bank%add_new_global_mesh(global_mesh)
 
@@ -103,8 +102,7 @@ subroutine generate_op_global_objects( ugridders,        &
   ! 1.1 Create global lbc mesh object (only for planar meshes).
   if (present(ugridder_lbc)) then
     call ugrid_data%set_by_ugrid_2d( ugridder_lbc )
-    call ugridder_lbc%get_metadata( npanels=npanels )
-    global_mesh = global_mesh_type( ugrid_data, npanels )
+    global_mesh = global_mesh_type( ugrid_data )
     call ugrid_data%clear()
     call global_mesh_bank%add_new_global_mesh(global_mesh)
   end if

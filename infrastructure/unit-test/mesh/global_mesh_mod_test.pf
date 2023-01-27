@@ -107,7 +107,7 @@ contains
 
     filename = 'data/mesh_BiP8x8-750x250.nc'
     call ugrid_mesh_data%read_from_file(trim(filename), mesh_name)
-    global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
+    global_mesh = global_mesh_type( ugrid_mesh_data )
     call ugrid_mesh_data%clear()
 
     ! Check the global mesh id
@@ -184,7 +184,7 @@ contains
 
     ! Check number of panels
     npanels = global_mesh%get_npanels( )
-    @assertEqual(  1, npanels )
+    @assertEqual( 1, npanels )
 
   end subroutine test_biperiodic_global_mesh
 
@@ -220,7 +220,7 @@ contains
     !---------------------------------------
     filename = 'data/mesh_C4.nc'
     call ugrid_mesh_data%read_from_file(trim(filename), mesh_name)
-    global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
+    global_mesh = global_mesh_type( ugrid_mesh_data )
     call ugrid_mesh_data%clear()
 
     ! Check the global mesh id
@@ -300,7 +300,7 @@ contains
 
     ! Check number of panels
     npanels = global_mesh%get_npanels( )
-    @assertEqual(  6, npanels )
+    @assertEqual( 6, npanels )
 
   end subroutine test_cubedsphere_global_mesh
 
@@ -343,7 +343,7 @@ contains
     !-------------------------------------------------
     mesh_name = 'C4'
     call ugrid_mesh_data%read_from_file(trim(filename), mesh_name)
-    global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
+    global_mesh = global_mesh_type( ugrid_mesh_data )
     call ugrid_mesh_data%clear()
 
     ! Check details of C4 mesh
@@ -475,7 +475,7 @@ contains
     ! topologies must be read in first.
     do i=1, size(multigrid_mesh_names)
       call ugrid_mesh_data%read_from_file(trim(filename), multigrid_mesh_names(i))
-      global_mesh = global_mesh_type( ugrid_mesh_data, npanels )
+      global_mesh = global_mesh_type( ugrid_mesh_data )
       call ugrid_mesh_data%clear()
       MultiGrid_ids(i) = global_mesh%get_id()
       call global_mesh_collection%add_new_global_mesh( global_mesh )
