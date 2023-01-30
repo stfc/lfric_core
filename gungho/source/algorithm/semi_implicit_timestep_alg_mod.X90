@@ -29,6 +29,7 @@ module semi_implicit_timestep_alg_mod
                                         smagorinsky_placement_outer
 
   use aerosol_config_mod,         only: glomap_mode, glomap_mode_ukca
+  use microphysics_config_mod,    only: microphysics_casim
 
   use formulation_config_mod,     only: use_physics, dlayer_on,   &
                                         use_wavedynamics,         &
@@ -126,6 +127,7 @@ module semi_implicit_timestep_alg_mod
 #ifdef UM_PHYSICS
   use cld_alg_mod,                only: cld_alg
   use aerosol_ukca_alg_mod,       only: aerosol_ukca_alg
+  use casim_activate_alg_mod,     only: casim_activate_alg
 #endif
 
   use log_mod,                    only: LOG_LEVEL_ERROR
@@ -157,6 +159,9 @@ module semi_implicit_timestep_alg_mod
 
   type( field_type ) :: visc_m ! Smagorinsky diffusion coefficient for momentum
   type( field_type ) :: visc_h ! Smagorinsky diffusion coefficient for scalars
+
+  type( field_type ) :: cfl_after_adv
+  type( field_type ), pointer :: cfl => null()
 
   public  :: semi_implicit_alg_init
   public  :: semi_implicit_alg_step
@@ -480,6 +485,11 @@ contains
         if (use_moisture) call copy_bundle(mr_after_slow, mr, nummr)
       end if
 
+      if (microphysics_casim) then
+        call cloud_fields%get_field('liquid_fraction', cfl)
+        call cfl%copy_field( cfl_after_adv )
+      end if
+
       if (use_physics) then
         !--------------------------------------------------------------------
         ! setting predictors for fast physics
@@ -682,6 +692,10 @@ contains
                     state_n(igh_t), mr_n,                           &
                     model_clock%get_step(), cast_dt )
       call invoke(inc_X_plus_Y(state(igh_t), dtheta_cld))
+      if (microphysics_casim) then
+        call casim_activate_alg( mr, cloud_fields,                  &
+                                 microphysics_fields)
+      end if ! microphysics_casim
     end if
 #endif
 

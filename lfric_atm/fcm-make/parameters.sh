@@ -14,7 +14,7 @@
 # variables below are empty, and the revisions of any projects with
 # dependent changes should be updated to the revision at which those
 # changes were committed to the project's trunk
-export casim_rev=um13.1
+export casim_rev=10024
 export casim_sources=
 export jules_rev=24836
 export jules_sources=

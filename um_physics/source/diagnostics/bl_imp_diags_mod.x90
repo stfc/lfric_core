@@ -370,6 +370,8 @@ contains
   !> @param[in]     mcl                      Cloud liq mixing ratio
   !> @param[in]     mci                      Cloud ice mixing ratio
   !> @param[in]     mr                       Rain mixing ratio
+  !> @param[in]     nr_mphys                 Rain number mixing ratio
+  !> @param[in]     ns_mphys                 Snow number mixing ratio
   !> @param[in]     cf_bulk                  Bulk cloud fraction
   !> @param[in]     cf_area                  Area cloud fraction
   !> @param[in]     cf_liq                   Liquid cloud fraction
@@ -428,6 +430,7 @@ contains
                                      pseudotaux, pseudotauy, pseudotau_w2,     &
                                      z0m_eff, rho_in_w3, wetrho_in_w3,         &
                                      tile_fraction, mv, mcl, mci, mr,          &
+                                     nr_mphys, ns_mphys,                       &
                                      cf_bulk, cf_area, cf_liq, cf_fro,         &
                                      dtheta_bl, exner_in_wth, dt_conv,         &
                                      t1p5m_surft, q1p5m_surft,                 &
@@ -454,6 +457,7 @@ contains
 
     ! Prognostic fields input, used in calculations
     type( field_type ), intent(in)    :: mv, mcl, mci, mr,                     &
+                                         nr_mphys, ns_mphys,                   &
                                          cf_bulk, cf_area, cf_liq, cf_fro,     &
                                          rho_in_w3, wetrho_in_w3,              &
                                          exner_in_wth, z0m_eff, bl_weight_1dbl,&
@@ -635,6 +639,7 @@ contains
                                                heat_flux_bl, moist_flux_bl,    &
                                                taux, tauy,                     &
                                                exner_in_wth, mci, mr,          &
+                                               nr_mphys, ns_mphys,             &
                                                zh, t1p5m, q1p5m, qcl1p5m,      &
                                                wspd10m, z0m_eff,               &
                                                bl_weight_1dbl,                 &

@@ -23,11 +23,13 @@ module bm_tau_kernel_mod
   !>
   type, public, extends(kernel_type) :: bm_tau_kernel_type
     private
-    type(arg_type) :: meta_args(12) = (/                &
+    type(arg_type) :: meta_args(14) = (/                &
          arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! m_v
          arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! theta_in_wth
          arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! exner_in_wth
          arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! m_ci
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! ns_mphys
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! ni_mphys
          arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! cf_ice
          arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! wvar
          arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! lmix_bl
@@ -56,6 +58,8 @@ contains
   !> @param[in]     theta_in_wth  Predicted theta in its native space
   !> @param[in]     exner_in_wth  Exner Pressure in the theta space
   !> @param[in]     m_ci          Cloud ice mixing ratio in wth
+  !> @param[in]     ns_mphys      Cloud ice number mixing ratio in wth
+  !> @param[in]     ni_mphys      Snow number mixing ratio in wth
   !> @param[in]     cf_ice        Ice cloud fraction
   !> @param[in]     wvar          Vertical velocity variance in wth
   !> @param[in]     lmix_bl       Turbulence mixing length in wth
@@ -74,6 +78,8 @@ contains
                          theta_in_wth,  &
                          exner_in_wth,  &
                          m_ci,          &
+                         ns_mphys,      &
+                         ni_mphys,      &
                          cf_ice,        &
                          wvar,          &
                          lmix_bl,       &
@@ -95,6 +101,8 @@ contains
     use nlsizes_namelist_mod, only: bl_levels
     use planet_constants_mod, only: p_zero, kappa
     use bm_calc_tau_mod,      only: bm_calc_tau
+    use casim_prognostics,    only: snownumber, icenumber
+    use variable_precision,   only: wp
 
     implicit none
 
@@ -113,6 +121,8 @@ contains
     real(kind=r_def),    intent(in),    dimension(undf_wth) :: theta_in_wth
     real(kind=r_def),    intent(in),    dimension(undf_wth) :: m_v
     real(kind=r_def),    intent(in),    dimension(undf_wth) :: m_ci
+    real(kind=r_def),    intent(in),    dimension(undf_wth) :: ns_mphys
+    real(kind=r_def),    intent(in),    dimension(undf_wth) :: ni_mphys
     real(kind=r_def),    intent(in),    dimension(undf_wth) :: cf_ice
 
     real(kind=r_def),    intent(inout), dimension(undf_wth) :: tau_dec_bm
@@ -132,6 +142,16 @@ contains
 
     ! profile fields from level 0 upwards
     real(r_um), dimension(seg_len,1,0:nlayers) :: p_theta_levels
+
+    real(wp), dimension(seg_len,1,nlayers), target ::             &
+         ns_casim, ni_casim
+
+   do i = 1, seg_len
+      do k = 1, nlayers
+          ns_casim(i,1,k) = ns_mphys(map_wth(1,i) + k)
+          ni_casim(i,1,k) = ni_mphys(map_wth(1,i) + k)
+      end do
+    end do
 
     do i = 1, seg_len
       do k = 1, nlayers
@@ -162,10 +182,14 @@ contains
       end do
     end do
 
+    snownumber =>                          &
+          ns_casim(1:seg_len,1:1,1:nlayers)
+    icenumber  =>                          &
+          ni_casim(1:seg_len,1:1,1:nlayers)
+
     call bm_calc_tau(q, theta, exner_theta_levels, qcf, bl_levels, cff, &
                     p_theta_levels, wvar_in, elm_in, rho_dry_theta,     &
                     rho_wet_tq, tau_dec_out, tau_hom_out, tau_mph_out, qcf2)
-
 
     ! update output fields
     !-----------------------------------------------------------------------

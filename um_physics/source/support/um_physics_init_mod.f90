@@ -88,12 +88,13 @@ module um_physics_init_mod
                                         qcl_rime,                            &
                                         ndrop_surf_in => ndrop_surf,         &
                                         z_surf_in => z_surf,                 &
-                                        turb_gen_mixph,                &
-                                        orog_rain, orog_rime,          &
-                                        orog_block,                    &
-                                        fcrit_in => fcrit,             &
-                                        nsigmasf_in => nsigmasf,       &
-                                        nscalesf_in => nscalesf
+                                        turb_gen_mixph,                      &
+                                        orog_rain, orog_rime,                &
+                                        orog_block,                          &
+                                        fcrit_in => fcrit,                   &
+                                        nsigmasf_in => nsigmasf,             &
+                                        nscalesf_in => nscalesf,             &
+                                        microphysics_casim
 
   use mixing_config_mod,         only : smagorinsky,                 &
                                         mixing_method => method,     &
@@ -256,8 +257,30 @@ contains
         check_run_precip, graupel_option, no_graupel, gr_srcols, a_ratio_exp,&
         a_ratio_fac, l_droplet_tpr, qclrime, l_shape_rime, ndrop_surf,       &
         z_surf, l_fsd_generator, mp_dz_scal, l_subgrid_qcl_mp, aut_qc,       &
-        l_mphys_nonshallow, l_orograin, l_orogrime, l_orograin_block,        &
+        l_mphys_nonshallow, casim_iopt_act, casim_iopt_inuc,                 &
+        casim_aerosol_couple_choice,l_casim,                                 &
+        casim_aerosol_process_level,casim_moments_choice,                    &
+        casim_aerosol_option,                                                &
+        l_separate_process_rain, l_mcr_qcf2,                                 &
+        l_mcr_qgraup, casim_max_sed_length, fixed_number, wvarfac,           &
+        l_orograin, l_orogrime, l_orograin_block,                            &
         fcrit, nsigmasf, nscalesf
+    use mphys_switches, only: set_mphys_switches,            &
+        max_step_length, max_sed_length,                     &
+        iopt_inuc, iopt_act, process_level, l_separate_rain, &
+        l_ukca_casim, l_abelshipway, l_warm,                 &
+        l_cfrac_casim_diag_scheme, l_prf_cfrac
+    use casim_switches, only: its, ite, jts, jte, kts, kte,                  &
+                              ils, ile, jls, jle, kls, kle,              &
+                              casim_moments_option, n_casim_tracers,     &
+                              l_casim_warm_only,                         &
+                              l_ukca_aerosol, no_aerosol_modes
+    use casim_set_dependent_switches_mod, only:                                &
+          casim_set_dependent_switches,                                        &
+          casim_print_dependent_switches
+    use casim_parent_mod, only: casim_parent, parent_um
+    use initialize, only: mphys_init
+    use generic_diagnostic_variables, only: casdiags
     use pc2_constants_mod, only: i_cld_off, i_cld_smith, i_cld_pc2,        &
          i_cld_bimodal, rhcpt_off, acf_off, real_shear, rhcpt_tke_based,   &
          pc2eros_exp_rh,pc2eros_hybrid_sidesonly,                          &
@@ -842,7 +865,96 @@ contains
       ! Domain top used in microphysics - contained in mphys_bypass_mod
       mphys_mod_top  = real(domain_top, r_um)
 
-    end if
+      ! UM options needed if CASIM is being used
+      if (microphysics_casim) then
+
+        l_casim = .true.
+        l_psd          = .false.
+        graupel_option = 1_i_um
+        l_mcr_qcf2 = .true.
+        l_mcr_qgraup = .true.
+        wvarfac = 1.0_r_um
+
+        ! Transport all prognostic variables (include graupel and snow)
+        nummr_to_transport = 6_i_def
+
+
+        casim_moments_option = 22222   ! all double moment
+        casim_iopt_act = 0_i_um     ! 'fixed number'
+        casim_aerosol_option = 0_i_um   ! no soluble or insoluble aerosol modes
+        casim_aerosol_process_level = 0_i_um
+        casim_aerosol_couple_choice = 0_i_um
+        l_ukca_aerosol = .false.
+
+        casim_moments_choice = 1_i_um
+        CALL casim_set_dependent_switches
+
+        ! Tell CASIM that its parent model is the UM. This allows for any UM-specific
+        ! operations to take place within CASIM.
+        casim_parent = parent_um
+
+        ! Tell CASIM that it needs to output rain and snowfall rates
+        ! Required on every single UM timestep for JULES
+        casdiags % l_surface_rain  = .true.
+        casdiags % l_surface_snow  = .true.
+        casdiags % l_surface_graup = .true.
+
+        max_step_length = real(timestep_mp_in, r_um)
+
+        !---------------------------------------------------------------------
+        ! Set up microphysics sedimentation substep
+        !---------------------------------------------------------------------
+        max_sed_length = casim_max_sed_length  ! from parameter
+
+        !---------------------------------------------------------------------
+        ! Set up options for activation and deposition
+        !---------------------------------------------------------------------
+        iopt_act  = casim_iopt_act
+        iopt_inuc = casim_iopt_inuc    ! from parameter
+
+        !---------------------------------------------------------------------
+        ! Set up microphysics switches
+        !---------------------------------------------------------------------
+        if (l_casim_warm_only) l_warm = .true.
+
+        ! Set aerosol processing level directly on the CASIM side using the value
+        ! obtained from the run_precip namelist.
+        process_level = casim_aerosol_process_level
+
+        ! Set up separate rain processing category for active aerosol on the
+        ! CASIM side.
+        l_separate_rain = l_separate_process_rain
+
+        ! If using UKCA aerosol, set up switch on the CASIM side
+        l_ukca_casim = l_ukca_aerosol
+
+        ! Set up option for Abel and Shipway (2007) rain fall speeds
+        ! (already default for Wilson and Ballard microphysics)
+        l_abelshipway = .false.
+
+        ! Set up options for CASIM cloud fraction scheme
+        l_cfrac_casim_diag_scheme = .false.
+
+        ! Set up cloud fraction scheme coupling (Smith or PC2)
+        if ( i_cld_vn == i_cld_smith .or. i_cld_vn == i_cld_pc2                  &
+                                     .or. i_cld_vn == i_cld_bimodal) then
+          l_prf_cfrac   = .true.
+          l_abelshipway = .true.
+        end if ! i_cld_vn == i_cld_smith/pc2/bimodal
+
+        ! Call set mphys_switches with the options passed in from the run_precip
+        ! namelist directly to CASIM.
+        call set_mphys_switches(casim_moments_option, casim_aerosol_option)
+
+        !---------------------------------------------------------------------
+        ! Initialise and allocate the space required (CASIM repository)
+        !---------------------------------------------------------------------
+        CALL mphys_init( its, ite, jts, jte, kts, kte,                           &
+                         ils, ile, jls, jle, kls, kle,                           &
+                         l_tendency=.false. )
+
+      end if ! microphysics_casim
+    end if ! microphysics == microphysics_um
 
     if ( microphysics == microphysics_um                                    &
          .or. radiation == radiation_socrates ) then

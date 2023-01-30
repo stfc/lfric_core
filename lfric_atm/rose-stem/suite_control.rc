@@ -78,7 +78,6 @@
                                                    "threads":1,
                                                    "wallclock":"00:20:00"} } },
                      plotstr="plot_rce.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR")'],
-
   'developer': [
     'validate_rose_meta_graph("lfric_atm",appName="lfric_atm")',
     'check_style_graph()',
@@ -117,6 +116,11 @@
                      resolutions=[("BiP4x4-2500x2500",600.0)] ,
                      env={"crun":1, "nrun":48,
 		          "directives":{"default":{"wallclock":"00:05:00"} } },
+                     plotstr="plot_scm.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR")',
+    'run_application("lfric_atm", "scm_bl_bimodal_casim",
+                     resolutions=[("BiP4x4-2500x2500",600.0)] ,
+                     env={"crun":1, "nrun":48,
+		          "directives":{"default":{"wallclock":"00:08:00"} } },
                      plotstr="plot_scm.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR")',
     'run_application("lfric_atm", "scm_bl_pc2_mphys_rad",
                      resolutions=[("BiP4x4-2500x2500",600.0)] ,

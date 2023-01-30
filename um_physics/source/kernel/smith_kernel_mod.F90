@@ -65,7 +65,7 @@ contains
   !> @param[in]     cumulus_2d    Cumulus flag
   !> @param[in,out] m_v           Vapour mixing ratio in wth
   !> @param[in,out] m_cl          Cloud liquid mixing ratio in wth
-  !> @param[in,out] m_ci          Ice liquid mixing ratio in wth
+  !> @param[in,out] m_ci          Total ice mixing ratio incl snow in wth
   !> @param[in,out] cf_area       Area cloud fraction
   !> @param[in,out] cf_ice        Ice cloud fraction
   !> @param[in,out] cf_liq        Liquid cloud fraction

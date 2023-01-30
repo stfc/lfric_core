@@ -52,6 +52,7 @@ module create_physics_prognostics_mod
                                              convection, convection_um
   use cloud_config_mod,               only : scheme, &
                                              scheme_pc2
+  use microphysics_config_mod,        only : microphysics_casim
   use jules_surface_config_mod,       only : srf_ex_cnv_gust
   use surface_config_mod,             only : albedo_obs, sea_alb_var_chl
   use spectral_gwd_config_mod,        only : add_cgw
@@ -609,6 +610,28 @@ contains
     ! Fields owned by the microphysics scheme
     !========================================================================
     call microphysics_fields%initialise(name='microphysics_fields', table_len=100)
+
+    ! 3D fields, need checkpointing
+
+    ! Fields for CASIM (Cloud-AeroSol Interacting Microphysics)
+    checkpoint_flag = microphysics_casim
+    advection_flag = microphysics_casim
+
+    call add_physics_field( microphysics_fields, depository, prognostic_fields,&
+      adv_fields_last_outer, &
+      'nl_mphys', wtheta_space, checkpoint_flag=checkpoint_flag )
+    call add_physics_field( microphysics_fields, depository, prognostic_fields,&
+      adv_fields_last_outer, &
+      'nr_mphys', wtheta_space, checkpoint_flag=checkpoint_flag )
+    call add_physics_field( microphysics_fields, depository, prognostic_fields,&
+      adv_fields_last_outer, &
+      'ni_mphys', wtheta_space, checkpoint_flag=checkpoint_flag )
+    call add_physics_field( microphysics_fields, depository, prognostic_fields,&
+      adv_fields_last_outer, &
+      'ns_mphys', wtheta_space, checkpoint_flag=checkpoint_flag )
+    call add_physics_field( microphysics_fields, depository, prognostic_fields,&
+      adv_fields_last_outer, &
+      'ng_mphys', wtheta_space, checkpoint_flag=checkpoint_flag )
 
     ! 2D fields, don't need checkpointing
     call add_physics_field( microphysics_fields, depository, prognostic_fields,&

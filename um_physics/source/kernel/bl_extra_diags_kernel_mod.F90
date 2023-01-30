@@ -25,7 +25,7 @@ module bl_extra_diags_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_extra_diags_kernel_type
     private
-    type(arg_type) :: meta_args(30) = (/                                  &
+    type(arg_type) :: meta_args(32) = (/                                  &
          arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        & ! rho_in_w3
          arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        & ! wetrho_in_w3
          arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        & ! heat_flux_bl
@@ -35,6 +35,8 @@ module bl_extra_diags_kernel_mod
          arg_type(GH_FIELD, GH_REAL, GH_READ, WTHETA),                    & ! exner_in_wth
          arg_type(GH_FIELD, GH_REAL, GH_READ, WTHETA),                    & ! mci
          arg_type(GH_FIELD, GH_REAL, GH_READ, WTHETA),                    & ! mr
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                   & ! nr_mphys
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                   & ! ns_mphys
          arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), & ! zh
          arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), & ! t1p5m
          arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), & ! q1p5m
@@ -79,6 +81,8 @@ contains
   !> @param[in]     exner_in_wth           Exner
   !> @param[in]     mci                    Cloud ice mixing ratio
   !> @param[in]     mr                     Rain  mixing ratio
+  !> @param[in]     nr_mphys               Rain number mixing ratio
+  !> @param[in]     ns_mphys               Snow number mixing ratio
   !> @param[in]     zh                     Boundary layer depth
   !> @param[in]     t1p5m                  Diagnostic: 1.5m temperature
   !> @param[in]     q1p5m                  Diagnostic: 1.5m specific humidity
@@ -118,6 +122,7 @@ contains
                                   taux, tauy,               &
                                   exner_in_wth,             &
                                   mci, mr,                  &
+                                  nr_mphys, ns_mphys,       &
                                   zh,                       &
                                   t1p5m, q1p5m, qcl1p5m,    &
                                   wspd10m,                  &
@@ -153,6 +158,8 @@ contains
     use vis_precip_mod,       only : vis_precip
     use visbty_constants_mod, only : n_vis_thresh, vis_thresh
     use visbty_mod,           only : visbty
+    use casim_prognostics,    only : snownumber, rainnumber
+    use variable_precision,   only : wp
 
     implicit none
 
@@ -177,6 +184,8 @@ contains
     real(kind=r_def), intent(in), dimension(undf_wth)   :: exner_in_wth
     real(kind=r_def), intent(in), dimension(undf_wth)   :: mci
     real(kind=r_def), intent(in), dimension(undf_wth)   :: mr
+    real(kind=r_def), intent(in), dimension(undf_wth)   :: nr_mphys
+    real(kind=r_def), intent(in), dimension(undf_wth)   :: ns_mphys
     real(kind=r_def), intent(in), dimension(undf_2d)    :: zh
     real(kind=r_def), intent(in), dimension(undf_2d)    :: bl_weight_1dbl
     real(kind=r_def), intent(in), dimension(undf_2d)    :: ls_rain_2d
@@ -229,7 +238,10 @@ contains
     real(kind=r_def) :: ftl_surf, fqw_surf, taux_surf, tauy_surf,            &
                         wstar3_imp, std_dev, gust_contribution
 
-    integer(kind=i_def) :: k, icode
+    real(wp), dimension(row_length,rows,nlayers), target ::                  &
+         nr_casim, ns_casim
+
+    integer(kind=i_def) :: k, icode, i,j
 
     if ( .not. associated(ustar_implicit, empty_real_data) .or.              &
          .not. associated(wind_gust, empty_real_data)      .or.              &
@@ -320,6 +332,21 @@ contains
         ! prob of ls precip - just use existing rain area fraction
         plsp(1,1)      = lsca_2d(map_2d(1))
 
+        !number prognostics used in the visibility calculation
+        do k = 1, nlayers
+          do j = 1, rows
+            do i = 1, row_length
+              nr_casim(i,j,k) = nr_mphys(map_wth(1) + k)
+              ns_casim(i,j,k) = ns_mphys(map_wth(1) + k)
+            end do
+          end do
+        end do
+
+        rainnumber =>                          &
+               nr_casim(1:row_length,1:rows,1:nlayers)
+        snownumber =>                          &
+               ns_casim(1:row_length,1:rows,1:nlayers)
+
         call beta_precip( ls_rain, ls_snow,                                    &
                           conv_rain, conv_snow, qcf1, qrain1,                  &
                           rho1, t1p5m_loc, p_star,                             &
@@ -335,6 +362,7 @@ contains
                          vis,vis_ls_precip,vis_c_precip,                       &
                          icode )
         visibility_with_precip(map_2d(1)) = vis(1,1)
+
       end if ! vis with precip
     end if ! any vis
 

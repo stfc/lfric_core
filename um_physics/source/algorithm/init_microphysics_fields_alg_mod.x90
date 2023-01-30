@@ -42,6 +42,11 @@ contains
     type( field_type ), pointer :: rim_agg      => null()
     type( field_type ), pointer :: dtheta_mphys => null()
     type( field_type ), pointer :: dmv_mphys    => null()
+    type( field_type ), pointer :: n_cl         => null()
+    type( field_type ), pointer :: n_r          => null()
+    type( field_type ), pointer :: n_ci         => null()
+    type( field_type ), pointer :: n_s          => null()
+    type( field_type ), pointer :: n_g          => null()
 
     call microphysics_fields%get_field('dtheta_mphys', dtheta_mphys)
     call microphysics_fields%get_field('dmv_mphys', dmv_mphys)
@@ -55,9 +60,20 @@ contains
     call microphysics_fields%get_field('rim_cry', rim_cry)
     call microphysics_fields%get_field('rim_agg', rim_agg)
 
+    call microphysics_fields%get_field('nl_mphys', n_cl)
+    call microphysics_fields%get_field('nr_mphys', n_r)
+    call microphysics_fields%get_field('ni_mphys', n_ci)
+    call microphysics_fields%get_field('ns_mphys', n_s)
+    call microphysics_fields%get_field('ng_mphys', n_g)
+
     ! Set microphysics output fields to zero for use when scheme is off
     call invoke( setval_c(dtheta_mphys, 0.0_r_def), &
                  setval_c(dmv_mphys,    0.0_r_def), &
+                 setval_c(n_cl,         0.0_r_def), &
+                 setval_c(n_r,          0.0_r_def), &
+                 setval_c(n_ci,         0.0_r_def), &
+                 setval_c(n_s,          0.0_r_def), &
+                 setval_c(n_g,          0.0_r_def), &
                  setval_c(ls_rain,      0.0_r_def), &
                  setval_c(ls_snow,      0.0_r_def), &
                  setval_c(lsca_2d,      0.0_r_def), &

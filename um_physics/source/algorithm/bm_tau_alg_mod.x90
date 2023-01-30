@@ -33,8 +33,9 @@ contains
   !>@param[in]     derived_fields    (in)     Group of derived fields
   !>@param[in]     turbulence_fields (in)     Fields for turbulence scheme
   !>@param[in]     cloud_fields      (in,out) Fields for cloud scheme
+  !>@param[in]     microphysics_fields (in)   Fields for mphys scheme
   subroutine bm_tau_alg(mr_n, theta, derived_fields, turbulence_fields,   &
-                     cloud_fields)
+                     cloud_fields, microphysics_fields)
 
     use bm_tau_kernel_mod, only: bm_tau_kernel_type
 
@@ -43,6 +44,7 @@ contains
     type( field_collection_type ), intent(in) :: turbulence_fields
     type( field_collection_type ), intent(in) :: cloud_fields
     type( field_collection_type ), intent(in) :: derived_fields
+    type( field_collection_type ), intent(in) :: microphysics_fields
 
     type( field_type ), intent(in) :: mr_n(nummr)
 
@@ -62,6 +64,8 @@ contains
     type( field_type ), pointer :: tau_dec_bm => null()
     type( field_type ), pointer :: tau_hom_bm => null()
     type( field_type ), pointer :: tau_mph_bm => null()
+    type( field_type ), pointer :: ns_mphys   => null()
+    type( field_type ), pointer :: ni_mphys   => null()
 
     type( mesh_type ),  pointer :: mesh => null()
     integer( kind=i_def ) :: ncells
@@ -84,8 +88,12 @@ contains
     ncells = mesh%get_last_edge_cell()
     call um_sizes_init(ncells)
 
+    call microphysics_fields%get_field('ns_mphys', ns_mphys)
+    call microphysics_fields%get_field('ni_mphys', ni_mphys)
+
     call invoke( bm_tau_kernel_type( mr_n(imr_v), theta, exner_in_wth,         &
-                                     mr_n(imr_ci), cf_fro, wvar, lmix_bl,      &
+                                     mr_n(imr_ci), ns_mphys, ni_mphys,         &
+                                     cf_fro, wvar, lmix_bl,                    &
                                      rho_in_wth, wetrho_in_wth,                &
                                      tau_dec_bm, tau_hom_bm, tau_mph_bm)  )
 
