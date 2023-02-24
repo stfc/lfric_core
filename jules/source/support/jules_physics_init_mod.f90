@@ -190,7 +190,7 @@ contains
          zst, sm_levels
     use jules_soil_biogeochem_mod, only: const_ch4_cs,                      &
          check_jules_soil_biogeochem, diff_n_pft, bio_hum_cn, sorp,         &
-         n_inorg_turnover, q10_soil, kaps_roth, kaps, q10_ch4_cs,           &
+         n_inorg_turnover, q10_soil, kaps_4pool, kaps, q10_ch4_cs,          &
          q10_ch4_npp, q10_ch4_resps, const_ch4_npp, const_ch4_resps,        &
          t0_ch4, ch4_cpow, tau_ch4, k2_ch4, rho_ch4, q10_mic_ch4, cue_ch4,  &
          mu_ch4, frz_ch4, alpha_ch4, ch4_cpow, ev_ch4, q10_ev_ch4
@@ -429,7 +429,7 @@ contains
     sorp = 10.0_r_um
     n_inorg_turnover = 1.0_r_um
     q10_soil = 2.0_r_um
-    kaps_roth = (/ 3.22e-7_r_um, 9.65e-9_r_um, 2.12e-8_r_um, 6.43e-10_r_um /)
+    kaps_4pool= (/ 3.22e-7_r_um, 9.65e-9_r_um, 2.12e-8_r_um, 6.43e-10_r_um /)
     kaps = 0.5e-8_r_um
     t0_ch4 = 273.15_r_um
     const_ch4_npp = 9.99e-3_r_um
