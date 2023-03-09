@@ -18,6 +18,8 @@ class inventory_by_mesh_mod::inventory_by_mesh_type {
   +remove_paired_object( <<in>> id: integer ) :
   +add_field( <<in>> field: field_r32_type, <<in>> mesh: mesh_type ) :
   +add_field( <<in>> field: field_r64_type, <<in>> mesh: mesh_type ) :
+  +add_field( <<in>> field: field_r32_type, <<in>> source_mesh: mesh_type, <<in>> target_mesh: mesh_type ) :
+  +add_field( <<in>> field: field_r64_type, <<in>> source_mesh: mesh_type, <<in>> target_mesh: mesh_type ) :
   +add_field( <<in>> field: integer_field_type, <<in>> mesh: mesh_type ) :
   +add_field_array( <<in>> field_array: field_r32_type, <<in>> mesh: mesh_type ) :
   +add_field_array( <<in>> field_array: field_r64_type, <<in>> mesh: mesh_type ) :
@@ -28,6 +30,8 @@ class inventory_by_mesh_mod::inventory_by_mesh_type {
   +add_operator( <<in>> operator_in: operator_r64_type, <<in>> mesh: mesh_type ) :
   +get_field( <<in>> mesh: mesh_type, <<out>> field: field_r32_type ) :
   +get_field( <<in>> mesh: mesh_type, <<out>> field: field_r64_type ) :
+  +get_field( <<in>> source_mesh: mesh_type, <<in>> target_mesh: mesh_type, <<out>> field: field_r32_type ) :
+  +get_field( <<in>> source_mesh: mesh_type, <<in>> target_mesh: mesh_type, <<out>> field: field_r64_type ) :
   +get_field( <<in>> mesh: mesh_type, <<out>> field: integer_field_type ) :
   +get_field_array( <<in>> mesh: mesh_type, <<out>> field_array: field_r32_type ) :
   +get_field_array( <<in>> mesh: mesh_type, <<out>> field_array: field_r64_type ) :

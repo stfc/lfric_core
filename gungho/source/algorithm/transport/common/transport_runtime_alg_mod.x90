@@ -18,6 +18,7 @@ module transport_runtime_alg_mod
                                             check_vert_dep_pts
   use constants_mod,                  only: r_def, r_second, i_def, l_def,  &
                                             str_def, tiny_eps, imdi, r_tran
+  use extrusion_mod,                  only: SHIFTED
   use r_tran_field_mod,               only: r_tran_field_type
   use integer_field_mod,              only: integer_field_type
   use field_mod,                      only: field_type
@@ -634,7 +635,7 @@ contains
     use consist_w2v_to_sh_w2v_kernel_mod, &
                                         only: consist_w2v_to_sh_w2v_kernel_type
     use fem_constants_mod,              only: get_rmultiplicity
-    use intermesh_constants_mod,        only: get_consist_w3_to_sh_w3_op
+    use intermesh_constants_mod,        only: get_consist_w3_to_sh_w3_rtran
     use check_configuration_mod,        only: check_any_eqn_consistent
     use split_w2_field_kernel_mod,      only: split_w2_field_kernel_type
 
@@ -647,12 +648,10 @@ contains
 
     integer(kind=i_def)       :: fs_idx
     logical(kind=i_def)       :: any_w3_consistent, any_eqn_consistent
-    type(field_type), pointer :: consist_w3_to_sh_w3_op_rdef(:) => null()
-    type(r_tran_field_type)   :: consist_w3_to_sh_w3_op(2)
     type(field_type), pointer :: rmultiplicity_w2 => null()
     type(mesh_type),  pointer :: prime_extrusion_mesh => null()
-
-    integer(kind=i_def) :: i
+    type(mesh_type),  pointer :: shifted_mesh => null()
+    type(r_tran_field_type), pointer :: consist_w3_to_sh_w3_rtran(:) => null()
 
     ! The dry flux is on the prime extrusion mesh
     prime_extrusion_mesh => dry_flux%get_mesh()
@@ -695,20 +694,16 @@ contains
 
     if (self%n_meshes > 1 .and. any_eqn_consistent) then
       ! Transform these densities and dry fluxes to the shifted mesh
-      consist_w3_to_sh_w3_op_rdef => get_consist_w3_to_sh_w3_op()
-      do i = 1, 2
-        call consist_w3_to_sh_w3_op(i)%initialise(  &
-             vector_space = consist_w3_to_sh_w3_op_rdef(i)%get_function_space()  )
-        call invoke_copy_to_rtran(consist_w3_to_sh_w3_op(i), consist_w3_to_sh_w3_op_rdef(i))
-      end do
+      shifted_mesh => mesh_collection%get_mesh(prime_extrusion_mesh, SHIFTED)
+      consist_w3_to_sh_w3_rtran => get_consist_w3_to_sh_w3_rtran(prime_extrusion_mesh)
 
       call invoke( name='shift_dry_densities',                                 &
           apply_w3_to_sh_w3_kernel_type(self%rho_d_n(2,self%dry_step_ctr),     &
                                         self%rho_d_n(1,self%dry_step_ctr),     &
-                                        consist_w3_to_sh_w3_op),               &
+                                        consist_w3_to_sh_w3_rtran),               &
           apply_w3_to_sh_w3_kernel_type(self%rho_d_np1(2,self%dry_step_ctr),   &
                                         self%rho_d_np1(1,self%dry_step_ctr),   &
-                                        consist_w3_to_sh_w3_op) )
+                                        consist_w3_to_sh_w3_rtran) )
 
       ! Transform dry fluxes to the shifted mesh, with case depending on fs_idx
       select case (fs_idx)
@@ -744,13 +739,13 @@ contains
         call log_event( "Can only store dry flux for W2, W2h and W2v spaces", LOG_LEVEL_ERROR )
       end select
 
-      nullify( rmultiplicity_w2, consist_w3_to_sh_w3_op_rdef )
+      nullify( rmultiplicity_w2, consist_w3_to_sh_w3_rtran )
     end if
 
     ! Increment counter for dry substep
     self%dry_step_ctr = self%dry_step_ctr + 1
 
-    nullify( prime_extrusion_mesh )
+    nullify( prime_extrusion_mesh, shifted_mesh )
 
   end subroutine set_dry_fields
 
@@ -794,10 +789,13 @@ contains
   !> @param[in]     source_transport_runtime   Source transport_runtime object
   subroutine copy_all_dry_fields(self, source_transport_runtime)
 
-    use fem_constants_mod,         only: get_rmultiplicity
+    use intermesh_constants_mod,   only: get_intermesh_weights_w3_rtran
     use mesh_collection_mod,       only: mesh_collection
-    use restrict_kernel_mod,       only: restrict_kernel_type
+    use restrict_scalar_weighted_kernel_mod, &
+                                   only: restrict_scalar_weighted_kernel_type
     use restrict_w2_kernel_mod,    only: restrict_w2_kernel_type
+    use restrict_w2h_kernel_mod,   only: restrict_w2h_kernel_type
+    use restrict_w2v_kernel_mod,   only: restrict_w2v_kernel_type
 
     implicit none
 
@@ -810,15 +808,15 @@ contains
     type(r_tran_field_type),               pointer       :: source_rho_d_n => null()
     type(r_tran_field_type),               pointer       :: source_rho_d_np1 => null()
     type(r_tran_field_type),               pointer       :: source_dry_flux => null()
-    type(field_type),                      pointer       :: rmultiplicity_w2 => null()
     type(r_tran_field_type)                              :: target_rho_d_n
     type(r_tran_field_type)                              :: target_rho_d_np1
     type(r_tran_field_type)                              :: target_dry_flux
+    type(r_tran_field_type),               pointer       :: weights_w3 => null()
     integer(kind=i_def)                                  :: source_ncells
     integer(kind=i_def)                                  :: target_ncells
     integer(kind=i_def)                                  :: source_mesh_id
     integer(kind=i_def)                                  :: target_mesh_id
-    integer(kind=i_def)                                  :: i
+    integer(kind=i_def)                                  :: i, fs_idx
 
     ! N.B. The meshes should not be the same as one another, otherwise the
     ! transport_runtime objects will be the same
@@ -832,16 +830,10 @@ contains
     source_ncells = source_mesh%get_ncells()
     target_ncells = target_mesh%get_ncells()
 
-    ! Get rmultiplicity
-    rmultiplicity_w2 => get_rmultiplicity(W2, source_mesh_id)
-
-    w2_fs => function_space_collection%get_fs(target_mesh, element_order, W2)
-    w3_fs => function_space_collection%get_fs(target_mesh, element_order, W3)
-
     ! Initialise target fields
+    w3_fs => function_space_collection%get_fs(target_mesh, element_order, W3)
     call target_rho_d_n%initialise( vector_space = w3_fs )
     call target_rho_d_np1%initialise( vector_space = w3_fs )
-    call target_dry_flux%initialise( vector_space = w2_fs )
 
     if (source_ncells > target_ncells) then
       ! Loop through fields for each step for prime extrusion
@@ -850,25 +842,33 @@ contains
         source_rho_d_np1 => source_transport_runtime%get_rho_d_np1(source_mesh_id, i)
         source_dry_flux => source_transport_runtime%get_dry_flux(source_mesh_id, i)
 
-        ! TODO #3312: Implement restrict_w2h and restrict_w2v to provide
-        ! splitting for consistent transport on a coarser mesh
-        ! if (source_dry_flux%which_function_space() /= W2) then
-        !   call log_event(                                                   &
-        !       'Consistent transport on a coarser mesh not yet implemented', &
-        !       LOG_LEVEL_ERROR)
-        ! end if
+        ! Restrict flux, which depends on split direction
+        fs_idx = source_dry_flux%which_function_space()
+        w2_fs => function_space_collection%get_fs(target_mesh, element_order, fs_idx)
+        call target_dry_flux%initialise( vector_space = w2_fs )
 
-        ! Intergrid kernels have to be called in separate invokes
-        call invoke(                                                    &
-            setval_c(target_dry_flux, 0.0_r_tran),                      &
-            restrict_w2_kernel_type(target_dry_flux, source_dry_flux,   &
-                                    rmultiplicity_w2) )
-        call invoke(                                                    &
-            setval_c(target_rho_d_n, 0.0_r_tran),                        &
-            restrict_kernel_type(target_rho_d_n, source_rho_d_n) )
-        call invoke(                                                    &
-            setval_c(target_rho_d_np1, 0.0_r_tran),                      &
-            restrict_kernel_type(target_rho_d_np1, source_rho_d_np1) )
+        select case ( source_dry_flux%which_function_space() )
+        case ( W2 )
+          call invoke(                                                   &
+              restrict_w2_kernel_type(target_dry_flux, source_dry_flux) )
+        case ( W2H )
+          call invoke(                                                   &
+              restrict_w2h_kernel_type(target_dry_flux, source_dry_flux) )
+        case ( W2V )
+          call invoke(                                                   &
+              restrict_w2v_kernel_type(target_dry_flux, source_dry_flux) )
+        case default
+          call log_event('Dry flux space not recognised', LOG_LEVEL_ERROR)
+        end select
+
+        ! Restrict densities conservatively
+        weights_w3 => get_intermesh_weights_w3_rtran(source_mesh, target_mesh)
+        call invoke(restrict_scalar_weighted_kernel_type(target_rho_d_n,   &
+                                                         source_rho_d_n,   &
+                                                         weights_w3),      &
+                    restrict_scalar_weighted_kernel_type(target_rho_d_np1, &
+                                                         source_rho_d_np1, &
+                                                         weights_w3) )
 
         ! Set dry fields
         call self%set_dry_fields(target_rho_d_n, target_rho_d_np1, target_dry_flux)
@@ -880,8 +880,8 @@ contains
                       'target mesh is coarser than source mesh', LOG_LEVEL_ERROR)
     end if
 
-    nullify( source_mesh, target_mesh, rmultiplicity_w2, source_rho_d_n, &
-             source_rho_d_np1, source_dry_flux, w3_fs, w2_fs )
+    nullify( source_mesh, target_mesh, source_rho_d_n, &
+             source_rho_d_np1, source_dry_flux, w3_fs, w2_fs, weights_w3 )
 
   end subroutine copy_all_dry_fields
 

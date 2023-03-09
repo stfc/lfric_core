@@ -1,0 +1,170 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Ofine_fieldice. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test for the scalar recovery kernel
+module prolong_scalar_linear_kernel_mod_test
+  use pFUnit_mod
+  use constants_mod, only : i_def, r_def
+
+  implicit none
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: prolong_test_type
+     private
+   contains
+     procedure :: test_all
+  end type prolong_test_type
+
+contains
+  @test
+  subroutine test_all( this )
+    use prolong_scalar_linear_kernel_mod, only : prolong_scalar_linear_kernel_code
+    use get_unit_test_m3x3_dofmap_mod,    only : get_wtheta_m3x3_dofmap
+    implicit none
+    class(prolong_test_type), intent(inout) :: this
+
+    integer(kind=i_def) :: df, j, k, cell
+    ! Scalars
+    integer(kind=i_def) :: nlayers
+    integer(kind=i_def) :: ncell_fine_per_coarse_x ! number of fine cells per coarse in x
+    integer(kind=i_def) :: ncell_fine_per_coarse_y ! number of fine cells per coarse in y
+    integer(kind=i_def) :: ncell_fine              ! number of fine cells on base mesh
+    integer(kind=i_def) :: ncell_coarse            ! number of coarse cells on base mesh
+    integer(kind=i_def) :: ndf                     ! number of dofs per cell. Same on each mesh
+    integer(kind=i_def) :: undf_fine, undf_coarse
+    integer(kind=i_def) :: stencil_size_wt
+    ! Integer Arrays
+    integer(kind=i_def), allocatable, dimension(:,:,:) :: cell_map
+    integer(kind=i_def), allocatable, dimension(:,:)   :: map_fine   ! Cell and dof indexed
+    integer(kind=i_def), allocatable, dimension(:,:)   :: map_coarse ! only dof indexed
+    integer(kind=i_def), allocatable, dimension(:,:)   :: smap_wt
+    ! Real Arrays
+    real(kind=r_def), allocatable, dimension(:) :: coarse_field, fine_field, answer
+
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+
+    ! set the scalars by hand
+    nlayers = 3
+    stencil_size_wt = 5
+    ncell_fine_per_coarse_x = 3
+    ncell_fine_per_coarse_y = 2
+    ncell_coarse = 9_i_def
+    ncell_fine = ncell_coarse * ncell_fine_per_coarse_x * ncell_fine_per_coarse_y
+    ! Things for Wtheta
+    ndf = 2
+    undf_fine = (nlayers + 1) * ncell_fine
+    undf_coarse = (nlayers + 1) * ncell_coarse
+
+    allocate( cell_map(ncell_coarse,               &
+                       ncell_fine_per_coarse_x,    &
+                       ncell_fine_per_coarse_y),   &
+              smap_wt(ndf, stencil_size_wt ),      &
+              map_fine(ndf, ncell_fine),           &
+              map_coarse(ndf, ncell_coarse) )
+    allocate( coarse_field(undf_coarse),           &
+              fine_field(undf_fine),               &
+              answer(undf_fine) )
+
+    ! ------------------------------------------------------------------------ !
+    ! Make various maps
+    ! ------------------------------------------------------------------------ !
+
+    cell_map = reshape( (/  1,  4,  7, 19, 22, 27, 37, 40, 43, &
+                            2,  5,  8, 20, 23, 28, 38, 41, 44, &
+                            3,  6,  9, 21, 24, 29, 39, 42, 45, &
+                           10, 13, 16, 28, 31, 34, 46, 49, 52, &
+                           11, 14, 17, 29, 32, 35, 47, 50, 53, &
+                           12, 15, 18, 30, 33, 36, 48, 51, 54  &
+                          /), (/ ncell_coarse, ncell_fine_per_coarse_x, ncell_fine_per_coarse_y /) )
+
+    call get_wtheta_m3x3_dofmap(map_coarse, nlayers)
+
+    do j = 1, ncell_fine
+      map_fine(1,j) = (j-1)*(nlayers+1)+1
+      map_fine(2,j) = (j-1)*(nlayers+1)+2
+    end do
+
+    ! Only do stencil map for central cell of the 3x3 grid
+    smap_wt = reshape( (/ 17, 18, 13, 14, 29, 30, 21, 22, 5, 6 /), &
+                       (/ ndf, stencil_size_wt /) )
+
+    ! ------------------------------------------------------------------------ !
+    ! Set field values
+    ! ------------------------------------------------------------------------ !
+    fine_field(:) = -99.0_r_def
+
+    ! Make coarse field vary linearly in x, y and z
+    ! Cells are numbered as follows:
+    ! |-----------------------!
+    ! |   1   |   2   |   3   |
+    ! |-----------------------|
+    ! |   4   |   5   |   6   |
+    ! |-----------------------|
+    ! |   7   |   8   |   9   |
+    ! |-----------------------|
+
+    ! Cells 1, 3, 7, 9 don't feature with the cross stencil
+    coarse_field(:) = 100.0_r_def
+
+    do k = 0, nlayers
+      coarse_field(map_coarse(1,2)+k) = 9.0_r_def + real(k,r_def)
+      coarse_field(map_coarse(1,4)+k) = 5.0_r_def + real(k,r_def)
+      coarse_field(map_coarse(1,5)+k) = 11.0_r_def + real(k,r_def)
+      coarse_field(map_coarse(1,6)+k) = 17.0_r_def + real(k,r_def)
+      coarse_field(map_coarse(1,8)+k) = 13.0_r_def + real(k,r_def)
+      ! True values for central cell
+      answer(map_fine(1,22)+k) = 8.5_r_def + real(k,r_def)
+      answer(map_fine(1,23)+k) = 10.5_r_def + real(k,r_def)
+      answer(map_fine(1,24)+k) = 12.5_r_def + real(k,r_def)
+      answer(map_fine(1,31)+k) = 9.5_r_def + real(k,r_def)
+      answer(map_fine(1,32)+k) = 11.5_r_def + real(k,r_def)
+      answer(map_fine(1,33)+k) = 13.5_r_def + real(k,r_def)
+    end do
+
+    ! ------------------------------------------------------------------------ !
+    ! Run kernel
+    ! ------------------------------------------------------------------------ !
+
+    cell = 5
+
+    call prolong_scalar_linear_kernel_code( nlayers,                 &
+                                            cell_map(cell,:,:),      &
+                                            ncell_fine_per_coarse_x, &
+                                            ncell_fine_per_coarse_y, &
+                                            ncell_fine,              &
+                                            fine_field,              &
+                                            coarse_field,            &
+                                            stencil_size_wt,         &
+                                            smap_wt,                 &
+                                            ndf,                     &
+                                            undf_fine,               &
+                                            map_fine,                &
+                                            undf_coarse,             &
+                                            map_coarse(:,cell) )
+
+    ! Check fine field values in central cell (5) match the expected answer
+    do k = 0, nlayers
+      @assertEqual( answer(map_fine(1,22)+k), fine_field(map_fine(1,22)+k), tol)
+      @assertEqual( answer(map_fine(1,23)+k), fine_field(map_fine(1,23)+k), tol)
+      @assertEqual( answer(map_fine(1,24)+k), fine_field(map_fine(1,24)+k), tol)
+      @assertEqual( answer(map_fine(1,31)+k), fine_field(map_fine(1,31)+k), tol)
+      @assertEqual( answer(map_fine(1,32)+k), fine_field(map_fine(1,32)+k), tol)
+      @assertEqual( answer(map_fine(1,33)+k), fine_field(map_fine(1,33)+k), tol)
+    end do
+
+
+    deallocate( cell_map,     &
+                answer,       &
+                map_fine,     &
+                map_coarse,   &
+                coarse_field, &
+                smap_wt,      &
+                fine_field )
+
+  end subroutine test_all
+
+end module prolong_scalar_linear_kernel_mod_test

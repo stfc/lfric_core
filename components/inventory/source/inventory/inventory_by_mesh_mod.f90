@@ -75,9 +75,13 @@ module inventory_by_mesh_mod
     procedure, public :: add_r32_field
     procedure, public :: add_r64_field
     procedure, public :: add_integer_field
-    generic           :: add_field => add_r32_field, &
-                                      add_r64_field, &
-                                      add_integer_field
+    procedure, public :: add_r32_intermesh_field
+    procedure, public :: add_r64_intermesh_field
+    generic           :: add_field => add_r32_field,           &
+                                      add_r64_field,           &
+                                      add_integer_field,       &
+                                      add_r32_intermesh_field, &
+                                      add_r64_intermesh_field
     procedure, public :: add_r32_field_array
     procedure, public :: add_r64_field_array
     procedure, public :: add_integer_field_array
@@ -95,9 +99,13 @@ module inventory_by_mesh_mod
     procedure, public :: get_r32_field
     procedure, public :: get_r64_field
     procedure, public :: get_integer_field
-    generic           :: get_field => get_r32_field, &
-                                      get_r64_field, &
-                                      get_integer_field
+    procedure, public :: get_r32_intermesh_field
+    procedure, public :: get_r64_intermesh_field
+    generic           :: get_field => get_r32_field,           &
+                                      get_r64_field,           &
+                                      get_integer_field,       &
+                                      get_r32_intermesh_field, &
+                                      get_r64_intermesh_field
     procedure, public :: get_r32_field_array
     procedure, public :: get_r64_field_array
     procedure, public :: get_integer_field_array
@@ -113,6 +121,8 @@ module inventory_by_mesh_mod
 
     ! Overloaded routine (which will trigger a failure)
     procedure, private :: inventory_copy_constructor
+
+    procedure, private :: compute_intermesh_id
 
     generic, public   :: assignment(=) => inventory_copy_constructor
     final             :: inventory_by_mesh_destructor
@@ -614,11 +624,57 @@ subroutine add_r64_field(self, field, mesh)
   type(mesh_type),               intent(in)    :: mesh
   type(id_r64_field_pair_type)                 :: paired_object
 
-  ! @brief Set up the paired_object
+  !Set up the paired_object
   call paired_object%initialise(field, mesh%get_id())
   call self%add_paired_object( paired_object )
 
 end subroutine add_r64_field
+
+!> @brief Adds an r32 field to the inventory, that is used for intermesh mapping
+!> @param[in] field        The field that is to be copied into the inventory
+!> @param[in] source_mesh  The source mesh for the intermesh transform
+!> @param[in] target_mesh  The target mesh for the intermesh transform
+subroutine add_r32_intermesh_field(self, field, source_mesh, target_mesh)
+
+  implicit none
+
+  class(inventory_by_mesh_type), intent(inout) :: self
+  type(field_r32_type),          intent(in)    :: field
+  type(mesh_type),               intent(in)    :: source_mesh
+  type(mesh_type),               intent(in)    :: target_mesh
+  type(id_r32_field_pair_type)                 :: paired_object
+  integer(kind=i_def)                          :: intermesh_id
+
+  ! Make a unique ID for transform between source and target mesh
+  intermesh_id = self%compute_intermesh_id(source_mesh, target_mesh)
+  ! Set up the paired_object
+  call paired_object%initialise(field, intermesh_id)
+  call self%add_paired_object( paired_object )
+
+end subroutine add_r32_intermesh_field
+
+!> @brief Adds an r64 field to the inventory, that is used for intermesh mapping
+!> @param[in] field        The field that is to be copied into the inventory
+!> @param[in] source_mesh  The source mesh for the intermesh transform
+!> @param[in] target_mesh  The target mesh for the intermesh transform
+subroutine add_r64_intermesh_field(self, field, source_mesh, target_mesh)
+
+  implicit none
+
+  class(inventory_by_mesh_type), intent(inout) :: self
+  type(field_r64_type),          intent(in)    :: field
+  type(mesh_type),               intent(in)    :: source_mesh
+  type(mesh_type),               intent(in)    :: target_mesh
+  type(id_r64_field_pair_type)                 :: paired_object
+  integer(kind=i_def)                          :: intermesh_id
+
+  ! Make a unique ID for transform between source and target mesh
+  intermesh_id = self%compute_intermesh_id(source_mesh, target_mesh)
+  ! Set up the paired_object
+  call paired_object%initialise(field, intermesh_id)
+  call self%add_paired_object( paired_object )
+
+end subroutine add_r64_intermesh_field
 
 !> @brief Adds an integer field to the inventory
 !> @param[in] field       The field that is to be copied into the inventory
@@ -814,6 +870,64 @@ subroutine get_r64_field(self, mesh, field)
 
 end subroutine get_r64_field
 
+!> @brief Sets a pointer to an r32 field used for intermesh transforms
+!> @param[in]  source_mesh   The source mesh for the intermesh transform
+!> @param[in]  target_mesh   The target mesh for the intermesh transform
+!> @param[out] field         Field pointer to the r32 field to be accessed
+subroutine get_r32_intermesh_field(self, source_mesh, target_mesh, field)
+
+  implicit none
+
+  class(inventory_by_mesh_type), intent(in)  :: self
+  type(mesh_type),               intent(in)  :: source_mesh
+  type(mesh_type),               intent(in)  :: target_mesh
+  type(field_r32_type), pointer, intent(out) :: field
+  class(id_abstract_pair_type),  pointer     :: paired_object
+  integer(kind=i_def)                        :: intermesh_id
+
+  ! Make a unique ID for transform between source and target mesh
+  intermesh_id = self%compute_intermesh_id(source_mesh, target_mesh)
+
+  paired_object => self%get_paired_object(intermesh_id)
+
+  select type(this => paired_object)
+    type is (id_r32_field_pair_type)
+      field => this%get_field()
+    class default
+      call log_event('Paired ID object must be of r32 field type', LOG_LEVEL_ERROR)
+  end select
+
+end subroutine get_r32_intermesh_field
+
+!> @brief Sets a pointer to an r64 field used for intermesh transforms
+!> @param[in]  source_mesh   The source mesh for the intermesh transform
+!> @param[in]  target_mesh   The target mesh for the intermesh transform
+!> @param[out] field         Field pointer to the r64 field to be accessed
+subroutine get_r64_intermesh_field(self, source_mesh, target_mesh, field)
+
+  implicit none
+
+  class(inventory_by_mesh_type), intent(in)  :: self
+  type(mesh_type),               intent(in)  :: source_mesh
+  type(mesh_type),               intent(in)  :: target_mesh
+  type(field_r64_type), pointer, intent(out) :: field
+  class(id_abstract_pair_type),  pointer     :: paired_object
+  integer(kind=i_def)                        :: intermesh_id
+
+  ! Make a unique ID for transform between source and target mesh
+  intermesh_id = self%compute_intermesh_id(source_mesh, target_mesh)
+
+  paired_object => self%get_paired_object(intermesh_id)
+
+  select type(this => paired_object)
+    type is (id_r64_field_pair_type)
+      field => this%get_field()
+    class default
+      call log_event('Paired ID object must be of r64 field type', LOG_LEVEL_ERROR)
+  end select
+
+end subroutine get_r64_intermesh_field
+
 !> @brief Sets a pointer to an integer field from the inventory
 !> @param[in]     mesh    The mesh of the integer field to be accessed
 !> @param[out] field   Field pointer to the integer field to be accessed
@@ -997,5 +1111,41 @@ subroutine get_r64_operator(self, mesh, operator_out)
   end select
 
 end subroutine get_r64_operator
+
+!> @brief Computes a hash of two integers to create an intermesh ID
+!> @param[in] source_mesh_id  ID of source mesh
+!> @param[in] target_mesh_id  ID of target mesh
+!> @returns   intermesh_id    ID for the combination of source and target meshes
+function compute_intermesh_id(self, source_mesh, target_mesh) result(intermesh_id)
+
+  implicit none
+
+  class(inventory_by_mesh_type),    intent(in)  :: self
+  type(mesh_type),                  intent(in)  :: source_mesh
+  type(mesh_type),                  intent(in)  :: target_mesh
+
+  integer(kind=i_def) :: source_mesh_id
+  integer(kind=i_def) :: target_mesh_id
+  integer(kind=i_def) :: intermesh_id
+
+  source_mesh_id = source_mesh%get_id()
+  target_mesh_id = target_mesh%get_id()
+
+  if (source_mesh_id < 1) then
+    write(log_scratch_space, '(A,I8,A)') &
+      'source_mesh_id', source_mesh_id, 'is not a positive integer'
+    call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+  end if
+  if (target_mesh_id < 1) then
+    write(log_scratch_space, '(A,I8,A)') &
+      'target_mesh_id', target_mesh_id, 'is not a positive integer'
+    call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+  end if
+
+  ! Hash the source and target mesh IDs using the Hopcroft and Ullman pairing
+  intermesh_id = (source_mesh_id + target_mesh_id - 2) * &
+                 (source_mesh_id + target_mesh_id - 1) / 2 + source_mesh_id
+
+end function compute_intermesh_id
 
 end module inventory_by_mesh_mod

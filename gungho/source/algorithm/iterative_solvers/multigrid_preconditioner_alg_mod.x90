@@ -224,10 +224,14 @@ contains
   !!                                     solution is zero?
   recursive subroutine vcycle(self,level,initial_solution_is_zero)
 
-    use restrict_kernel_mod,        only: restrict_kernel_type
-    use prolong_kernel_mod,         only: prolong_kernel_type
-    use restrict_masked_kernel_mod, only: restrict_masked_kernel_type
-    use prolong_masked_kernel_mod,  only: prolong_masked_kernel_type
+    use restrict_scalar_unweighted_kernel_mod, &
+                                    only: restrict_scalar_unweighted_kernel_type
+    use prolong_scalar_unweighted_kernel_mod,  &
+                                    only: prolong_scalar_unweighted_kernel_type
+    use restrict_scalar_masked_kernel_mod,     &
+                                    only: restrict_scalar_masked_kernel_type
+    use prolong_scalar_masked_kernel_mod,      &
+                                    only: prolong_scalar_masked_kernel_type
 
     implicit none
 
@@ -262,11 +266,13 @@ contains
       ! Restrict b^{(ell+1)} = R r^{(ell)}
       if (limited_area) then
         mask => self%mask_mg(level)%get_field_from_position(1)
-        call invoke( restrict_masked_kernel_type(bvec_mg_coarse, &
-                                                 rvec_mg,        &
-                                                 mask ))
+        call invoke( name='masked_restriction',                         &
+                     restrict_scalar_masked_kernel_type(bvec_mg_coarse, &
+                                                        rvec_mg,        &
+                                                        mask ))
       else
-        call invoke( restrict_kernel_type(bvec_mg_coarse, rvec_mg) )
+        call invoke( name='unweighted_restriction',                     &
+                     restrict_scalar_unweighted_kernel_type(bvec_mg_coarse, rvec_mg) )
 
       end if
       ! Recursive call to V-cycle
@@ -278,11 +284,13 @@ contains
       uvec_mg_coarse => self%u_mg(level+1)%get_field_from_position(1)
       if (limited_area) then
         mask => self%mask_mg(level)%get_field_from_position(1)
-        call invoke( prolong_masked_kernel_type(uvec_mg,        &
-                                                uvec_mg_coarse, &
-                                                mask ) )
+        call invoke( name='masked_prolong',                            &
+                     prolong_scalar_masked_kernel_type(uvec_mg,        &
+                                                       uvec_mg_coarse, &
+                                                       mask ) )
       else
-        call invoke( prolong_kernel_type(uvec_mg, uvec_mg_coarse) )
+        call invoke( name='unweighted_prolong',                        &
+                     prolong_scalar_unweighted_kernel_type(uvec_mg, uvec_mg_coarse) )
       endif
       ! Postsmooth u^{(ell)}
       call self%smooth(self%n_postsmooth, level, .false.)

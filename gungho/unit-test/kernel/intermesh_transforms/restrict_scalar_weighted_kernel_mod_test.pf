@@ -1,10 +1,10 @@
 !-----------------------------------------------------------------------------
-! (C) Crown copyright 2019 Met Office. All rights reserved.
-! For further details please refer to the file COPYRIGHT.txt
-! which you should have received as part of this distribution.
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
 !-----------------------------------------------------------------------------
 !> Test for the restriction kernel
-module restrict_kernel_mod_test
+module restrict_scalar_weighted_kernel_mod_test
   use pFUnit_mod
   use constants_mod, only : i_def, r_def
 
@@ -13,18 +13,18 @@ module restrict_kernel_mod_test
   public :: test_all
 
   @TestCase
-  type, extends(TestCase), public :: restrict_test_type
+  type, extends(TestCase), public :: restrict_scalar_weighted_test_type
      private
    contains
      procedure :: test_all
-  end type restrict_test_type
+  end type restrict_scalar_weighted_test_type
 
 contains
   @test
   subroutine test_all( this )
-    use restrict_kernel_mod, only : restrict_kernel_code
+    use restrict_scalar_weighted_kernel_mod, only : restrict_scalar_weighted_kernel_code
     implicit none
-    class(restrict_test_type), intent(inout) :: this
+    class(restrict_scalar_weighted_test_type), intent(inout) :: this
 
     integer(kind=i_def) :: lp_x, lp_y
     ! Scalars
@@ -36,14 +36,15 @@ contains
     integer(kind=i_def) :: undf_f, undf_c
     ! Integer Arrays
     integer(kind=i_def), allocatable, dimension(:,:) :: cell_map
-    integer(kind=i_def), allocatable, dimension(:,:) :: map_f ! Cell and dof valued
-    integer(kind=i_def), allocatable, dimension(:)   :: map_c ! only dof valued
+    integer(kind=i_def), allocatable, dimension(:,:) :: map_f ! Cell and dof indexed
+    integer(kind=i_def), allocatable, dimension(:)   :: map_c ! only dof indexed
     ! Real Arrays
-    real(kind=r_def), allocatable, dimension(:) :: fc, ff  ! fields on coarse and fine
+    real(kind=r_def), allocatable, dimension(:) :: coarse_field, fine_field
+    real(kind=r_def), allocatable, dimension(:) :: weights
     real(r_def), parameter :: tol = 1.0e-12_r_def
 
         ! set the scalars by hand
-    nlayers = 3
+    nlayers = 1
     ncell_f_per_c_x = 2 ! quads
     ncell_f_per_c_y = 2 ! quads
 
@@ -56,8 +57,9 @@ contains
                        ncell_f_per_c_y), &
               map_f(ndf,ncell_f),        &
               map_c(ndf) )
-    allocate( fc(undf_c),                &
-              ff(undf_f) )
+    allocate( coarse_field(undf_c),      &
+              fine_field(undf_f),        &
+              weights(undf_f) )
 
     ! set simple values for index sets
     do lp_y = 1, ncell_f_per_c_y
@@ -72,16 +74,23 @@ contains
 
 
     ! set simple values for the fields
-    ff(:) = 1.0_r_def
-    fc(:) = 0.0_r_def
+    fine_field(:) = (/ 0.51_r_def, 0.49_r_def, 0.52_r_def, 0.48_r_def /)
+    coarse_field(:) = 0.0_r_def
+    ! Weights are coarse_vol/(num_cells*fine_vol)
+    weights(:) = (/ 0.25_r_def*4.08_r_def, &
+                    0.25_r_def*3.92_r_def, &
+                    0.25_r_def*4.16_r_def, &
+                    0.25_r_def*3.84_r_def /)
 
-    call restrict_kernel_code( nlayers,        &
+    call restrict_scalar_weighted_kernel_code( &
+                              nlayers,         &
                               cell_map,        &
                               ncell_f_per_c_x, &
                               ncell_f_per_c_y, &
                               ncell_f,         &
-                              fc,              &
-                              ff,              &
+                              coarse_field,    &
+                              fine_field,      &
+                              weights,         &
                               undf_c,          &
                               map_c,           &
                               ndf,             &
@@ -89,18 +98,17 @@ contains
                               map_f )
 
 
-    @assertEqual( fc(1), 1.0_r_def, tol)
-    @assertEqual( fc(2), 1.0_r_def, tol)
-    @assertEqual( fc(3), 1.0_r_def, tol)
+    @assertEqual( coarse_field(1), 0.5_r_def, tol)
 
 
 
-    deallocate( cell_map, &
-                map_f,    &
-                map_c,    &
-                fc,       &
-                ff )
+    deallocate( cell_map,      &
+                map_f,         &
+                map_c,         &
+                coarse_field,  &
+                fine_field,    &
+                weights )
 
   end subroutine test_all
 
-end module restrict_kernel_mod_test
+end module restrict_scalar_weighted_kernel_mod_test

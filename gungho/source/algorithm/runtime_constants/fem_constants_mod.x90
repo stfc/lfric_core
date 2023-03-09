@@ -535,7 +535,8 @@ contains
 
       if ( label_list(i) == primary_mesh_label .or. &
            label_list(i) == shifted_mesh_label .or. &
-           label_list(i) == extra_mesh_label ) then
+           label_list(i) == extra_mesh_label   .or. &
+           label_list(i) == multigrid_mesh_label ) then
         ! Initialise fields
         call mm2_diag(i)%initialise( vector_space = w2_fs )
         call mm3_diag(i)%initialise( vector_space = w3_fs )

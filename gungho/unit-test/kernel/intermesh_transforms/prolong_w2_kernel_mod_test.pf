@@ -42,8 +42,8 @@ contains
 
     ! Integer Arrays
     integer(kind=i_def), allocatable, dimension(:,:) :: cell_map
-    integer(kind=i_def), allocatable, dimension(:,:) :: map_f ! Cell and dof valued
-    integer(kind=i_def), allocatable, dimension(:)   :: map_c ! only dof valued
+    integer(kind=i_def), allocatable, dimension(:,:) :: map_f ! Cell and dof indexed
+    integer(kind=i_def), allocatable, dimension(:)   :: map_c ! only dof indexed
 
     ! Real Arrays
     real(kind=r_def), allocatable, dimension(:) :: coarse_field, fine_field

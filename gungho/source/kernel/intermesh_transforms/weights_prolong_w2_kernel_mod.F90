@@ -61,60 +61,61 @@ public :: weights_prolong_w2_kernel_code
 contains
 
   !> @brief Computes weights for the prologation operation on a W2 field.
-  !> @param[in]     nlayers         Number of layers in a model column
-  !> @param[in]     cell_map        Map of which fine grid cells lie in the
-  !!                                coarse grid cell
-  !> @param[in]     ncell_f_per_c_x Number of fine cells per coarse cell in
-  !!                                the x-direction
-  !> @param[in]     ncell_f_per_c_y Number of fine cells per coarse cell in
-  !!                                the y-direction
-  !> @param[in]     ncell_f         Number of cells in the fine grid
-  !> @param[in,out] weights_fine    The fine grid W2 field that contains the
-  !!                                weights to be computed here for prolongation
-  !> @param[in]     dummy_coarse    An unused coarse W2 field supplied to ensure
-  !!                                that appropriate coarse field properties are
-  !!                                provided.
-  !> @param[in]     undf_f          Total number of unique degrees of freedom
-  !!                                for the fine grid field
-  !> @param[in]     ndf_f           Number of degrees of freedom per cell
-  !!                                for the fine grid field
-  !> @param[in]     dfmap_f         Cell dof-map for the fine grid field
-  !> @param[in]     undf_c          Total number of unique degrees of freedom
-  !!                                for the coarse grid field
-  !> @param[in]     dfmap_c         Cell dof-map for the coarse grid field
-  subroutine weights_prolong_w2_kernel_code(nlayers,             &
-                                            cell_map,            &
-                                            ncell_f_per_c_x,     &
-                                            ncell_f_per_c_y,     &
-                                            ncell_f,             &
-                                            weights_fine,        &
-                                            dummy_coarse,        &
-                                            ndf_f,               &
-                                            undf_f,              &
-                                            dfmap_f,             &
-                                            undf_c,              &
-                                            dfmap_c              )
+  !> @param[in]     nlayers                  Number of layers in a model column
+  !> @param[in]     cell_map                 A 2D index map of which fine grid
+  !!                                         cells lie in the coarse grid cell
+  !> @param[in]     ncell_fine_per_coarse_x  Number of fine cells per coarse
+  !!                                         cell in the horizontal x-direction
+  !> @param[in]     ncell_fine_per_coarse_x  Number of fine cells per coarse
+  !!                                         cell in the horizontal y-direction
+  !> @param[in]     ncell_fine               Number of cells in the partition
+  !!                                         for the fine grid
+  !> @param[in,out] weights_fine             The fine grid W2 field that contains
+  !!                                         the weights to be computed here for
+  !!                                         prolongation
+  !> @param[in]     dummy_coarse             An unused coarse W2 field supplied
+  !!                                         to ensure that appropriate coarse
+  !!                                         field properties are provided.
+  !> @param[in]     ndf                      Num of DoFs per cell on both grids
+  !> @param[in]     undf_fine                Total num of DoFs on the fine grid
+  !!                                         for this mesh partition
+  !> @param[in]     map_fine                 DoFmap of cells on the fine grid
+  !> @param[in]     undf_coarse              Total num of DoFs on the coarse
+  !!                                         grid for this mesh partition
+  !> @param[in]     map_coarse               DoFmap of cells on the coarse grid
+  subroutine weights_prolong_w2_kernel_code(nlayers,                 &
+                                            cell_map,                &
+                                            ncell_fine_per_coarse_x, &
+                                            ncell_fine_per_coarse_y, &
+                                            ncell_fine,              &
+                                            weights_fine,            &
+                                            dummy_coarse,            &
+                                            ndf,                     &
+                                            undf_fine,               &
+                                            map_fine,                &
+                                            undf_coarse,             &
+                                            map_coarse               )
 
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ncell_f_per_c_x
-    integer(kind=i_def), intent(in) :: ncell_f_per_c_y
-    integer(kind=i_def), intent(in) :: ncell_f
-    integer(kind=i_def), intent(in) :: ndf_f
-    integer(kind=i_def), intent(in) :: undf_f, undf_c
+    integer(kind=i_def), intent(in) :: ncell_fine_per_coarse_x
+    integer(kind=i_def), intent(in) :: ncell_fine_per_coarse_y
+    integer(kind=i_def), intent(in) :: ncell_fine
+    integer(kind=i_def), intent(in) :: ndf
+    integer(kind=i_def), intent(in) :: undf_fine, undf_coarse
 
     ! Fields
-    real(kind=r_def),    dimension(undf_f), intent(inout) :: weights_fine
-    real(kind=r_def),    dimension(undf_c), intent(in)    :: dummy_coarse
+    real(kind=r_def),    intent(inout) :: weights_fine(undf_fine)
+    real(kind=r_def),    intent(in)    :: dummy_coarse(undf_coarse)
 
     ! Maps
-    integer(kind=i_def), dimension(ndf_f, ncell_f), intent(in) :: dfmap_f
-    integer(kind=i_def), dimension(ndf_f),          intent(in) :: dfmap_c
-    integer(kind=i_def), dimension(ncell_f_per_c_x, ncell_f_per_c_y), intent(in) :: cell_map
+    integer(kind=i_def), intent(in) :: map_fine(ndf, ncell_fine)
+    integer(kind=i_def), intent(in) :: map_coarse(ndf)
+    integer(kind=i_def), intent(in) :: cell_map(ncell_fine_per_coarse_x, ncell_fine_per_coarse_y)
 
     ! Internal arguments
-    integer(kind=i_def) :: df, k, lp_x, lp_y
+    integer(kind=i_def) :: df, k, x_idx, y_idx
 
     !===========================================================================
     ! Horizontal components
@@ -147,32 +148,32 @@ contains
       ! by the fine cell. If fine cells have equal area then this will be the
       ! reciprocal of the number of fine cells along that edge
 
-      do lp_x = 1, ncell_f_per_c_x
+      do x_idx = 1, ncell_fine_per_coarse_x
         ! N edge is first row of cell map
-        lp_y = 1
+        y_idx = 1
         df = N
-        weights_fine(dfmap_f(df,cell_map(lp_x,lp_y))+k) =                      &
-                                        1.0_r_def / real(ncell_f_per_c_x, r_def)
+        weights_fine(map_fine(df,cell_map(x_idx,y_idx))+k) =                      &
+                                        1.0_r_def / real(ncell_fine_per_coarse_x, r_def)
 
         ! S edge is last row of cell map
-        lp_y = ncell_f_per_c_y
+        y_idx = ncell_fine_per_coarse_y
         df = S
-        weights_fine(dfmap_f(df,cell_map(lp_x,lp_y))+k) =                      &
-                                        1.0_r_def / real(ncell_f_per_c_x, r_def)
+        weights_fine(map_fine(df,cell_map(x_idx,y_idx))+k) =                      &
+                                        1.0_r_def / real(ncell_fine_per_coarse_x, r_def)
       end do
 
-      do lp_y = 1, ncell_f_per_c_y
+      do y_idx = 1, ncell_fine_per_coarse_y
         ! W edge is first column of cell map
-        lp_x = 1
+        x_idx = 1
         df = W
-        weights_fine(dfmap_f(df,cell_map(lp_x,lp_y))+k) =                      &
-                                        1.0_r_def / real(ncell_f_per_c_y, r_def)
+        weights_fine(map_fine(df,cell_map(x_idx,y_idx))+k) =                      &
+                                        1.0_r_def / real(ncell_fine_per_coarse_y, r_def)
 
         ! E edge is last column of cell map
-        lp_x = ncell_f_per_c_x
+        x_idx = ncell_fine_per_coarse_x
         df = E
-        weights_fine(dfmap_f(df,cell_map(lp_x,lp_y))+k) =                      &
-                                        1.0_r_def / real(ncell_f_per_c_y, r_def)
+        weights_fine(map_fine(df,cell_map(x_idx,y_idx))+k) =                      &
+                                        1.0_r_def / real(ncell_fine_per_coarse_y, r_def)
       end do
 
       !-------------------------------------------------------------------------
@@ -189,22 +190,22 @@ contains
       ! Do West/East DoFs
       ! These loops will only execute if there are internal DoFs
       df = W
-      do lp_y = 1, ncell_f_per_c_y
-        do lp_x = 2, ncell_f_per_c_x
+      do y_idx = 1, ncell_fine_per_coarse_y
+        do x_idx = 2, ncell_fine_per_coarse_x
 
-          weights_fine(dfmap_f(df,cell_map(lp_x,lp_y))+k) =                    &
-              real(ncell_f_per_c_x + 1 - lp_x, r_def) / real(ncell_f_per_c_x, r_def)
+          weights_fine(map_fine(df,cell_map(x_idx,y_idx))+k) =                    &
+              real(ncell_fine_per_coarse_x + 1 - x_idx, r_def) / real(ncell_fine_per_coarse_x, r_def)
         end do
       end do
 
       ! Do North/South DoFs
       ! These loops will only execute if there are internal DoFs
       df = N
-      do lp_x = 1, ncell_f_per_c_x
-        do lp_y = 2, ncell_f_per_c_y
+      do x_idx = 1, ncell_fine_per_coarse_x
+        do y_idx = 2, ncell_fine_per_coarse_y
 
-          weights_fine(dfmap_f(df,cell_map(lp_x,lp_y))+k) =                    &
-              real(ncell_f_per_c_y + 1 - lp_y, r_def) / real(ncell_f_per_c_y, r_def)
+          weights_fine(map_fine(df,cell_map(x_idx,y_idx))+k) =                    &
+              real(ncell_fine_per_coarse_y + 1 - y_idx, r_def) / real(ncell_fine_per_coarse_y, r_def)
 
         end do
       end do
@@ -219,11 +220,11 @@ contains
     ! Loop over an extra layer to get the very top
     df = B
     do k = 0, nlayers
-      do lp_y = 1, ncell_f_per_c_y
-        do lp_x = 1, ncell_f_per_c_x
+      do y_idx = 1, ncell_fine_per_coarse_y
+        do x_idx = 1, ncell_fine_per_coarse_x
           ! Weight is reciprocal of total number of fine cells per coarse
-          weights_fine(dfmap_f(df,cell_map(lp_x,lp_y))+k) =                    &
-                      1.0_r_def / real(ncell_f_per_c_x * ncell_f_per_c_y, r_def)
+          weights_fine(map_fine(df,cell_map(x_idx,y_idx))+k) =                    &
+                      1.0_r_def / real(ncell_fine_per_coarse_x * ncell_fine_per_coarse_y, r_def)
         end do
       end do
     end do

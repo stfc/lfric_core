@@ -260,6 +260,7 @@ module mesh_mod
     procedure, public :: get_num_cells_ghost
     procedure, public :: get_gid_from_lid
     procedure, public :: get_mesh_map
+    procedure, public :: query_mesh_map
     procedure, public :: add_mesh_map
     procedure, public :: get_adjacent_face
 
@@ -1981,6 +1982,32 @@ contains
     return
   end function get_mesh_map
 
+  !============================================================================
+  !> @brief  Returns a logical whether the mesh map exists
+  !>
+  !> @param[in] target_mesh   Pointer to target mesh object.
+  !> @return    Logical true if mesh_map exists, false if not.
+  !============================================================================
+  function query_mesh_map(self, target_mesh) result(mesh_map_exists)
+
+    implicit none
+
+    class(mesh_type),         intent(in) :: self
+    type(mesh_type), pointer, intent(in) :: target_mesh
+
+    logical(l_def) :: mesh_map_exists
+
+    integer(i_def) :: source_mesh_id
+    integer(i_def) :: target_mesh_id
+    integer(i_def) :: mesh_map_id
+
+    source_mesh_id = self%get_id()
+    target_mesh_id = target_mesh%get_id()
+
+    mesh_map_id = (10000*source_mesh_id) + target_mesh_id
+    mesh_map_exists = self%mesh_maps%query(mesh_map_id)
+
+  end function query_mesh_map
 
   !============================================================================
   !> @details Computes the local ID of each face in the adjacent cells.

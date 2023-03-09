@@ -9,7 +9,7 @@ module moist_mr_transport_alg_mod
 
   use constants_mod,                  only: i_def, r_def, r_tran
   use enforce_lower_bound_kernel_mod, only: enforce_lower_bound_kernel_type
-  use extrusion_mod,                  only: SHIFTED, DOUBLE_LEVEL
+  use extrusion_mod,                  only: SHIFTED
   use fem_constants_mod,              only: get_inverse_lumped_mass_matrix, &
                                             get_mass_matrix_diagonal
   use field_mod,                      only: field_type
@@ -91,7 +91,6 @@ contains
     type(function_space_type), pointer :: w2_shifted_fs => null()
     type(mesh_type),           pointer :: primary_mesh => null()
     type(mesh_type),           pointer :: shifted_mesh => null()
-    type(mesh_type),           pointer :: double_level_mesh => null()
     type(transport_runtime_type), pointer :: transport_runtime => null()
 
     ! Local conversions to the r_tran precision
@@ -132,9 +131,8 @@ contains
 
       primary_mesh => mr_in(1)%get_mesh()
       shifted_mesh => mesh_collection%get_mesh(primary_mesh, SHIFTED)
-      double_level_mesh => mesh_collection%get_mesh(primary_mesh, DOUBLE_LEVEL)
 
-      proj_mr_to_sh_rho_rhs_op_rdef => get_proj_mr_to_sh_rho_rhs_op()
+      proj_mr_to_sh_rho_rhs_op_rdef => get_proj_mr_to_sh_rho_rhs_op(primary_mesh)
       mm_w3_shifted_inv_diag_rdef => get_inverse_lumped_mass_matrix(W3, shifted_mesh%get_id())
       mm_w3_shifted_diag_rdef => get_mass_matrix_diagonal(W3, shifted_mesh%get_id())
       w3_shifted_fs => function_space_collection%get_fs(shifted_mesh, 0_i_def, W3)
@@ -229,7 +227,7 @@ contains
       nullify( rho_d_n, rho_d_star, proj_mr_to_sh_rho_rhs_op_rdef, &
                transport_runtime, mm_w3_shifted_diag_rdef,        &
                mm_w3_shifted_inv_diag_rdef, w3_shifted_fs, w2_shifted_fs, &
-               primary_mesh, shifted_mesh, double_level_mesh )
+               primary_mesh, shifted_mesh )
 
     ! ------------------------------------------------------------------------ !
     ! Default form of transport equation

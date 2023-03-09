@@ -168,6 +168,7 @@ build: ALWAYS
 unit-tests/%: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source           \
                                              $(ROOT_DIR)/components/driver/source        \
                                              $(ROOT_DIR)/components/science/source       \
+                                             $(ROOT_DIR)/components/inventory/source     \
                                              $(ROOT_DIR)/components/lfric-xios/source    \
 											 $(ROOT_DIR)/gungho/source                   \
                                              $(ROOT_DIR)/gungho/unit-test/support

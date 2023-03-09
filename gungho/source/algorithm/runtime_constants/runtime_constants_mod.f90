@@ -12,7 +12,6 @@
 module runtime_constants_mod
 
   use boundaries_config_mod,   only: limited_area
-  use check_configuration_mod, only: check_any_shifted
   use constants_mod,           only: i_def, r_def, str_def, l_def
   use field_mod,               only: field_type
   use io_config_mod,           only: subroutine_timers
@@ -105,7 +104,6 @@ contains
     type(mesh_type), optional, intent(in), pointer :: double_level_mesh
 
     ! Internal variables
-    logical(kind=l_def)                         :: any_shifted
     integer(kind=i_def)                         :: num_meshes, mesh_counter, i, j
     integer(kind=i_def),            allocatable :: mesh_id_list(:)
     integer(kind=i_def),            allocatable :: label_list(:)
@@ -259,17 +257,7 @@ contains
                                          label_list )
     end if
 
-    any_shifted = check_any_shifted()
-
-    if ( any_shifted ) then
-      call create_intermesh_constants(mesh,              &
-                                      chi,               &
-                                      panel_id,          &
-                                      shifted_mesh,      &
-                                      shifted_chi,       &
-                                      double_level_mesh, &
-                                      double_level_chi)
-    end if
+    call create_intermesh_constants(mesh_collection)
 
     ! Set-up arrays for transport coefficients
     call runge_kutta_init()
@@ -300,15 +288,11 @@ contains
 
     implicit none
 
-    logical(kind=l_def) :: any_shifted
-
-    any_shifted = check_any_shifted()
-
     call final_geometric_constants()
     call final_fem_constants()
     call final_physical_op_constants()
     if ( limited_area ) call final_limited_area_constants()
-    if ( any_shifted ) call final_intermesh_constants()
+    call final_intermesh_constants()
     call final_hierarchical_mesh_id_list()
     call final_mesh_id_list()
 

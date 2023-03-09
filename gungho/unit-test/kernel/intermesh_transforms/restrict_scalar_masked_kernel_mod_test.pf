@@ -4,19 +4,19 @@
 ! which you should have received as part of this distribution.
 !-----------------------------------------------------------------------------
 !> Test for the masked restriction kernel
-module restrict_masked_kernel_mod_test
+module restrict_scalar_masked_kernel_mod_test
 
   use pFUnit_mod
-  use constants_mod,              only : i_def, r_def, rmdi
-  use restrict_masked_kernel_mod, only : restrict_masked_kernel_code
+  use constants_mod,                     only : i_def, r_def, rmdi
+  use restrict_scalar_masked_kernel_mod, only : restrict_scalar_masked_kernel_code
 
   implicit none
 
   private
-  public :: restrict_test_type, test_mask_one, test_mask_zero, test_mask_mixed
+  public :: prolong_scalar_masked_test_type, test_mask_one, test_mask_zero, test_mask_mixed
 
   @TestCase
-  type, extends(TestCase) :: restrict_test_type
+  type, extends(TestCase) :: prolong_scalar_masked_test_type
      private
      integer(kind=i_def) :: ncell_fine, undf_fine, undf_coarse
      integer(kind=i_def), allocatable, dimension(:,:) :: cell_map
@@ -31,7 +31,7 @@ module restrict_masked_kernel_mod_test
      procedure test_mask_one
      procedure test_mask_zero
      procedure test_mask_mixed
-  end type restrict_test_type
+  end type prolong_scalar_masked_test_type
 
      integer(kind=i_def), parameter :: nlayers = 3
 
@@ -46,7 +46,7 @@ module restrict_masked_kernel_mod_test
 
      real(kind=r_def),    parameter :: tol = 1.0e-12_r_def
 
-     ! The restrict_masked_kernel is NOT an incremental operator, so the output coarse
+     ! The restrict_scalar_masked_kernel is NOT an incremental operator, so the output coarse
      ! does not depend on the input coarse value. The output value
      ! is output_coarse = average(mask_fine * input_fine).
      ! The input coarse field is specified as a field of an arbitrary number - rmdi.
@@ -62,7 +62,7 @@ contains
   subroutine setUp( this )
 
     implicit none
-    class(restrict_test_type), intent(inout) :: this
+    class(prolong_scalar_masked_test_type), intent(inout) :: this
 
     integer(kind=i_def) :: lp_x, lp_y, k
 
@@ -100,7 +100,7 @@ contains
 
     implicit none
 
-    class(restrict_test_type), intent(inout) :: this
+    class(prolong_scalar_masked_test_type), intent(inout) :: this
 
     deallocate( this%cell_map,     &
                 this%map_fine,     &
@@ -117,14 +117,15 @@ contains
 
     implicit none
 
-    class(restrict_test_type), intent(inout) :: this
+    class(prolong_scalar_masked_test_type), intent(inout) :: this
     integer(kind=i_def) :: k
 
     this%field_coarse(:) = input_coarse
     this%field_fine(:) = input_fine
     this%mask_fine(:) = 1.0_r_def
 
-    call restrict_masked_kernel_code( nlayers,                 &
+    call restrict_scalar_masked_kernel_code(                   &
+                                      nlayers,                 &
                                       this%cell_map,           &
                                       ncell_fine_per_coarse_x, &
                                       ncell_fine_per_coarse_y, &
@@ -150,14 +151,15 @@ contains
 
     implicit none
 
-    class(restrict_test_type), intent(inout) :: this
+    class(prolong_scalar_masked_test_type), intent(inout) :: this
     integer(kind=i_def) :: k
 
     this%field_coarse(:) = input_coarse
     this%field_fine(:) = input_fine
     this%mask_fine(:) = 0.0_r_def
 
-    call restrict_masked_kernel_code( nlayers,                 &
+    call restrict_scalar_masked_kernel_code(                   &
+                                      nlayers,                 &
                                       this%cell_map,           &
                                       ncell_fine_per_coarse_x, &
                                       ncell_fine_per_coarse_y, &
@@ -183,7 +185,7 @@ contains
 
     implicit none
 
-    class(restrict_test_type), intent(inout) :: this
+    class(prolong_scalar_masked_test_type), intent(inout) :: this
     integer(kind=i_def) :: k, lp_y
 
     this%field_coarse(:) = input_coarse
@@ -197,7 +199,8 @@ contains
       end do
     end do
 
-    call restrict_masked_kernel_code( nlayers,                 &
+    call restrict_scalar_masked_kernel_code(                   &
+                                      nlayers,                 &
                                       this%cell_map,           &
                                       ncell_fine_per_coarse_x, &
                                       ncell_fine_per_coarse_y, &
@@ -217,4 +220,4 @@ contains
 
   end subroutine test_mask_mixed
 
-end module restrict_masked_kernel_mod_test
+end module restrict_scalar_masked_kernel_mod_test

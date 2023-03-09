@@ -39,6 +39,7 @@ module check_configuration_mod
                                   split_method_mol,            &
                                   split_method_ffsl,           &
                                   equation_form_advective,     &
+                                  equation_form_conservative,  &
                                   equation_form_consistent,    &
                                   splitting_strang_hvh,        &
                                   splitting_strang_vhv,        &
@@ -56,6 +57,8 @@ module check_configuration_mod
   public :: check_any_splitting_vhv
   public :: check_any_shifted
   public :: check_any_eqn_consistent
+  public :: check_any_wt_eqn_conservative
+  public :: check_moisture_advective
   public :: check_horz_dep_pts
   public :: check_vert_dep_pts
   public :: get_required_stencil_depth
@@ -641,6 +644,53 @@ contains
     end do
 
   end function check_any_eqn_consistent
+
+  !> @brief   Determine whether moisture transport is advective
+  !> @details Loops through the transport equations specified for different
+  !!          variables and determines whether moisture transport is advective,
+  !!          as opposed to the two conservative options.
+  !> @return  moisture_advective
+  function check_moisture_advective() result(moisture_advective)
+
+    implicit none
+
+    logical(kind=l_def) :: moisture_advective
+    integer(kind=i_def) :: i
+
+    moisture_advective = .false.
+
+    do i = 1, profile_size
+      if ( field_names(i) == 'mr' .and. &
+           equation_form(i) == equation_form_advective ) then
+        moisture_advective = .true.
+        exit
+      end if
+    end do
+
+  end function check_moisture_advective
+
+  !> @brief   Determine whether any of the Wtheta transport eqns are conservative
+  !> @details Loops through the transport equations specified for different
+  !!          variables and determines whether any are using conservative form
+  !> @return  any_wt_eqn_conservative
+  function check_any_wt_eqn_conservative() result(any_wt_eqn_conservative)
+
+    implicit none
+
+    logical(kind=l_def) :: any_wt_eqn_conservative
+    integer(kind=i_def) :: i
+
+    any_wt_eqn_conservative = .false.
+
+    do i = 1, profile_size
+      if ( equation_form(i) == equation_form_conservative &
+           .and. field_names(i) /= dry_field_name ) then
+        any_wt_eqn_conservative = .true.
+        exit
+      end if
+    end do
+
+  end function check_any_wt_eqn_conservative
 
   !> @brief   Determine whether horizontal departure points need computing
   !> @details Loops through the transport schemes specified for different

@@ -1,0 +1,146 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test for the W2 restriction kernel
+module restrict_w2v_kernel_mod_test
+  use pFUnit_mod
+  use constants_mod, only : i_def, r_def
+
+  implicit none
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: restrict_w2v_test_type
+     private
+   contains
+     procedure :: test_all
+  end type restrict_w2v_test_type
+
+contains
+
+  @test
+  subroutine test_all( this )
+    use restrict_w2v_kernel_mod, only : restrict_w2v_code
+    implicit none
+    class(restrict_w2v_test_type), intent(inout) :: this
+
+    integer(kind=i_def) :: lp_x, lp_y, k, df, cell_f
+
+    ! Scalars
+    integer(kind=i_def) :: nlayers
+    integer(kind=i_def) :: ncell_f_per_c_x ! number of fine cells per coarse in x
+    integer(kind=i_def) :: ncell_f_per_c_y ! number of fine cells per coarse in y
+    integer(kind=i_def) :: ncell_f         ! number of fine cells
+    integer(kind=i_def) :: ndf_f           ! number of dofs per fine cell
+    integer(kind=i_def) :: ndf_c           ! number of dofs per coarse cell
+    integer(kind=i_def) :: undf_f, undf_c  ! unique number of dofs over whole field
+
+    ! Integer Arrays
+    integer(kind=i_def), allocatable, dimension(:,:) :: cell_map
+    integer(kind=i_def), allocatable, dimension(:,:) :: map_f ! Cell and dof indexed
+    integer(kind=i_def), allocatable, dimension(:)   :: map_c ! only dof indexed
+
+    ! Real Arrays
+    real(kind=r_def), allocatable, dimension(:) :: coarse_field, fine_field
+    real(kind=r_def), allocatable, dimension(:) :: answer
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+
+    ! set the scalars by hand
+    nlayers = 3
+    ncell_f_per_c_x = 2
+    ncell_f_per_c_y = 3
+
+    ncell_f = 1_i_def * ncell_f_per_c_x * ncell_f_per_c_y ! only need one coarse cell
+    ndf_f = 2
+    ndf_c = 2
+    undf_c = nlayers+1
+    undf_f = ncell_f*(nlayers+1)
+
+    allocate( cell_map(ncell_f_per_c_x, ncell_f_per_c_y) )
+    allocate( map_f(ndf_f, ncell_f) )
+    allocate( map_c(ndf_c) )
+    allocate( coarse_field(undf_c) )
+    allocate( fine_field(undf_f) )
+    allocate( answer(undf_c) )
+
+    ! set simple values for cell map
+    do lp_y = 1, ncell_f_per_c_y
+      do lp_x = 1, ncell_f_per_c_x
+       cell_map(lp_x, lp_y) = lp_x + (lp_y - 1)*ncell_f_per_c_x
+      end do
+    end do
+
+    ! Make a W2 DoF map for 2*3*3 cells
+    map_f = reshape( (/  1,  2, &
+                         5,  6, &
+                         9, 10, &
+                        13, 14, &
+                        17, 18, &
+                        21, 22  &
+                      /), (/ ndf_f, ncell_f /) )
+
+    ! DoF map for single coarse cell
+    map_c = (/ 1, 2 /)
+
+    answer(:) = 0.0_r_def
+    coarse_field(:) = 0.0_r_def
+
+    ! Set values of the fields
+    do k = 0, nlayers - 1
+      do lp_x = 1, ncell_f_per_c_x
+        do lp_y = 1, ncell_f_per_c_y
+          ! work out fine cell ID
+          cell_f = lp_x + ncell_f_per_c_x * (lp_y - 1)
+
+          ! Vertical components
+          ! Total coarse answer will be (12 + 6*k)
+          fine_field(map_f(1, cell_f)+k) = real(lp_y + k, r_def)
+
+          ! Top layer
+          if ( k == nlayers - 1 ) then
+            ! Total coarse answer should be 21
+            fine_field(map_f(2, cell_f)+k) = real(lp_x + k, r_def)
+          end if
+
+        end do
+      end do
+    end do
+
+    ! Fill coarse answer field using values from above
+    do k = 0, nlayers - 1
+      answer(map_c(1)+k) = real(12 + 6*k, r_def)
+
+      if ( k == nlayers - 1 ) then
+        answer(map_c(2)+k) = real(9 + 6*k, r_def)
+      end if
+    end do
+
+    call restrict_w2v_code( nlayers,         &
+                            cell_map,        &
+                            ncell_f_per_c_x, &
+                            ncell_f_per_c_y, &
+                            ncell_f,         &
+                            coarse_field,    &
+                            fine_field,      &
+                            undf_c,          &
+                            map_c,           &
+                            ndf_f,           &
+                            undf_f,          &
+                            map_f            )
+
+    ! Check answer for all DoFs
+    @assertEqual( coarse_field, answer, tol )
+
+    deallocate( cell_map,      &
+                map_f,         &
+                map_c,         &
+                answer,        &
+                coarse_field,  &
+                fine_field     )
+
+  end subroutine test_all
+
+end module restrict_w2v_kernel_mod_test

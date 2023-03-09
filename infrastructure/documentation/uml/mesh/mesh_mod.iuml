@@ -110,6 +110,7 @@ class mesh_mod::mesh_type {
   +get_num_cells_ghost() : integer
   +get_gid_from_lid( <<in>>cell_lid: integer ) : integer
   +get_mesh_map( <<in>>target_mesh: mesh_type <<pointer>> ) : mesh_map_type <<pointer>>
+  +query_mesh_map( <<in>>target_mesh: mesh_type <<pointer>> ) : logical
   +add_mesh_map( <<in>>target_mesh: mesh_type <<pointer>> )
   +get_adjacent_face() : integer <<pointer>>
   +get_ncolours() : integer

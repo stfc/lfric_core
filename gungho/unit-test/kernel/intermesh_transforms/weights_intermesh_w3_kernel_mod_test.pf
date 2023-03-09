@@ -1,0 +1,144 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test for the prolongation kernel
+module weights_intermesh_w3_kernel_mod_test
+  use pFUnit_mod
+  use constants_mod, only : i_def, r_def
+
+  implicit none
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: weights_intermesh_w3_test_type
+     private
+   contains
+     procedure :: test_all
+  end type weights_intermesh_w3_test_type
+
+contains
+  @test
+  subroutine test_all( this )
+    use weights_intermesh_w3_kernel_mod, only : weights_intermesh_w3_kernel_code
+    implicit none
+    class(weights_intermesh_w3_test_type), intent(inout) :: this
+
+    integer(kind=i_def) :: x_idx, y_idx, k, df, cell_f
+
+    ! Scalars
+    integer(kind=i_def) :: nlayers
+    integer(kind=i_def) :: ncell_f_per_c_x ! number of fine cells per coarse in x
+    integer(kind=i_def) :: ncell_f_per_c_y ! number of fine cells per coarse in y
+    integer(kind=i_def) :: ncell_f         ! number of fine cells
+    integer(kind=i_def) :: ndf_f           ! number of dofs per fine cell
+    integer(kind=i_def) :: ndf_c           ! number of dofs per coarse cell
+    integer(kind=i_def) :: undf_f, undf_c  ! unique number of dofs over whole field
+
+    ! Integer Arrays
+    integer(kind=i_def), allocatable, dimension(:,:) :: cell_map
+    integer(kind=i_def), allocatable, dimension(:,:) :: map_f ! Cell and dof indexed
+    integer(kind=i_def), allocatable, dimension(:)   :: map_c ! only dof indexed
+
+    ! Real Arrays
+    real(kind=r_def), allocatable, dimension(:) :: mm_w3_coarse
+    real(kind=r_def), allocatable, dimension(:) :: mm_w3_fine
+    real(kind=r_def), allocatable, dimension(:) :: answer, weights
+    real(kind=r_def), allocatable, dimension(:) :: fine_cell_fractions
+    real(kind=r_def), parameter :: tol = 1.0e-06_r_def
+    real(kind=r_def), parameter :: area = 19.19_r_def
+
+    ! set the scalars by hand
+    nlayers = 3
+    ncell_f_per_c_x = 3
+    ncell_f_per_c_y = 2
+
+    ncell_f = 1_i_def * ncell_f_per_c_x * ncell_f_per_c_y ! only need one coarse cell
+    ndf_f = 1
+    ndf_c = 1
+    undf_c = ndf_c*nlayers
+    undf_f = ndf_f*ncell_f*nlayers
+
+    allocate( cell_map(ncell_f_per_c_x, ncell_f_per_c_y) )
+    allocate( map_f(ndf_f, ncell_f) )
+    allocate( map_c(ndf_c) )
+    allocate( mm_w3_coarse(undf_c) )
+    allocate( mm_w3_fine(undf_f) )
+    allocate( weights(undf_f) )
+    allocate( answer(undf_f) )
+    allocate( fine_cell_fractions(ncell_f) )
+
+    ! set simple values for cell map
+    do y_idx = 1, ncell_f_per_c_y
+      do x_idx = 1, ncell_f_per_c_x
+       cell_map(x_idx, y_idx) = x_idx + (y_idx - 1)*ncell_f_per_c_x
+      end do
+    end do
+
+    ! Make a W3 DoF map for 3*2*3 cells
+    map_f = reshape( (/  1,  4,  7, 10, 13, 16 /), (/ ndf_f, ncell_f /) )
+
+    ! DoF map for single coarse cell
+    map_c = (/ 1 /)
+
+    weights(:) = 0.0_r_def
+    answer(:) = 0.0_r_def
+    mm_w3_fine(:) = 0.0_r_def
+    mm_w3_coarse(:) = 0.0_r_def
+
+    ! Fractional area of fine cell within coarse cell. Needs to add up to one
+    fine_cell_fractions(:) = (/ 0.11_r_def, 0.125_r_def, 0.265_r_def, &
+                                0.16_r_def, 0.175_r_def, 0.165_r_def /)
+
+    ! Set values of the weights and fine answer field
+    do k = 0, nlayers - 1
+      ! Let coarse cell volume be area * k+1
+      mm_w3_coarse(1+k) = area * real(k+1, r_def)
+      do x_idx = 1, ncell_f_per_c_x
+        do y_idx = 1, ncell_f_per_c_y
+          ! work out fine cell ID
+          cell_f = x_idx + ncell_f_per_c_x * (y_idx - 1)
+          ! Volume of fine cell
+          mm_w3_fine(map_f(1,cell_f)+k) = &
+            area * fine_cell_fractions(cell_f) * real(k+1, r_def)
+          ! Answer comes from fine cell fraction
+          answer(map_f(1,cell_f)+k) =                  &
+            1.0_r_def / fine_cell_fractions(cell_f) /  &
+            real(ncell_f_per_c_x*ncell_f_per_c_y, r_def)
+        end do
+      end do
+    end do
+
+
+    call weights_intermesh_w3_kernel_code( nlayers,          &
+                                           cell_map,         &
+                                           ncell_f_per_c_x,  &
+                                           ncell_f_per_c_y,  &
+                                           ncell_f,          &
+                                           weights,          &
+                                           mm_w3_fine,       &
+                                           mm_w3_coarse,     &
+                                           ndf_f,            &
+                                           undf_f,           &
+                                           map_f,            &
+                                           undf_c,           &
+                                           map_c )
+
+    ! Check answer for all DoFs
+    @assertEqual( weights, answer, tol )
+
+    deallocate( cell_map,         &
+                map_f,            &
+                map_c,            &
+                weights,          &
+                answer,           &
+                mm_w3_fine,       &
+                mm_w3_coarse,     &
+                fine_cell_fractions )
+
+  end subroutine test_all
+
+end module weights_intermesh_w3_kernel_mod_test

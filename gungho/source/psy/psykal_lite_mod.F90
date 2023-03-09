@@ -1391,4 +1391,98 @@ contains
 
     END SUBROUTINE invoke_dg_matrix_vector_rtran
 
+!-------------------------------------------------------------------------------
+!> Routine to perform higher-order reconstruction of a field on a fine mesh to
+!! a coarse mesh. There is a field in this kernel that requires both a mesh
+!! argument and a stencil argument, and PSyclone currently does not support
+!! this. The issue to address this is #1983
+  subroutine invoke_prolong_scalar_linear_kernel_type(target_field, source_field, stencil_extent)
+
+    use prolong_scalar_linear_kernel_mod, only: prolong_scalar_linear_kernel_code
+    use mesh_map_mod,                     only: mesh_map_type
+    use mesh_mod,                         only: mesh_type
+    use stencil_dofmap_mod,               only: STENCIL_CROSS
+    use stencil_dofmap_mod,               only: stencil_dofmap_type
+
+    implicit none
+
+    type(field_type),    intent(in) :: target_field, source_field
+    integer(kind=i_def), intent(in) :: stencil_extent
+
+    integer(kind=i_def) :: cell
+    integer(kind=i_def) :: nlayers
+    type(field_proxy_type) :: target_field_proxy, source_field_proxy
+    integer(kind=i_def), pointer :: map_adspc1_target_field(:,:) => null(), map_adspc2_source_field(:,:) => null()
+    integer(kind=i_def) :: ndf_adspc1_target_field, undf_adspc1_target_field, ndf_adspc2_source_field, undf_adspc2_source_field
+    integer(kind=i_def) :: ncell_target_field, ncpc_target_field_source_field_x, ncpc_target_field_source_field_y
+    integer(kind=i_def), pointer :: cell_map_source_field(:,:,:) => null()
+    type(mesh_map_type), pointer :: mmap_target_field_source_field => null()
+    type(mesh_type),     pointer :: mesh_target_field => null()
+    type(mesh_type),     pointer :: mesh_source_field => null()
+    integer(kind=i_def), pointer :: stencil_size(:) => null()
+    integer(kind=i_def), pointer :: stencil_dofmap(:,:,:) => null()
+    type(stencil_dofmap_type), pointer :: stencil_map => null()
+
+    !
+    ! Initialise field and/or operator proxies
+    !
+    target_field_proxy = target_field%get_proxy()
+    source_field_proxy = source_field%get_proxy()
+    !
+    ! Initialise number of layers
+    !
+    nlayers = target_field_proxy%vspace%get_nlayers()
+    !
+    ! Look-up mesh objects and loop limits for inter-grid kernels
+    !
+    mesh_target_field => target_field_proxy%vspace%get_mesh()
+    mesh_source_field => source_field_proxy%vspace%get_mesh()
+    mmap_target_field_source_field => mesh_source_field%get_mesh_map(mesh_target_field)
+    cell_map_source_field => mmap_target_field_source_field%get_whole_cell_map()
+    ncell_target_field = mesh_target_field%get_last_halo_cell(depth=2)
+    ncpc_target_field_source_field_x = mmap_target_field_source_field%get_ntarget_cells_per_source_x()
+    ncpc_target_field_source_field_y = mmap_target_field_source_field%get_ntarget_cells_per_source_y()
+    !
+    ! Initialise stencil dofmaps
+    !
+    stencil_map => source_field_proxy%vspace%get_stencil_dofmap(STENCIL_CROSS,stencil_extent)
+    stencil_dofmap => stencil_map%get_whole_dofmap()
+    stencil_size => stencil_map%get_stencil_sizes()
+    !
+    ! Look-up dofmaps for each function space
+    !
+    map_adspc1_target_field => target_field_proxy%vspace%get_whole_dofmap()
+    map_adspc2_source_field => source_field_proxy%vspace%get_whole_dofmap()
+    !
+    ! Initialise number of DoFs for adspc1_target_field
+    !
+    ndf_adspc1_target_field = target_field_proxy%vspace%get_ndf()
+    undf_adspc1_target_field = target_field_proxy%vspace%get_undf()
+    !
+    ! Initialise number of DoFs for adspc2_source_field
+    !
+    ndf_adspc2_source_field = source_field_proxy%vspace%get_ndf()
+    undf_adspc2_source_field = source_field_proxy%vspace%get_undf()
+    !
+    ! Call kernels and communication routines
+    !
+    if (source_field_proxy%is_dirty(depth=stencil_extent)) then
+      call source_field_proxy%halo_exchange(depth=stencil_extent)
+    end if
+    !
+    do cell=1,mesh_source_field%get_last_edge_cell()
+      !
+      call prolong_scalar_linear_kernel_code(nlayers, cell_map_source_field(:,:,cell), ncpc_target_field_source_field_x, &
+&ncpc_target_field_source_field_y, ncell_target_field, target_field_proxy%data, source_field_proxy%data, stencil_size(cell), &
+stencil_dofmap(:,:,cell), ndf_adspc1_target_field, &
+&undf_adspc1_target_field, map_adspc1_target_field, undf_adspc2_source_field, map_adspc2_source_field(:,cell))
+    end do
+    !
+    ! Set halos dirty/clean for fields modified in the above loop
+    !
+    call target_field_proxy%set_dirty()
+    !
+    !
+  end subroutine invoke_prolong_scalar_linear_kernel_type
+
 end module psykal_lite_mod

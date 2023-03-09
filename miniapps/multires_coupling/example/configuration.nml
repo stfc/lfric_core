@@ -345,6 +345,9 @@ external_forcing=.false.
 &multires_coupling
   multires_coupling_mesh_tags = 'C24'
   dynamics_mesh_name= 'C24'
+  negative_correction='none'
+  recovery_order='linear'
+  reconstruction='reversible'
   physics_mesh_name= 'C24'
   multires_coupling_mode='test'
 /

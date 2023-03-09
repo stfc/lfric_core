@@ -4,19 +4,19 @@
 ! which you should have received as part of this distribution.
 !-----------------------------------------------------------------------------
 !> Test for the masked prolongation kernel
-module prolong_masked_kernel_mod_test
+module prolong_scalar_masked_kernel_mod_test
 
   use pFUnit_mod
   use constants_mod,             only : i_def, r_def
-  use prolong_masked_kernel_mod, only : prolong_masked_kernel_code
+  use prolong_scalar_masked_kernel_mod, only : prolong_scalar_masked_kernel_code
 
   implicit none
 
   private
-  public :: prolong_test_type, test_mask_one, test_mask_zero, test_mask_mixed
+  public :: prolong_scalar_masked_test_type, test_mask_one, test_mask_zero, test_mask_mixed
 
   @TestCase
-  type, extends(TestCase) :: prolong_test_type
+  type, extends(TestCase) :: prolong_scalar_masked_test_type
      private
      integer(kind=i_def) :: ncell_fine, undf_fine, undf_coarse
      integer(kind=i_def), allocatable, dimension(:,:) :: cell_map
@@ -31,7 +31,7 @@ module prolong_masked_kernel_mod_test
      procedure test_mask_one
      procedure test_mask_zero
      procedure test_mask_mixed
-  end type prolong_test_type
+  end type prolong_scalar_masked_test_type
 
      integer(kind=i_def), parameter :: nlayers = 3
 
@@ -46,7 +46,7 @@ module prolong_masked_kernel_mod_test
 
      real(kind=r_def),    parameter :: tol = 1.0e-12_r_def
 
-     ! The prolong_masked_kernel is an incremental operator, so the output value
+     ! The prolong_scalar_masked_kernel is an incremental operator, so the output value
      ! is output_fine = input_fine + mask_fine * input_coarse.
      ! The input coarse field is specified as a field of 1s.
      ! The input fine field is specified as a field of 10s.
@@ -63,7 +63,7 @@ contains
 
     implicit none
 
-    class(prolong_test_type), intent(inout) :: this
+    class(prolong_scalar_masked_test_type), intent(inout) :: this
 
     integer(kind=i_def) :: lp_x, lp_y
     integer(kind=i_def) :: ncell_fine
@@ -103,7 +103,7 @@ contains
 
     implicit none
 
-    class(prolong_test_type), intent(inout) :: this
+    class(prolong_scalar_masked_test_type), intent(inout) :: this
 
     deallocate( this%cell_map,     &
                 this%map_fine,     &
@@ -121,12 +121,12 @@ contains
     !
     ! The field_coarse values are all set to 1, and when mapped to the
     ! fine_field with mask values of 1, the expected values returned are also
-    ! 1. This uses the fact that the prolong_masked_kernel assumes that
+    ! 1. This uses the fact that the prolong_scalar_masked_kernel assumes that
     ! the input field is intensive.
 
     implicit none
 
-    class(prolong_test_type), intent(inout) :: this
+    class(prolong_scalar_masked_test_type), intent(inout) :: this
 
     integer(kind=i_def) :: df
 
@@ -134,7 +134,8 @@ contains
     this%field_coarse(:) = input_coarse
     this%mask_fine(:) = 1.0_r_def
 
-    call prolong_masked_kernel_code( nlayers,                 &
+    call prolong_scalar_masked_kernel_code(                   &
+                                     nlayers,                 &
                                      this%cell_map,           &
                                      ncell_fine_per_coarse_x, &
                                      ncell_fine_per_coarse_y, &
@@ -165,7 +166,7 @@ contains
 
     implicit none
 
-    class(prolong_test_type), intent(inout) :: this
+    class(prolong_scalar_masked_test_type), intent(inout) :: this
 
     integer(kind=i_def) :: df
 
@@ -173,7 +174,8 @@ contains
     this%field_coarse(:) = input_coarse
     this%mask_fine(:) = 0.0_r_def
 
-    call prolong_masked_kernel_code( nlayers,                 &
+    call prolong_scalar_masked_kernel_code(                   &
+                                     nlayers,                 &
                                      this%cell_map,           &
                                      ncell_fine_per_coarse_x, &
                                      ncell_fine_per_coarse_y, &
@@ -206,7 +208,7 @@ contains
 
     implicit none
 
-    class(prolong_test_type), intent(inout) :: this
+    class(prolong_scalar_masked_test_type), intent(inout) :: this
 
     integer(kind=i_def) :: k, df, on, off
 
@@ -222,7 +224,8 @@ contains
       end do
     end do
 
-    call prolong_masked_kernel_code( nlayers,                 &
+    call prolong_scalar_masked_kernel_code(                   &
+                                     nlayers,                 &
                                      this%cell_map,           &
                                      ncell_fine_per_coarse_x, &
                                      ncell_fine_per_coarse_y, &
@@ -247,4 +250,4 @@ contains
 
   end subroutine test_mask_mixed
 
-end module prolong_masked_kernel_mod_test
+end module prolong_scalar_masked_kernel_mod_test

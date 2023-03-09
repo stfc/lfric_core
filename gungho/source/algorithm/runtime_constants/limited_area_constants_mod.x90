@@ -37,7 +37,7 @@ module limited_area_constants_mod
                                                LOG_LEVEL_DEBUG
   use mesh_collection_mod,               only: mesh_collection
   use mesh_mod,                          only: mesh_type
-  use restrict_masked_kernel_mod,        only: restrict_masked_kernel_type
+  use restrict_scalar_masked_kernel_mod, only: restrict_scalar_masked_kernel_type
   use restrict_masked_w2_kernel_mod,     only: restrict_masked_w2_kernel_type
   use runtime_tools_mod,                 only: find_mesh_index,        &
                                                primary_mesh_label,     &
@@ -339,9 +339,9 @@ contains
         ! coarse_level_mask (coarse cell) = average ( fine_level_mask (fine cells) )
         ! where the average is only performed over the cells with non-zero values.
         call invoke(                                                         &
-            restrict_masked_kernel_type( mask_w3_list(mesh_index_coarse),    &
-                                         w3_source_mask,                     &
-                                         w3_mask ),                          &
+            restrict_scalar_masked_kernel_type( mask_w3_list(mesh_index_coarse),    &
+                                                w3_source_mask,                     &
+                                                w3_mask ),                          &
             setval_C( mask_w2_list(mesh_index_coarse), 0.0_r_def ),          &
             restrict_masked_w2_kernel_type( mask_w2_list(mesh_index_coarse), &
                                                      w2_source_mask,         &

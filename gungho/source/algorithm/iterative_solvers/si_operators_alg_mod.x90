@@ -405,7 +405,8 @@ contains
     use multiplicity_kernel_mod,              only: multiplicity_kernel_type
     use sample_field_kernel_mod,              only: sample_field_kernel_type
     use eliminated_theta_q2t_kernel_mod,      only: eliminated_theta_q2t_kernel_type
-    use restrict_kernel_mod,                  only: restrict_kernel_type
+    use restrict_scalar_unweighted_kernel_mod,  &
+                                              only: restrict_scalar_unweighted_kernel_type
     use operator_algebra_kernel_mod,          only: operator_setval_x_kernel_type
 
     implicit none
@@ -735,7 +736,7 @@ contains
              wt_fs=>wtheta_multigrid_function_space_chain%get_next()
              call theta%initialise(vector_space = wt_fs)
              ! call restrict
-             call invoke( restrict_kernel_type(theta, coarse_field) )
+             call invoke( restrict_scalar_unweighted_kernel_type(theta, coarse_field) )
 
              ! copy current field to coarse field
              call rho%copy_field(coarse_field)
@@ -743,14 +744,14 @@ contains
              w3_fs=>multigrid_function_space_chain%get_next()
              call rho%initialise(vector_space = w3_fs )
              ! call restrict
-             call invoke( restrict_kernel_type(rho, coarse_field) )
+             call invoke( restrict_scalar_unweighted_kernel_type(rho, coarse_field) )
 
              ! copy current field to coarse field
              call exner%copy_field(coarse_field)
              ! fs already set fine
              call exner%initialise(vector_space = w3_fs )
              ! call restrict
-             call invoke( restrict_kernel_type(exner, coarse_field) )
+             call invoke( restrict_scalar_unweighted_kernel_type(exner, coarse_field) )
              ! set w2_fs to next in chain
              w2_fs=>w2_multigrid_function_space_chain%get_next()
           end if

@@ -1,9 +1,9 @@
 !-----------------------------------------------------------------------------
-! (C) Crown copyright 2021 Met Office. All rights reserved.
-! For further details please refer to the file COPYRIGHT.txt
-! which you should have received as part of this distribution.
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
 !-----------------------------------------------------------------------------
-!> Test for the prolongation kernel
+!> Test for the kernel computing weights for W2 prolongation
 module weights_prolong_w2_kernel_mod_test
   use pFUnit_mod
   use constants_mod, only : i_def, r_def
@@ -39,8 +39,8 @@ contains
 
     ! Integer Arrays
     integer(kind=i_def), allocatable, dimension(:,:) :: cell_map
-    integer(kind=i_def), allocatable, dimension(:,:) :: map_f ! Cell and dof valued
-    integer(kind=i_def), allocatable, dimension(:)   :: map_c ! only dof valued
+    integer(kind=i_def), allocatable, dimension(:,:) :: map_f ! Cell and dof indexed
+    integer(kind=i_def), allocatable, dimension(:)   :: map_c ! only dof indexed
 
     ! Real Arrays
     real(kind=r_def), allocatable, dimension(:) :: coarse_dummy

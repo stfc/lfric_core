@@ -7,9 +7,8 @@
 !>@brief Coupling algorithm which tests the mapping capability for the multires_coupling miniapp
 module coupling_test_alg_mod
 
-  use compute_div_operator_kernel_mod,    only : compute_div_operator_kernel_type
   use constants_mod,                      only : i_def, r_def
-  use fem_constants_mod,                  only : get_div
+  use fem_constants_mod,                  only : get_im3_div
   use field_mod,                          only : field_type
   use finite_element_config_mod,          only : element_order
   use fs_continuity_mod,                  only : W2, W3
@@ -23,10 +22,10 @@ module coupling_test_alg_mod
   use mesh_collection_mod,                only : mesh_collection
   use mesh_mod,                           only : mesh_type
   use multires_coupling_config_mod,       only : multires_coupling_mesh_tags
-  use multires_coupling_mappings_alg_mod, only : map_scalars_alg, &
-                                                 map_w2_vectors_alg
+  use intermesh_mappings_alg_mod,         only : map_scalar_intermesh, &
+                                                 map_w2_intermesh,     &
+                                                 map_rho_intermesh
   use operator_mod,                       only : operator_type
-  use restrict_mass_kernel_mod,           only : restrict_mass_kernel_type
   use timestepping_config_mod,            only : dt
 
   implicit none
@@ -92,8 +91,8 @@ contains
     call field_W3_B1%initialise( vector_space = W3_B )
 
     ! Get div operators
-    div_A => get_div(mesh_A%get_id())
-    div_B => get_div(mesh_B%get_id())
+    div_A => get_im3_div(mesh_A%get_id())
+    div_B => get_im3_div(mesh_B%get_id())
 
     ! Initialise field A on W2
     ! Initial field A on W3 is divergence of the W2 field
@@ -118,10 +117,10 @@ contains
       call field_W3_A2%initialise( vector_space = W3_A )
 
       ! Do mappings from mesh A to B and back
-      call map_w2_vectors_alg( field_W2_A1, field_W2_B1 )
-      call map_w2_vectors_alg( field_W2_B1, field_W2_A2 )
-      call map_scalars_alg( field_W3_A1, field_W3_B1 )
-      call map_scalars_alg( field_W3_B1, field_W3_A2 )
+      call map_w2_intermesh( field_W2_B1, field_W2_A1 )
+      call map_w2_intermesh( field_W2_A2, field_W2_B1 )
+      call map_scalar_intermesh( field_W3_B1, field_W3_A1 )
+      call map_scalar_intermesh( field_W3_A2, field_W3_B1 )
 
       ! Check whether W2 fields on mesh A are comparable
       call field_diff%initialise( vector_space = W2_A )
@@ -149,6 +148,23 @@ contains
         call log_event(log_scratch_space, LOG_LEVEL_ERROR)
       end if
 
+      ! Test conservative prolongation / restriction
+      ! Do mappings from mesh A to B and back
+      call map_rho_intermesh( field_W3_B1, field_W3_A1 )
+      call map_rho_intermesh( field_W3_A2, field_W3_B1 )
+
+      ! Check whether W3 fields on mesh A are comparable
+      call invoke( X_minus_Y(field_diff, field_W3_A1, field_W3_A2), &
+                   X_innerproduct_X(errornorm_sq, field_diff),      &
+                   X_innerproduct_X(norm_sq, field_W3_A1)           )
+
+      tol = 1.0e-16_r_def
+      if ( sqrt(errornorm_sq / norm_sq) > tol ) then
+        call log_event("Error: The conservative W3 fields on mesh A are inconsistent ", LOG_LEVEL_INFO)
+        write(log_scratch_space, '(A, E16.8)') 'Error: ', sqrt(errornorm_sq / norm_sq)
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      end if
+
     !--------------------------------------------------------------------------!
     ! Fine to coarse
     ! Check that mappings are consistent
@@ -168,10 +184,9 @@ contains
       call field_W3_B2%initialise( vector_space = W3_B )
 
       ! Do mappings
-      call map_w2_vectors_alg( field_W2_A1, field_W2_B1 )
+      call map_w2_intermesh( field_W2_B1, field_W2_A1 )
       ! Use mass restriction kernel
-      call invoke( setval_c(field_W3_B1, 0.0_r_def), &
-                   restrict_mass_kernel_type( field_W3_B1, field_W3_A1 ) )
+      call map_rho_intermesh( field_W3_B1, field_W3_A1 )
       ! Take divergence of W2 field on mesh B
       call invoke( setval_c(field_W3_B2, 0.0_r_def), &
                    matrix_vector_kernel_type( field_W3_B2, field_W2_B1, div_B) )
@@ -195,8 +210,8 @@ contains
     !--------------------------------------------------------------------------!
     else
       ! Apply the mapping algorithms and check that answers are the same
-      call map_w2_vectors_alg( field_W2_A1, field_W2_B1 )
-      call map_scalars_alg( field_W3_A1, field_W3_B1 )
+      call map_w2_intermesh( field_W2_B1, field_W2_A1 )
+      call map_scalar_intermesh( field_W3_B1, field_W3_A1 )
 
       ! Check whether W2 fields are the same
       call field_diff%initialise( vector_space = W2_A )

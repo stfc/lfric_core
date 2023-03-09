@@ -40,7 +40,8 @@ contains
                                surface_altitude       )
 
     use assign_orography_field_mod, only: assign_orography_field
-    use restrict_kernel_mod,        only: restrict_kernel_type
+    use restrict_scalar_unweighted_kernel_mod, &
+                                    only: restrict_scalar_unweighted_kernel_type
 
 
     implicit none
@@ -80,7 +81,8 @@ contains
       call surface_altitude_mg( level )%initialise( vector_space = &
          function_space_collection%get_fs( twod_mesh, surface_order, W3) )
       ! We use a simple restriction from fine to coarse levels
-      call invoke( restrict_kernel_type( surface_altitude_mg( level ),  &
+      call invoke( restrict_scalar_unweighted_kernel_type(                &
+                                         surface_altitude_mg( level ),    &
                                          surface_altitude_mg( level-1 ) ) )
 
 

@@ -1,0 +1,112 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test for the weighted scalar prolongation kernel
+module prolong_scalar_weighted_kernel_mod_test
+  use pFUnit_mod
+  use constants_mod, only : i_def, r_def
+
+  implicit none
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: prolong_scalar_weighted_test_type
+     private
+   contains
+     procedure :: test_all
+  end type prolong_scalar_weighted_test_type
+
+contains
+  @test
+  subroutine test_all( this )
+    use prolong_scalar_weighted_kernel_mod, only : prolong_scalar_weighted_kernel_code
+    implicit none
+    class(prolong_scalar_weighted_test_type), intent(inout) :: this
+
+    integer(kind=i_def) :: lp_x, lp_y
+    ! Scalars
+    integer(kind=i_def) :: nlayers
+    integer(kind=i_def) :: ncell_f_per_c_x ! number of fine cells per coarse in x
+    integer(kind=i_def) :: ncell_f_per_c_y ! number of fine cells per coarse in y
+    integer(kind=i_def) :: ncell_f       ! number of fine cells
+    integer(kind=i_def) :: ndf           ! number of dofs per cell. Same on each mesh
+    integer(kind=i_def) :: undf_f, undf_c
+    ! Integer Arrays
+    integer(kind=i_def), allocatable, dimension(:,:) :: cell_map
+    integer(kind=i_def), allocatable, dimension(:,:) :: map_f ! Cell and dof indexed
+    integer(kind=i_def), allocatable, dimension(:)   :: map_c ! only dof indexed
+    ! Real Arrays
+    real(kind=r_def), allocatable, dimension(:) :: coarse_field, fine_field, weights
+
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+
+    ! set the scalars by hand
+    nlayers = 1
+    ncell_f_per_c_x = 2 ! quads
+    ncell_f_per_c_y = 2 ! quads
+    ncell_f = 1_i_def * ncell_f_per_c_x * ncell_f_per_c_y ! only need one coarse cell
+    ndf = 1 ! keep it simple (W3, discontinuous)
+    undf_f = nlayers * ncell_f * ndf ! true for W3 on a single coarse column
+    undf_c = undf_f / (ncell_f_per_c_x * ncell_f_per_c_y)
+
+    allocate( cell_map(ncell_f_per_c_x,  &
+                       ncell_f_per_c_y), &
+              map_f(ndf,ncell_f),        &
+              map_c(ndf) )
+    allocate( coarse_field(undf_c),      &
+              fine_field(undf_f),        &
+              weights(undf_f) )
+
+    ! set simple values for index sets
+    do lp_y = 1, ncell_f_per_c_y
+      do lp_x = 1, ncell_f_per_c_x
+       cell_map(lp_x, lp_y) = lp_x + (lp_y - 1)*ncell_f_per_c_y
+      end do
+    end do
+    do lp_x = 1, ncell_f
+       map_f(1,lp_x) = 1 + (lp_x-1)*nlayers
+    end do
+    map_c(1) = 1
+
+    ! set simple values for the fields
+    fine_field(:) = 0.0_r_def
+    coarse_field(:) = 0.5_r_def
+    ! Weights are coarse_vol/(num_cells*fine_vol)
+    weights(:) = (/ 0.25_r_def*4.08_r_def, &
+                    0.25_r_def*3.92_r_def, &
+                    0.25_r_def*4.16_r_def, &
+                    0.25_r_def*3.84_r_def /)
+
+    call prolong_scalar_weighted_kernel_code(   &
+                              nlayers,          &
+                              cell_map,         &
+                              ncell_f_per_c_x,  &
+                              ncell_f_per_c_y,  &
+                              ncell_f,          &
+                              fine_field,       &
+                              coarse_field,     &
+                              weights,          &
+                              ndf,              &
+                              undf_f,           &
+                              map_f,            &
+                              undf_c,           &
+                              map_c )
+
+    @assertEqual( fine_field(1), 0.51_r_def, tol)
+    @assertEqual( fine_field(2), 0.49_r_def, tol)
+    @assertEqual( fine_field(3), 0.52_r_def, tol)
+    @assertEqual( fine_field(4), 0.48_r_def, tol)
+
+    deallocate( cell_map,     &
+                map_f,        &
+                map_c,        &
+                coarse_field, &
+                fine_field,   &
+                weights )
+
+  end subroutine test_all
+
+end module prolong_scalar_weighted_kernel_mod_test

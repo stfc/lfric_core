@@ -1,0 +1,113 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test for the application of the scaling kernel
+module apply_lambda_kernel_mod_test
+  use pFUnit_mod
+  use constants_mod, only : i_def, r_def
+
+  implicit none
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: apply_lambda_test_type
+     private
+   contains
+     procedure :: test_all
+  end type apply_lambda_test_type
+
+contains
+  @test
+  subroutine test_all( this )
+    use apply_lambda_kernel_mod, only : apply_lambda_kernel_code
+    implicit none
+    class(apply_lambda_test_type), intent(inout) :: this
+
+    integer(kind=i_def) :: x_idx, y_idx
+    ! Scalars
+    integer(kind=i_def) :: nlayers
+    integer(kind=i_def) :: ncell_fine_per_coarse_x ! number of fine cells per coarse in x
+    integer(kind=i_def) :: ncell_fine_per_coarse_y ! number of fine cells per coarse in y
+    integer(kind=i_def) :: ncell_fine              ! number of fine cells
+    integer(kind=i_def) :: ndf                     ! number of dofs per cell. Same on each mesh
+    integer(kind=i_def) :: undf_fine, undf_coarse
+    ! Integer Arrays
+    integer(kind=i_def), allocatable, dimension(:,:) :: cell_map
+    integer(kind=i_def), allocatable, dimension(:,:) :: map_fine   ! Cell and dof indexed
+    integer(kind=i_def), allocatable, dimension(:)   :: map_coarse ! only dof indexed
+    ! Real Arrays
+    real(kind=r_def), allocatable, dimension(:) :: negative_field, positive_field
+    real(kind=r_def), allocatable, dimension(:) :: answer, lambda_field
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+
+    ! set the scalars by hand
+    nlayers = 3
+    ncell_fine_per_coarse_x = 2 ! quads
+    ncell_fine_per_coarse_y = 2 ! quads
+    ncell_fine = 1_i_def * ncell_fine_per_coarse_x * ncell_fine_per_coarse_y ! only need one coarse cell
+    ndf = 1 ! keep it simple (W3, discontinuous)
+    undf_fine = nlayers * ncell_fine * ndf ! true for W3 on a single coarse column
+    undf_coarse = undf_fine / (ncell_fine_per_coarse_x * ncell_fine_per_coarse_y)
+
+    allocate( cell_map(ncell_fine_per_coarse_x,  &
+                       ncell_fine_per_coarse_y), &
+              map_fine(ndf,ncell_fine),          &
+              map_coarse(ndf) )
+    allocate( positive_field(undf_fine),    &
+              negative_field(undf_fine),    &
+              lambda_field(undf_coarse),    &
+              answer(undf_fine) )
+
+    ! set simple values for index sets
+    do y_idx = 1, ncell_fine_per_coarse_y
+      do x_idx = 1, ncell_fine_per_coarse_x
+       cell_map(x_idx, y_idx) = x_idx + (y_idx - 1)*ncell_fine_per_coarse_y
+      end do
+    end do
+    do x_idx = 1, ncell_fine
+       map_fine(1,x_idx) = 1 + (x_idx-1)*nlayers
+    end do
+    map_coarse(1) = 1
+
+    ! set simple values for the fields
+    negative_field(:) = 10.0_r_def
+    positive_field(:) = 27.0_r_def / 4.0_r_def
+
+    negative_field(map_fine(1,1)) = -3.0_r_def
+
+    lambda_field(:) = 12.0_r_def / 39.0_r_def
+
+    answer(:) = 9.0_r_def
+    answer(map_fine(1,1)) = 0.0_r_def
+
+    call apply_lambda_kernel_code( nlayers,                 &
+                                   cell_map,                &
+                                   ncell_fine_per_coarse_x, &
+                                   ncell_fine_per_coarse_y, &
+                                   ncell_fine,              &
+                                   negative_field,          &
+                                   lambda_field,            &
+                                   positive_field,          &
+                                   ndf,                     &
+                                   undf_fine,               &
+                                   map_fine,                &
+                                   undf_coarse,             &
+                                   map_coarse )
+
+    @assertEqual( negative_field, answer, tol)
+
+
+    deallocate( cell_map,       &
+                map_fine,       &
+                map_coarse,     &
+                positive_field, &
+                negative_field, &
+                lambda_field,   &
+                answer )
+
+  end subroutine test_all
+
+end module apply_lambda_kernel_mod_test

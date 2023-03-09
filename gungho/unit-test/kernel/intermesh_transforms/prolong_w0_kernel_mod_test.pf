@@ -1,0 +1,146 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test for the W0 prolongation kernel
+module prolong_w0_kernel_mod_test
+  use pFUnit_mod
+  use constants_mod,         only: i_def, r_def
+  use reference_element_mod, only: SWB, SEB, NWB, NEB
+
+  implicit none
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: prolong_w0_test_type
+     private
+   contains
+     procedure :: test_all
+  end type prolong_w0_test_type
+
+contains
+
+  @test
+  subroutine test_all( this )
+    use prolong_w0_kernel_mod, only : prolong_w0_kernel_code
+    implicit none
+    class(prolong_w0_test_type), intent(inout) :: this
+
+    integer(kind=i_def) :: x_idx, y_idx, k, df, cell_f
+
+    ! Scalars
+    integer(kind=i_def) :: nlayers
+    integer(kind=i_def) :: ncell_fine_per_coarse_x ! number of fine cells per coarse in x
+    integer(kind=i_def) :: ncell_fine_per_coarse_y ! number of fine cells per coarse in y
+    integer(kind=i_def) :: ncell_fine              ! number of fine cells
+    integer(kind=i_def) :: ndf_fine                ! number of dofs per fine cell
+    integer(kind=i_def) :: ndf_coarse              ! number of dofs per coarse cell
+    integer(kind=i_def) :: undf_fine, undf_coarse  ! unique number of dofs over whole field
+
+    ! Integer Arrays
+    integer(kind=i_def), allocatable, dimension(:,:) :: cell_map
+    integer(kind=i_def), allocatable, dimension(:,:) :: map_fine ! Cell and dof indexed
+    integer(kind=i_def), allocatable, dimension(:)   :: map_coarse ! only dof indexed
+
+    ! Real Arrays
+    real(kind=r_def), allocatable, dimension(:) :: coarse_field, fine_field
+    real(kind=r_def), allocatable, dimension(:) :: answer
+    real(r_def), parameter :: tol = 1.0e-6_r_def
+
+    ! set the scalars by hand
+    nlayers = 3
+    ncell_fine_per_coarse_x = 3
+    ncell_fine_per_coarse_y = 2
+
+    ncell_fine = 1_i_def * ncell_fine_per_coarse_x * ncell_fine_per_coarse_y ! only need one coarse cell
+    ndf_fine = 8
+    ndf_coarse = 8
+    undf_coarse = 16
+    undf_fine = 48
+
+    allocate( cell_map(ncell_fine_per_coarse_x, ncell_fine_per_coarse_y) )
+    allocate( map_fine(ndf_fine, ncell_fine) )
+    allocate( map_coarse(ndf_coarse) )
+    allocate( coarse_field(undf_coarse) )
+    allocate( fine_field(undf_fine) )
+    allocate( answer(undf_fine) )
+
+    ! Set simple values for cell map
+    do y_idx = 1, ncell_fine_per_coarse_y
+      do x_idx = 1, ncell_fine_per_coarse_x
+       cell_map(x_idx, y_idx) = x_idx + (2 - y_idx)*ncell_fine_per_coarse_x
+      end do
+    end do
+
+    ! Make a W0 DoF map for 3*2*3 cells
+    map_fine = reshape( (/  1,  5, 13,  9,  2,  6, 14, 10, &
+                            5, 17, 21, 13,  6, 18, 22, 14, &
+                           17, 25, 29, 21, 18, 26, 30, 22, &
+                            9, 13, 37, 33, 10, 14, 38, 34, &
+                           13, 21, 41, 37, 14, 22, 42, 38, &
+                           21, 29, 45, 41, 22, 30, 46, 42  &
+                         /), (/ ndf_fine, ncell_fine /) )
+
+    ! DoF map for single coarse cell
+    map_coarse = (/ 1, 5, 13, 9, 2, 6, 14, 10 /)
+
+    ! Set answer based on the following coarse column:
+    !   5--------11
+    !  /|       /|
+    ! 4--------1 |
+    ! | 2------|-8
+    ! |/       |/
+    ! 1 ------ -2
+    ! Layers will be of height 1.0
+    coarse_field(:) = (/ 1.0_r_def,  2.0_r_def,  3.0_r_def,  4.0_r_def, &
+                        -2.0_r_def, -1.0_r_def,  0.0_r_def,  1.0_r_def, &
+                         2.0_r_def,  3.0_r_def,  4.0_r_def,  5.0_r_def, &
+                         8.0_r_def,  9.0_r_def, 10.0_r_def , 11.0_r_def /)
+
+    ! Set initial fine values incorrectly to be zero
+    fine_field(:) = 0.0_r_def
+
+    ! Answer for fine field obtained by interpolating coarse field
+    do k = 0, nlayers
+      answer(map_fine(SWB,1)+k) = 1.0_r_def + real(k, r_def)
+      answer(map_fine(SWB,2)+k) = 0.0_r_def + real(k, r_def)
+      answer(map_fine(SWB,3)+k) = -1.0_r_def + real(k, r_def)
+      answer(map_fine(SEB,3)+k) = -2.0_r_def + real(k, r_def)
+      answer(map_fine(SWB,4)+k) = 1.5_r_def + real(k, r_def)
+      answer(map_fine(SWB,5)+k) = 2.0_r_def + real(k, r_def)
+      answer(map_fine(SWB,6)+k) = 2.5_r_def + real(k, r_def)
+      answer(map_fine(SEB,6)+k) = 3.0_r_def + real(k, r_def)
+      answer(map_fine(NWB,4)+k) = 2.0_r_def + real(k, r_def)
+      answer(map_fine(NWB,5)+k) = 4.0_r_def + real(k, r_def)
+      answer(map_fine(NWB,6)+k) = 6.0_r_def + real(k, r_def)
+      answer(map_fine(NEB,6)+k) = 8.0_r_def + real(k, r_def)
+    end do
+
+    call prolong_w0_kernel_code( nlayers,                 &
+                                 cell_map,                &
+                                 ncell_fine_per_coarse_x, &
+                                 ncell_fine_per_coarse_y, &
+                                 ncell_fine,              &
+                                 fine_field,              &
+                                 coarse_field,            &
+                                 ndf_fine,                &
+                                 undf_fine,               &
+                                 map_fine,                &
+                                 undf_coarse,             &
+                                 map_coarse               )
+
+    ! Check answer for all DoFs
+    @assertEqual( fine_field, answer, tol )
+
+    deallocate( cell_map,      &
+                map_fine,      &
+                map_coarse,    &
+                answer,        &
+                coarse_field,  &
+                fine_field     )
+
+  end subroutine test_all
+
+end module prolong_w0_kernel_mod_test

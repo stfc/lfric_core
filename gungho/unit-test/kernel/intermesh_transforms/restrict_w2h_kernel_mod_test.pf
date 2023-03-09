@@ -1,10 +1,10 @@
 !-----------------------------------------------------------------------------
-! (C) Crown copyright 2021 Met Office. All rights reserved.
+! (C) Crown copyright 2023 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-!> Test for the W2 restriction kernel
-module restrict_w2_kernel_mod_test
+!> Test for the W2H restriction kernel
+module restrict_w2h_kernel_mod_test
   use pFUnit_mod
   use constants_mod, only : i_def, r_def
 
@@ -13,19 +13,19 @@ module restrict_w2_kernel_mod_test
   public :: test_all
 
   @TestCase
-  type, extends(TestCase), public :: restrict_w2_test_type
+  type, extends(TestCase), public :: restrict_w2h_test_type
      private
    contains
      procedure :: test_all
-  end type restrict_w2_test_type
+  end type restrict_w2h_test_type
 
 contains
 
   @test
   subroutine test_all( this )
-    use restrict_w2_kernel_mod, only : restrict_w2_code
+    use restrict_w2h_kernel_mod, only : restrict_w2h_code
     implicit none
-    class(restrict_w2_test_type), intent(inout) :: this
+    class(restrict_w2h_test_type), intent(inout) :: this
 
     integer(kind=i_def) :: lp_x, lp_y, k, df, cell_f
 
@@ -45,7 +45,7 @@ contains
 
     ! Real Arrays
     real(kind=r_def), allocatable, dimension(:) :: coarse_field, fine_field
-    real(kind=r_def), allocatable, dimension(:) :: answer, rmultiplicity
+    real(kind=r_def), allocatable, dimension(:) :: answer
     real(r_def), parameter :: tol = 1.0e-12_r_def
 
     ! set the scalars by hand
@@ -54,10 +54,10 @@ contains
     ncell_f_per_c_y = 3
 
     ncell_f = 1_i_def * ncell_f_per_c_x * ncell_f_per_c_y ! only need one coarse cell
-    ndf_f = 6
-    ndf_c = 6
-    undf_c = 16
-    undf_f = 75
+    ndf_f = 4
+    ndf_c = 4
+    undf_c = 12
+    undf_f = 51
 
     allocate( cell_map(ncell_f_per_c_x, ncell_f_per_c_y) )
     allocate( map_f(ndf_f, ncell_f) )
@@ -74,16 +74,16 @@ contains
     end do
 
     ! Make a W2 DoF map for 2*3*3 cells
-    map_f = reshape( (/  1,  4,  7, 10, 13, 14, &
-                         7, 17, 20, 23, 26, 27, &
-                        30, 33, 36,  4, 39, 40, &
-                        36, 43, 46, 17, 49, 50, &
-                        53, 56, 59, 33, 62, 63, &
-                        59, 66, 69, 43, 72, 73  &
+    map_f = reshape( (/  1,  4,  7, 10, &
+                         7, 13, 16, 19, &
+                        22, 25, 38,  4, &
+                        28, 31, 34, 13, &
+                        37, 40, 43, 25, &
+                        43, 46, 49, 31  &
                       /), (/ ndf_f, ncell_f /) )
 
     ! DoF map for single coarse cell
-    map_c = (/ 1, 4, 7, 10, 13, 14 /)
+    map_c = (/ 1, 4, 7, 10 /)
 
     answer(:) = 0.0_r_def
     coarse_field(:) = 0.0_r_def
@@ -128,16 +128,6 @@ contains
             fine_field(map_f(2, cell_f)+k) = -100.0_r_def
           end if
 
-          ! Vertical components
-          ! Total coarse answer will be (12 + 6*k)
-          fine_field(map_f(5, cell_f)+k) = real(lp_y + k, r_def)
-
-          ! Top layer
-          if ( k == nlayers - 1 ) then
-            ! Total coarse answer should be 21
-            fine_field(map_f(6, cell_f)+k) = real(lp_x + k, r_def)
-          end if
-
         end do
       end do
     end do
@@ -148,30 +138,23 @@ contains
       answer(map_c(2)+k) = real(5 + 2*k, r_def)
       answer(map_c(3)+k) = real(9 + 3*k, r_def)
       answer(map_c(4)+k) = real(3 + 2*k, r_def)
-      answer(map_c(5)+k) = real(12 + 6*k, r_def)
-
-      if ( k == nlayers - 1 ) then
-        answer(map_c(6)+k) = real(9 + 6*k, r_def)
-      end if
     end do
 
-    call restrict_w2_code( nlayers,         &
-                           cell_map,        &
-                           ncell_f_per_c_x, &
-                           ncell_f_per_c_y, &
-                           ncell_f,         &
-                           coarse_field,    &
-                           fine_field,      &
-                           undf_c,          &
-                           map_c,           &
-                           ndf_f,           &
-                           undf_f,          &
-                           map_f            )
+    call restrict_w2h_code( nlayers,         &
+                            cell_map,        &
+                            ncell_f_per_c_x, &
+                            ncell_f_per_c_y, &
+                            ncell_f,         &
+                            coarse_field,    &
+                            fine_field,      &
+                            undf_c,          &
+                            map_c,           &
+                            ndf_f,           &
+                            undf_f,          &
+                            map_f            )
 
     ! Check answer for all DoFs
-    do df = 1, undf_c
-      @assertEqual( coarse_field(df), answer(df), tol )
-    end do
+    @assertEqual( coarse_field, answer, tol )
 
     deallocate( cell_map,      &
                 map_f,         &
@@ -182,4 +165,4 @@ contains
 
   end subroutine test_all
 
-end module restrict_w2_kernel_mod_test
+end module restrict_w2h_kernel_mod_test
