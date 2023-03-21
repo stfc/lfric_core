@@ -101,6 +101,9 @@ contains
 
     integer(i_def) :: npanels = 1
 
+    real(r_def)    :: vert_coords(2)
+    real(r_def)    :: cell_coords(2)
+
     !-------------------------------------
     ! Test construction of a biperiodic mesh
     !-------------------------------------
@@ -132,6 +135,23 @@ contains
     @assertEqual( 13, verts(2) )
     @assertEqual( 14, verts(3) )
     @assertEqual( 12, verts(4) )
+
+    call global_mesh%get_vert_coords(verts(1), vert_coords)
+    @assertEqual( 750.0_r_def, vert_coords(1) , 1.0e-10_r_def)
+    @assertEqual( 750.0_r_def, vert_coords(2) , 1.0e-10_r_def)
+    call global_mesh%get_vert_coords(verts(2), vert_coords)
+    @assertEqual(1500.0_r_def, vert_coords(1) , 1.0e-10_r_def)
+    @assertEqual( 750.0_r_def, vert_coords(2) , 1.0e-10_r_def)
+    call global_mesh%get_vert_coords(verts(3), vert_coords)
+    @assertEqual(1500.0_r_def, vert_coords(1) , 1.0e-10_r_def)
+    @assertEqual(1000.0_r_def, vert_coords(2) , 1.0e-10_r_def)
+    call global_mesh%get_vert_coords(verts(4), vert_coords)
+    @assertEqual( 750.0_r_def, vert_coords(1) , 1.0e-10_r_def)
+    @assertEqual(1000.0_r_def, vert_coords(2) , 1.0e-10_r_def)
+
+    call global_mesh%get_cell_coords(6, cell_coords)
+    @assertEqual(1125.0_r_def, cell_coords(1), 1.0e-10_r_def)
+    @assertEqual( 875.0_r_def, cell_coords(2), 1.0e-10_r_def)
 
     call global_mesh%get_cell_on_vert( 15, cells )
     @assertEqual(  7, cells(1) )
@@ -215,6 +235,9 @@ contains
 
     integer(i_def) :: npanels = 6
 
+    real(r_def)    :: cell_coords(2)
+    real(r_def)    :: vert_coords(2)
+
     !---------------------------------------
     ! Test construction of a cubed-sphere mesh
     !---------------------------------------
@@ -241,6 +264,23 @@ contains
     @assertEqual( 11, verts(2) )
     @assertEqual(  7, verts(3) )
     @assertEqual(  6, verts(4) )
+
+    call global_mesh%get_vert_coords(verts(1), vert_coords)
+    @assertEqual(-0.392699081698724_r_def, vert_coords(1) , 1.0e-10_r_def)
+    @assertEqual( 0.0_r_def, vert_coords(2) , 1.0e-10_r_def)
+    call global_mesh%get_vert_coords(verts(2), vert_coords)
+    @assertEqual( 0.0_r_def, vert_coords(1) , 1.0e-10_r_def)
+    @assertEqual( 0.0_r_def, vert_coords(2) , 1.0e-10_r_def)
+    call global_mesh%get_vert_coords(verts(3), vert_coords)
+    @assertEqual( 0.0_r_def, vert_coords(1) , 1.0e-10_r_def)
+    @assertEqual( 0.392699081698724_r_def, vert_coords(2) , 1.0e-10_r_def)
+    call global_mesh%get_vert_coords(verts(4), vert_coords)
+    @assertEqual(-0.392699081698724_r_def, vert_coords(1) , 1.0e-10_r_def)
+    @assertEqual( 0.365489755968193_r_def, vert_coords(2) , 1.0e-10_r_def)
+
+    call global_mesh%get_cell_coords(6, cell_coords)
+    @assertEqual(-0.196868720981368_r_def, cell_coords(1), 1.0e-10_r_def)
+    @assertEqual( 0.193160751371166_r_def, cell_coords(2), 1.0e-10_r_def)
 
     call global_mesh%get_cell_on_vert( 16, cells )
     @assertEqual( 11, cells(1) )

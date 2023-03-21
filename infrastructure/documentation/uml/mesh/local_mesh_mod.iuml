@@ -79,7 +79,8 @@ class local_mesh_mod::local_mesh_type {
   +get_num_cells_in_layer(): integer
   +get_edge_gid_on_cell(<<in>>iedge: integer, <<in>>icell: integer): integer
   +get_vert_gid_on_cell(<<in>>ivert: integer, <<in>>icell: integer): integer
-  +get_vert_coords(<<in>>vert_lid: integer, <<out>>vert_coords(:): integer)
+  +get_vert_coords(<<in>>vert_lid: integer, <<out>>vert_coords(:): real[] )
+  +get_cell_coords(<<in>>cell_lid: integer, <<out>>cell_coords(:): real[] )
   +get_n_unique_vertices(): integer
   +get_n_unique_edges(): integer
   +get_edge_on_cell(<<in>>iedge: integer, <<in>>icell: integer): integer

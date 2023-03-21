@@ -51,11 +51,13 @@ contains
   subroutine mesh_extruder( cell_next,          &
                             vert_on_cell,       &
                             vertex_coords,      &
+                            centre_coords,      &
                             nfaces,             &
                             nverts,             &
                             cell_next_2d,       &
                             vert_on_cell_2d,    &
                             vertex_coords_2d,   &
+                            centre_coords_2d,   &
                             ll_coords,          &
                             nverts_per_2d_cell, &
                             nedges_per_2d_cell, &
@@ -87,11 +89,13 @@ contains
     integer(i_def), intent(in)  :: vert_on_cell_2d(nverts_per_2d_cell, &
                                                    ncells_2d)
     real(r_def),    intent(in)  :: vertex_coords_2d( 3, nverts_2d )
+    real(r_def),    intent(in)  :: centre_coords_2d( 3, ncells_2d )
     logical(l_def), intent(in)  :: ll_coords
     real(r_def),    intent(in)  :: dz( nlayers )
     integer(i_def), intent(out) :: cell_next( nfaces, ncells_3d )
     integer(i_def), intent(out) :: vert_on_cell( nverts, ncells_3d )
     real(r_def),    intent(out) :: vertex_coords( 3, nverts_3d )
+    real(r_def),    intent(out) :: centre_coords( 3, ncells_3d )
     class(reference_element_type), &
                     intent(in)  :: reference_element
 
@@ -160,18 +164,39 @@ contains
 
     ! Perform vertical extrusion for vertices
     do j=1, nverts_2d
-     ! k = 0
-     vertex_coords(1,j) = vertex_coords_2d(1,j)
-     vertex_coords(2,j) = vertex_coords_2d(2,j)
-     vertex_coords(3,j) = vertex_coords_2d(3,j)
-     ! Rest of k, up to nlayers
+      ! k = 0
+      vertex_coords(1,j) = vertex_coords_2d(1,j)
+      vertex_coords(2,j) = vertex_coords_2d(2,j)
+      if ( ll_coords .and. vertex_coords_2d(3,j) < 1.0e-10_r_def) then
+        !Prevent co-ords collapsing onto the origin if r=0
+        vertex_coords(3,j) = 1.0_r_def
+      else
+        vertex_coords(3,j) = vertex_coords_2d(3,j)
+      end if
+
+      ! Rest of k, up to nlayers
       do k=1, nlayers
         vertex_coords(1,j+k*nverts_2d) = vertex_coords_2d(1,j)
         vertex_coords(2,j+k*nverts_2d) = vertex_coords_2d(2,j)
-        vertex_coords(3,j+k*nverts_2d) = vertex_coords_2d(3,j) + sum(dz(1:k))
+        vertex_coords(3,j+k*nverts_2d) = vertex_coords(3,j) + sum(dz(1:k))
       end do
     end do
 
+    ! Perform vertical extrusion for cell centres
+    do j=1, ncells_2d
+
+      ! k = 1
+      centre_coords(1,j) = centre_coords_2d(1,j)
+      centre_coords(2,j) = centre_coords_2d(2,j)
+      centre_coords(3,j) = centre_coords_2d(3,j) + dz(1)/2.0
+
+      do k=2, nlayers
+        centre_coords(1,j+(k-1)*ncells_2d) = centre_coords_2d(1,j)
+        centre_coords(2,j+(k-1)*ncells_2d) = centre_coords_2d(2,j)
+        centre_coords(3,j+(k-1)*ncells_2d) = centre_coords_2d(3,j) + &
+                                               sum(dz(1:k-1)) + dz(k)/2.0
+      end do
+    end do
     if ( ll_coords ) then
 
       ! Convert (long,lat,r) -> (x,y,z)
@@ -181,9 +206,21 @@ contains
           long = vertex_coords(1,j+k*nverts_2d)
           lat  = vertex_coords(2,j+k*nverts_2d)
           r    = vertex_coords(3,j+k*nverts_2d)
+
           call llr2xyz(long,lat,r,vertex_coords(1,j+k*nverts_2d), &
                                   vertex_coords(2,j+k*nverts_2d), &
                                   vertex_coords(3,j+k*nverts_2d))
+        end do
+      end do
+
+      do j=1, ncells_2d
+        do k=0, nlayers-1
+          long = centre_coords(1,j+k*ncells_2d)
+          lat  = centre_coords(2,j+k*ncells_2d)
+          r    = centre_coords(3,j+k*ncells_2d)
+          call llr2xyz(long,lat,r,centre_coords(1,j+k*ncells_2d), &
+                                  centre_coords(2,j+k*ncells_2d), &
+                                  centre_coords(3,j+k*ncells_2d))
         end do
       end do
     end if

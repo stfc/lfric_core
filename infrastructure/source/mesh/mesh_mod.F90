@@ -88,6 +88,10 @@ module mesh_mod
     !> The x-, y- and z-coordinates of vertices on the mesh [m]
     real(r_def), allocatable :: vertex_coords(:,:)
 
+    !> Cell-centre Coordinates
+    !> The x-, y- and z-coordinates of the centres of cells in the mesh
+    real(r_def), allocatable :: cell_centre_coords(:,:)
+
     !==========================================================================
     ! Mesh properties:
     !==========================================================================
@@ -193,6 +197,7 @@ module mesh_mod
     procedure, public :: get_nedges
     procedure, public :: get_nfaces
     procedure, public :: get_vert_coords
+    procedure, public :: get_cell_centre_coords
     procedure, public :: get_cell_coords
     procedure, public :: get_column_coords
     procedure, public :: get_nverts_per_cell
@@ -344,9 +349,10 @@ contains
 
     ! Surface Coordinates in [long, lat, radius] (Units: Radians/metres)
     real(r_def), allocatable :: vertex_coords_2d(:,:)
+    real(r_def), allocatable :: cell_centre_coords_2d(:,:)
 
-    ! ll_coords = True: vertex_coords_2d is in lat,lon coords,
-    !             False: vertex_coords_2d is in x,y coords
+    ! ll_coords = True: vertex_coords_2d/cell_centre_coords_2d are in lat,lon coords,
+    !             False: vertex_coords_2d/cell_centre_coords_2d are in x,y coords
     logical(l_def) :: ll_coords
 
     character(str_def):: name
@@ -454,15 +460,25 @@ contains
     vertex_coords_2d = 0.0_r_def
     do i=1, self%nverts_2d
       ! Get coords of vertices
-      call local_mesh%get_vert_coords(i,vertex_coords_2d(:,i))
+      call local_mesh%get_vert_coords(i,vertex_coords_2d(1:2,i))
+    end do
+
+    !--------------------------------------------------------------------------
+    ! Get partition cell-centre lat-lon-z coords, Note z=surface height
+    !--------------------------------------------------------------------------
+    allocate(cell_centre_coords_2d(3,self%ncells_2d_with_ghost))
+    cell_centre_coords_2d = 0.0_r_def
+    do i=1, self%ncells_2d_with_ghost
+      ! Get coords of cell centres
+      call local_mesh%get_cell_coords(i,cell_centre_coords_2d(1:2,i))
     end do
 
     ll_coords = .false.
     if ( local_mesh%is_coord_sys_ll() ) ll_coords = .true.
 
-
     ! Set base surface height
     vertex_coords_2d(3,:) = self%domain_base_height
+    cell_centre_coords_2d(3,:) = self%domain_base_height
 
     self%nverts = self%nverts_2d * (self%nlayers+1)
     self%nedges = self%nedges_2d * (self%nlayers+1) &
@@ -472,15 +488,18 @@ contains
 
 
     allocate ( self%vertex_coords( 3, self%nverts ) )
+    allocate ( self%cell_centre_coords( 3, self%ncells_with_ghost ) )
 
     call mesh_extruder( self%cell_next,                               &
                         self%vert_on_cell,                            &
                         self%vertex_coords,                           &
+                        self%cell_centre_coords,                      &
                         self%reference_element%get_number_faces(),    &
                         self%reference_element%get_number_vertices(), &
                         cell_next_2d,                                 &
                         vert_on_cell_2d,                              &
                         vertex_coords_2d,                             &
+                        cell_centre_coords_2d,                        &
                         ll_coords,                                    &
                         self%nverts_per_2d_cell,                      &
                         self%nedges_per_2d_cell,                      &
@@ -514,6 +533,7 @@ contains
     deallocate (edge_on_cell_2d)
     deallocate (cell_next_2d)
     deallocate (vertex_coords_2d)
+    deallocate (cell_centre_coords_2d)
 
     ! Assign ownership of cell vertices and cell edges
     allocate( &
@@ -573,12 +593,6 @@ contains
                       self%local_mesh )
 
     call init_last_cell_per_colour(self)
-
-
-    if (allocated( vert_on_cell_2d ))  deallocate(vert_on_cell_2d)
-    if (allocated( edge_on_cell_2d ))  deallocate(edge_on_cell_2d)
-    if (allocated( cell_next_2d ))     deallocate(cell_next_2d)
-    if (allocated( vertex_coords_2d )) deallocate(vertex_coords_2d)
 
   end function mesh_constructor
 
@@ -660,6 +674,22 @@ contains
 
   end subroutine get_vert_coords
 
+  !> @details Returns 3-element array of cell-centre coords
+  !> @param[in]   cell_lid           The local id of the requested cell
+  !> @param[out]  cell_centre_coords A three-element array containing the
+  !>                                 coordinates of a the centre of a single
+  !>                                 cell in the mesh object
+  !============================================================================
+  subroutine get_cell_centre_coords(self, cell_lid, cell_centre_coords)
+
+    implicit none
+    class(mesh_type), intent(in)  :: self
+    integer(i_def),   intent(in)  :: cell_lid
+    real(r_def),      intent(out) :: cell_centre_coords(:)
+
+    cell_centre_coords(:) = self%cell_centre_coords(:,cell_lid)
+
+  end subroutine get_cell_centre_coords
 
   !> @details This subroutine returns 3-element array of vertex coords for
   !>          each vertex on the request local cell id. Coords are in
@@ -2251,6 +2281,7 @@ contains
     if (allocated(self%face_on_cell))      deallocate( self%face_on_cell )
     if (allocated(self%edge_on_cell))      deallocate( self%edge_on_cell )
     if (allocated(self%vertex_coords))     deallocate( self%vertex_coords )
+    if (allocated(self%cell_centre_coords))deallocate( self%cell_centre_coords )
     if (allocated(self%vert_cell_owner))   deallocate( self%vert_cell_owner )
     if (allocated(self%edge_cell_owner))   deallocate( self%edge_cell_owner )
     if (allocated(self%edge_ownership))    deallocate( self%edge_ownership )
@@ -2451,6 +2482,7 @@ contains
     allocate( self%face_on_cell      ( self%nfaces_per_cell, self%ncells_2d) )
     allocate( self%edge_on_cell      ( self%nedges_per_cell, self%ncells_2d) )
     allocate( self%vertex_coords     ( 3, self%nverts) )
+    allocate( self%cell_centre_coords( 3, self%ncells) )
 
     allocate( self%vert_cell_owner   ( nverts_per_2d_cell, self%ncells_2d ) )
     allocate( self%edge_cell_owner   ( nedges_per_2d_cell, self%ncells_2d ) )

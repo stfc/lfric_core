@@ -139,7 +139,9 @@ contains
     integer(i_def) :: cell_next(4)
     integer(i_def) :: known_cell_next(4)
     real(r_def)    :: vert_coords(2)
+    real(r_def)    :: cell_coords(2)
     real(r_def)    :: known_vert_coords(2)
+    real(r_def)    :: known_cell_coords(2)
 
     logical(l_def) :: answer
 
@@ -265,6 +267,10 @@ contains
         call local_mesh%get_vert_coords( 3, vert_coords )
         @assertEqual ( known_vert_coords, vert_coords, 1.0e-2_r_def )
 
+        known_cell_coords(:) = [ 375.0, 375.0 ]
+        call local_mesh%get_cell_coords( 3, cell_coords )
+        @assertEqual ( known_cell_coords, cell_coords, 1.0e-2_r_def )
+
         n_unique_vertices = local_mesh%get_n_unique_vertices()
         @assertEqual ( 64, n_unique_vertices )
 
@@ -367,6 +373,22 @@ contains
           case (3)
             known_vert_coords(:) = [  1500.0,  750.0 ]
             @assertEqual( known_vert_coords, vert_coords, 1.0e-2_r_def )
+        end select
+
+        call local_mesh%get_cell_coords( 3, cell_coords )
+        select case ( this%local_rank )
+          case (0)
+            known_cell_coords(:) = [ -1875.0, -625.0 ]
+            @assertEqual( known_cell_coords, cell_coords, 1.0e-2_r_def )
+          case (1)
+            known_cell_coords(:) = [  1125.0, -625.0 ]
+            @assertEqual( known_cell_coords, cell_coords, 1.0e-2_r_def )
+          case (2)
+            known_cell_coords(:) = [ -1875.0,  375.0 ]
+            @assertEqual( known_cell_coords, cell_coords, 1.0e-2_r_def )
+          case (3)
+            known_cell_coords(:) = [  1125.0,  375.0 ]
+            @assertEqual( known_cell_coords, cell_coords, 1.0e-2_r_def )
         end select
 
         n_unique_vertices = local_mesh%get_n_unique_vertices()
@@ -508,6 +530,7 @@ contains
 
     integer(i_def) :: face_on_face(4)
     real(r_def)    :: vert_coords(2)
+    real(r_def)    :: cell_coords(2)
 
     type(local_mesh_type),     pointer :: SQ20     => null()
     type(local_mesh_type),     pointer :: SQ10     => null()
@@ -561,6 +584,18 @@ contains
          3.0,16.0,    3.0,14.0,    3.0,13.0,    3.0,12.0,    3.0,11.0,   &
          3.0,10.0,   -4.0, 9.0,   -3.0, 9.0,   -2.0, 9.0,   -1.0, 9.0,   &
          0.0, 9.0,    1.0, 9.0,    2.0, 9.0,    3.0, 9.0 ], (/2, kgo_n_nodes/) )
+
+    real(r_def), parameter :: kgo_face_coords(2, kgo_n_faces) = reshape( &
+      [ -2.5,14.5,   -1.5,14.5,   -2.5,13.5,   -1.5,13.5,   -3.5,15.5,   &
+        -2.5,15.5,   -1.5,15.5,   -0.5,15.5,   -3.5,14.5,   -0.5,14.5,   &
+        -3.5,13.5,   -0.5,13.5,   -3.5,12.5,   -2.5,12.5,   -1.5,12.5,   &
+        -0.5,12.5,    0.5,15.5,    0.5,14.5,    0.5,13.5,    0.5,12.5,   &
+        -3.5,11.5,   -2.5,11.5,   -1.5,11.5,   -0.5,11.5,    0.5,11.5,   &
+         1.5,15.5,    1.5,14.5,    1.5,13.5,    1.5,12.5,    1.5,11.5,   &
+        -3.5,10.5,   -2.5,10.5,   -1.5,10.5,   -0.5,10.5,    0.5,10.5,   &
+         1.5,10.5,    2.5,15.5,    2.5,14.5,    2.5,13.5,    2.5,12.5,   &
+         2.5,11.5,    2.5,10.5,   -3.5, 9.5,   -2.5, 9.5,   -1.5, 9.5,   &
+        -0.5, 9.5,    0.5, 9.5,    1.5, 9.5,    2.5, 9.5 ], (/2, kgo_n_faces/) )
 
     integer(i_def), parameter :: kgo_face_on_face(4, kgo_n_faces) = reshape(  &
       [   9,   3,   2,   6,        1,   4,  10,   7,       11,  14,   4,   1, &
@@ -778,6 +813,12 @@ contains
       call SQ20%get_vert_coords( i, vert_coords )
       @assertEqual( kgo_node_coords(:,i), vert_coords*radians_to_degrees, tol )
       @assertEqual( kgo_node_owner(i), SQ20%get_vert_cell_owner(i) )
+    end do
+
+    tol=1.0e-14
+    do i=1, SQ20%get_num_cells_in_layer()
+      call SQ20%get_cell_coords( i, cell_coords )
+      @assertEqual( kgo_face_coords(:,i), cell_coords*radians_to_degrees, tol )
     end do
 
     do i=1, SQ20%get_n_unique_edges()

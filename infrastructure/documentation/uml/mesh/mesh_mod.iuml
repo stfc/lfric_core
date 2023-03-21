@@ -67,6 +67,7 @@ class mesh_mod::mesh_type {
   +get_nfaces() : integer
   +get_vert_coords( <<in>>vert_lid: integer, <<out>>vertex_coords: real[:] )
   +get_cell_coords( <<in>>cell_lid: integer, <<out>>cell_coords: real[::] )
+  +get_cell_centre_coords( <<in>>cell_lid: integer, <<out>>cell_centre_coords: real[::] )
   +get_column_coords( <<in>>cell_lid: integer, <<out>>column_coords: real[:::] )
   +get_nverts_per_cell() : integer
   +get_nverts_per_cell_2d() : integer

@@ -415,6 +415,13 @@ contains
     call mesh_1%get_vert_coords(24, test_real_array1)
     @assertEqual ( test_real_array2, test_real_array1, 1.0e-2_r_def )
 
+    !-------------------------------------------------------------------
+    ! Test get_cell_centre_coords
+    ! Note: Returns coords in cartesian coords [x,y,z]
+    test_real_array2(:) = [ 260.0441_r_def,  3666.9916_r_def, -51839.6469_r_def ]
+    call mesh_1%get_cell_centre_coords(3, test_real_array1)
+    @assertEqual ( test_real_array2, test_real_array1, 1.0e-2_r_def )
+
   end subroutine test_get_1d_array
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

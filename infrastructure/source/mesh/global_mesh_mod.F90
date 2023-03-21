@@ -191,6 +191,10 @@ module global_mesh_mod
     procedure, public :: get_all_vert_coords
     generic,   public :: get_vert_coords => get_a_vert_coords, &
                                             get_all_vert_coords
+    procedure, public :: get_a_cell_coords
+    procedure, public :: get_all_cell_coords
+    generic,   public :: get_cell_coords => get_a_cell_coords, &
+                                            get_all_cell_coords
     procedure, public :: get_vert_cell_owner
     procedure, public :: get_edge_cell_owner
     procedure, public :: add_global_mesh_map
@@ -483,6 +487,17 @@ contains
     self%vert_coords(1:2,14) = [-1.0_r_def,  2.0_r_def]
     self%vert_coords(1:2,15) = [ 1.0_r_def,  2.0_r_def]
     self%vert_coords(1:2,16) = [ 2.0_r_def,  2.0_r_def]
+
+    ! Note: These test coordinates are in [Long, Lat] in units of radians.
+    self%cell_coords(1:2,1)  = [-1.5_r_def, -1.5_r_def]
+    self%cell_coords(1:2,2)  = [ 0.0_r_def, -1.5_r_def]
+    self%cell_coords(1:2,3)  = [ 1.5_r_def, -1.5_r_def]
+    self%cell_coords(1:2,4)  = [-1.5_r_def,  0.0_r_def]
+    self%cell_coords(1:2,5)  = [ 0.0_r_def,  0.0_r_def]
+    self%cell_coords(1:2,6)  = [ 1.5_r_def,  0.0_r_def]
+    self%cell_coords(1:2,7)  = [-1.5_r_def,  1.5_r_def]
+    self%cell_coords(1:2,8)  = [ 0.0_r_def,  1.5_r_def]
+    self%cell_coords(1:2,9)  = [ 1.5_r_def,  1.5_r_def]
 
     self%cell_next_2d(:,1)     = [void, void,    2,    4]
     self%cell_next_2d(:,2)     = [   1, void,    3,    5]
@@ -1422,6 +1437,39 @@ contains
     allocate( vert_coords, source=self%vert_coords )
 
   end subroutine get_all_vert_coords
+
+  !---------------------------------------------------------------------------
+  !> @brief Gets the coordinates of the centre of one single cell.
+  !>
+  !> @param[in] cell_gid Global ID of a cell.
+  !> @param[out] cell_coords Latitude and longitude of the specified cell.
+  !>
+  subroutine get_a_cell_coords (self, cell_gid, cell_coords)
+
+    implicit none
+    class (global_mesh_type), intent(in)  :: self
+    integer(i_def),           intent(in)  :: cell_gid
+    real(r_def),              intent(out) :: cell_coords(:)
+
+    cell_coords(1:2) = self%cell_coords(1:2,cell_gid)
+
+  end subroutine get_a_cell_coords
+
+  !---------------------------------------------------------------------------
+  !> @brief Gets coordinates for the centres of all cells
+  !>
+  !> @param[out] cell_coords Latitude and longitude of the centre of all cells
+  !>
+  subroutine get_all_cell_coords (self, cell_coords)
+
+    implicit none
+    class (global_mesh_type), intent(in)  :: self
+    real(r_def), allocatable :: cell_coords(:,:)
+
+    if ( allocated(cell_coords) ) deallocate (cell_coords)
+    allocate( cell_coords, source=self%cell_coords )
+
+  end subroutine get_all_cell_coords
 
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

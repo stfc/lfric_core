@@ -78,6 +78,8 @@ module local_mesh_mod
     integer(i_def)     :: n_unique_edges
   ! Horizontal coords of vertices in local domain.
     real(r_def),    allocatable :: vert_coords(:,:)
+  ! Horizontal coords of the cell centres in local domain.
+    real(r_def),    allocatable :: cell_coords(:,:)
   ! Local domain cell to cell lid connectivities.
     integer(i_def), allocatable :: cell_next(:,:)
   ! Local IDs of vertices connected to local 2D cell.
@@ -189,6 +191,7 @@ module local_mesh_mod
     procedure, public :: get_edge_gid_on_cell
     procedure, public :: get_vert_gid_on_cell
     procedure, public :: get_vert_coords
+    procedure, public :: get_cell_coords
     procedure, public :: get_n_unique_vertices
     procedure, public :: get_n_unique_edges
     procedure, public :: get_edge_on_cell
@@ -492,7 +495,6 @@ contains
 
     end do
 
-
     ! Get coords of vertices.
     allocate( self%vert_coords(3,self%n_unique_vertices) )
     self%vert_coords = 0.0_r_def
@@ -501,14 +503,23 @@ contains
       call global_mesh%get_vert_coords( vert_gid, self%vert_coords(:,vertex) )
     end do
 
+    ! Get coords of cell centres.
+    allocate( self%cell_coords(3,self%last_ghost_cell) )
+    self%cell_coords = 0.0_r_def
+    do cell_lid = 1, self%last_ghost_cell
+      cell_gid = self%get_gid_from_lid(cell_lid)
+      call global_mesh%get_cell_coords( cell_gid, self%cell_coords(:,cell_lid) )
+    end do
+
     ! Internally held spherical coordinates should be in radians
     ! and only in degrees for output.
     self%coord_units_xy = global_mesh%get_coord_units()
     if ( self%is_coord_sys_ll() ) then
       if ( any(self%coord_units_xy /= 'radians') ) then
-        ! Scale the vertex coords so that they are in radians.
+        ! Scale all coords so that they are in radians.
         self%coord_units_xy(:) = 'radians'
         self%vert_coords(:,:)  = self%vert_coords(:,:) * degrees_to_radians
+        self%cell_coords(:,:)  = self%cell_coords(:,:) * degrees_to_radians
       end if
     end if
 
@@ -958,7 +969,7 @@ contains
 
 
   !======================================================================================
-  ! 5.0 Assign coords to nodes.
+  ! 5.0 Assign coords to nodes and cell centres.
   !======================================================================================
   allocate( self%vert_coords(3, self%n_unique_vertices) )
   self%vert_coords = 0.0_r_def
@@ -967,16 +978,24 @@ contains
                                           self%vert_coords(:,local_lbc_vert_id) )
   end do
 
+  allocate( self%cell_coords(3,self%last_ghost_cell) )
+  self%cell_coords = 0.0_r_def
+  do local_lbc_id = 1, self%last_ghost_cell
+    global_lbc_id = self%get_gid_from_lid(local_lbc_id)
+    call global_lbc_mesh%get_cell_coords( global_lbc_id, &
+                                          self%cell_coords(:,local_lbc_id) )
+  end do
+
   ! Internal coords of spherical units should be in radians
   ! and only output in degrees.
   if ( self%is_coord_sys_ll() ) then
     if ( any(self%coord_units_xy /= 'radians') ) then
-      ! Scale the vertex coords so that they are in radians.
+      ! Scale all coords so that they are in radians.
       self%coord_units_xy(:) = 'radians'
       self%vert_coords(:,:)  = self%vert_coords(:,:) * degrees_to_radians
+      self%cell_coords(:,:)  = self%cell_coords(:,:) * degrees_to_radians
     end if
   end if
-
 
   !======================================================================================
   ! 6.0 Generate cell ownership in terms of local IDs
@@ -1090,7 +1109,6 @@ contains
 
     logical(i_def) :: periodic_xy(2) = .false.
 
-    real(r_def), allocatable :: face_coords(:,:)
     character(str_def)       :: geometry_str
     character(str_def)       :: topology_str
     character(str_def)       :: coord_sys_str
@@ -1122,7 +1140,7 @@ contains
              self%ntarget_meshes,     &
              self%target_mesh_names,  &
              self%vert_coords,        &
-             face_coords,             &
+             self%cell_coords,        &
              self%coord_units_xy,     &
              self%north_pole,         &
              self%null_island,        &
@@ -1151,8 +1169,10 @@ contains
            (trim(self%coord_units_xy(2)) == 'degrees_north') ) then
 
         self%vert_coords(:,:)    = degrees_to_radians * self%vert_coords(:,:)
+        self%cell_coords(:,:)    = degrees_to_radians * self%cell_coords(:,:)
         self%domain_extents(:,:) = degrees_to_radians * self%domain_extents(:,:)
         self%north_pole(:)       = degrees_to_radians * self%north_pole(:)
+        self%null_island(:)      = degrees_to_radians * self%null_island(:)
         self%null_island(:)      = degrees_to_radians * self%null_island(:)
 
         self%coord_units_xy = 'radians'
@@ -1726,6 +1746,24 @@ contains
     vert_coords(1:2) = self%vert_coords(1:2,vert_lid)
 
   end subroutine get_vert_coords
+
+  !---------------------------------------------------------------------------
+  !> @brief Gets the coordinates.of the centre of a cell
+  !>
+  !> @param[in]  cell_lid    Local ID of a cell
+  !> @param[out] cell_coords Longitude and latitude of the centre of the
+  !>                         specified cell.
+  !>
+  subroutine get_cell_coords (self, cell_lid, cell_coords)
+
+    implicit none
+    class (local_mesh_type), intent(in)  :: self
+    integer(i_def),          intent(in)  :: cell_lid
+    real(r_def),             intent(out) :: cell_coords(:)
+
+    cell_coords(1:2) = self%cell_coords(1:2,cell_lid)
+
+  end subroutine get_cell_coords
 
   !---------------------------------------------------------------------------
   !> @brief Gets the number of unique vertices in the local domain.
