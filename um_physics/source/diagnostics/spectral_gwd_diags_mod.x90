@@ -12,6 +12,8 @@ module spectral_gwd_diags_mod
   use io_config_mod,       only: subroutine_timers
   use timer_mod,           only: timer
 
+  use initialise_diagnostics_mod, only : init_diag => init_diagnostic_field
+
   implicit none
 
   private
@@ -49,14 +51,10 @@ contains
     if ( subroutine_timers ) call timer("spectral_gwd_diags")
 
     ! 3D fields in wtheta space
-    tau_east_spectral_gwd_flag = .true.
-    call theta%copy_field_properties(tau_east_spectral_gwd)
-    tau_south_spectral_gwd_flag = .true.
-    call theta%copy_field_properties(tau_south_spectral_gwd)
-    tau_west_spectral_gwd_flag = .true.
-    call theta%copy_field_properties(tau_west_spectral_gwd)
-    tau_north_spectral_gwd_flag = .true.
-    call theta%copy_field_properties(tau_north_spectral_gwd)
+    tau_east_spectral_gwd_flag = init_diag(tau_east_spectral_gwd, 'spectral_gwd__tau_east_spectral_gwd')
+    tau_south_spectral_gwd_flag = init_diag(tau_south_spectral_gwd, 'spectral_gwd__tau_south_spectral_gwd')
+    tau_west_spectral_gwd_flag = init_diag(tau_west_spectral_gwd, 'spectral_gwd__tau_west_spectral_gwd')
+    tau_north_spectral_gwd_flag = init_diag(tau_north_spectral_gwd, 'spectral_gwd__tau_north_spectral_gwd')
 
     if ( subroutine_timers ) call timer("spectral_gwd_diags")
 
@@ -87,16 +85,16 @@ contains
 
     ! Diagnostics locally computed within the kernel
     if (tau_east_spectral_gwd_flag) then
-      call tau_east_spectral_gwd%write_field('spectral_gwd__tau_east_spectral_gwd')
+      call tau_east_spectral_gwd%write_field(tau_east_spectral_gwd%get_name())
     end if
     if (tau_south_spectral_gwd_flag) then
-      call tau_south_spectral_gwd%write_field('spectral_gwd__tau_south_spectral_gwd')
+      call tau_south_spectral_gwd%write_field(tau_south_spectral_gwd%get_name())
     end if
     if (tau_west_spectral_gwd_flag) then
-      call tau_west_spectral_gwd%write_field('spectral_gwd__tau_west_spectral_gwd')
+      call tau_west_spectral_gwd%write_field(tau_west_spectral_gwd%get_name())
     end if
     if (tau_north_spectral_gwd_flag) then
-      call tau_north_spectral_gwd%write_field('spectral_gwd__tau_north_spectral_gwd')
+      call tau_north_spectral_gwd%write_field(tau_north_spectral_gwd%get_name())
     end if
 
     if ( subroutine_timers ) call timer("spectral_gwd_diags")

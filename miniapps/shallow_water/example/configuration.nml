@@ -20,7 +20,7 @@ f_lat_deg            = 90.0
 &io
 use_xios_io               = .false.
 diag_active_files         = 'lfric_diag'
-diag_always_on_sampling   = .true.
+diag_always_on_sampling   = .false.
 write_diag                = .true.
 write_dump                = .false.
 file_convention           = 'UGRID'

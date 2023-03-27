@@ -12,6 +12,8 @@ module mphys_diagnostics_mod
   use io_config_mod,       only: subroutine_timers
   use timer_mod,           only: timer
 
+  use initialise_diagnostics_mod,    only : init_diag => init_diagnostic_field
+
   implicit none
 
   private
@@ -26,13 +28,34 @@ module mphys_diagnostics_mod
   logical (l_def) :: sfrain_flag
   logical (l_def) :: sfsnow_flag
 
-  public :: output_diags_for_mphys
-  public :: superc_liq_flag
-  public :: sfwater_flag
-  public :: sfrain_flag
-  public :: sfsnow_flag
+  public :: output_diags_for_mphys, initialise_diags_for_mphys
 
 contains
+
+  !> @brief Initialise fields for mphys diagnostics
+  !> @param[inout] superc_liq      Supercooled_liquid_cloud_after_microphysics
+  !> @param[inout] sfwater         Water due to subgrid hills
+  !> @param[inout] sfrain          Seeder-Feeder rain over subgrid hills
+  !> @param[inout] sfsnow          Seeder-Feeder snow over subgrid hills
+  subroutine initialise_diags_for_mphys(superc_liq, sfwater, sfrain, sfsnow)
+
+    implicit none
+
+    type( field_type ), intent(inout) :: superc_liq
+    type( field_type ), intent(inout) :: sfwater
+    type( field_type ), intent(inout) :: sfrain
+    type( field_type ), intent(inout) :: sfsnow
+
+    if ( subroutine_timers ) call timer("mphys_diagnostics")
+
+    superc_liq_flag = init_diag(superc_liq, 'microphysics__superc_liq')
+    sfwater_flag = init_diag(sfwater, 'microphysics__sfwater')
+    sfrain_flag = init_diag(sfrain, 'microphysics__sfrain')
+    sfsnow_flag = init_diag(sfsnow, 'microphysics__sfsnow')
+
+    if ( subroutine_timers ) call timer("mphys_diagnostics")
+
+  end subroutine 
 
   subroutine output_diags_for_mphys(exner_in_wth, dtheta_mphys,               &
                                     dmv_mphys, dmcl_mphys, dmci_mphys,        &
@@ -79,13 +102,11 @@ contains
 
     call dtheta_mphys%write_field('microphysics__dtheta_mphys')
 
-    dt_mphys_flag = .true.
+    dt_mphys_flag = init_diag(dt_mphys, 'microphysics__dt_mphys')
     if (dt_mphys_flag) then
-      call dtheta_mphys%copy_field_properties(dt_mphys)
-
       ! Convert from theta increment to temperature increment
       call invoke( X_times_Y(dt_mphys, dtheta_mphys, exner_in_wth) )
-      call dt_mphys%write_field('microphysics__dt_mphys')
+      call dt_mphys%write_field(dt_mphys%get_name())
     end if
 
     call dmv_mphys%write_field('microphysics__dmv_mphys')
@@ -100,13 +121,13 @@ contains
 
     call dcff_mphys%write_field('microphysics__dcff_mphys')
 
-    if (superc_liq_flag) call superc_liq%write_field('microphysics__superc_liq')
+    if (superc_liq_flag) call superc_liq%write_field(superc_liq%get_name())
 
-    if (sfwater_flag) call sfwater%write_field('microphysics__sfwater')
+    if (sfwater_flag) call sfwater%write_field(sfwater%get_name())
 
-    if (sfrain_flag) call sfrain%write_field('microphysics__sfrain')
+    if (sfrain_flag) call sfrain%write_field(sfrain%get_name())
 
-    if (sfsnow_flag) call sfsnow%write_field('microphysics__sfsnow')
+    if (sfsnow_flag) call sfsnow%write_field(sfsnow%get_name())
 
     call ls_rain%write_field('microphysics__ls_rain')
 

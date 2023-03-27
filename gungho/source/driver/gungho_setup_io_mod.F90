@@ -145,19 +145,21 @@ module gungho_setup_io_mod
                                                          io_mode=FILE_MODE_WRITE ) )
     end if
 
-    ! Setup diagnostic output file
-    do i=1, size(diag_active_files)
-      call files_list%insert_item(                                                &
-            lfric_xios_file_type(                                                 &
-              diag_active_files(i),                                               &
-              xios_id=diag_active_files(i),                                       &
-              io_mode=FILE_MODE_WRITE,                                            &
-              freq=diagnostic_frequency,                                          &
-              is_diag=.true.,                                                     &
-              diag_always_on_sampling=diag_always_on_sampling                     &
-            )                                                                     &
-      )
-    end do
+    ! Setup diagnostic output files
+    if (write_diag) then
+      do i=1, size(diag_active_files)
+        call files_list%insert_item(                                                &
+              lfric_xios_file_type(                                                 &
+                diag_active_files(i),                                               &
+                xios_id=diag_active_files(i),                                       &
+                io_mode=FILE_MODE_WRITE,                                            &
+                freq=diagnostic_frequency,                                          &
+                is_diag=.true.,                                                     &
+                diag_always_on_sampling=diag_always_on_sampling                     &
+              )                                                                     &
+        )
+      end do
+    end if
 
     ! Setup dump-writing context information
     if ( write_dump ) then

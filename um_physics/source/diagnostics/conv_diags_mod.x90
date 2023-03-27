@@ -11,6 +11,8 @@ module conv_diags_mod
   use field_mod,           only: field_type
   use io_config_mod,       only: subroutine_timers
   use timer_mod,           only: timer
+  use initialise_diagnostics_mod,     only : init_diag &
+      => init_diagnostic_field
 
   implicit none
 
@@ -149,169 +151,138 @@ contains
                                        dth_conv_noshal,   &
                                        dmv_conv_noshal
 
+    logical(l_def) :: ignore
+
     if ( subroutine_timers ) call timer("conv_diags")
 
     ! Convective diagnostics - 2d
-    deep_in_col_flag = .true.
-    call zh%copy_field_properties(deep_in_col)
-    call invoke( setval_c(deep_in_col, 0.0_r_def) )
+    deep_in_col_flag = init_diag(deep_in_col, 'convection__deep_in_col')
+    if (deep_in_col_flag) call invoke( setval_c(deep_in_col, 0.0_r_def) )
 
-    shallow_in_col_flag = .true.
-    call zh%copy_field_properties(shallow_in_col)
-    call invoke( setval_c(shallow_in_col, 0.0_r_def) )
+    shallow_in_col_flag = init_diag(shallow_in_col, 'convection__shallow_in_col')
+    if (shallow_in_col_flag) call invoke( setval_c(shallow_in_col, 0.0_r_def) )
 
-    mid_in_col_flag = .true.
-    call zh%copy_field_properties(mid_in_col)
-    call invoke( setval_c(mid_in_col, 0.0_r_def) )
+    mid_in_col_flag = init_diag(mid_in_col, 'convection__mid_in_col')
+    if (mid_in_col_flag) call invoke( setval_c(mid_in_col, 0.0_r_def) )
 
-    freeze_level_flag = .true.
-    call zh%copy_field_properties(freeze_level)
-    call invoke( setval_c(freeze_level, 0.0_r_def) )
+    freeze_level_flag = init_diag(freeze_level, 'convection__freeze_level')
+    if (freeze_level_flag) call invoke( setval_c(freeze_level, 0.0_r_def) )
 
-    deep_prec_flag = .true.
-    call zh%copy_field_properties(deep_prec)
-    call invoke( setval_c(deep_prec, 0.0_r_def) )
+    deep_prec_flag = init_diag(deep_prec, 'convection__deep_prec')
+    if (deep_prec_flag) call invoke( setval_c(deep_prec, 0.0_r_def) )
 
-    shallow_prec_flag = .true.
-    call zh%copy_field_properties(shallow_prec)
-    call invoke( setval_c(shallow_prec, 0.0_r_def) )
+    shallow_prec_flag = init_diag(shallow_prec, 'convection__shallow_prec')
+    if (shallow_prec_flag) call invoke( setval_c(shallow_prec, 0.0_r_def) )
 
-    mid_prec_flag = .true.
-    call zh%copy_field_properties(mid_prec)
-    call invoke( setval_c(mid_prec, 0.0_r_def) )
+    mid_prec_flag = init_diag(mid_prec, 'convection__mid_prec')
+    if (mid_prec_flag) call invoke( setval_c(mid_prec, 0.0_r_def) )
 
-    deep_term_flag = .true.
-    call zh%copy_field_properties(deep_term)
-    call invoke( setval_c(deep_term, 0.0_r_def) )
+    deep_term_flag = init_diag(deep_term, 'convection__deep_term')
+    if (deep_term_flag) call invoke( setval_c(deep_term, 0.0_r_def) )
 
-    cape_timescale_flag = .true.
-    call zh%copy_field_properties(cape_timescale)
-    call invoke( setval_c(cape_timescale, 0.0_r_def) )
+    cape_timescale_flag = init_diag(cape_timescale, 'convection__cape_timescale')
+    if (cape_timescale_flag) call invoke( setval_c(cape_timescale, 0.0_r_def) )
 
-    lowest_cv_base_flag = .true.
-    call zh%copy_field_properties(lowest_cv_base)
+    lowest_cv_base_flag = init_diag(lowest_cv_base, 'convection__lowest_cv_base')
     ! not zeroed because overwritten
 
-    lowest_cv_top_flag = .true.
-    call zh%copy_field_properties(lowest_cv_top)
+    lowest_cv_top_flag = init_diag(lowest_cv_top, 'convection__lowest_cv_top')
     ! not zeroed because overwritten
 
-    cv_base_flag = .true.
-    call zh%copy_field_properties(cv_base)
+    cv_base_flag = init_diag(cv_base, 'convection__cv_base')
     ! zeroed because value tested in kernel
-    call invoke( setval_c(cv_base, 0.0_r_def) )
+    if (cv_base_flag) call invoke( setval_c(cv_base, 0.0_r_def) )
 
-    cv_top_flag = .true.
-    call zh%copy_field_properties(cv_top)
+    cv_top_flag = init_diag(cv_top, 'convection__cv_top')
     ! not zeroed because overwritten
 
-    pres_cv_base_flag = .true.
-    call zh%copy_field_properties(pres_cv_base)
+    pres_cv_base_flag = init_diag(pres_cv_base, 'convection__pres_cv_base')
     ! not zeroed because overwritten
 
-    pres_cv_top_flag = .true.
-    call zh%copy_field_properties(pres_cv_top)
+    pres_cv_top_flag = init_diag(pres_cv_top, 'convection__pres_cv_top')
     ! not zeroed because overwritten
 
-    deep_cfl_limited_flag = .true.
-    call zh%copy_field_properties(deep_cfl_limited)
-    call invoke( setval_c(deep_cfl_limited, 0.0_r_def) )
+    deep_cfl_limited_flag = init_diag(deep_cfl_limited, 'convection__deep_cfl_limited')
+    if (deep_cfl_limited_flag) call invoke( setval_c(deep_cfl_limited, 0.0_r_def) )
 
-    mid_cfl_limited_flag = .true.
-    call zh%copy_field_properties(mid_cfl_limited)
-    call invoke( setval_c(mid_cfl_limited, 0.0_r_def) )
+    mid_cfl_limited_flag = init_diag(mid_cfl_limited, 'convection__mid_cfl_limited')
+    if (mid_cfl_limited_flag) call invoke( setval_c(mid_cfl_limited, 0.0_r_def) )
 
     ! Convective diagnostics - 3d  - theta levels
-    entrain_up_flag = .true.
-    call theta_star%copy_field_properties(entrain_up)
-    call invoke( setval_c(entrain_up, 0.0_r_def) )
 
-    entrain_down_flag = .true.
-    call theta_star%copy_field_properties(entrain_down)
-    call invoke( setval_c(entrain_down, 0.0_r_def) )
+    entrain_up_flag = init_diag(entrain_up, 'convection__entrain_up')
+    if (entrain_up_flag) call invoke( setval_c(entrain_up, 0.0_r_def) )
 
-    detrain_up_flag = .true.
-    call theta_star%copy_field_properties(detrain_up)
-    call invoke( setval_c(detrain_up, 0.0_r_def) )
+    entrain_down_flag = init_diag(entrain_down, 'convection__entrain_down')
+    if (entrain_down_flag) call invoke( setval_c(entrain_down, 0.0_r_def) )
 
-    detrain_down_flag = .true.
-    call theta_star%copy_field_properties(detrain_down)
-    call invoke( setval_c(detrain_down, 0.0_r_def) )
+    detrain_up_flag = init_diag(detrain_up, 'convection__detrain_up')
+    if (detrain_up_flag) call invoke( setval_c(detrain_up, 0.0_r_def) )
 
-    dd_dt_flag = .true.
-    call theta_star%copy_field_properties(dd_dt)
-    call invoke( setval_c(dd_dt, 0.0_r_def) )
+    detrain_down_flag = init_diag(detrain_down, 'convection__detrain_down')
+    if (detrain_down_flag) call invoke( setval_c(detrain_down, 0.0_r_def) )
 
-    dd_dq_flag = .true.
-    call theta_star%copy_field_properties(dd_dq)
-    call invoke( setval_c(dd_dq, 0.0_r_def) )
+    dd_dt_flag = init_diag(dd_dt, 'convection__dd_dt')
+    if (dd_dt_flag) call invoke( setval_c(dd_dt, 0.0_r_def) )
 
-    deep_dt_flag = .true.
-    call theta_star%copy_field_properties(deep_dt)
-    call invoke( setval_c(deep_dt, 0.0_r_def) )
+    dd_dq_flag = init_diag(dd_dq, 'convection__dd_dq')
+    if (dd_dq_flag) call invoke( setval_c(dd_dq, 0.0_r_def) )
 
-    deep_dq_flag = .true.
-    call theta_star%copy_field_properties(deep_dq)
-    call invoke( setval_c(deep_dq, 0.0_r_def) )
+    deep_dt_flag = init_diag(deep_dt, 'convection__deep_dt')
+    if (deep_dt_flag) call invoke( setval_c(deep_dt, 0.0_r_def) )
 
-    deep_massflux_flag = .true.
-    call theta_star%copy_field_properties(deep_massflux)
-    call invoke( setval_c(deep_massflux, 0.0_r_def) )
+    deep_dq_flag = init_diag(deep_dq, 'convection__deep_dq')
+    if (deep_dq_flag) call invoke( setval_c(deep_dq, 0.0_r_def) )
 
-    shallow_dt_flag = .true.
-    call theta_star%copy_field_properties(shallow_dt)
-    call invoke( setval_c(shallow_dt, 0.0_r_def) )
+    deep_massflux_flag = init_diag(deep_massflux, 'convection__deep_massflux')
+    if (deep_massflux_flag) call invoke( setval_c(deep_massflux, 0.0_r_def) )
 
-    shallow_dq_flag = .true.
-    call theta_star%copy_field_properties(shallow_dq)
-    call invoke( setval_c(shallow_dq, 0.0_r_def) )
+    shallow_dt_flag = init_diag(shallow_dt, 'convection__shallow_dt')
+    if (shallow_dt_flag) call invoke( setval_c(shallow_dt, 0.0_r_def) )
 
-    shallow_massflux_flag = .true.
-    call theta_star%copy_field_properties(shallow_massflux)
-    call invoke( setval_c(shallow_massflux, 0.0_r_def) )
+    shallow_dq_flag = init_diag(shallow_dq, 'convection__shallow_dq')
+    if (shallow_dq_flag) call invoke( setval_c(shallow_dq, 0.0_r_def) )
 
-    mid_dt_flag = .true.
-    call theta_star%copy_field_properties(mid_dt)
-    call invoke( setval_c(mid_dt, 0.0_r_def) )
+    shallow_massflux_flag = init_diag(shallow_massflux, 'convection__shallow_massflux')
+    if (shallow_massflux_flag) call invoke( setval_c(shallow_massflux, 0.0_r_def) )
 
-    mid_dq_flag = .true.
-    call theta_star%copy_field_properties(mid_dq)
-    call invoke( setval_c(mid_dq, 0.0_r_def) )
+    mid_dt_flag = init_diag(mid_dt, 'convection__mid_dt')
+    if (mid_dt_flag) call invoke( setval_c(mid_dt, 0.0_r_def) )
 
-    mid_massflux_flag = .true.
-    call theta_star%copy_field_properties(mid_massflux)
-    call invoke( setval_c(mid_massflux, 0.0_r_def) )
+    mid_dq_flag = init_diag(mid_dq, 'convection__mid_dq')
+    if (mid_dq_flag) call invoke( setval_c(mid_dq, 0.0_r_def) )
 
-    deep_tops_flag = .true.
-    call theta_star%copy_field_properties(deep_tops)
-    call invoke( setval_c(deep_tops, 0.0_r_def) )
+    mid_massflux_flag = init_diag(mid_massflux, 'convection__mid_massflux')
+    if (mid_massflux_flag) call invoke( setval_c(mid_massflux, 0.0_r_def) )
 
-    massflux_up_half_flag = .true.
-    call rho%copy_field_properties(massflux_up_half)
-    call invoke( setval_c(massflux_up_half, 0.0_r_def) )
+    deep_tops_flag = init_diag(deep_tops, 'convection__deep_tops')
+    if (deep_tops_flag) call invoke( setval_c(deep_tops, 0.0_r_def) )
 
-    massflux_up_cmpta_flag = .true.
-    call rho%copy_field_properties(massflux_up_cmpta)
-    ! not zeroed because overwritten
+    massflux_up_half_flag = init_diag(massflux_up_half, 'convection__massflux_up_half')
+    if (massflux_up_half_flag) call invoke( setval_c(massflux_up_half, 0.0_r_def) )
 
-    cca_unadjusted_flag = .true.
-    call theta_star%copy_field_properties(cca_unadjusted)
-    call invoke( setval_c(cca_unadjusted, 0.0_r_def) )
+    massflux_up_cmpta_flag = init_diag(massflux_up_cmpta, 'convection__massflux_up_cmpta')
+    if (massflux_up_cmpta_flag) call invoke( setval_c(massflux_up_cmpta, 0.0_r_def) )
+    ! zeroed to prevent volatile results
 
-    dth_conv_noshal_flag = .true.
-    call theta_star%copy_field_properties(dth_conv_noshal)
+    cca_unadjusted_flag = init_diag(cca_unadjusted, 'convection__cca_unadjusted')
+    if (cca_unadjusted_flag) call invoke( setval_c(cca_unadjusted, 0.0_r_def) )
 
-    dmv_conv_noshal_flag = .true.
-    call theta_star%copy_field_properties(dmv_conv_noshal)
+    dth_conv_noshal_flag = init_diag(dth_conv_noshal, 'convection__dth_conv_noshal')
+
+    dmv_conv_noshal_flag = init_diag(dmv_conv_noshal, 'convection__dmv_conv_noshal')
 
     ! diagnostic interdependencies
-    !
     if (massflux_up_cmpta_flag .and. (.not. massflux_up_half_flag)) then
-      call rho%copy_field_properties(massflux_up_half)
+      ignore = init_diag(massflux_up_half, 'convection__massflux_up_half', activate=.true.)
       call invoke( setval_c(massflux_up_half, 0.0_r_def) )
     end if
-    if (massflux_up_cmpta_flag .and. (.not. shallow_in_col_flag)) then
-      call zh%copy_field_properties(shallow_in_col)
+    if ((                         &
+      massflux_up_cmpta_flag .or. &
+      dth_conv_noshal_flag .or.   &
+      dmv_conv_noshal_flag)       &
+      .and. (.not. shallow_in_col_flag)) then
+      ignore = init_diag(shallow_in_col, 'convection__shallow_in_col', activate=.true.)
       call invoke( setval_c(shallow_in_col, 0.0_r_def) )
     end if
 
@@ -471,45 +442,45 @@ contains
 
     ! Diagnostics computed within the kernel
     ! 2D
-    if (deep_in_col_flag) call deep_in_col%write_field('convection__deep_in_col')
-    if (shallow_in_col_flag) call shallow_in_col%write_field('convection__shallow_in_col')
-    if (mid_in_col_flag) call mid_in_col%write_field('convection__mid_in_col')
-    if (freeze_level_flag) call freeze_level%write_field('convection__freeze_level')
-    if (deep_prec_flag) call deep_prec%write_field('convection__deep_prec')
-    if (shallow_prec_flag) call shallow_prec%write_field('convection__shallow_prec')
-    if (mid_prec_flag) call mid_prec%write_field('convection__mid_prec')
-    if (deep_term_flag) call deep_term%write_field('convection__deep_term')
-    if (cape_timescale_flag) call cape_timescale%write_field('convection__cape_timescale')
-    if (lowest_cv_base_flag) call lowest_cv_base%write_field('convection__lowest_cv_base')
-    if (lowest_cv_top_flag) call lowest_cv_top%write_field('convection__lowest_cv_top')
-    if (cv_base_flag) call cv_base%write_field('convection__cv_base')
-    if (cv_top_flag) call cv_top%write_field('convection__cv_top')
-    if (pres_cv_base_flag) call pres_cv_base%write_field('convection__pres_cv_base')
-    if (pres_cv_top_flag) call pres_cv_top%write_field('convection__pres_cv_top')
-    if (deep_cfl_limited_flag) call deep_cfl_limited%write_field('convection__deep_cfl_limited')
-    if (mid_cfl_limited_flag) call mid_cfl_limited%write_field('convection__mid_cfl_limited')
+    if (deep_in_col_flag) call deep_in_col%write_field(deep_in_col%get_name())
+    if (shallow_in_col_flag) call shallow_in_col%write_field(shallow_in_col%get_name())
+    if (mid_in_col_flag) call mid_in_col%write_field(mid_in_col%get_name())
+    if (freeze_level_flag) call freeze_level%write_field(freeze_level%get_name())
+    if (deep_prec_flag) call deep_prec%write_field(deep_prec%get_name())
+    if (shallow_prec_flag) call shallow_prec%write_field(shallow_prec%get_name())
+    if (mid_prec_flag) call mid_prec%write_field(mid_prec%get_name())
+    if (deep_term_flag) call deep_term%write_field(deep_term%get_name())
+    if (cape_timescale_flag) call cape_timescale%write_field(cape_timescale%get_name())
+    if (lowest_cv_base_flag) call lowest_cv_base%write_field(lowest_cv_base%get_name())
+    if (lowest_cv_top_flag) call lowest_cv_top%write_field(lowest_cv_top%get_name())
+    if (cv_base_flag) call cv_base%write_field(cv_base%get_name())
+    if (cv_top_flag) call cv_top%write_field(cv_top%get_name())
+    if (pres_cv_base_flag) call pres_cv_base%write_field(pres_cv_base%get_name())
+    if (pres_cv_top_flag) call pres_cv_top%write_field(pres_cv_top%get_name())
+    if (deep_cfl_limited_flag) call deep_cfl_limited%write_field(deep_cfl_limited%get_name())
+    if (mid_cfl_limited_flag) call mid_cfl_limited%write_field(mid_cfl_limited%get_name())
     ! 3D
-    if (entrain_up_flag) call entrain_up%write_field('convection__entrain_up')
-    if (entrain_down_flag) call entrain_down%write_field('convection__entrain_down')
-    if (detrain_up_flag) call detrain_up%write_field('convection__detrain_up')
-    if (detrain_down_flag) call detrain_down%write_field('convection__detrain_down')
-    if (dd_dt_flag) call dd_dt%write_field('convection__dd_dt')
-    if (dd_dq_flag) call dd_dq%write_field('convection__dd_dq')
-    if (deep_dt_flag) call deep_dt%write_field('convection__deep_dt')
-    if (deep_dq_flag) call deep_dq%write_field('convection__deep_dq')
-    if (deep_massflux_flag) call deep_massflux%write_field('convection__deep_massflux')
-    if (shallow_dt_flag) call shallow_dt%write_field('convection__shallow_dt')
-    if (shallow_dq_flag) call shallow_dq%write_field('convection__shallow_dq')
-    if (shallow_massflux_flag) call shallow_massflux%write_field('convection__shallow_massflux')
-    if (mid_dt_flag) call mid_dt%write_field('convection__mid_dt')
-    if (mid_dq_flag) call mid_dq%write_field('convection__mid_dq')
-    if (mid_massflux_flag) call mid_massflux%write_field('convection__mid_massflux')
-    if (deep_tops_flag) call deep_tops%write_field('convection__deep_tops')
-    if (massflux_up_half_flag) call massflux_up_half%write_field('convection__massflux_up_half')
-    if (massflux_up_cmpta_flag) call massflux_up_cmpta%write_field('convection__massflux_up_cmpta')
-    if (cca_unadjusted_flag) call cca_unadjusted%write_field('convection__cca_unadjusted')
-    if (dth_conv_noshal_flag) call dth_conv_noshal%write_field('convection__dth_conv_noshal')
-    if (dmv_conv_noshal_flag) call dmv_conv_noshal%write_field('convection__dmv_conv_noshal')
+    if (entrain_up_flag) call entrain_up%write_field(entrain_up%get_name())
+    if (entrain_down_flag) call entrain_down%write_field(entrain_down%get_name())
+    if (detrain_up_flag) call detrain_up%write_field(detrain_up%get_name())
+    if (detrain_down_flag) call detrain_down%write_field(detrain_down%get_name())
+    if (dd_dt_flag) call dd_dt%write_field(dd_dt%get_name())
+    if (dd_dq_flag) call dd_dq%write_field(dd_dq%get_name())
+    if (deep_dt_flag) call deep_dt%write_field(deep_dt%get_name())
+    if (deep_dq_flag) call deep_dq%write_field(deep_dq%get_name())
+    if (deep_massflux_flag) call deep_massflux%write_field(deep_massflux%get_name())
+    if (shallow_dt_flag) call shallow_dt%write_field(shallow_dt%get_name())
+    if (shallow_dq_flag) call shallow_dq%write_field(shallow_dq%get_name())
+    if (shallow_massflux_flag) call shallow_massflux%write_field(shallow_massflux%get_name())
+    if (mid_dt_flag) call mid_dt%write_field(mid_dt%get_name())
+    if (mid_dq_flag) call mid_dq%write_field(mid_dq%get_name())
+    if (mid_massflux_flag) call mid_massflux%write_field(mid_massflux%get_name())
+    if (deep_tops_flag) call deep_tops%write_field(deep_tops%get_name())
+    if (massflux_up_half_flag) call massflux_up_half%write_field(massflux_up_half%get_name())
+    if (massflux_up_cmpta_flag) call massflux_up_cmpta%write_field(massflux_up_cmpta%get_name())
+    if (cca_unadjusted_flag) call cca_unadjusted%write_field(cca_unadjusted%get_name())
+    if (dth_conv_noshal_flag) call dth_conv_noshal%write_field(dth_conv_noshal%get_name())
+    if (dmv_conv_noshal_flag) call dmv_conv_noshal%write_field(dmv_conv_noshal%get_name())
 
     if ( subroutine_timers ) call timer("conv_diags")
 

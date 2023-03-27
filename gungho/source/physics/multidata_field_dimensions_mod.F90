@@ -9,6 +9,8 @@
 module multidata_field_dimensions_mod
 
   use constants_mod,             only: i_def
+  use io_config_mod,             only: use_xios_io
+  use lfric_xios_diag_mod,       only: get_axis_dimension
 
   implicit none
 
@@ -91,10 +93,15 @@ contains
             dim = 1 ! ordinary (non-multidata) field
 #endif
       case default
-            dim = 1 ! silence compiler warning
-            write(log_scratch_space, '(A, A)')                                 &
-              'Unexpected multidata item: ', multidata_item
-            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+            if (use_xios_io) then
+                  ! attempt to get it from XIOS metadata
+                  dim = get_axis_dimension(multidata_item)
+            else
+                  dim = 1 ! silence compiler warning
+                  write(log_scratch_space, '(A, A)')                          &
+                        'Unexpected multidata item: ', multidata_item
+                        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+            end if
     end select
 
   end function get_multidata_field_dimension

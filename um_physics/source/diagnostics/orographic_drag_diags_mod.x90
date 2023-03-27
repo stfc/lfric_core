@@ -12,6 +12,8 @@ module orographic_drag_diags_mod
   use io_config_mod,       only: subroutine_timers
   use timer_mod,           only: timer
 
+  use initialise_diagnostics_mod, only : init_diag => init_diagnostic_field
+
   implicit none
 
   private
@@ -50,14 +52,14 @@ contains
     if ( subroutine_timers ) call timer("orographic_drag_diags")
 
     ! 3D fields in wtheta space
-    taux_orog_blk_flag = .true.
-    call theta%copy_field_properties(taux_orog_blk)
-    tauy_orog_blk_flag = .true.
-    call theta%copy_field_properties(tauy_orog_blk)
-    taux_orog_gwd_flag = .true.
-    call theta%copy_field_properties(taux_orog_gwd)
-    tauy_orog_gwd_flag = .true.
-    call theta%copy_field_properties(tauy_orog_gwd)
+    taux_orog_blk_flag = init_diag(taux_orog_blk, 'orographic_drag__taux_orog_blk')
+    if (taux_orog_blk_flag) call invoke( setval_c(taux_orog_blk, 0.0_r_def) )
+    tauy_orog_blk_flag = init_diag(tauy_orog_blk, 'orographic_drag__tauy_orog_blk')
+    if (tauy_orog_blk_flag) call invoke( setval_c(tauy_orog_blk, 0.0_r_def) )
+    taux_orog_gwd_flag = init_diag(taux_orog_gwd, 'orographic_drag__taux_orog_gwd')
+    if (taux_orog_gwd_flag) call invoke( setval_c(taux_orog_gwd, 0.0_r_def) )
+    tauy_orog_gwd_flag = init_diag(tauy_orog_gwd, 'orographic_drag__tauy_orog_gwd')
+    if (tauy_orog_gwd_flag) call invoke( setval_c(tauy_orog_gwd, 0.0_r_def) )
 
     if ( subroutine_timers ) call timer("orographic_drag_diags")
 
@@ -93,10 +95,10 @@ contains
     call dtemp_orog_gwd%write_field('orographic_drag__dtemp_orog_gwd')
 
     ! Diagnostics computed within the kernel
-    if (taux_orog_blk_flag) call taux_orog_blk%write_field('orographic_drag__taux_orog_blk')
-    if (tauy_orog_blk_flag) call tauy_orog_blk%write_field('orographic_drag__tauy_orog_blk')
-    if (taux_orog_gwd_flag) call taux_orog_gwd%write_field('orographic_drag__taux_orog_gwd')
-    if (tauy_orog_gwd_flag) call tauy_orog_gwd%write_field('orographic_drag__tauy_orog_gwd')
+    if (taux_orog_blk_flag) call taux_orog_blk%write_field(taux_orog_blk%get_name())
+    if (tauy_orog_blk_flag) call tauy_orog_blk%write_field(tauy_orog_blk%get_name())
+    if (taux_orog_gwd_flag) call taux_orog_gwd%write_field(taux_orog_gwd%get_name())
+    if (tauy_orog_gwd_flag) call tauy_orog_gwd%write_field(tauy_orog_gwd%get_name())
 
     if ( subroutine_timers ) call timer("orographic_drag_diags")
 

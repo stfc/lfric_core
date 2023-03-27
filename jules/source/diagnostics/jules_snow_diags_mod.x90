@@ -13,6 +13,8 @@ module jules_snow_diags_mod
   use timer_mod,                 only: timer
   use weighted_ave_kernel_mod,   only: weighted_ave_kernel_type
 
+  use initialise_diagnostics_mod, only : init_diag => init_diagnostic_field
+
   implicit none
 
   private
@@ -46,11 +48,8 @@ contains
     if ( subroutine_timers ) call timer("jules_snow_diags")
 
     ! 2D fields
-    grid_snow_mass_flag = .true.
-    call soil_moist_sat%copy_field_properties(grid_snow_mass)
-
-    grid_snowmelt_flag = .true.
-    call soil_moist_sat%copy_field_properties(grid_snowmelt)
+    grid_snow_mass_flag = init_diag(grid_snow_mass, 'snow__grid_snow_mass')
+    grid_snowmelt_flag = init_diag(grid_snowmelt, 'snow__grid_snowmelt')
 
     if ( subroutine_timers ) call timer("jules_snow_diags")
 
@@ -118,12 +117,12 @@ contains
     if (grid_snowmelt_flag) then
       call invoke(weighted_ave_kernel_type(grid_snowmelt, snowice_melt,      &
                                             tile_fraction, 1, n_land_tile) )
-      call grid_snowmelt%write_field('snow__grid_snowmelt')
+      call grid_snowmelt%write_field(grid_snowmelt%get_name())
     end if
 
     ! Diagnostics computed within the kernel
     if (grid_snow_mass_flag) then
-      call grid_snow_mass%write_field('snow__grid_snow_mass')
+      call grid_snow_mass%write_field(grid_snow_mass%get_name())
     end if
 
     if ( subroutine_timers ) call timer("jules_snow_diags")

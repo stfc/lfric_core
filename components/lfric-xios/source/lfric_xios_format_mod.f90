@@ -26,15 +26,22 @@ module lfric_xios_format_mod
   private
 contains
 
-!> @brief Formats field data array in accordance with XIOS conventions.
-!> @details The field data form a matrix stored as a 1D array, which is
-!> transformed from column-major ("contiguous columns") to row-major form
-!> ("contiguous rows").
-!> Note that the contiguous columns of the input matrix are
-!> vertical slices (ordered by level).
-!> The row-major form of a matrix is the column-major for of its transposed.
-!> Therefore, the formatting amounts to a transposition of the matrix.
-!> @pre The total dimension must be a multiple of the number of rows.
+!> @brief Formats LFRic field data array in accordance with XIOS conventions.
+!> @details The LFRic field data form a matrix with the columns representing
+!> vertical slices. To put it differently, denoting the matrix by a_ki,
+!> the column index k selects the vertical level, whereas the row index i
+!> selects the dof at ground level.
+!> Since Fortran lays out matrices in column-major form ("contiguous
+!> columns"), this makes iteration in the vertical direction
+!> ("k-first") fast.
+!> XIOS, on the other hand, expects the matrix in the form a_ik with the
+!> horizontal index i preceding the vertical index k. Therefore, the
+!> matrix has to be transposed before passing it to XIOS, and that's
+!> what's happening here.
+!> To understand the code, note that the data are passed in as a
+!> one-dimensional array with the data laid out by columns, as already
+!> observed.
+!> @pre The total dimension must be an integer multiple of the number of rows.
 !> @param[out] xios_data         Data array to be sent to XIOS
 !> @param[in]  field_name        Field name for error reporting
 !> @param[in]  fpxy              Field proxy of LFRic field to be formatted

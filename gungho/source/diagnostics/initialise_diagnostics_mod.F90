@@ -12,6 +12,7 @@ module initialise_diagnostics_mod
     log_event,                                                                &
     log_scratch_space,                                                        &
     log_level_info,                                                           &
+    log_level_debug,                                                          &
     log_level_error
   use constants_mod,                   only: r_def, i_def, l_def, str_def
   use field_mod,                       only: field_type
@@ -53,7 +54,10 @@ module initialise_diagnostics_mod
   character(str_def), parameter :: diag_file_name = 'lfric_diag'
 
   ! field flavours
-  character(str_def), parameter :: vanilla  = 'VanillaField'
+  character(str_def), parameter :: vanilla &
+    = 'VanillaField'                                 ! scalar field on 3D mesh
+  character(str_def), parameter :: vanilla_multi &
+    = 'VanillaMulti'                              ! multidata field on 3D mesh
   character(str_def), parameter :: planar = 'PlanarField'
   character(str_def), parameter :: tile = 'TileField'
   character(str_def), parameter :: radiation = 'RadiationField'
@@ -61,8 +65,6 @@ module initialise_diagnostics_mod
   ! field status indicators
   character(str_def), parameter :: activated                                  &
     = 'Activated'     ! needed as a dependency
-  character(str_def), parameter :: inactivated                                &
-    = 'Disactivated'  ! forcibly disabled
   character(str_def), parameter :: enabled                                    &
     = 'Enabled'       ! dynamically enabled, will be sampled
   character(str_def), parameter :: disabled                                   &
@@ -113,15 +115,18 @@ contains
     character(str_def) :: flavour
 
     if (grid_ref /= "") then
-      ! must have domain_ref == "" and axis_ref == ""
-      if (domain_ref /= "" .or. axis_ref /= "") then
+      if (domain_ref /= "") then
         write(log_scratch_space, *)                                           &
         'field ' // trim(field_name) //                                       &
-        'with grid_ref and domain_ref / axis_ref: ' //                        &
-        grid_ref // ' ' // domain_ref // ' ' // axis_ref
+        'with grid_ref and domain_ref : ' //                                  &
+        grid_ref // ' ' // domain_ref
         call log_event(log_scratch_space, log_level_error)
       end if
-      flavour = vanilla
+      if (axis_ref /= "") then
+        flavour = vanilla_multi
+      else
+        flavour = vanilla
+      end if
     else
       if (domain_ref /= "") then
         if (axis_ref /= "") then
@@ -167,7 +172,11 @@ contains
     implicit none
     character(*), intent(in) :: unique_id
     logical(l_def) :: sampling_on
-    sampling_on = field_is_active(unique_id, .true.)
+    if (diag_always_on_sampling) then
+      sampling_on = .true. ! for testing
+    else
+      sampling_on = field_is_active(unique_id, .true.) ! derived from metadata
+    end if
   end function diagnostic_to_be_sampled
 
   !> @brief Initialise a diagnostic field.
@@ -176,12 +185,11 @@ contains
   !> array (to save memory).
   !> Pass activate=.true. for fields needed as dependencies. If activate
   !> is not passed, the field's status will be derived from the XIOS metadata.
-  !> Pass activate=.false. to ensure that field will be inactive. This is
-  !> for testing only.
+  !> Passing activate=.false. is equivalent to not passing activate.
   !> @post  The field name will be set equal to the XIOS id passed in.
   !> @param[out]          field            Field to initialise
   !> @param[in]           unique_id        XIOS id of field
-  !> @param[in, optional] activate         Force-activate/disactivate field
+  !> @param[in, optional] activate         Force-activate field
   !> @param[in, optional] force_mesh       Override derived mesh
   !> @param[in, optional] force_rad_levels Override derived radiation levels
   !> @return                               Sampling status of the field
@@ -198,6 +206,7 @@ contains
 
     character(str_def), parameter :: routine_name = 'init_diagnostic_field'
 
+    logical(kind=l_def) :: is_activated
     logical(kind=l_def) :: sampling_on
     logical(kind=l_def) :: active
     character(str_def)  :: field_name
@@ -230,19 +239,18 @@ contains
     field_name = unique_id
 
     ! field sampling status
-    if (diag_always_on_sampling) then
-      sampling_on = .true. ! backward compatibility option
-    else
-      sampling_on = field_is_active(unique_id, .true.) ! derived from metadata
-    end if
+    sampling_on = diagnostic_to_be_sampled(unique_id)
+
     ! field activation status
+    is_activated = .false.
     if (present(activate)) then
-      active = activate
-      if (active) then
-        status = activated
-      else
-        status = inactivated
+      if (activate) then
+        is_activated = .true.
       end if
+    end if
+    if (is_activated) then
+      active = .true.
+      status = activated
     else
       active = sampling_on
       if (active) then
@@ -271,7 +279,7 @@ contains
       flavour == tile .or.                                                    &
       flavour == planar) then
       this_mesh => diag_mesh_2d
-    else if (flavour == vanilla ) then
+    else if (flavour == vanilla .or. flavour == vanilla_multi) then
       this_mesh => diag_mesh_3d
     else
       call log_event( "unexpected flavour: " // flavour, log_level_error )
@@ -299,6 +307,9 @@ contains
     case (vanilla )
       ! scalar field on 3d mesh
       ndata = 1
+    case (vanilla_multi)
+      ! multidata field on 3d mesh
+      ndata = get_ndata(get_field_tile_id(field_name, axis_ref))
     case default
       call log_event("unexpected flavour: " // flavour, log_level_error)
     end select
@@ -318,7 +329,7 @@ contains
       ', fs: ', trim(name_from_functionspace(fsenum)),                        &
       ', flavour: ', trim(flavour),                                           &
       ', ndata: ', ndata
-    call log_event(log_scratch_space, log_level_info)
+    call log_event(log_scratch_space, log_level_debug)
 #endif
     if (active) then ! field was requested or is needed as a dependency
       call field%initialise(                                                  &

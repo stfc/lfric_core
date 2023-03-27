@@ -25,32 +25,22 @@ module si_diagnostics_mod
   use io_config_mod,            only: subroutine_timers
   use timer_mod,                only: timer
 
+  use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
+
   implicit none
 
   private
 
-  !-----------------------------
-  ! 3D Diagnostic flags
-  !-----------------------------
+  !--------------------------------------------
+  ! Flags for mutually dependent 3D diagnostics
+  !--------------------------------------------
 
-  logical (l_def) :: dtheta_tot_flag
   logical (l_def) :: du_tot_flag
   logical (l_def) :: dv_tot_flag
   logical (l_def) :: dw_tot_flag
-  logical (l_def) :: dmv_tot_flag
-  logical (l_def) :: dmcl_tot_flag
-  logical (l_def) :: dmci_tot_flag
-  logical (l_def) :: dtheta_adv_flag
   logical (l_def) :: du_adv_flag
   logical (l_def) :: dv_adv_flag
   logical (l_def) :: dw_adv_flag
-  logical (l_def) :: dmv_adv_flag
-  logical (l_def) :: dmcl_adv_flag
-  logical (l_def) :: dmci_adv_flag
-  logical (l_def) :: dbcf_adv_flag
-  logical (l_def) :: dcfl_adv_flag
-  logical (l_def) :: dcff_adv_flag
-  logical (l_def) :: dtheta_solv_flag
   logical (l_def) :: du_solv_flag
   logical (l_def) :: dv_solv_flag
   logical (l_def) :: dw_solv_flag
@@ -91,52 +81,47 @@ contains
     type(field_type), pointer :: cfl_after_adv => null()
     type(field_type), pointer :: cff_after_slow => null()
     type(field_type), pointer :: cff_after_adv => null()
+    logical(l_def) :: ignore
 
     if ( subroutine_timers ) call timer ("si_diagnostics")
 
     ! Total increments
     ! Difference between current value (X) and X_n
-    dtheta_tot_flag = .true.
-    if (dtheta_tot_flag) then
+    if (init_diag(dtheta_tot, 'processed__dtheta_tot')) then
       call state(igh_t)%copy_field_properties(dtheta_tot)
       call invoke(X_minus_Y(dtheta_tot,state(igh_t),state_n(igh_t)))
       call dtheta_tot%write_field('processed__dtheta_tot')
     end if
 
-    du_tot_flag = .true.
-    dv_tot_flag = .true.
-    dw_tot_flag = .true.
+    du_tot_flag = init_diag(du_tot, 'processed__du_tot')
+    dv_tot_flag = init_diag(dv_tot, 'processed__dv_tot')
+    dw_tot_flag = init_diag(dw_tot, 'processed__dw_tot')
+    ! If any of the three fields is required then all are needed to do the mapping
     if (du_tot_flag .or. dv_tot_flag .or. dw_tot_flag) then
+      if (.not. du_tot_flag) ignore = init_diag(du_tot, 'processed__du_tot', activate=.true.)
+      if (.not. dv_tot_flag) ignore = init_diag(dv_tot, 'processed__dv_tot', activate=.true.)
+      if (.not. dw_tot_flag) ignore = init_diag(dw_tot, 'processed__dw_tot', activate=.true.)
       call state(igh_u)%copy_field_properties(du_w2_tot)
-      call state(igh_p)%copy_field_properties(du_tot)
-      call state(igh_p)%copy_field_properties(dv_tot)
-      call state(igh_p)%copy_field_properties(dw_tot)
       call invoke(X_minus_Y(du_w2_tot,state(igh_u),state_n(igh_u)))
       call map_physics_winds(du_tot,dv_tot,dw_tot,du_w2_tot)
     end if
-    if (du_tot_flag) call du_tot%write_field('processed__du_tot')
-    if (dv_tot_flag) call dv_tot%write_field('processed__dv_tot')
-    if (dw_tot_flag) call dw_tot%write_field('processed__dw_tot')
+    if (du_tot_flag) call du_tot%write_field(du_tot%get_name())
+    if (dv_tot_flag) call dv_tot%write_field(dv_tot%get_name())
+    if (dw_tot_flag) call dw_tot%write_field(dw_tot%get_name())
 
-    dmv_tot_flag = .true.
-    if (dmv_tot_flag) then
-      call mr(imr_v)%copy_field_properties(dmv_tot)
+    if (init_diag(dmv_tot, 'processed__dmv_tot')) then
       call invoke(X_minus_Y(dmv_tot,mr(imr_v),mr_n(imr_v)))
-      call dmv_tot%write_field('processed__dmv_tot')
+      call dmv_tot%write_field(dmv_tot%get_name())
     end if
 
-    dmcl_tot_flag = .true.
-    if (dmcl_tot_flag) then
-      call mr(imr_cl)%copy_field_properties(dmcl_tot)
+    if (init_diag(dmcl_tot, 'processed__dmcl_tot')) then
       call invoke(X_minus_Y(dmcl_tot,mr(imr_cl),mr_n(imr_cl)))
-      call dmcl_tot%write_field('processed__dmcl_tot')
+      call dmcl_tot%write_field(dmcl_tot%get_name())
     end if
 
-    dmci_tot_flag = .true.
-    if (dmci_tot_flag) then
-      call mr(imr_ci)%copy_field_properties(dmci_tot)
+    if (init_diag(dmci_tot, 'processed__dmci_tot')) then
       call invoke(X_minus_Y(dmci_tot,mr(imr_ci),mr_n(imr_ci)))
-      call dmci_tot%write_field('processed__dmci_tot')
+      call dmci_tot%write_field(dmci_tot%get_name())
     end if
 
     ! These diagnostics use the predictor values, hence only make sense with
@@ -149,106 +134,94 @@ contains
 
       ! Advection increments
       ! Difference between X_after_adv or X_star and X_after_slow
-      dtheta_adv_flag = .true.
-      if (dtheta_adv_flag) then
+      if (init_diag(dtheta_adv, 'advection__dtheta_adv')) then
         call derived_fields%get_field('theta_star', theta_star)
-        call theta_star%copy_field_properties(dtheta_adv)
         call invoke(X_minus_Y(dtheta_adv,theta_star,state_after_slow(igh_t)))
-        call dtheta_adv%write_field('advection__dtheta_adv')
+        call dtheta_adv%write_field(dtheta_adv%get_name())
       end if
 
-      du_adv_flag = .true.
-      dv_adv_flag = .true.
-      dw_adv_flag = .true.
+      du_adv_flag = init_diag(du_adv, 'advection__du_adv')
+      dv_adv_flag = init_diag(dv_adv, 'advection__dv_adv')
+      dw_adv_flag = init_diag(dw_adv, 'advection__dw_adv')
+      ! If any of the three fields is required then all are needed to do the mapping
       if (du_adv_flag .or. dv_adv_flag .or. dw_adv_flag) then
         call derived_fields%get_field('u_star', u_star)
+        if (.not. du_adv_flag) ignore = init_diag(du_adv, 'advection__du_adv', activate=.true.)
+        if (.not. dv_adv_flag) ignore = init_diag(dv_adv, 'advection__dv_adv', activate=.true.)
+        if (.not. dw_adv_flag) ignore = init_diag(dw_adv, 'advection__dw_adv', activate=.true.)
         call state(igh_u)%copy_field_properties(du_w2_adv)
-        call state(igh_p)%copy_field_properties(du_adv)
-        call state(igh_p)%copy_field_properties(dv_adv)
-        call state(igh_p)%copy_field_properties(dw_adv)
         call invoke(X_minus_Y(du_w2_adv,u_star,state_after_slow(igh_u)))
         call map_physics_winds(du_adv,dv_adv,dw_adv,du_w2_adv)
       end if
-      if (du_adv_flag) call du_adv%write_field('advection__du_adv')
-      if (dv_adv_flag) call dv_adv%write_field('advection__dv_adv')
-      if (dw_adv_flag) call dw_adv%write_field('advection__dw_adv')
+      if (du_adv_flag) call du_adv%write_field(du_adv%get_name())
+      if (dv_adv_flag) call dv_adv%write_field(dv_adv%get_name())
+      if (dw_adv_flag) call dw_adv%write_field(dw_adv%get_name())
+  
+      if (moisture_formulation /= moisture_formulation_dry) then
+       if (init_diag(dmv_adv, 'advection__dmv_adv')) then
+          call invoke(X_minus_Y(dmv_adv,mr_after_adv(imr_v),mr_after_slow(imr_v)))
+          call dmv_adv%write_field(dmv_adv%get_name())
+        end if
 
-      dmv_adv_flag = .true.
-      if (dmv_adv_flag .and. moisture_formulation /= moisture_formulation_dry) then
-        call mr(imr_v)%copy_field_properties(dmv_adv)
-        call invoke(X_minus_Y(dmv_adv,mr_after_adv(imr_v),mr_after_slow(imr_v)))
-        call dmv_adv%write_field('advection__dmv_adv')
+        if (init_diag(dmcl_adv, 'advection__dmcl_adv')) then
+          call invoke(X_minus_Y(dmcl_adv,mr_after_adv(imr_cl),mr_after_slow(imr_cl)))
+          call dmcl_adv%write_field(dmcl_adv%get_name())
+        end if
+
+        if (init_diag(dmci_adv, 'advection__dmci_adv')) then
+          call invoke(X_minus_Y(dmci_adv,mr_after_adv(imr_ci),mr_after_slow(imr_ci)))
+          call dmci_adv%write_field(dmci_adv%get_name())
+        end if
       end if
 
-      dmcl_adv_flag = .true.
-      if (dmcl_adv_flag .and. moisture_formulation /= moisture_formulation_dry) then
-        call mr(imr_cl)%copy_field_properties(dmcl_adv)
-        call invoke(X_minus_Y(dmcl_adv,mr_after_adv(imr_cl),mr_after_slow(imr_cl)))
-        call dmcl_adv%write_field('advection__dmcl_adv')
-      end if
+      if (cloud_fields_after_slow%get_length() > 0) then
+        if (init_diag(dbcf_adv, 'advection__dbcf_adv')) then
+          call cloud_fields_after_slow%get_field('bulk_fraction', bcf_after_slow)
+          call cloud_fields_after_adv%get_field('bulk_fraction', bcf_after_adv)
+          call invoke(X_minus_Y(dbcf_adv,bcf_after_adv,bcf_after_slow))
+          call dbcf_adv%write_field(dbcf_adv%get_name())
+        end if
 
-      dmci_adv_flag = .true.
-      if (dmci_adv_flag .and. moisture_formulation /= moisture_formulation_dry) then
-        call mr(imr_ci)%copy_field_properties(dmci_adv)
-        call invoke(X_minus_Y(dmci_adv,mr_after_adv(imr_ci),mr_after_slow(imr_ci)))
-        call dmci_adv%write_field('advection__dmci_adv')
-      end if
+        if (init_diag(dcfl_adv, 'advection__dcfl_adv')) then
+          call cloud_fields_after_slow%get_field('liquid_fraction', cfl_after_slow)
+          call cloud_fields_after_adv%get_field('liquid_fraction', cfl_after_adv)
+          call invoke(X_minus_Y(dcfl_adv,cfl_after_adv,cfl_after_slow))
+          call dcfl_adv%write_field(dcfl_adv%get_name())
+        end if
 
-      dbcf_adv_flag = .true.
-      if (dbcf_adv_flag .and. cloud_fields_after_adv%get_length() > 0) then
-        call cloud_fields_after_slow%get_field('bulk_fraction', bcf_after_slow)
-        call cloud_fields_after_adv%get_field('bulk_fraction', bcf_after_adv)
-        call bcf_after_slow%copy_field_properties(dbcf_adv)
-        call invoke(X_minus_Y(dbcf_adv,bcf_after_adv,bcf_after_slow))
-        call dbcf_adv%write_field('advection__dbcf_adv')
-      end if
-
-      dcfl_adv_flag = .true.
-      if (dcfl_adv_flag .and. cloud_fields_after_adv%get_length() > 0) then
-        call cloud_fields_after_slow%get_field('liquid_fraction', cfl_after_slow)
-        call cloud_fields_after_adv%get_field('liquid_fraction', cfl_after_adv)
-        call cfl_after_slow%copy_field_properties(dcfl_adv)
-        call invoke(X_minus_Y(dcfl_adv,cfl_after_adv,cfl_after_slow))
-        call dcfl_adv%write_field('advection__dcfl_adv')
-      end if
-
-      dcff_adv_flag = .true.
-      if (dcff_adv_flag .and. cloud_fields_after_adv%get_length() > 0) then
-        call cloud_fields_after_slow%get_field('frozen_fraction', cff_after_slow)
-        call cloud_fields_after_adv%get_field('frozen_fraction', cff_after_adv)
-        call cff_after_slow%copy_field_properties(dcff_adv)
-        call invoke(X_minus_Y(dcff_adv,cff_after_adv,cff_after_slow))
-        call dcff_adv%write_field('advection__dcff_adv')
+        if (init_diag(dcff_adv, 'advection__dcff_adv')) then
+          call cloud_fields_after_slow%get_field('frozen_fraction', cff_after_slow)
+          call cloud_fields_after_adv%get_field('frozen_fraction', cff_after_adv )
+          call invoke(X_minus_Y(dcff_adv,cff_after_adv,cff_after_slow))
+          call dcff_adv%write_field(dcff_adv%get_name())
+        end if
       end if
 
       ! Solver increments
       ! Difference between current value (X) and X_star+dX_fast_physics
-      dtheta_solv_flag = .true.
-      if (dtheta_solv_flag) then
+      if (init_diag(dtheta_solv, 'solver__dtheta_solv')) then
         call derived_fields%get_field('theta_star', theta_star)
-        call dtheta_fast%copy_field_properties(dtheta_solv)
         call invoke(X_minus_Y(dtheta_solv,state(igh_t),theta_star), &
                 inc_X_minus_Y(dtheta_solv,dtheta_fast))
-        call dtheta_solv%write_field('solver__dtheta_solv')
+        call dtheta_solv%write_field(dtheta_solv%get_name())
       end if
 
-      du_solv_flag = .true.
-      dv_solv_flag = .true.
-      dw_solv_flag = .true.
+      du_solv_flag = init_diag(du_solv, 'solver__du_solv')
+      dv_solv_flag = init_diag(dv_solv, 'solver__dv_solv')
+      dw_solv_flag = init_diag(dw_solv, 'solver__dw_solv')
       if (du_solv_flag .or. dv_solv_flag .or. dw_solv_flag) then
         call derived_fields%get_field('u_star', u_star)
+        if (.not. du_solv_flag) ignore = init_diag(du_solv, 'solver__du_solv', activate=.true.)
+        if (.not. dv_solv_flag) ignore = init_diag(dv_solv, 'solver__dv_solv', activate=.true.)
+        if (.not. dw_solv_flag) ignore = init_diag(dw_solv, 'solver__dw_solv', activate=.true.)
         call state(igh_u)%copy_field_properties(du_w2_solv)
-        call state(igh_p)%copy_field_properties(du_solv)
-        call state(igh_p)%copy_field_properties(dv_solv)
-        call state(igh_p)%copy_field_properties(dw_solv)
         call invoke(X_minus_Y(du_w2_solv,state(igh_u),u_star), &
                 inc_X_minus_Y(du_w2_solv,du_fast))
         call map_physics_winds(du_solv,dv_solv,dw_solv,du_w2_solv)
       end if
-      if (du_solv_flag) call du_solv%write_field('solver__du_solv')
-      if (dv_solv_flag) call dv_solv%write_field('solver__dv_solv')
-      if (dw_solv_flag) call dw_solv%write_field('solver__dw_solv')
-
+      if (du_solv_flag) call du_solv%write_field(du_solv%get_name())
+      if (dv_solv_flag) call dv_solv%write_field(dv_solv%get_name())
+      if (dw_solv_flag) call dw_solv%write_field(dw_solv%get_name())
     end if
 
     if ( subroutine_timers ) call timer ("si_diagnostics")

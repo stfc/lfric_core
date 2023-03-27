@@ -13,11 +13,9 @@ module mphys_alg_mod
 
   ! xios output
   use io_config_mod,        only: write_diag, use_xios_io
-  use mphys_diagnostics_mod,  only: superc_liq_flag, &
-                                    sfwater_flag,    &
-                                    sfrain_flag,     &
-                                    sfsnow_flag,     &
-                                    output_diags_for_mphys
+  use mphys_diagnostics_mod, &
+                            only: initialise_diags_for_mphys, &
+                                  output_diags_for_mphys
   use constants_mod,        only: r_def, i_def
 
   use geometric_constants_mod, only: get_height
@@ -174,21 +172,7 @@ contains
 
     call orography_fields%get_field('sd_orog', sd_orog)
 
-
-    ! Initialise diagnostics
-    ! Only 4 to do at present, so seems strange to have a whole
-    ! subroutine to perform two lines of code. Can look at adding a subroutine
-    ! in the future if more code is added to the lines below.
-    superc_liq_flag = .true.
-    call bcf_in%copy_field_properties(superc_liq)
-    sfwater_flag = .true.
-    call bcf_in%copy_field_properties(sfwater)
-    sfrain_flag = .true.
-    call bcf_in%copy_field_properties(sfrain)
-    sfsnow_flag = .true.
-    call bcf_in%copy_field_properties(sfsnow)
-
-    ! End of diagnostic initialisation.
+    call initialise_diags_for_mphys(superc_liq, sfwater, sfrain, sfsnow)
 
     if (mphys_erosion) then
       call invoke( pc2_conv_coupling_kernel_type(theta, mr_n(imr_v),           &

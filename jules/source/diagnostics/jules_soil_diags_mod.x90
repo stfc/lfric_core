@@ -12,6 +12,7 @@ module jules_soil_diags_mod
   use io_config_mod,             only: subroutine_timers
   use timer_mod,                 only: timer
   use weighted_ave_kernel_mod,   only: weighted_ave_kernel_type
+  use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
 
   implicit none
 
@@ -58,21 +59,19 @@ contains
     if ( subroutine_timers ) call timer("jules_soil_diags")
 
     ! 2D fields
-    soil_moisture_content_flag = .true.
-    call soil_moist_sat%copy_field_properties(soil_moisture_content)
-    call invoke(setval_c(soil_moisture_content, 0.0_r_def))
-
-    grid_canopy_water_flag = .true.
-    call soil_moist_sat%copy_field_properties(grid_canopy_water)
-
-    grid_throughfall_flag = .true.
-    call soil_moist_sat%copy_field_properties(grid_throughfall)
+    soil_moisture_content_flag = init_diag(soil_moisture_content, 'soil__soil_moisture_content')
+    if (soil_moisture_content_flag) then
+      call invoke(setval_c(soil_moisture_content, 0.0_r_def))
+    end if
+    grid_canopy_water_flag = init_diag(grid_canopy_water, 'surface__grid_canopy_water')
+    grid_throughfall_flag = init_diag(grid_throughfall, 'surface__grid_throughfall')
 
     ! surface tiled fields
-    throughfall_flag = .true.
-    call tile_fraction%copy_field_properties(throughfall)
-    ! Initialise field to that sea and sea-ice tiles have zero values
-    call invoke(setval_c(throughfall, 0.0_r_def))
+    throughfall_flag = init_diag(throughfall, 'surface__throughfall')
+    if (throughfall_flag) then
+      ! Initialise field to that sea and sea-ice tiles have zero values
+      if (throughfall_flag) call invoke(setval_c(throughfall, 0.0_r_def))
+    end if
 
     if ( subroutine_timers ) call timer("jules_soil_diags")
 
@@ -136,18 +135,19 @@ contains
     if (grid_canopy_water_flag) then
       call invoke(weighted_ave_kernel_type(grid_canopy_water, canopy_water,    &
                                             tile_fraction, 1, n_land_tile) )
-      call grid_canopy_water%write_field('surface__grid_canopy_water')
+      call grid_canopy_water%write_field(grid_canopy_water%get_name())
     end if
     if (grid_throughfall_flag) then
       call invoke(weighted_ave_kernel_type(grid_throughfall, throughfall,      &
                                             tile_fraction, 1, n_land_tile) )
-      call grid_throughfall%write_field('surface__grid_throughfall')
+      call grid_throughfall%write_field(grid_throughfall%get_name())
     end if
 
-
     ! Diagnostics computed within the kernel
-    if (throughfall_flag) call throughfall%write_field('surface__throughfall')
-    if (soil_moisture_content_flag) call soil_moisture_content%write_field('soil__soil_moisture_content')
+    if (throughfall_flag) call throughfall%write_field(throughfall%get_name())
+    if (soil_moisture_content_flag) call soil_moisture_content%write_field(soil_moisture_content%get_name())
+
+    ! More prognostic fields
     call surface_runoff%write_field('soil__surface_runoff')
     call sub_surface_runoff%write_field('soil__sub_surface_runoff')
 
