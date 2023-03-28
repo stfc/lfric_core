@@ -185,6 +185,7 @@ cap_density_predictor = 0.01
 cfl_mol_1d_stab    = 1.0
 cfl_mol_2d_stab    = 1.0
 cfl_mol_3d_stab    = 1.0
+cheap_update       = .false.
 consistent_metric  = .false.
 dry_field_name     = 'q'
 enforce_min_value  = 4*.false.

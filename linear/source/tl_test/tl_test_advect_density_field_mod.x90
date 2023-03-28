@@ -143,7 +143,7 @@ module tl_test_advect_density_field_mod
 
     ! Init stuff
     call gungho_transport_control_alg_init(mesh)
-    transport_runtime = transport_runtime_type( ls_u, ls_u, model_clock )
+    transport_runtime = transport_runtime_type( ls_u, ls_u, model_clock, 1_i_def, cheap_update = .false. )
     call set_transport_runtime(transport_runtime)
     transport_metadata => transport_metadata_collection%get_transport_metadata('density')
 
@@ -172,15 +172,15 @@ module tl_test_advect_density_field_mod
                    inc_X_plus_Y( n_u, p_u ),                  &
                    inc_X_plus_Y( n_rho, p_rho ) )
 
-      transport_runtime = transport_runtime_type( n_u, n_u, model_clock )
+      transport_runtime = transport_runtime_type( n_u, n_u, model_clock, 1_i_def, cheap_update = .false. )
       call set_transport_runtime(transport_runtime)
 
       call transport_field( n_rho_np1, n_rho, cast_dt, transport_metadata )
       call invoke( X_minus_Y( n2_advection_inc, n_rho_np1, n_rho ) )
 
-      transport_runtime = transport_runtime_type( ls_u, ls_u, model_clock )
+      transport_runtime = transport_runtime_type( ls_u, ls_u, model_clock, 1_i_def, cheap_update = .false. )
       call set_transport_runtime(transport_runtime)
-      tl_transport_runtime = transport_runtime_type( p_u, p_u, model_clock )
+      tl_transport_runtime = transport_runtime_type( p_u, p_u, model_clock, 1_i_def, cheap_update = .false. )
 
       call tl_transport_field( p_rho_np1, p_rho, ls_rho,  &
                                cast_dt, transport_metadata )

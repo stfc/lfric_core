@@ -198,5 +198,26 @@ contains
   end subroutine add_bundle
 !=============================================================================!
 
+!> @brief Compute x = a*x + b*y for bundles x, y and scalars a and b
+!> @param[in] a Scalar
+!> @param[in, out] x Result and first field bundle
+!> @param[in] b Scalar
+!> @param[in] y Second field bundle
+!> @param[in] bundle_size Number of fields in the bundle
+  subroutine bundle_inc_axpby(a, x, b, y, bundle_size)
+    implicit none
+    integer(kind=i_def), intent(in)    :: bundle_size
+    real(kind=r_def),    intent(in)    :: a, b
+    type(field_type),    intent(in)    :: y(bundle_size)
+    type(field_type),    intent(inout) :: x(bundle_size)
+    integer(kind=i_def) :: i
+
+    do i = 1,bundle_size
+      call invoke( inc_aX_plus_bY( a, x(i), b, y(i) ) )
+    end do
+  end subroutine bundle_inc_axpby
+
+!=============================================================================!
+
 end module field_bundle_mod
 

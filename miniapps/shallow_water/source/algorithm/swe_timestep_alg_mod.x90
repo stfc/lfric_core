@@ -412,6 +412,7 @@ contains
     ! Useful variables
     real(kind=r_def) :: alpha_dt
     real(kind=r_def) :: beta_dt
+    type(field_type) :: wind_prev
 
     if ( subroutine_timers ) call timer('shallow_water_alg_si')
     !--- Do a single timestep --------------------------------------------------
@@ -441,15 +442,24 @@ contains
     ! Set predictors for transport
     call swe_predictors_alg( adv_fields, state_n%vector(isw_u), rhs_n%vector(isw_u), beta_dt )
 
+    ! Initialise transported RHS and the previous wind for the cheap transport update
+    call rhs_adv%set_scalar(0.0_r_def)
+    call wind_prev%initialise(vector_space = wind%get_function_space())
+    call invoke( setval_c(wind_prev, 0.0_r_def) )
+
     outer_dynamics_loop: do outer = 1,outer_iterations
 
       ! Advect quantities
-      call rhs_adv%set_scalar(0.0_r_def)
-      call swe_transport_control_alg_step( rhs_adv,    &
-                                           adv_fields, &
-                                           state_n,    &
-                                           state,      &
-                                           model_clock )
+      call swe_transport_control_alg_step( rhs_adv,     &
+                                           adv_fields,  &
+                                           state_n,     &
+                                           state,       &
+                                           model_clock, &
+                                           outer,       &
+                                           wind_prev )
+
+      ! Set wind_prev to be latest estimate of wind
+      call invoke( setval_X(wind_prev, state%vector(isw_u)) )
 
       ! Vorticity solved for in advection alg, does not appear in mixed solve
       call invoke( setval_X(state%vector(isw_q), rhs_adv%vector(isw_q)), &
@@ -549,6 +559,7 @@ contains
 
     ! Useful variables
     real(kind=r_def)                    :: beta_dt
+    integer(kind=i_def)                 :: outer_iteration
 
     ! RHS of prognostic equations
     type( field_type ) :: rhs_g, rhs_u, rhs_b
@@ -580,12 +591,14 @@ contains
     call swe_rhs_alg( rhs_n, beta_dt, state_n, s_geopot )
 
     ! Advect quantities
+    outer_iteration = 1_i_def
     call rhs_adv%set_scalar(0.0_r_def)
-    call swe_transport_control_alg_step( rhs_adv,    &
-                                         adv_fields, &
-                                         state_n,    &
-                                         state,      &
-                                         model_clock )
+    call swe_transport_control_alg_step( rhs_adv,     &
+                                         adv_fields,  &
+                                         state_n,     &
+                                         state,       &
+                                         model_clock, &
+                                         outer_iteration )
 
     ! Put RHS together
     call rhs_n%axpy(1.0_r_def, rhs_adv)

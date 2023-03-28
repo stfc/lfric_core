@@ -299,7 +299,8 @@ contains
                                          ls_state_n,                   &
                                          ls_state_stage(igh_u,stage),  &
                                          ls_state_stage(igh_u,stage),  &
-                                         ls_mr, ls_mr, model_clock, 1_i_def )
+                                         ls_mr, ls_mr, model_clock,    &
+                                         1_i_def, cheap_update = .false. )
 
       ! Compute new rhs
       if ( rotating ) then
@@ -386,7 +387,7 @@ contains
                                      ls_state_stage(:,stage),          &
                                      ls_state_stage(igh_u,stage),      &
                                      ls_state_stage(igh_u,stage),      &
-                                     ls_mr, model_clock )
+                                     ls_mr, model_clock, 1_i_def )
 
       ! Compute new rhs
       if ( rotating ) then

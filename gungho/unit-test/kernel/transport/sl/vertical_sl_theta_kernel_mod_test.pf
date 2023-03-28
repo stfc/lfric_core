@@ -61,6 +61,7 @@ contains
                                  cfl_mol_1d_stab = 1.0_r_def,                              &
                                  cfl_mol_2d_stab = 1.0_r_def,                              &
                                  cfl_mol_3d_stab = 1.0_r_def,                              &
+                                 cheap_update = .false.,                                   &
                                  slice_order = slice_order_cubic,                          &
                                  vertical_sl_order = vertical_sl_order_cubic,              &
                                  use_density_predictor = .false.,                          &

@@ -11,11 +11,13 @@ module tl_transport_control_alg_mod
   use field_mod,                         only: field_type
   use formulation_config_mod,            only: moisture_formulation,    &
                                                moisture_formulation_dry
-  use log_mod,                           only: log_event,         &
-                                               LOG_LEVEL_INFO
+  use log_mod,                           only: log_event,      &
+                                               LOG_LEVEL_INFO, &
+                                               LOG_LEVEL_ERROR
   use model_clock_mod,                   only: model_clock_type
   use tl_transport_runtime_collection_mod, &
                                          only: tl_transport_runtime
+  use transport_config_mod,              only: cheap_update
   use transport_metadata_mod,            only: transport_metadata_type
   use transport_runtime_alg_mod,         only: transport_runtime_type
   use transport_runtime_collection_mod,  only: set_transport_runtime
@@ -48,12 +50,13 @@ contains
   !> @param[in]     ls_wind_n          PASSIVE Start of timestep wind field
   !> @param[in]     ls_mr_in           PASSIVE Moisture fields before transport
   !> @param[in]     model_clock        Time within the model
+  !> @param[in]     outer              Outer (advection) iteration number
   !>
   subroutine tl_transport_control_alg(advection_inc, advected_fields,   &
                                       wind_np1, wind_n, mr_out, mr_in,  &
                                       ls_advected_fields,               &
                                       ls_wind_np1, ls_wind_n, ls_mr_in, &
-                                      model_clock )
+                                      model_clock, outer )
 
     use check_configuration_mod,         only: check_any_shifted
     use derived_config_mod,              only: bundle_size
@@ -89,11 +92,13 @@ contains
     type(field_type),            intent(in)    :: ls_advected_fields(bundle_size)
     type(field_type),            intent(in)    :: ls_mr_in(nummr)
     class(model_clock_type),     intent(in)    :: model_clock
+    integer(kind=i_def),         intent(in)    :: outer
 
     ! Internal variables
     type(field_type)    :: temp_inc
     type(field_type)    :: fields_np1(bundle_size)
     logical(kind=l_def) :: any_shifted
+    logical(kind=l_def) :: cheap_update_flag
     real(r_def)         :: cast_dt
     type(operator_type), pointer :: mm_wt => null()
     type(mesh_type),     pointer :: primary_mesh => null()
@@ -110,6 +115,10 @@ contains
 
     ! Check if any horizontal method is ffsl
     any_shifted = check_any_shifted()
+    cheap_update_flag = .false.
+    if (cheap_update) then
+      call log_event( "Transport cheap update not available for TLM", LOG_LEVEL_ERROR )
+    end if
 
     ! Create transport_runtime object (advecting wind etc)
     if ( any_shifted ) then
@@ -117,16 +126,20 @@ contains
       shifted_mesh => mesh_collection%get_mesh(primary_mesh, SHIFTED)
 
       transport_runtime = transport_runtime_type( ls_wind_n, ls_wind_np1, &
-                                                  model_clock, shifted_mesh )
-      tl_transport_runtime = transport_runtime_type( wind_n, wind_np1, &
-                                                     model_clock, shifted_mesh )
+                                                  model_clock, outer,     &
+                                                  cheap_update_flag, shifted_mesh )
+      tl_transport_runtime = transport_runtime_type( wind_n, wind_np1,   &
+                                                     model_clock, outer, &
+                                                     cheap_update_flag, shifted_mesh )
 
       nullify(primary_mesh, shifted_mesh)
     else
       transport_runtime = transport_runtime_type( ls_wind_n, ls_wind_np1, &
-                                                  model_clock )
-      tl_transport_runtime = transport_runtime_type( wind_n, wind_np1, &
-                                                     model_clock )
+                                                  model_clock, outer,     &
+                                                  cheap_update_flag )
+      tl_transport_runtime = transport_runtime_type( wind_n, wind_np1,   &
+                                                     model_clock, outer, &
+                                                     cheap_update_flag )
     end if
     call set_transport_runtime(transport_runtime)
 

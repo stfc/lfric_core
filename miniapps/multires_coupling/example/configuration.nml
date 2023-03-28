@@ -219,6 +219,7 @@ cap_density_predictor = 0.01
 cfl_mol_1d_stab = 1.5,
 cfl_mol_2d_stab = 1.5,
 cfl_mol_3d_stab = 1.5,
+cheap_update = .false.
 consistent_metric  = .false.,
 dry_field_name='rho'
 enforce_min_value=.false.

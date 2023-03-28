@@ -466,7 +466,8 @@ contains
                                         ls_state_n(igh_u),              &
                                         ls_mr_itns(:, outer, 1),        &
                                         ls_mr_after_slow(:),            &
-                                        model_clock, outer)
+                                        model_clock, outer,             &
+                                        cheap_update = .false. )
 
       if (use_wavedynamics) then
 
@@ -703,7 +704,8 @@ contains
                                     ls_state_itns(igh_u, outer, 1), &
                                     ls_state_n(igh_u),              &
                                     ls_mr_after_slow,               &
-                                    model_clock )
+                                    model_clock,                    &
+                                    outer )
 
       if (use_wavedynamics) then
 

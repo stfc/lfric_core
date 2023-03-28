@@ -212,7 +212,7 @@ contains
     type(quadrature_rule_gaussian_type) :: gaussian_quadrature
 
     integer(kind=i_def) :: st, stage, mesh_id, outer, nqp
-    logical(kind=l_def) :: horizontal_face, vertical_face
+    logical(kind=l_def) :: horizontal_face, vertical_face, cheap_update
 
     if ( subroutine_timers ) call timer('rk_alg')
     qr => get_qr()
@@ -224,6 +224,7 @@ contains
     nqp = element_order + 2_i_def
     qrf = quadrature_face_type(nqp, horizontal_face, vertical_face, &
                                reference_element,  gaussian_quadrature)
+    cheap_update = .false.
 
     ! Get mm operators from runtime_constants
     mesh_id = u%get_mesh_id()
@@ -244,7 +245,7 @@ contains
       ! Compute advection terms
       call gungho_transport_control_alg( rhs_prediction(:,stage), state, &
                                          state(igh_u), state(igh_u),     &
-                                         mr, mr, model_clock, outer )
+                                         mr, mr, model_clock, outer, cheap_update )
       ! Compute new rhs
       if ( rotating ) then
         coriolis => get_coriolis(mesh_id)

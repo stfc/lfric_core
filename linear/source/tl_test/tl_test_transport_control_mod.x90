@@ -178,7 +178,8 @@ module tl_test_transport_control_mod
                                       ls_mr_out,               &
                                       ls_mr,                   &
                                       model_clock,             &
-                                      outer                    )
+                                      outer,                   &
+                                      cheap_update = .false.)
 
     gamma_u = 7.e8_r_def
     gamma_theta = 1.e5_r_def
@@ -230,7 +231,8 @@ module tl_test_transport_control_mod
                                         n_mr_out,                &
                                         n_mr_in,                 &
                                         model_clock,             &
-                                        outer                    )
+                                        outer,                   &
+                                        cheap_update = .false. )
 
       call tl_transport_control_alg(p_rhs,            &
                                     p_state,          &
@@ -242,7 +244,8 @@ module tl_test_transport_control_mod
                                     ls_state(igh_u),  &
                                     ls_state(igh_u),  &
                                     ls_mr,            &
-                                    model_clock )
+                                    model_clock,      &
+                                    outer )
 
      ! diff = n2_rhs - n1_rhs
       call minus_bundle( n2_rhs, n1_rhs, diff, bundle_size )

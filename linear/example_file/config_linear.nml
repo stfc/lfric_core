@@ -224,6 +224,7 @@ profile_size=5
 cfl_mol_1d_stab = 2.0,
 cfl_mol_2d_stab = 2.0,
 cfl_mol_3d_stab = 2.0,
+cheap_update=.false.,
 consistent_metric=.false.,
 dry_field_name='density',
 enforce_min_value=.false.,.false.,.false.,.false.,.false.,

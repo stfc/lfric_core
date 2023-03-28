@@ -140,11 +140,15 @@ contains
   !> @param[in] primal_wind_np1_rdef  Predictor of wind field at next time step on
   !!                             the prime extrusion
   !> @param[in] model_clock      Time within the model
-  !> @param[in] shifted_mesh    (Optional) Shifted mesh
+  !> @param[in] outer            Outer (advection) iteration number
+  !> @param[in] cheap_update     Logical flag for cheap transport update
+  !> @param[in] shifted_mesh     (Optional) Shifted mesh
   !>
   function transport_runtime_constructor( primal_wind_n_rdef,   &
                                           primal_wind_np1_rdef, &
-                                          model_clock,     &
+                                          model_clock,          &
+                                          outer,                &
+                                          cheap_update,         &
                                           shifted_mesh) result(self)
 
     use calc_dep_pts_alg_mod,          only: calc_vert_dep_pts, &
@@ -168,28 +172,31 @@ contains
     type(field_type),        target, intent(in) :: primal_wind_n_rdef
     type(field_type),        target, intent(in) :: primal_wind_np1_rdef
     class(model_clock_type), target, intent(in) :: model_clock
+    integer(kind=i_def),             intent(in) :: outer
+    logical(kind=l_def),             intent(in) :: cheap_update
 
     type(mesh_type),  pointer, intent(in), optional :: shifted_mesh
 
-    type(transport_runtime_type)   :: self
-    type(r_tran_field_type)               :: cfl, vertical_cfl, horizontal_cfl, cfl_dep
-    type(r_tran_field_type)               :: sum_cfl, sum_horizontal_cfl, hori_cfl_dep
-    integer(kind=i_def)            :: mesh_idx, i, fs_idx, num_compute_meshes
-    type(mesh_type),       pointer :: mesh => null()
-    type(local_mesh_type), pointer :: local_mesh => null()
-    type(r_tran_field_type),      pointer :: wind_n   => null()
-    type(r_tran_field_type),      pointer :: wind_np1 => null()
-    type(r_tran_field_type),      target  :: shifted_wind_n
-    type(r_tran_field_type),      target  :: shifted_wind_np1
-    type(field_type),      target  :: shifted_wind_n_rdef
-    type(field_type),      target  :: shifted_wind_np1_rdef
-    real(kind=r_tran)               :: cfl_min, cfl_max
-    real(kind=r_tran)               :: h_cfl_min, h_cfl_max
-    real(kind=r_tran)               :: v_cfl_min, v_cfl_max
-    real(r_tran)                    :: cast_dt
-    logical(kind=l_def)            :: any_scheme_mol, any_scheme_split
-    logical(kind=l_def)            :: any_scheme_ffsl, any_shifted
-    logical(kind=l_def)            :: any_horz_dep_pts, any_vert_dep_pts
+    type(transport_runtime_type)     :: self
+    type(r_tran_field_type)          :: cfl, vertical_cfl, horizontal_cfl, cfl_dep
+    type(r_tran_field_type)          :: sum_cfl, sum_horizontal_cfl, hori_cfl_dep
+    type(r_tran_field_type)          :: dep_pt_wind_n, dep_pt_wind_np1
+    integer(kind=i_def)              :: mesh_idx, i, fs_idx, num_compute_meshes
+    type(mesh_type),         pointer :: mesh => null()
+    type(local_mesh_type),   pointer :: local_mesh => null()
+    type(r_tran_field_type), pointer :: wind_n   => null()
+    type(r_tran_field_type), pointer :: wind_np1 => null()
+    type(r_tran_field_type), target  :: shifted_wind_n
+    type(r_tran_field_type), target  :: shifted_wind_np1
+    type(field_type),        target  :: shifted_wind_n_rdef
+    type(field_type),        target  :: shifted_wind_np1_rdef
+    real(kind=r_tran)                :: cfl_min, cfl_max
+    real(kind=r_tran)                :: h_cfl_min, h_cfl_max
+    real(kind=r_tran)                :: v_cfl_min, v_cfl_max
+    real(r_tran)                     :: cast_dt
+    logical(kind=l_def)              :: any_scheme_mol, any_scheme_split
+    logical(kind=l_def)              :: any_scheme_ffsl, any_shifted
+    logical(kind=l_def)              :: any_horz_dep_pts, any_vert_dep_pts
 
     type(mesh_type),           pointer :: tmp_mesh => null()
     type(function_space_type), pointer :: w3_fs => null()
@@ -349,10 +356,19 @@ contains
         wind_np1 => shifted_wind_np1
       end if
 
-      call invoke( aX_plus_bY(self%advecting_wind(mesh_idx), 0.5_r_tran, wind_n, &
-                                                         0.5_r_tran, wind_np1),  &
-                   ! Presume that we always need horizontal and vertical winds
-                   setval_c(self%horizontal_advecting_wind(mesh_idx), 0.0_r_tran),      &
+      if ( cheap_update .AND. outer > 1 ) then
+        ! Set advecting wind = (wind^{n+1}-wind^{n})/2
+        ! For outer>2 this becomes (wind^{n+1}-wind^prev)/2
+        call invoke( aX_minus_bY(self%advecting_wind(mesh_idx), 0.5_r_tran, wind_np1, &
+                                                                0.5_r_tran, wind_n) )
+      else
+        ! Set advecting wind = (wind^{n}+wind^{n+1})/2
+        call invoke( aX_plus_bY(self%advecting_wind(mesh_idx), 0.5_r_tran, wind_n, &
+                                                               0.5_r_tran, wind_np1) )
+      end if
+
+      ! Split into horizontal and vertical advecting winds
+      call invoke( setval_c(self%horizontal_advecting_wind(mesh_idx), 0.0_r_tran),      &
                    setval_c(self%vertical_advecting_wind(mesh_idx), 0.0_r_tran),        &
                    split_w2_field_kernel_type(self%horizontal_advecting_wind(mesh_idx), &
                                               self%vertical_advecting_wind(mesh_idx),   &
@@ -364,6 +380,23 @@ contains
       ! Get detj_at_w2 using wind_n
       call select_detj_at_w2( wind_n, self%detj_at_w2_transport(mesh_idx) )
 
+      ! Set winds for computing departure points based on cheap update flag
+      if (any_vert_dep_pts .OR. any_horz_dep_pts) then
+        call dep_pt_wind_n%initialise( wind_n%get_function_space() )
+        call dep_pt_wind_np1%initialise( wind_np1%get_function_space() )
+        if ( cheap_update .AND. outer > 1 ) then
+          ! Set up winds for cheap update with FFSL/SL
+          call invoke( aX_minus_bY(dep_pt_wind_n, 0.5_r_tran, wind_np1,   &
+                                                  0.5_r_tran, wind_n),    &
+                       aX_minus_bY(dep_pt_wind_np1, 0.5_r_tran, wind_np1, &
+                                                    0.5_r_tran, wind_n) )
+        else
+          ! Use wind_n and wind_np1
+          call invoke( setval_X(dep_pt_wind_n, wind_n), &
+                       setval_X(dep_pt_wind_np1, wind_np1) )
+        end if
+      end if
+
       ! If any vertical scheme is ffsl/sl compute vertical departure points
       if (any_vert_dep_pts) then
         call cfl_dep%initialise( vector_space = &
@@ -371,8 +404,8 @@ contains
 
         call calc_vert_dep_pts( self%departure_points_z_w2(mesh_idx), &
                                 cfl_dep,                              &
-                                wind_n,                               &
-                                wind_np1,                             &
+                                dep_pt_wind_n,                        &
+                                dep_pt_wind_np1,                      &
                                 self%detj_at_w2_transport(mesh_idx),  &
                                 cast_dt )
       end if
@@ -381,8 +414,8 @@ contains
       if (any_horz_dep_pts) then
         call calc_hori_dep_pts( self%departure_points_x_w2(mesh_idx),  &
                                 self%departure_points_y_w2(mesh_idx),  &
-                                wind_n,                                &
-                                wind_np1,                              &
+                                dep_pt_wind_n,                         &
+                                dep_pt_wind_np1,                       &
                                 self%detj_at_w2_transport(mesh_idx),   &
                                 cast_dt )
       end if

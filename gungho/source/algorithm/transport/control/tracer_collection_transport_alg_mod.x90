@@ -7,7 +7,7 @@
 
 module tracer_collection_transport_mod
 
-  use constants_mod,                  only: r_def
+  use constants_mod,                  only: r_def, i_def, l_def
   use field_mod,                      only: field_type
   use field_collection_mod,           only: field_collection_type
   use field_collection_iterator_mod,  only: field_collection_real_iterator_type
@@ -38,8 +38,15 @@ contains
   !> @param[in]     model_dt           Model timestep
   !> @param[in]     transport_metadata Contains the configuration options for
   !!                                   transporting these fields
+  !> @param[in]     fields_prev        (Optional) variable that stores fields from
+  !!                                   previous outer iteration
+  !> @param[in]     cheap_update       (Optional) logical, true if cheap update
+  !!                                   is being used
+  !> @param[in]     outer              (Optional) outer iteration number
+
   subroutine tracer_collection_transport_alg(fields_out, fields_in, model_dt, &
-                                             transport_metadata)
+                                             transport_metadata, fields_prev, &
+                                             cheap_update, outer)
 
     implicit none
 
@@ -48,6 +55,9 @@ contains
     type(field_collection_type),   intent(in)    :: fields_in
     real(kind=r_def),              intent(in)    :: model_dt
     type(transport_metadata_type), intent(in)    :: transport_metadata
+    type(field_collection_type),   intent(in), optional :: fields_prev
+    logical(kind=l_def),           intent(in), optional :: cheap_update
+    integer(kind=i_def),           intent(in), optional :: outer
 
     ! Iterator for field collection
     type(field_collection_real_iterator_type) :: iterator
@@ -57,6 +67,7 @@ contains
 
     ! The saved version of field after slow physics
     type(field_type), pointer :: single_field_in => null()
+    type(field_type), pointer :: single_field_prev => null()
 
     if ( subroutine_timers ) call timer('tracer collection transport')
 
@@ -84,6 +95,24 @@ contains
 
           call transport_field(single_field_out, single_field_in, model_dt, &
                                transport_metadata)
+
+          if ( present(fields_prev) .AND. present(cheap_update) .AND. present(outer) ) then
+            if ( cheap_update .AND. outer > 1 ) then
+              ! Add previous iteration transported field for cheap transport update
+              ! On the second outer iteration we have
+              ! field_prev = field_in - dt increment(field,wind_n)
+              ! field_out  = field_in - dt increment(field,(wind_np1-wind_n)/2)
+              ! To get
+              ! field_out = field_in - dt increment(field,(wind_np1+wind_n)/2)
+              ! we set
+              ! field_out = field_out + field_prev - field_in
+              ! This carries forward for further outer iterations
+              call fields_prev%get_field( trim(single_field_in%get_name() ), &
+                                            single_field_prev )
+              call invoke( inc_X_plus_Y(single_field_out,single_field_prev), &
+                           inc_X_minus_Y(single_field_out,single_field_in) )
+            end if
+          end if
 
         end do
       end if

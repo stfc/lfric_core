@@ -10,6 +10,7 @@ module swe_transport_control_alg_mod
 
   use combine_w2_field_kernel_mod,       only: combine_w2_field_kernel_type
   use constants_mod,                     only: i_def, r_def, l_def
+  use derived_config_mod,                only: bundle_size
   use enforce_bc_kernel_mod,             only: enforce_bc_kernel_type
   use field_mod,                         only: field_type
   use field_indices_mod,                 only: isw_u, isw_g, isw_b, isw_q
@@ -36,6 +37,7 @@ module swe_transport_control_alg_mod
                                                momentum_form,          &
                                                momentum_form_momentum, &
                                                momentum_form_vector_invariant
+  use transport_config_mod,              only: cheap_update
   use transport_enumerated_types_mod,    only: scheme_mol_3d, &
                                                scheme_split,  &
                                                splitting_hv,  &
@@ -144,12 +146,17 @@ contains
   !> @param[in]     state_n         Fields at time n
   !> @param[in]     state_np1       Estimate of fields at time n+1
   !> @param[in]     model_clock     Time within the model
+  !> @param[in]     outer           Outer (advection) iteration number
+  !> @param[in]     wind_prev       (Optional) Estimate of end of timestep wind
+  !!                                from previous outer iteration
 
   subroutine swe_transport_control_alg_step( advection_inc,   &
                                              advected_fields, &
                                              state_n,         &
                                              state_np1,       &
-                                             model_clock )
+                                             model_clock,     &
+                                             outer,           &
+                                             wind_prev )
 
     use fem_constants_mod,               only: get_mass_matrix
     use operator_mod,                    only: operator_type
@@ -166,6 +173,8 @@ contains
     type(field_vector_type), target, intent(in)    :: state_np1
     type(field_vector_type), target, intent(in)    :: state_n
     class(model_clock_type),         intent(in)    :: model_clock
+    integer(kind=i_def),             intent(in)    :: outer
+    type(field_type),                intent(in), optional :: wind_prev
 
     ! Fields from advected_fields, state_n and state_np1 vector
     type(field_type), pointer :: wind_np1 => null(), &
@@ -179,14 +188,16 @@ contains
     type(field_type) :: geopot_np1
     type(field_type) :: q_np1
     type(field_type) :: buoyancy_np1
+    type(field_vector_type) :: prev_inc
 
     ! Function space
     type(function_space_type), pointer :: w1_fs => null()
     type(function_space_type), pointer :: w2v_fs => null()
 
-    ! Transport runtime and metadate
-    type(transport_runtime_type)           :: transport_runtime
-    type(transport_runtime_type),  pointer :: transport_runtime_get => null()
+    ! Internal variables
+    logical(kind=l_def) :: cheap_update_flag
+    type(transport_runtime_type) :: transport_runtime
+    type(transport_runtime_type), pointer :: transport_runtime_get => null()
     type(transport_metadata_type), pointer :: transport_metadata => null()
 
     ! Internal variables
@@ -194,6 +205,7 @@ contains
     type(field_type) :: buoy_inc,     &
                         constant_one, &
                         q_geopot,     &
+                        wind_for_adv, &
                         q_mass_flux,  &
                         q_mass_flux_vert
 
@@ -222,8 +234,22 @@ contains
     wind_np1 => state_np1%vector(isw_u)
     wind_n   => state_n%vector(isw_u)
 
+    ! Set up cheap update flag and store advection_inc from first outer iteration
+    call wind_for_adv%initialise(vector_space = wind_n%get_function_space())
+    call invoke( setval_X(wind_for_adv, wind_n) )
+    if (cheap_update .AND. present(wind_prev)) then
+      cheap_update_flag = .true.
+      if (outer > 2) then
+        call invoke( setval_X(wind_for_adv, wind_prev) )
+      end if
+    else
+      cheap_update_flag = .false.
+    end if
+    prev_inc = field_vector_type(bundle_size)
+    prev_inc = advection_inc
+
     ! Create transport_runtime object (advecting wind etc)
-    transport_runtime = transport_runtime_type(wind_n, wind_np1, model_clock)
+    transport_runtime = transport_runtime_type(wind_for_adv, wind_np1, model_clock, outer, cheap_update_flag)
     call set_transport_runtime(transport_runtime)
 
     ! Initialise geopotential variables
@@ -357,6 +383,22 @@ contains
       ! already returns weak increment
 
     end select    ! momentum_form
+
+    ! If cheap update we need to add the 1st iteration state increments
+    if ( cheap_update_flag .AND. outer > 1) then
+      ! Add the previous iteration state increments for geopotential and u
+      ! On the second outer iteration we have
+      ! advection_inc = dt increment(field,(wind_np1-wind_n)/2)
+      ! prev_inc      = dt increment(field,(wind_n)/2)
+      ! We set
+      ! advection_inc = advection_inc + prev_inc = dt increment(field,(wind_np1+wind_n)/2)
+      ! This carries forward for further outer iterations
+      call invoke( inc_X_plus_Y(advection_inc%vector(isw_g),prev_inc%vector(isw_g)), &
+                   inc_X_plus_Y(advection_inc%vector(isw_u),prev_inc%vector(isw_u)) )
+      if (thermal_swe) then
+        call invoke( inc_X_plus_Y(advection_inc%vector(isw_b),prev_inc%vector(isw_b)) )
+      end if
+    end if
 
     if ( subroutine_timers ) call timer('swe_transport_control_alg_step')
 

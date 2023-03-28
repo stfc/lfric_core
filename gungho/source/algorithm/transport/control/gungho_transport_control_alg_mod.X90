@@ -127,23 +127,42 @@ contains
   !> @param[in]     mr_in           Moisture fields before transport
   !> @param[in]     model_clock     Time within the model
   !> @param[in]     outer           Outer (advection) iteration number
-  !> @param[in,out] adv_fields_all_outer Fields after transport on every iteration
-  !> @param[in]     adv_fields_all_outer_after_slow Fields to transport every iteration
-  !> @param[in,out] adv_fields_last_outer Fields after transport on final iteration only
-  !> @param[in]     adv_fields_last_outer_after_slow Fields to transport on final iteration only
+  !> @param[in]     cheap_update    Logical flag for cheap transport update
+  !> @param[in]     prev_inc        (Optional) Advective increment after 1st outer
+  !!                                iteration transport used for cheap transport update
+  !> @param[in]     wind_prev       (Optional) Estimate of end of timestep wind from
+  !!                                previous outer iteration
+  !> @param[in]     mr_prev         (Optional) Moisture fields after 1st outer
+  !!                                iteration transport used for cheap transport update
+  !> @param[in,out] adv_fields_all_outer
+  !!                                (Optional) Fields after transport on every iteration
+  !> @param[in]     adv_fields_all_outer_after_slow 
+  !!                                (Optional) Fields to transport every iteration
+  !> @param[in]     adv_fields_all_outer_prev
+  !!                                (Optional) Fields after 1st outer iteration transport
+  !!                                used for cheap transport update
+  !> @param[in,out] adv_fields_last_outer
+  !!                                (Optional) Fields after transport on final iteration only
+  !> @param[in]     adv_fields_last_outer_after_slow
+  !!                                (Optional) Fields to transport on final iteration only
 
   subroutine gungho_transport_control_alg(advection_inc, advected_fields,  &
                                           wind_np1, wind_n, mr_out, mr_in, &
                                           model_clock, outer,              &
+                                          cheap_update, prev_inc,          &
+                                          wind_prev, mr_prev,              &
                                           adv_fields_all_outer,            &
                                           adv_fields_all_outer_after_slow, &
+                                          adv_fields_all_outer_prev,       &
                                           adv_fields_last_outer,           &
                                           adv_fields_last_outer_after_slow)
 
     use check_configuration_mod,         only: check_any_shifted
     use derived_config_mod,              only: bundle_size
     use fem_constants_mod,               only: get_mass_matrix
-    use field_bundle_mod,                only: clone_bundle, set_bundle_scalar
+    use field_bundle_mod,                only: bundle_inc_axpby, &
+                                               clone_bundle,     &
+                                               set_bundle_scalar
     use field_collection_mod,            only: field_collection_type
     use field_indices_mod,               only: igh_u, igh_t, igh_d, igh_p
     use fs_continuity_mod,               only: Wtheta
@@ -174,14 +193,20 @@ contains
     type(field_type),            intent(in)    :: mr_in(nummr)
     class(model_clock_type),     intent(in)    :: model_clock
     integer(kind=i_def),         intent(in)    :: outer
+    logical(kind=l_def),         intent(in)    :: cheap_update
+    type(field_type),            intent(in),    optional :: prev_inc(bundle_size)
+    type(field_type),            intent(in),    optional :: wind_prev
+    type(field_type),            intent(in),    optional :: mr_prev(nummr)
     type(field_collection_type), intent(inout), optional :: adv_fields_all_outer
     type(field_collection_type), intent(in),    optional :: adv_fields_all_outer_after_slow
+    type(field_collection_type), intent(in),    optional :: adv_fields_all_outer_prev
     type(field_collection_type), intent(inout), optional :: adv_fields_last_outer
     type(field_collection_type), intent(in),    optional :: adv_fields_last_outer_after_slow
 
     ! Internal variables
     type(field_type)    :: temp_inc
     type(field_type)    :: fields_np1(bundle_size)
+    type(field_type)    :: wind_for_adv
     logical(kind=l_def) :: do_moisture_diagnostics
     logical(kind=l_def) :: any_shifted
     real(r_def)         :: cast_dt
@@ -201,17 +226,27 @@ contains
     ! Check if any transport scheme needs a shifted mesh
     any_shifted = check_any_shifted()
 
+    call wind_for_adv%initialise( wind_n%get_function_space() )
+    if (cheap_update .AND. outer > 2 .AND. present(wind_prev) ) then
+      ! Use previous wind in the advecting wind calculation
+      call invoke( setval_X(wind_for_adv, wind_prev) )
+    else
+      ! Use wind_n in the advecting wind calculation
+      call invoke( setval_X(wind_for_adv, wind_n) )
+    end if
+
     ! Create transport_runtime object (advecting wind etc)
     if ( any_shifted ) then
       primary_mesh => wind_n%get_mesh()
       shifted_mesh => mesh_collection%get_mesh(primary_mesh, SHIFTED)
 
-      transport_runtime = transport_runtime_type( wind_n, wind_np1, &
-                                                  model_clock,      &
-                                                  shifted_mesh )
+      transport_runtime = transport_runtime_type( wind_for_adv, wind_np1, &
+                                                  model_clock, outer,     &
+                                                  cheap_update, shifted_mesh )
     else
-      transport_runtime = transport_runtime_type( wind_n, wind_np1, &
-                                                  model_clock )
+      transport_runtime = transport_runtime_type( wind_for_adv, wind_np1, &
+                                                  model_clock, outer,     &
+                                                  cheap_update )
     end if
     call set_transport_runtime(transport_runtime)
 
@@ -295,19 +330,35 @@ contains
         call tracer_collection_transport_alg(adv_fields_all_outer,            &
                                              adv_fields_all_outer_after_slow, &
                                              cast_dt,                         &
-                                             transport_metadata )
+                                             transport_metadata,              &
+                                             adv_fields_all_outer_prev,       &
+                                             cheap_update,                    &
+                                             outer )
       end if
       ! ---------------------------------------------------------------------- !
       ! Transport fields which aren't needed in fast physics, and therefore
       ! only need transporting on the final outer iteration
       if (outer == outer_iterations) then
         if (present(adv_fields_last_outer)) then
+          if ( cheap_update .AND. outer > 1 ) then
+          ! Recompute transport_runtime with full wind instead of cheap update wind,
+          ! and set cheap_update flag = .false.
+            if ( any_shifted ) then
+              transport_runtime = transport_runtime_type( wind_n, wind_np1,   &
+                                                          model_clock, outer, &
+                                                          .false., shifted_mesh )
+            else
+              transport_runtime = transport_runtime_type( wind_n, wind_np1,   &
+                                                          model_clock, outer, &
+                                                          .false. )
+            end if
+          end if
           transport_metadata => transport_metadata_collection%get_transport_metadata('tracer')
           call tracer_collection_transport_alg &
           (                                    &
             adv_fields_last_outer,             &
             adv_fields_last_outer_after_slow,  &
-            cast_Dt,                           &
+            cast_dt,                           &
             transport_metadata                 &
           )
         end if
@@ -319,6 +370,35 @@ contains
                                         'After transport' )
       end if
 
+    end if
+
+    ! ---------------------------------------------------------------------- !
+    ! If cheap update we need to add the previous iteration state increments
+    ! and transported moisture
+    if (cheap_update .AND. outer > 1) then
+      ! Add the previous iteration state increments for density, theta and u
+      ! On the second outer iteration we have
+      ! advection_inc = dt increment(field,(wind_np1-wind_n)/2)
+      ! prev_inc      = dt increment(field,(wind_n)/2)
+      ! We set
+      ! advection_inc = advection_inc + prev_inc = dt increment(field,(wind_np1+wind_n)/2)
+      ! This carries forward for further outer iterations
+      call invoke( inc_X_plus_Y(advection_inc(igh_d),prev_inc(igh_d)), &
+                   inc_X_plus_Y(advection_inc(igh_t),prev_inc(igh_t)), &
+                   inc_X_plus_Y(advection_inc(igh_u),prev_inc(igh_u)) )
+      if ( present(mr_prev) ) then
+        ! Add previous iteration transported moisture for cheap transport update
+        ! On the second outer iteration we have
+        ! mr_prev = mr_in - dt increment(mr,wind_n)
+        ! mr_out  = mr_in - dt increment(mr,(wind_np1-wind_n)/2)
+        ! To get
+        ! mr_out = mr_in - dt increment(mr,(wind_np1+wind_n)/2)
+        ! we set
+        ! mr_out = mr_out + mr_prev - mr_in
+        ! This carries forward for further outer iterations
+        call bundle_inc_axpby( 1.0_r_def, mr_out, 1.0_r_def, mr_prev, nummr)
+        call bundle_inc_axpby( 1.0_r_def, mr_out, -1.0_r_def, mr_in, nummr)
+      end if
     end if
 
     if ( subroutine_timers ) call timer('gungho_transport_control')

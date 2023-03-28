@@ -258,6 +258,8 @@ contains
     type(transport_runtime_type) :: transport_runtime
     type(mesh_type),     pointer :: primary_mesh => null()
     type(mesh_type),     pointer :: shifted_mesh => null()
+    logical(kind=l_def)          :: cheap_update_flag
+    integer(kind=i_def)          :: iteration_number
 
 
     type(transport_metadata_type), pointer :: transport_metadata => null()
@@ -274,12 +276,21 @@ contains
       call init_u_field(wind, current_time)
     end if
 
+    ! Set flag for cheap update to be false and iteration_number
+    ! to 1 as these are only for SI timestepping which is not
+    ! relevant for the transport miniapp
+    cheap_update_flag = .false.
+    iteration_number  = 1_i_def
+
     primary_mesh => wind%get_mesh()
     shifted_mesh => mesh_collection%get_mesh(primary_mesh, SHIFTED)
 
     ! Create transport_runtime object (advecting wind etc)
-    transport_runtime = transport_runtime_type( wind, wind, &
-                                                model_clock,  shifted_mesh)
+    transport_runtime = transport_runtime_type( wind, wind,        &
+                                                model_clock,       &
+                                                iteration_number,  &
+                                                cheap_update_flag, &
+                                                shifted_mesh)
     call set_transport_runtime(transport_runtime)
 
     ! Transport dry density

@@ -246,6 +246,7 @@ stretching_method='linear',
   cfl_mol_1d_stab = 1.0
   cfl_mol_2d_stab = 1.0
   cfl_mol_3d_stab = 1.0
+  cheap_update = .false.
   dry_field_name = 'density'
   consistent_metric  = .false.
   fv_horizontal_order = 2
