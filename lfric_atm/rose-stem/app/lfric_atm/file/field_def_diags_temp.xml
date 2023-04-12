@@ -579,4 +579,10 @@
   <field id="processed__pmsl" name="pmsl" long_name="air_pressure_at_mean_sea_level" unit="Pa" domain_ref="face" />
   <field id="processed__temperature" name="temperature" long_name="air_temperature" standard_name="air_temperature" unit="K" grid_ref="full_level_face_grid"> theta * exner_in_wth </field>
   <field id="processed__total_prec" name="total_prec" long_name="precipitation_rate" standard_name="precipitation_flux" unit="kg m-2 s-1" domain_ref="face"> microphysics__ls_rain + microphysics__ls_snow + convection__conv_rain + convection__conv_snow </field>
+  <!-- First line extracts level 0, second line removes vertical coordinate, cannot do as one -->
+  <field id="processed__height0" field_ref="height_wth" grid_ref="full_level_face_grid"/>
+  <field id="processed__orography" name="orography" long_name="surface_altitude" standard_name="surface_altitude" unit="m" domain_ref="face" > processed__height0 </field>
+  <!-- First line extracts level 0, second line removes vertical coordinate, cannot do as one -->
+  <field id="processed__pressure0" field_ref="processed__pressure_in_wth" grid_ref="full_level_face_grid"/>
+  <field id="processed__pstar" name="pstar" long_name="surface_air_pressure" standard_name="surface_air_pressure" unit="Pa" domain_ref="face"> processed__pressure0 </field>
 </field_group>
