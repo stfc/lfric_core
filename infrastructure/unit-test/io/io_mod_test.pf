@@ -9,6 +9,7 @@
 !>
 module io_mod_test
 
+  use mpi_mod, only : clear_comm, store_comm
   use pFUnit_mod
 
   implicit none
@@ -17,7 +18,7 @@ module io_mod_test
   public :: test_restart_filename
 
   @TestCase
-  type, public, extends(TestCase) :: io_test_type
+  type, public, extends(MpiTestCase) :: io_test_type
 
     private
 
@@ -38,6 +39,8 @@ contains
 
     class(io_test_type), intent(inout) :: this
 
+    call store_comm( this%getMpiCommunicator() )
+
   end subroutine setUp
 
 
@@ -47,10 +50,12 @@ contains
 
     class(io_test_type), intent(inout) :: this
 
+    call clear_comm()
+
   end subroutine tearDown
 
   ! Test filename generation for restart files
-  @test
+  @test( npes=[1] )
   subroutine test_restart_filename( this )
 
     use constants_mod,       only : str_max_filename
@@ -69,18 +74,15 @@ contains
     ts_start=4
     ts_end=6
 
-    write(tname,'(A,A,A,A,I6.6)') "hswarez_100day","_", &
-         "rho","_T",ts_start-1
+    write(tname,'("hswarez_100day_rho_T", I6.6)') ts_start - 1
     fname=trim(ts_fname(trim(rs_fname), "", "rho", (ts_start-1), ""))
     @assertEqual(tname,fname)
 
-    write(tname,'(A,A,A,A,I6.6)') "hswarez_100day","_", &
-         "rho","_T",ts_end
+    write(tname,'("hswarez_100day_rho_T",I6.6)') ts_end
     fname=trim(ts_fname(trim(rs_fname), "", "rho", ts_end, ""))
     @assertEqual(tname,fname)
 
-    write(tname,'(A,A,A,A,I6.6)') "hswarez_100day","_", &
-         "rho","_T",7
+    write(tname,'("hswarez_100day_rho_T",I6.6)') 7
     fname=trim(ts_fname(trim(rs_fname), "", "rho", 7, ""))
 
   end subroutine test_restart_filename
