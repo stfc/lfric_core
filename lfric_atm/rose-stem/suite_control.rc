@@ -271,12 +271,12 @@
  		                                   "wallclock":"00:15:00"} } },
                      plotstr="plot_rce.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR")',
     'run_application("lfric_atm", "proto_ral_seuk",
-                     resolutions=[("seuk_MG",50.0)],
-                     env={"crun":2, "nrun":72,
+                     resolutions=[("seuk_MG",60.0)],
+                     env={"crun":2, "nrun":60,
                           "directives":{"default":{"mpi_parts":16,
                                                    "threads":1,
  		                                   "wallclock":"00:10:00"} } },
- 		     plotstr="plot_map.py -ral $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR")',
+ 		     plotstr="plot_map.py -ral $NODAL_DATA_DIR/lfric_ral_diagnostics.nc  $PLOT_DIR")',
     'check_compilers("lfric_atm", "nwp_gal9_copy", "full-debug",
                      resolution=("C12",1800.0))',
     'canned_test("lfric_atm")'
@@ -363,8 +363,37 @@
                                                "wallclock":"0:40:00"},
 					       } },)',
   ],
-  'basic-gal-demo': [
-    'run_application("lfric_atm", "clim_gal9_mg", checkkgo=False,
+  'jedi-nwp': [
+    'run_application("lfric_atm", "jedi_nwp_gal9", checkkgo=False,
+ 	                     resolutions=[("C12",1800.0)],
+ 	                     env={"crun":1, "nrun":12,
+ 	                          "directives":{"C12":{"mpi_parts":6,
+ 	                                               "threads":1,
+ 	                                               "wallclock":"00:10:00"},
+ 	                                       },
+  	                         }
+  	            )',
+  ],
+  'cray-only-tests': [
+    'run_application("lfric_atm", "basic_ral_nemo_1p5km", checkkgo=False,
+ 		    resolutions=[("point_nemo_1p5km_MG",30.)],
+ 		    env={"crun":6, "nrun":120,
+ 		    "directives":{"default":{"mpi_parts":729,
+ 		                             "threads":1,
+                                             "xios_nodes":9,
+                                             "mpi_parts_xios":162,
+ 		                             "wallclock":"00:30:00"} } },
+ 		    plotstr="plot_map.py -ral $NODAL_DATA_DIR/lfric_ral_diagnostics.nc  $PLOT_DIR")',
+    'run_application("lfric_atm", "proto_ral_uk", checkkgo=False,
+                     resolutions=[("uk_MG",60.0)],
+ 		     env={"crun":2, "nrun":180,
+ 		    "directives":{"default":{"mpi_parts":729,
+ 		                             "threads":1,
+                                             "xios_nodes":9,
+                                             "mpi_parts_xios":162,
+ 		                             "wallclock":"00:30:00"} } },
+		     plotstr="plot_map.py -ral $NODAL_DATA_DIR/lfric_ral_diagnostics.nc  $PLOT_DIR")',
+   'run_application("lfric_atm", "clim_gal9_mg", checkkgo=False,
                      resolutions=[("C48_MG",  1800.)],
                      env={"crun":24, "nrun":720,
                           "directives":{
@@ -388,31 +417,7 @@
                          },
                      plotstr="plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR"
                      )',
-  ],
-  'basic-ral-demo': [
-    'run_application("lfric_atm", "basic_ral_nemo_1p5km", checkkgo=False,
- 		    resolutions=[("point_nemo_1p5km_MG",30.)],
- 		    env={"crun":6, "nrun":120,
- 		    "directives":{"default":{"mpi_parts":729,
- 		                             "threads":1,
-                                             "xios_nodes":9,
-                                             "mpi_parts_xios":162,
- 		                             "wallclock":"00:30:00"} } },
- 		    plotstr="plot_map.py -ral $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR")',
-  ],
-  'jedi-nwp': [
-    'run_application("lfric_atm", "jedi_nwp_gal9", checkkgo=False,
-                     resolutions=[("C12",1800.0)],
-                     env={"crun":1, "nrun":12,
-                          "directives":{"C12":{"mpi_parts":6,
-                                               "threads":1,
-                                               "wallclock":"00:10:00"},
-                                       },
-                         }
-                    )',
-  ],
-  'basic-gal-chem': [
-    'run_application("lfric_atm", "clim_gal9_chem", checkkgo=False,
+   'run_application("lfric_atm", "clim_gal9_chem", checkkgo=False,
                      resolutions=[("C12",1800.0)],
                      env={"crun":2, "nrun":72,
                           "directives":{"C12":{"mpi_parts":6,
@@ -420,8 +425,10 @@
                                                "wallclock":"00:10:00"},
                                        },
                          },
-                     plotstr="plot_map.py -encorr $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR")',
-                    ],
+                     plotstr="plot_map.py -encorr $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR"
+                     )',
+
+  ],
 } %}
 {# Include exoplanet groups #}
 %include inc/exoplanets.rc

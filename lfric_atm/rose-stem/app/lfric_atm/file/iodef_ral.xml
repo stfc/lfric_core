@@ -21,6 +21,7 @@
     <file_definition src="./file_def_ancil_main.xml"/>
     <file_definition src="./file_def_ancil_ral.xml"/>
     <file_definition src="./file_def_lbcs.xml"/>
+    <file_definition src="./file_def_diags_empty.xml"/>
     <file_definition src="./file_def_diags_ral.xml"/>
     <file_definition src="./file_def_diags_ave.xml"/>
 
@@ -79,6 +80,8 @@
 	<field id="read_snow_layer_liq_mass" name="tile_snow_layer_liq_mass" long_name="snow_layer_liquid_mass_on_tiles" unit="kg m-2" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
 	<field id="read_snow_layer_temp" name="tile_snow_layer_temp" long_name="snow_layer_temperature_on_tiles" unit="K" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
 	<field id="read_snow_layer_rgrain" name="tile_snow_layer_rgrain" long_name="snow_layer_grain_size_on_tiles" unit="microns" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
+        <field id="surface_altitude" name="surface_altitude" long_name="surface_altitude" unit="m" operation="once" domain_ref="face"/>
+	<field id="read_tstar_sea" name="tstar" long_name="surface_temperature" standard_name="surface_temperature" unit="K" domain_ref="face" operation="once" />
       </file>
 
     </file_definition>

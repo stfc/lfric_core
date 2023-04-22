@@ -1,7 +1,7 @@
 <file_definition type="one_file" par_access="collective" time_counter="none">
 
-  <!-- Main diagnostic output file for regional runs -->
-  <file id="lfric_ral_diagnostics" name="lfric_ral_diagnostics" output_freq="1h" convention="UGRID" enabled=".TRUE.">
+  <!-- Diagnostic output file for idealised regional runs -->
+  <file id="lfric_diag" name="lfric_diag" output_freq="6h" convention="UGRID" enabled=".TRUE.">
     <field field_ref="theta" />
     <field field_ref="m_v" />
     <field field_ref="m_cl" />
