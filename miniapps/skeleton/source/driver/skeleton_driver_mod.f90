@@ -10,7 +10,6 @@
 module skeleton_driver_mod
 
   use checksum_alg_mod,           only : checksum_alg
-  use configuration_mod,          only : final_configuration
   use constants_mod,              only : i_def, i_native, &
                                          PRECISION_REAL, r_def, r_second
   use convert_to_upper_mod,       only : convert_to_upper
@@ -27,7 +26,6 @@ module skeleton_driver_mod
   use mesh_mod,                   only : mesh_type
   use model_clock_mod,            only : model_clock_type
   use mpi_mod,                    only : mpi_type
-  use skeleton_mod,               only : load_configuration
   use skeleton_alg_mod,           only : skeleton_alg
 
   implicit none
@@ -53,16 +51,13 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Sets up required state in preparation for run.
   !>
-  subroutine initialise( filename, mpi )
+  subroutine initialise( mpi )
 
     implicit none
 
-    character(*),    intent(in) :: filename
     class(mpi_type), intent(inout) :: mpi
 
     real(r_def) :: dt_model
-
-    call load_configuration( filename, program_name )
 
     call init_logger( mpi%get_comm(), program_name )
 
@@ -147,8 +142,6 @@ contains
     call final_fem()
 
     call final_mesh()
-
-    call final_configuration()
 
     call final_logger( program_name )
 

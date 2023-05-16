@@ -68,19 +68,17 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !>@brief Sets up required state in preparation for run.
-  subroutine initialise( program_name, filename, mpi )
+  subroutine initialise( program_name, mpi )
 
     implicit none
 
     character(*),    intent(in) :: program_name
-    character(*),    intent(in) :: filename
     class(mpi_type), intent(inout) :: mpi
 
     class(io_context_type), pointer :: io_context => null()
 
     ! Initialise infrastructure and setup constants
-    call initialise_infrastructure( filename,          &
-                                    program_name,      &
+    call initialise_infrastructure( program_name,      &
                                     mesh,              &
                                     twod_mesh,         &
                                     shifted_mesh,      &

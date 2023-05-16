@@ -10,7 +10,6 @@
 module da_dev_driver_mod
 
   use checksum_alg_mod,         only: checksum_alg
-  use configuration_mod,        only: final_configuration
   use constants_mod,            only: i_def, i_native, &
                                       PRECISION_REAL, r_def
   use clock_mod,                only: clock_type
@@ -33,7 +32,6 @@ module da_dev_driver_mod
   use extrusion_mod,            only: extrusion_type
   use model_clock_mod,          only: model_clock_type
   use mpi_mod,                  only: mpi_type
-  use da_dev_mod,               only: load_configuration
   use da_dev_increment_alg_mod, only: da_dev_increment_alg
   use da_dev_init_files_mod,    only: init_da_dev_files
   use da_dev_config_mod,        only: write_data, test_field
@@ -66,19 +64,16 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Sets up required state in preparation for run.
   !>
-  subroutine initialise_lfric( program_name, mpi, filename )
+  subroutine initialise_lfric( program_name, mpi )
 
     implicit none
 
     character(len=*),  intent(in)    :: program_name
     class(mpi_type),   intent(inout) :: mpi
-    character(len=*),  intent(in)    :: filename
 
     procedure(filelist_populator), pointer :: fl_populator => null()
     class(io_context_type),        pointer :: model_io_context => null()
     class(extrusion_type), allocatable     :: extrusion
-
-    call load_configuration( filename, program_name )
 
     call init_logger( mpi%get_comm(), program_name )
 
@@ -226,8 +221,6 @@ contains
     call final_fem()
 
     call final_mesh()
-
-    call final_configuration()
 
     call final_logger( program_name )
 

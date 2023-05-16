@@ -11,7 +11,7 @@ module diagnostics_driver_mod
 
   use clock_mod,                     only : clock_type
   use constants_mod,                 only : i_def, i_native, str_def, r_def
-  use diagnostics_configuration_mod, only : load_configuration, program_name
+  use diagnostics_configuration_mod, only : program_name
   use driver_fem_mod,                only : init_fem
   use driver_io_mod,                 only : init_io, final_io
   use driver_mesh_mod,               only : init_mesh
@@ -60,7 +60,7 @@ contains
   !> mostly boiler plate - note the init and seeding of the fields at the end
   !> of the function.
   !>
-  subroutine initialise( filename, mpi )
+  subroutine initialise( mpi )
 
     use convert_to_upper_mod,       only : convert_to_upper
     use driver_fem_mod,             only : init_fem
@@ -74,10 +74,7 @@ contains
 
     implicit none
 
-    character(*),    intent(in)    :: filename
     class(mpi_type), intent(inout) :: mpi
-
-    call load_configuration(filename)
 
     call init_logger( mpi%get_comm(), program_name )
 
@@ -195,9 +192,6 @@ contains
     !----------------------------------------------------------------------
 
     call final_io()
-
-    ! Finalise namelist configurations
-    call final_configuration()
 
     call log_event(program_name // ' completed.', LOG_LEVEL_ALWAYS)
 

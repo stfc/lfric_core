@@ -16,7 +16,6 @@ module multires_coupling_model_mod
   use driver_io_mod,              only : init_io, final_io, &
                                          filelist_populator
   use driver_time_mod,            only : init_time, get_calendar
-  use configuration_mod,          only : final_configuration
   use conservation_algorithm_mod, only : conservation_algorithm
   use constants_mod,              only : i_def, i_native,          &
                                          PRECISION_REAL, r_second, &
@@ -40,7 +39,6 @@ module multires_coupling_model_mod
                                   only : physics_mesh_name,          &
                                          dynamics_mesh_name,         &
                                          multires_coupling_mesh_tags
-  use gungho_mod,                 only : load_configuration
   use gungho_model_data_mod,      only : model_data_type
   use gungho_setup_io_mod,        only : init_gungho_files
   use init_altitude_mod,          only : init_altitude
@@ -106,7 +104,6 @@ contains
   !>        model.
   !>
   !> @param [in]     program_name An identifier given to the model begin run
-  !> @param [in]     filename     Namelist file for configuration
   !> @param [in,out] mesh         The current 3d mesh
   !> @param [in,out] twod_mesh    The current 2d mesh
   !> @param [in,out] shifted_mesh The vertically shifted 3d mesh
@@ -115,7 +112,6 @@ contains
   !> @param[in,out]  mpi          Communication object
   !>
   subroutine initialise_infrastructure( program_name,      &
-                                        filename,          &
                                         mesh,              &
                                         twod_mesh,         &
                                         shifted_mesh,      &
@@ -128,7 +124,6 @@ contains
     implicit none
 
     character(*),           intent(in)               :: program_name
-    character(*),           intent(in)               :: filename
     type(mesh_type),        intent(inout), pointer   :: mesh
     type(mesh_type),        intent(inout), pointer   :: twod_mesh
     type(mesh_type),        intent(inout), pointer   :: double_level_mesh
@@ -176,8 +171,6 @@ contains
     !-------------------------------------------------------------------------
     ! Initialise aspects of the infrastructure
     !-------------------------------------------------------------------------
-
-    call load_configuration( filename, program_name )
 
     call init_logger( mpi%get_comm(), program_name )
 
@@ -487,9 +480,6 @@ contains
     !-------------------------------------------------------------------------
 
     call final_logger( program_name )
-
-    ! Finalise namelist configurations
-    call final_configuration()
 
   end subroutine finalise_infrastructure
 

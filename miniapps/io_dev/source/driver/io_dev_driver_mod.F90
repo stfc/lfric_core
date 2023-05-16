@@ -12,7 +12,6 @@ module io_dev_driver_mod
 
   use checksum_alg_mod,           only: checksum_alg
   use clock_mod,                  only: clock_type
-  use configuration_mod,          only: final_configuration
   use constants_mod,              only: i_def, i_native, str_def, &
                                         PRECISION_REAL, r_def, r_second
   use convert_to_upper_mod,       only: convert_to_upper
@@ -39,7 +38,6 @@ module io_dev_driver_mod
   use model_clock_mod,            only: model_clock_type
   use mpi_mod,                    only: mpi_type
   use timer_mod,                  only: timer, output_timer, init_timer
-  use io_dev_mod,                 only: load_configuration
   use io_dev_init_files_mod,      only: init_io_dev_files
   use io_dev_data_mod,            only: io_dev_data_type,          &
                                         create_model_data,         &
@@ -69,11 +67,10 @@ module io_dev_driver_mod
   contains
 
   !> @brief Sets up required state in preparation for run.
-  subroutine initialise( filename, mpi )
+  subroutine initialise( mpi )
 
     implicit none
 
-    character(*),    intent(in)    :: filename
     class(mpi_type), intent(inout) :: mpi
 
     character(str_def), allocatable :: multires_mesh_tags(:)
@@ -89,8 +86,6 @@ module io_dev_driver_mod
     class(io_context_type), pointer :: io_context
 
     procedure(filelist_populator), pointer :: files_init_ptr => null()
-
-    call load_configuration( filename )
 
     call init_logger( mpi%get_comm(), program_name )
 
@@ -221,9 +216,6 @@ module io_dev_driver_mod
 
     ! Final logging before infrastructure is destroyed
     call final_logger( program_name )
-
-    ! Finalise namelist configurations
-    call final_configuration()
 
   end subroutine finalise
 

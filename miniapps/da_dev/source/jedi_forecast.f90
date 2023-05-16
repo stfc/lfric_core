@@ -16,8 +16,10 @@
 program jedi_forecast
 
   use constants_mod,         only : i_def
+  use da_dev_mod,            only : da_dev_required_namelists
   use da_dev_driver_mod,     only : finalise_model
   use driver_comm_mod,       only : init_comm, final_comm
+  use driver_config_mod,     only : init_config, final_config
   use mpi_mod,               only : global_mpi
 
   ! Data types and methods to get/store configurations
@@ -46,13 +48,14 @@ program jedi_forecast
   character(*), parameter        :: program_name = "jedi_forecast"
 
   ! Infrastructure config
-  call get_initial_filename( filename )
-
   call init_comm( program_name )
+  call get_initial_filename( filename )
+  call init_config( filename, da_dev_required_namelists )
+  deallocate( filename )
 
   ! Run object
   ! Handles initialization and finalization of required infrastructure
-  call jedi_run%initialise( program_name, filename, global_mpi )
+  call jedi_run%initialise( program_name, global_mpi )
 
   ! Configs for for the jedi emulator objects
   ! State config
@@ -79,6 +82,7 @@ program jedi_forecast
   ! To provide KGO
   call finalise_model( program_name, jedi_state%model_data%depository )
 
+  call final_config()
   call final_comm()
 
 end program jedi_forecast

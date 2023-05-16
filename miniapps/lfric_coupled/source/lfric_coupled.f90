@@ -18,6 +18,8 @@ program lfric_coupled
 
   use cli_mod,            only : get_initial_filename
   use driver_comm_mod,    only : init_comm, final_comm
+  use driver_config_mod,  only : init_config, final_config
+  use gungho_mod,         only : gungho_required_namelists
   use gungho_driver_mod,  only : initialise, run, finalise
   use mpi_mod,            only : global_mpi
 
@@ -27,14 +29,17 @@ program lfric_coupled
 
   character(:), allocatable :: filename
 
-  call get_initial_filename( filename )
   call init_comm( application_name )
+  call get_initial_filename( filename )
+  call init_config( filename, gungho_required_namelists )
+  deallocate( filename )
 
-  call initialise( application_name, filename, global_mpi )
+  call initialise( application_name, global_mpi )
 
   call run( application_name )
 
   call finalise( application_name )
+  call final_config()
   call final_comm()
 
 end program lfric_coupled

@@ -45,8 +45,7 @@ module transport_driver_mod
   use step_calendar_mod,                only: step_calendar_type
   use timer_mod,                        only: init_timer, timer, output_timer
   use timestepping_config_mod,          only: dt
-  use transport_mod,                    only: transport_load_configuration, &
-                                              program_name
+  use transport_mod,                    only: program_name
   use transport_init_fields_alg_mod,    only: transport_init_fields_alg
   use transport_control_alg_mod,        only: transport_prerun_setup, &
                                               transport_init, &
@@ -96,11 +95,10 @@ contains
   !> @brief Sets up required state in preparation for run.
   !! @param[out] model_clock Time within the model.
   !!
-  subroutine initialise_transport( filename, mpi )
+  subroutine initialise_transport( mpi )
 
     implicit none
 
-    character(*),    intent(in) :: filename
     class(mpi_type), intent(inout) :: mpi
 
     character(len=*), parameter :: xios_ctx  = "transport"
@@ -109,8 +107,6 @@ contains
     integer(kind=i_def), allocatable :: multigrid_2d_mesh_ids(:)
     integer(kind=i_def), allocatable :: local_mesh_ids(:)
     type(local_mesh_type),   pointer :: local_mesh => null()
-
-    call transport_load_configuration( filename )
 
     call init_logger( mpi%get_comm(), program_name )
 
@@ -328,9 +324,6 @@ contains
     call final_io()
 
     call transport_runtime_collection_final()
-
-    ! Finalise namelist configurations
-    call final_configuration()
 
     !--------------------------------------------------------------------------
     ! Driver layer finalise

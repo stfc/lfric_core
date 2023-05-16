@@ -19,53 +19,18 @@ module transport_mod
   implicit none
 
   private
-  public :: transport_load_configuration, program_name
+  public :: transport_required_namelists, program_name
 
   character(*), parameter :: program_name = "transport"
 
-contains
-
-  !> Loads run-time configuration.
-  !>
-  subroutine transport_load_configuration( filename )
-
-    implicit none
-
-    character(*), intent(in) :: filename
-    character(*), parameter  :: &
-                      required_configuration(8) = ['base_mesh             ', &
-                                                   'planet                ', &
-                                                   'extrusion             ', &
-                                                   'initial_temperature   ', &
-                                                   'initial_wind          ', &
-                                                   'initial_density       ', &
-                                                   'transport             ', &
-                                                   'timestepping          ']
-    logical                  :: okay
-    logical, allocatable     :: success_map(:)
-    integer                  :: i
-
-    allocate( success_map(size(required_configuration)) )
-
-    call log_event( 'Loading '//program_name//' configuration ...', &
-                    LOG_LEVEL_ALWAYS )
-
-    call read_configuration( filename )
-
-    okay = ensure_configuration( required_configuration, success_map )
-    if (.not. okay) then
-      write( log_scratch_space, '(A)' ) &
-                             'The following required namelists were not loaded:'
-      do i = 1,size(required_configuration)
-        if (.not. success_map(i)) &
-          log_scratch_space = trim(log_scratch_space) // ' ' &
-                              // required_configuration(i)
-      end do
-      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-    end if
-
-    deallocate( success_map )
-
-  end subroutine transport_load_configuration
+  character(*), parameter  :: &
+     transport_required_namelists(8) = ['base_mesh          ', &
+                                        'planet             ', &
+                                        'extrusion          ', &
+                                        'initial_temperature', &
+                                        'initial_wind       ', &
+                                        'initial_density    ', &
+                                        'transport          ', &
+                                        'timestepping       ']
 
 end module transport_mod

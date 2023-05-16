@@ -18,7 +18,6 @@ module gungho_model_mod
   use driver_mesh_mod,            only : init_mesh, final_mesh
   use driver_log_mod,             only : init_logger, final_logger
   use driver_time_mod,            only : init_time, get_calendar
-  use configuration_mod,          only : final_configuration
   use check_configuration_mod,    only : get_required_stencil_depth
   use conservation_algorithm_mod, only : conservation_algorithm
   use constants_mod,              only : i_def, i_native, r_def, l_def, &
@@ -39,7 +38,6 @@ module gungho_model_mod
                                          use_physics,              &
                                          use_multires_coupling
   use gungho_extrusion_mod,       only : create_extrusion
-  use gungho_mod,                 only : load_configuration
   use gungho_model_data_mod,      only : model_data_type
   use gungho_setup_io_mod,        only : init_gungho_files
   use gungho_transport_control_alg_mod, &
@@ -129,7 +127,6 @@ contains
   !> @brief Initialises the infrastructure and sets up constants used by the
   !>        model.
   !>
-  !> @param [in]     filename     The name of the configuration namelist file
   !> @param [in]     program_name An identifier given to the model begin run
   !> @param [in,out] mesh         The current 3d mesh
   !> @param [in,out] twod_mesh    The current 2d mesh
@@ -139,8 +136,7 @@ contains
   !> @param [out]    model_clock  Time within the model
   !> @param [in]     mpi          Communication object
   !>
-  subroutine initialise_infrastructure( filename,             &
-                                        program_name,         &
+  subroutine initialise_infrastructure( program_name,         &
                                         mesh,                 &
                                         twod_mesh,            &
                                         shifted_mesh,         &
@@ -159,7 +155,6 @@ contains
 
     implicit none
 
-    character(*), intent(in) :: filename
     character(*), intent(in) :: program_name
 
     ! @todo I think the communication object aught to work as intent(in) but
@@ -212,8 +207,6 @@ contains
     !-------------------------------------------------------------------------
     ! Initialise aspects of the infrastructure
     !-------------------------------------------------------------------------
-
-    call load_configuration( filename, program_name )
 
     call init_logger( mpi%get_comm(), program_name )
 
@@ -554,13 +547,6 @@ contains
     !-------------------------------------------------------------------------
 
     call final_logger( program_name )
-
-    !-------------------------------------------------------------------------
-    ! Finalise infrastructure
-    !-------------------------------------------------------------------------
-
-    ! Finalise namelist configurations
-    call final_configuration()
 
   end subroutine finalise_infrastructure
 

@@ -5,13 +5,14 @@
 !-----------------------------------------------------------------------------
 
 !>@brief   The top level program for the da dev, jedi interface
-!!         integration tests.
+!!         integrationf tests.
 !>@details Sets up and runs the integration tests specified in
 !!         jedi_interface_test.py.
 program jedi_interface_test
 
+  use configuration_mod,              only : final_configuration, &
+                                             read_configuration
   use constants_mod,                  only : i_def, r_def, l_def
-  use da_dev_mod,                     only : load_configuration
   use halo_comms_mod,                 only : initialise_halo_comms, &
                                              finalise_halo_comms
   use test_jedi_interface_driver_mod, only : test_jedi_interface_init,          &
@@ -143,7 +144,7 @@ program jedi_interface_test
   end if
 
   ! Setup configuration, and initialise tests
-  call load_configuration( filename, program_name )
+  call read_configuration( filename )
   call test_jedi_interface_init()
 
   if ( do_test_init_lfric_calendar_start ) then
@@ -187,6 +188,9 @@ program jedi_interface_test
 
   ! Finalise the logging system
   call global_mpi%finalise()
+
+  call final_configuration
+
   call destroy_comm()
 
 end program jedi_interface_test

@@ -15,6 +15,8 @@ program diagnostics
     use cli_mod,                       only : get_initial_filename
     use diagnostics_configuration_mod, only : program_name
     use driver_comm_mod,               only : init_comm, final_comm
+    use driver_config_mod,             only : init_config, final_config
+    use diagnostics_configuration_mod, only : required_namelists
     use diagnostics_driver_mod,        only : initialise, run, finalise
     use mpi_mod,                       only : global_mpi
 
@@ -22,14 +24,16 @@ program diagnostics
 
     character(:), allocatable :: filename
 
-    call get_initial_filename( filename )
-
     call init_comm( program_name )
-    call initialise( filename, global_mpi )
+    call get_initial_filename( filename )
+    call init_config( filename, required_namelists )
+    deallocate( filename )
+    call initialise( global_mpi )
 
     call run()
 
     call finalise()
+    call final_config()
     call final_comm()
 
 end program diagnostics

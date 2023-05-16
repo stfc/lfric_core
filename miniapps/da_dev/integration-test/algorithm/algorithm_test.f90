@@ -12,8 +12,9 @@
 !!         takes a real field and adds one to its value.
 program algorithm_test
 
+  use configuration_mod,             only : final_configuration, &
+                                            read_configuration
   use constants_mod,                 only : i_def, r_def
-  use da_dev_mod,                    only : load_configuration
   use test_algorithm_mod,            only : test_algorithm_finalise,   &
                                             test_algorithm_initialise, &
                                             test_da_dev_increment_alg
@@ -108,7 +109,7 @@ program algorithm_test
   end select
 
   ! Setup configuration, mesh, and fem
-  call load_configuration( filename, program_name )
+  call read_configuration( filename )
   call init_mesh( local_rank, total_ranks, mesh )
   call test_algorithm_initialise(mesh) ! fem
 
@@ -138,5 +139,7 @@ program algorithm_test
 
   ! Finalise the logging system
   call finalise_logging()
+
+  call final_configuration()
 
 end program algorithm_test

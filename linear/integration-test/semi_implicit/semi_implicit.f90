@@ -10,6 +10,7 @@
 !!         corresponding nonlinear code.
 program semi_implicit
 
+  use configuration_mod,  only : read_configuration, final_configuration
   use halo_comms_mod,     only : initialise_halo_comms, finalise_halo_comms
   use log_mod,            only : log_event,       &
                                  LOG_LEVEL_ERROR, &
@@ -102,8 +103,10 @@ program semi_implicit
      call log_event( "Unknown test", LOG_LEVEL_ERROR )
   end select
 
-  call initialise( filename, application_name, global_mpi )
+  call read_configuration( filename )
   deallocate( filename )
+
+  call initialise( application_name, global_mpi )
 
   if (do_test_timesteps) then
     call run_timesteps()
@@ -125,6 +128,7 @@ program semi_implicit
   endif
 
   call finalise( application_name )
+  call final_configuration()
   call finalise_halo_comms()
   call destroy_comm()
 

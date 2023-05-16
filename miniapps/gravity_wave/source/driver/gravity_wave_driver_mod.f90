@@ -74,16 +74,14 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Sets up required state in preparation for run.
   !>
-  subroutine initialise( filename, mpi )
+  subroutine initialise( mpi )
 
   implicit none
 
-  character(*),    intent(in)    :: filename
   class(mpi_type), intent(inout) :: mpi
 
   ! Initialise aspects of the infrastructure
   call initialise_infrastructure( program_name, &
-                                  filename,     &
                                   mesh,         &
                                   twod_mesh,    &
                                   model_clock,  &

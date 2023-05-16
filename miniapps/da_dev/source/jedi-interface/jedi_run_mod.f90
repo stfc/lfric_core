@@ -40,7 +40,7 @@ contains
 !>
 !> @param [in] filename a character that contains the location of the namelist
 !>             file
-subroutine initialise( self, program_name, filename, mpi )
+subroutine initialise( self, program_name, mpi )
 
   use mpi_mod,           only : create_comm
   use da_dev_driver_mod, only : initialise_lfric
@@ -49,13 +49,12 @@ subroutine initialise( self, program_name, filename, mpi )
 
   class( jedi_run_type ), intent(inout) :: self
   character(len=*), intent(in)          :: program_name
-  character(len=*), intent(in)          :: filename
   class(mpi_type),  intent(inout)       :: mpi
 
   self%jedi_run_name = program_name
 
   ! initialise infrastructure
-  call initialise_lfric( program_name, mpi, filename )
+  call initialise_lfric( program_name, mpi )
 
 end subroutine initialise
 

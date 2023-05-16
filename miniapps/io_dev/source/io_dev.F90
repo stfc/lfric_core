@@ -13,6 +13,8 @@ program io_dev
 
   use cli_mod,           only: get_initial_filename
   use driver_comm_mod,   only: init_comm, final_comm
+  use driver_config_mod, only: init_config, final_config
+  use io_dev_mod,        only: io_dev_required_namelists
   use io_dev_driver_mod, only: initialise, run, finalise
   use mpi_mod,           only: global_mpi
 
@@ -20,14 +22,16 @@ program io_dev
 
   character(:), allocatable :: filename
 
-  call get_initial_filename( filename )
-
   call init_comm( "io_dev" )
-  call initialise( filename, global_mpi )
+  call get_initial_filename( filename )
+  call init_config( filename, io_dev_required_namelists )
+  deallocate( filename )
+  call initialise( global_mpi )
 
   call run()
 
   call finalise()
+  call final_config()
   call final_comm()
 
 end program io_dev

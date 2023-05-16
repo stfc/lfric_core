@@ -10,7 +10,6 @@ module shallow_water_model_mod
   use assign_orography_field_mod,     only: assign_orography_field
   use check_configuration_mod,        only: get_required_stencil_depth
   use checksum_alg_mod,               only: checksum_alg
-  use configuration_mod,              only: final_configuration
   use conservation_algorithm_mod,     only: conservation_algorithm
   use constants_mod,                  only: i_def, i_native, &
                                             PRECISION_REAL
@@ -50,7 +49,6 @@ module shallow_water_model_mod
                                             minmax_tseries_final
   use model_clock_mod,                only: model_clock_type
   use mpi_mod,                        only: mpi_type
-  use shallow_water_mod,              only: load_configuration
   use shallow_water_model_data_mod,   only: model_data_type
   use shallow_water_setup_io_mod,     only: init_shallow_water_files
   use timer_mod,                      only: timer, output_timer, init_timer
@@ -71,11 +69,9 @@ module shallow_water_model_mod
   !=============================================================================
   !> @brief Initialises the infrastructure and sets up constants used by the model.
   !> @param[in]     program_name An identifier given to the model begin run
-  !> @param[in]     filename     Namelist file for configuration
   !> @param[in,out] mesh         The 3D mesh
   !> @param[in,out] chi          A size 3 array of fields holding the coordinates of the mesh
   subroutine initialise_infrastructure(program_name, &
-                                       filename,     &
                                        mesh,         &
                                        twod_mesh,    &
                                        chi,          &
@@ -86,7 +82,6 @@ module shallow_water_model_mod
     implicit none
 
     character(*),           intent(in)             :: program_name
-    character(*),           intent(in)             :: filename
     type(mesh_type),        intent(inout), pointer :: mesh
     type(mesh_type),        intent(out),   pointer :: twod_mesh
     type(field_type),       intent(inout)          :: chi(3)
@@ -101,8 +96,6 @@ module shallow_water_model_mod
     !-------------------------------------------------------------------------
     ! Initialise aspects of the infrastructure
     !-------------------------------------------------------------------------
-
-    call load_configuration( filename )
 
     call init_logger( mpi%get_comm(), program_name )
 
@@ -234,13 +227,6 @@ module shallow_water_model_mod
     !-------------------------------------------------------------------------
     call final_logger( program_name )
 
-    !-------------------------------------------------------------------------
-    ! Finalise infrastructure
-    !-------------------------------------------------------------------------
-
-    ! Finalise namelist configurations
-    call final_configuration()
-
   end subroutine finalise_infrastructure
 
   !=============================================================================
@@ -248,15 +234,13 @@ module shallow_water_model_mod
   !> @param[in]     mesh_id      The identifier of the primary mesh
   !> @param[in,out] model_data   The working data set for the model run
   !> @param[in]     program_name An identifier given to the model begin run
-  subroutine finalise_model( mesh_id,    &
-                             model_data, &
+  subroutine finalise_model( model_data, &
                              program_name )
 
     use swe_timestep_alg_mod, only: swe_timestep_alg_final
 
     implicit none
 
-    integer(i_def),                intent(in)    :: mesh_id
     type(model_data_type), target, intent(inout) :: model_data
     character(*),                  intent(in)    :: program_name
 

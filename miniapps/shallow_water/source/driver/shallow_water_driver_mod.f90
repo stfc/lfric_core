@@ -54,7 +54,6 @@ module shallow_water_driver_mod
   type(field_type), target :: chi(3)
 
   ! Mesh
-  integer(i_def) :: mesh_id = imdi
   type(mesh_type), pointer :: mesh => null()
 
 contains
@@ -63,13 +62,11 @@ contains
   !> @brief   Sets up required state in preparation for run.
   !> @details Initialises the infrastructure and the fields stored in
   !!          model_data, then sets the initial conditions for the run.
-  !> @param[in] filename Configuration namelist file
   !!
-  subroutine initialise( filename, mpi )
+  subroutine initialise( mpi )
 
     implicit none
 
-    character(*),    intent(in)    :: filename
     class(mpi_type), intent(inout) :: mpi
 
     type(mesh_type),   pointer :: twod_mesh => null()
@@ -78,7 +75,6 @@ contains
     call log_event( 'Initialising Infrastructure ...', LOG_LEVEL_INFO )
     ! Initialise infrastructure (from shallow_water_model_mod.F90) and setup constants
     call initialise_infrastructure( program_name, &
-                                    filename,     &
                                     mesh,         &
                                     twod_mesh,    &
                                     chi,          &
@@ -171,8 +167,7 @@ contains
     call output_model_data( model_data, model_clock )
 
     ! Model configuration finalisation
-    call finalise_model( mesh_id,    &
-                         model_data, &
+    call finalise_model( model_data, &
                          program_name )
 
     ! Destroy the fields stored in model_data

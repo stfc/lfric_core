@@ -77,20 +77,17 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !>@brief     Sets up the required state in preparation for run.
-  !>@param[in] filename            Name of the file containing the desired
-  !!                               configuration
-  subroutine initialise( filename, program_name, mpi )
+  !>
+  subroutine initialise( program_name, mpi )
 
     implicit none
 
-    character(*),    intent(in)    :: filename
     character(*),    intent(in)    :: program_name
     class(mpi_type), intent(inout) :: mpi
 
     ! Initialise infrastructure and setup constants
     !
-    call initialise_infrastructure( filename,          &
-                                    program_name,      &
+    call initialise_infrastructure( program_name,      &
                                     mesh,              &
                                     twod_mesh,         &
                                     shifted_mesh,      &
