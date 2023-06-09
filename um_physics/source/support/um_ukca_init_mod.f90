@@ -498,7 +498,6 @@ contains
     ! and aerosol schemes through single call to ukca_setup.
     ! These should be obtained from namelists (chemistry_config) eventually
     integer :: i_tmp_ukca_chem=ukca_chem_off
-    logical :: l_use_meoh_emiss = .false.
     logical :: l_ukca_mode = .false.
 
     ! Variables for UKCA error handling
@@ -524,11 +523,9 @@ contains
     ! one option to be active.
     if ( chem_scheme == chem_scheme_strattrop ) then
        i_tmp_ukca_chem = ukca_chem_strattrop
-       l_use_meoh_emiss = .true.
     else if ( chem_scheme == chem_scheme_offline_ox .or.  &
               chem_scheme == chem_scheme_strat_test ) then
        i_tmp_ukca_chem = ukca_chem_offline
-       l_use_meoh_emiss = .false.
     else     ! chem_scheme_none
       call log_event('No Chemical scheme chosen for UKCA', LOG_LEVEL_INFO)
       return
@@ -578,7 +575,6 @@ contains
            l_ukca_scale_soa_yield=.true.,                                      &
            soa_yield_scaling=2.0_r_um,                                         &
            l_support_ems_vertprof=.true.,                                      &
-           l_fix_ukca_meoh_emiss_input=l_use_meoh_emiss,                       &
            ! UKCA environmental driver configuration options
            l_param_conv=l_param_conv,                                          &
            l_ctile=.true.,                                                     &
