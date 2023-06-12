@@ -129,7 +129,8 @@ FUNCTION soil_moist_content(soil_moist_stress, soil_moist_content_crit,        &
                             soil_moist_content_wilt, dz, rho_water)            &
                            RESULT (sm_content)
 
-USE constants_def_mod, ONLY: rmdi, r_def
+USE constants_def_mod, ONLY: r_def, rmdi
+USE mdi_mod, ONLY: is_rmdi 
 
 IMPLICIT NONE
 
@@ -141,13 +142,14 @@ REAL(KIND=r_def) :: sm_content, tiny_real
 
 tiny_real = TINY(1.0_r_def)
 
-IF ( ABS(soil_moist_stress - rmdi) < tiny_real       .OR.                      &
-     ABS(soil_moist_content_crit - rmdi) < tiny_real .OR.                      &
-     ABS(soil_moist_content_wilt - rmdi) < tiny_real ) THEN
+IF ( is_rmdi(soil_moist_stress)       .OR.                                     &
+     is_rmdi(soil_moist_content_crit) .OR.                                     &
+     is_rmdi(soil_moist_content_wilt) ) THEN
 
   sm_content = rmdi
 
 ELSE
+
 
   sm_content = soil_moist_content_wilt + soil_moist_stress *                   &
                (soil_moist_content_crit - soil_moist_content_wilt)

@@ -748,9 +748,6 @@
 	<field id="turbulence__du_bl" name="du_bl" long_name="eastward_wind_increment_from_bl_scheme" unit="m s-1" grid_ref="half_level_face_grid" />
 	<field id="turbulence__dv_bl" name="dv_bl" long_name="northward_wind_increment_from_bl_scheme" unit="m s-1" grid_ref="half_level_face_grid" />
 	<field id="turbulence__dw_bl" name="dw_bl" long_name="upward_air_velocity_increment_from_bl_scheme" unit="m s-1" grid_ref="half_level_face_grid" />
-	<field id="turbulence__cumulus" name="cumulus" long_name="cumulus_convection_indicator" unit="1" domain_ref="face" />
-	<field id="turbulence__bl_type_ind" name="bl_type_ind" long_name="boundary_layer_type_indicator" unit="1" domain_ref="face" axis_ref="bl_types"/>
-	<field id="turbulence__ntml" name="ntml" long_name="number_of_turbulent_mixing_levels" unit="1" domain_ref="face" />
 	<field id="turbulence__zh" name="zh" long_name="boundary_layer_depth" unit="m" domain_ref="face" />
 	<field id="turbulence__zht" name="zht" long_name="turbulent_mixing_height" unit="m" domain_ref="face" />
 	<field id="turbulence__zhsc" name="zhsc" long_name="height_at_top_of_decoupled_stratocumulus_layer" unit="m" domain_ref="face" />
@@ -767,8 +764,6 @@
 	<field id="turbulence__tauy" name="tauy" long_name="northward_wind_stress" unit="N m-2" grid_ref="half_level_face_grid" />
 	<field id="turbulence__rdz_tq" name="rdz_tq_bl" long_name="reciprocal_delta_z" unit="m-1" grid_ref="half_level_face_grid" />
 	<field id="turbulence__dtrdz_tq" name="dtrdz_tq_bl" long_name="dt_dz_times_reciprocal_density_radius_squared" unit="s kg-1" grid_ref="full_level_face_grid" />
-	<field id="turbulence__level_ent" name="level_ent" long_name="level_of_surface_mixed_layer_inversion" unit="1" domain_ref="face" />
-	<field id="turbulence__level_ent_dsc" name="level_ent_dsc" long_name="level_of_decoupled_stratocumulus_inversion" unit="1" domain_ref="face" />
 	<field id="turbulence__ent_we_lim" name="ent_we_lim" long_name="rho_times_entrainment_rate_at_surface_mixed_layer_inversion" unit="kg m-2 s-1" domain_ref="face" axis_ref="entrainment_levels" />
 	<field id="turbulence__ent_we_lim_dsc" name="ent_we_lim_dsc" long_name="rho_times_entrainment_rate_at_decoupled_stratocumulus_inversion" unit="kg m-2 s-1" domain_ref="face" axis_ref="entrainment_levels" />
 	<field id="turbulence__ent_t_frac" name="ent_t_frac" long_name="fraction_of_time_surface_mixed_layer_inversion_is_above_level" unit="1" domain_ref="face" axis_ref="entrainment_levels" />
@@ -916,6 +911,15 @@
 	<field id="processed__pmsl" name="pmsl" long_name="air_pressure_at_mean_sea_level" unit="Pa" domain_ref="face" />
 	<field id="processed__temperature" name="temperature" long_name="air_temperature" standard_name="air_temperature" unit="K" grid_ref="full_level_face_grid"> theta * exner_in_wth </field>
 	<field id="processed__total_prec" name="total_prec" long_name="precipitation_rate" standard_name="precipitation_flux" unit="kg m-2 s-1" domain_ref="face"> microphysics__ls_rain + microphysics__ls_snow + convection__conv_rain + convection__conv_snow </field>
+      </field_group>
+
+      <!-- Integer diagnostic group -->
+      <field_group id="diag_int_fields" freq_op="1ts" operation="instant" enabled=".TRUE." >
+	<field id="turbulence__cumulus" name="cumulus" long_name="cumulus_convection_indicator" unit="1" domain_ref="face" />
+	<field id="turbulence__bl_type_ind" name="bl_type_ind" long_name="boundary_layer_type_indicator" unit="1" domain_ref="face" axis_ref="bl_types"/>
+	<field id="turbulence__ntml" name="ntml" long_name="number_of_turbulent_mixing_levels" unit="1" domain_ref="face" />
+	<field id="turbulence__level_ent" name="level_ent" long_name="level_of_surface_mixed_layer_inversion" unit="1" domain_ref="face" />
+	<field id="turbulence__level_ent_dsc" name="level_ent_dsc" long_name="level_of_decoupled_stratocumulus_inversion" unit="1" domain_ref="face" />
       </field_group>
 
       <!-- Initial conditions group -->

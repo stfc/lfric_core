@@ -8,7 +8,9 @@
 !>
 module lfric_xios_file_mod
 
-  use constants_mod,                 only: i_native, l_def, str_def, str_max_filename
+  use, intrinsic :: iso_fortran_env, only: real64
+  use constants_mod,                 only: i_native, l_def, str_def,        &
+                                           str_max_filename, RMDI, IMDI
   use field_mod,                     only: field_type
   use field_parent_mod,              only: field_parent_type
   use field_collection_mod,          only: field_collection_type
@@ -46,6 +48,7 @@ integer, parameter :: no_freq = 0       ! do not override the frequency
 character(20), parameter :: undef_group = "unset"
 character(20), parameter :: diag_main_file = "lfric_diag"
 character(20), parameter :: diag_field_group = "diagnostic_fields"
+character(20), parameter :: diag_int_field_group = "diag_int_fields"
 
 !> @brief Container for file properties need by XIOS
 !>
@@ -148,12 +151,22 @@ subroutine register_diagnostics_file(xios_id, freq_ts, is_main, always_on_sampli
       call xios_set_file_attr(xios_id, output_freq=freq)
     end if
   end if
-  ! set check_if_active for the diagnostic group, but only once
+  ! configure diagnostic group, but only once
   if (first_time) then
     first_time = .false.
+    if (xios_is_valid_fieldgroup(diag_field_group)) then
+      call xios_set_fieldgroup_attr(diag_field_group, default_value=real(RMDI, real64))
+    end if
+    if (xios_is_valid_fieldgroup(diag_int_field_group)) then
+      call xios_set_fieldgroup_attr(diag_int_field_group, default_value=real(IMDI, real64))
+    end if
     if (.not. always_on_sampling) then
       if (xios_is_valid_fieldgroup(diag_field_group)) then
         call xios_set_fieldgroup_attr(diag_field_group, &
+                                      check_if_active=.true.)
+      end if
+      if (xios_is_valid_fieldgroup(diag_int_field_group)) then
+        call xios_set_fieldgroup_attr(diag_int_field_group, &
                                       check_if_active=.true.)
       end if
     end if
