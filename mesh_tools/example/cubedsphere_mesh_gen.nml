@@ -25,7 +25,7 @@
 !     respectively.
 !===================================================================
 &mesh
-  mesh_filename  = 'cubedsphere_mesh.nc'
+  mesh_file_prefix  = 'cubedsphere_mesh'
   geometry       = 'spherical'
   topology       = 'periodic'
   n_meshes       = 2

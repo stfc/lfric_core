@@ -25,7 +25,7 @@
 !     respectively.
 !===================================================================
 &mesh
-  mesh_filename  = 'planar_mesh.nc'
+  mesh_file_prefix = 'planar_mesh'
   geometry       = 'spherical'
   topology       = 'non_periodic'
   n_meshes       = 2
