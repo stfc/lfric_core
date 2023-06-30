@@ -12,6 +12,7 @@ program runge_kutta
 
   use configuration_mod,     only : read_configuration, final_configuration
   use gungho_model_data_mod, only : model_data_type
+  use gungho_modeldb_mod,    only : modeldb_type
   use halo_comms_mod,        only : initialise_halo_comms, finalise_halo_comms
   use log_mod,               only : log_event,       &
                                     LOG_LEVEL_ERROR, &
@@ -31,7 +32,7 @@ program runge_kutta
   implicit none
 
   ! Model run working data set
-  type(model_data_type) :: model_data
+  type(modeldb_type) :: modeldb
 
   character(*), parameter :: application_name = "runge_kutta"
 
@@ -58,16 +59,18 @@ program runge_kutta
   ! Usage message to print
   character(len=256) :: usage_message
 
+  modeldb%mpi => global_mpi
+
   call create_comm( communicator )
-  call global_mpi%initialise( communicator )
+  call modeldb%mpi%initialise( communicator )
   call initialise_halo_comms( communicator )
 
   call log_event( 'TL testing running ...', LOG_LEVEL_INFO )
 
   ! Create the depository, prognostics and diagnostics field collections
-  call model_data%depository%initialise(name='depository', table_len=100)
-  call model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
-  call model_data%diagnostic_fields%initialise(name="diagnostics", table_len=100)
+  call modeldb%model_data%depository%initialise(name='depository', table_len=100)
+  call modeldb%model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
+  call modeldb%model_data%diagnostic_fields%initialise(name="diagnostics", table_len=100)
 
   ! Parse command line parameters
   call get_command_argument( 0, dummy, length, status )
@@ -129,37 +132,37 @@ program runge_kutta
   call read_configuration( filename )
   deallocate( filename )
 
-  call initialise( application_name, model_data, global_mpi )
+  call initialise( application_name, modeldb )
 
   if (do_test_timesteps) then
-    call run_timesteps(model_data)
+    call run_timesteps(modeldb)
   endif
   if (do_test_kinetic_energy_gradient) then
-    call run_kinetic_energy_gradient(model_data)
+    call run_kinetic_energy_gradient(modeldb)
   endif
   if (do_test_advect_density_field) then
-    call run_advect_density_field(model_data)
+    call run_advect_density_field(modeldb)
   endif
   if (do_test_advect_theta_field) then
-    call run_advect_theta_field(model_data)
+    call run_advect_theta_field(modeldb)
   endif
   if (do_test_vorticity_advection) then
-    call run_vorticity_advection(model_data)
+    call run_vorticity_advection(modeldb)
   endif
   if (do_test_project_eos_pressure) then
-    call run_project_eos_pressure(model_data)
+    call run_project_eos_pressure(modeldb)
   endif
   if (do_test_pressure_gradient_bd) then
-    call run_pressure_gradient_bd(model_data)
+    call run_pressure_gradient_bd(modeldb)
   endif
   if (do_test_hydrostatic) then
-    call run_hydrostatic(model_data)
+    call run_hydrostatic(modeldb)
   endif
   if (do_test_rk_alg) then
-    call run_rk_alg(model_data)
+    call run_rk_alg(modeldb)
   endif
 
-  call finalise( application_name, model_data )
+  call finalise( application_name, modeldb )
   call final_configuration()
   call finalise_halo_comms()
   call destroy_comm()

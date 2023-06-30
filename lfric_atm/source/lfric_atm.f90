@@ -22,34 +22,36 @@ program lfric_atm
   use driver_log_mod,        only : init_logger, final_logger
   use driver_timer_mod,      only : init_timers, final_timers
   use gungho_mod,            only : gungho_required_namelists
+  use gungho_modeldb_mod,    only : modeldb_type
   use gungho_driver_mod,     only : initialise, run, finalise
-  use gungho_model_data_mod, only : model_data_type
   use mpi_mod,               only : global_mpi
 
   implicit none
 
   ! Model run working data set
-  type(model_data_type) :: model_data
+  type(modeldb_type) :: modeldb
 
   character(*), parameter :: application_name = "lfric_atm"
 
   character(:), allocatable :: filename
 
+  modeldb%mpi => global_mpi
+
   call init_comm( application_name )
   call get_initial_filename( filename )
   call init_config( filename, gungho_required_namelists )
   deallocate( filename )
-  call init_logger( global_mpi%get_comm(), application_name )
+  call init_logger( modeldb%mpi%get_comm(), application_name )
   call init_timers( application_name )
 
   ! Create the depository, prognostics and diagnostics field collections
-  call model_data%depository%initialise(name='depository', table_len=100)
-  call model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
-  call model_data%diagnostic_fields%initialise(name="diagnostics", table_len=100)
+  call modeldb%model_data%depository%initialise(name='depository', table_len=100)
+  call modeldb%model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
+  call modeldb%model_data%diagnostic_fields%initialise(name="diagnostics", table_len=100)
 
-  call initialise( application_name, model_data, global_mpi )
-  call run( application_name, model_data )
-  call finalise( application_name, model_data )
+  call initialise( application_name, modeldb )
+  call run( application_name, modeldb )
+  call finalise( application_name, modeldb )
 
   call final_timers( application_name )
   call final_logger( application_name )

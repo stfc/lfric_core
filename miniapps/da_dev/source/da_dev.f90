@@ -23,7 +23,7 @@ program da_dev
   use driver_comm_mod,       only : init_comm, final_comm
   use driver_config_mod,     only : init_config, final_config
   use driver_log_mod,        only : init_logger, final_logger
-  use gungho_model_data_mod, only : model_data_type
+  use gungho_modeldb_mod,    only : modeldb_type
   use driver_time_mod,       only : init_time
   use constants_mod,         only : i_native
   use log_mod,               only : log_event, log_level_trace
@@ -32,12 +32,14 @@ program da_dev
 
   implicit none
 
-  type(model_data_type)               :: model_data
+  type(modeldb_type)                  :: modeldb
   type(model_clock_type), allocatable :: model_clock
 
   character(*), parameter :: program_name = "da_dev"
 
   character(:), allocatable :: filename
+
+  modeldb%mpi => global_mpi
 
   call init_comm( program_name )
   call get_initial_filename( filename )
@@ -46,21 +48,21 @@ program da_dev
   call init_logger( global_mpi%get_comm(), program_name )
 
   ! Create the depository, prognostics and diagnostics field collections
-  call model_data%depository%initialise(name='depository', table_len=100)
-  call model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
-  call model_data%diagnostic_fields%initialise(name="diagnostics", table_len=100)
+  call modeldb%model_data%depository%initialise(name='depository', table_len=100)
+  call modeldb%model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
+  call modeldb%model_data%diagnostic_fields%initialise(name="diagnostics", table_len=100)
 
   call log_event( 'Initialising ' // program_name // ' ...', log_level_trace )
   call init_time( model_clock )
-  call initialise( program_name, model_data, global_mpi, model_clock)
+  call initialise( program_name, modeldb, model_clock)
 
   call log_event( 'Running ' // program_name // ' ...', log_level_trace )
   do while ( model_clock%tick() )
-    call step( model_data, model_clock )
+    call step( modeldb, model_clock )
   end do
 
   call log_event( 'Finalising ' // program_name // ' ...', log_level_trace )
-  call finalise( program_name, model_data, model_clock )
+  call finalise( program_name, modeldb, model_clock )
   deallocate( model_clock )
 
   call final_logger( program_name )

@@ -21,8 +21,8 @@ module gungho_step_mod
   use formulation_config_mod,         only : use_physics,             &
                                              moisture_formulation,    &
                                              moisture_formulation_dry
+  use gungho_modeldb_mod,             only : modeldb_type
   use geometric_constants_mod,        only : get_da_at_w2
-  use gungho_model_data_mod,          only : model_data_type
   use io_config_mod,                  only : write_conservation_diag, &
                                              write_minmax_tseries
   use log_mod,                        only : log_event,         &
@@ -64,19 +64,19 @@ module gungho_step_mod
   !> @brief Steps the gungho app through one timestep
   !> @param[in] mesh      The primary mesh
   !> @param[in] twod_mesh The two-dimensional mesh
-  !> @param[inout] model_data The working data set for the model run
-  !> @param[in] timestep number of current timestep
+  !> @param[inout] modeldb The working data set for the model run
+  !> @param[in] model_clock The model clock object
   subroutine gungho_step( mesh,       &
                           twod_mesh,  &
-                          model_data, &
+                          modeldb, &
                           model_clock )
 
     implicit none
 
     type(mesh_type), intent(in), pointer    :: mesh
     type(mesh_type), intent(in), pointer    :: twod_mesh
-    type( model_data_type ), target, intent(inout) :: model_data
-    class(model_clock_type),         intent(in)    :: model_clock
+    type(modeldb_type), intent(inout),target:: modeldb
+    class(model_clock_type), intent(in)     :: model_clock
 
     type( field_collection_type ), pointer :: prognostic_fields => null()
     type( field_collection_type ), pointer :: diagnostic_fields => null()
@@ -121,27 +121,27 @@ module gungho_step_mod
     use_moisture = ( moisture_formulation /= moisture_formulation_dry )
 
     ! Get pointers to field collections for use downstream
-    prognostic_fields => model_data%prognostic_fields
-    diagnostic_fields => model_data%diagnostic_fields
-    mr => model_data%mr
-    moist_dyn => model_data%moist_dyn
-    adv_fields_all_outer => model_data%adv_fields_all_outer
-    adv_fields_last_outer => model_data%adv_fields_last_outer
-    derived_fields => model_data%derived_fields
-    radiation_fields => model_data%radiation_fields
-    microphysics_fields => model_data%microphysics_fields
-    electric_fields => model_data%electric_fields
-    orography_fields => model_data%orography_fields
-    turbulence_fields => model_data%turbulence_fields
-    convection_fields => model_data%convection_fields
-    cloud_fields => model_data%cloud_fields
-    surface_fields => model_data%surface_fields
-    soil_fields => model_data%soil_fields
-    snow_fields => model_data%snow_fields
-    chemistry_fields => model_data%chemistry_fields
-    aerosol_fields => model_data%aerosol_fields
-    stph_fields => model_data%stph_fields
-    lbc_fields => model_data%lbc_fields
+    prognostic_fields => modeldb%model_data%prognostic_fields
+    diagnostic_fields => modeldb%model_data%diagnostic_fields
+    mr => modeldb%model_data%mr
+    moist_dyn => modeldb%model_data%moist_dyn
+    adv_fields_all_outer => modeldb%model_data%adv_fields_all_outer
+    adv_fields_last_outer => modeldb%model_data%adv_fields_last_outer
+    derived_fields => modeldb%model_data%derived_fields
+    radiation_fields => modeldb%model_data%radiation_fields
+    microphysics_fields => modeldb%model_data%microphysics_fields
+    electric_fields => modeldb%model_data%electric_fields
+    orography_fields => modeldb%model_data%orography_fields
+    turbulence_fields => modeldb%model_data%turbulence_fields
+    convection_fields => modeldb%model_data%convection_fields
+    cloud_fields => modeldb%model_data%cloud_fields
+    surface_fields => modeldb%model_data%surface_fields
+    soil_fields => modeldb%model_data%soil_fields
+    snow_fields => modeldb%model_data%snow_fields
+    chemistry_fields => modeldb%model_data%chemistry_fields
+    aerosol_fields => modeldb%model_data%aerosol_fields
+    stph_fields => modeldb%model_data%stph_fields
+    lbc_fields => modeldb%model_data%lbc_fields
 
     ! Get pointers to fields in the prognostic/diagnostic field collections
     ! for use downstream
@@ -154,7 +154,7 @@ module gungho_step_mod
     dt = real(model_clock%get_seconds_per_step(), r_def)
 
     ! Get temperature increment for energy correction
-    dtemp_encorr = dt * model_data%temperature_correction_rate
+    dtemp_encorr = dt * modeldb%model_data%temperature_correction_rate
 
     select case( method )
       case( method_semi_implicit )  ! Semi-Implicit
@@ -185,7 +185,8 @@ module gungho_step_mod
       call derived_fields%get_field('accumulated_fluxes', accumulated_fluxes)
       ! temperature_correction_rate is stored in this field so that it
       ! maybe written to checkpoint file
-      call derived_fields%get_field('temp_correction_field', temp_correction_field)
+      call derived_fields%get_field('temp_correction_field', &
+                                    temp_correction_field)
       call sum_fluxes_alg( accumulated_fluxes, &
                            radiation_fields,   &
                            turbulence_fields,  &
@@ -194,29 +195,32 @@ module gungho_step_mod
       if ( mod( nint( dt * model_clock%get_step() ), &
                 3600_i_def * reset_hours ) == 0 ) then
 
-        call compute_total_mass_alg( model_data%total_dry_mass, rho, mesh )
-        call compute_total_energy_alg( model_data%total_energy,   &
-                                       model_data%derived_fields, &
-                                       u, theta, exner, rho, mr,  &
+        call compute_total_mass_alg( modeldb%model_data%total_dry_mass, &
+                                     rho, mesh )
+        call compute_total_energy_alg( modeldb%model_data%total_energy,   &
+                                       modeldb%model_data%derived_fields, &
+                                       u, theta, exner, rho, mr,          &
                                        mesh, twod_mesh )
 
         call update_energy_correction_alg(                                     &
-                                       model_data%temperature_correction_rate, &
-                                       accumulated_fluxes,                     &
-                                       model_data%total_dry_mass, dt,          &
-                                       mesh, twod_mesh,                        &
-                                       model_data%total_energy,                &
-                                       model_data%total_energy_previous )
+                               modeldb%model_data%temperature_correction_rate, &
+                               accumulated_fluxes,                             &
+                               modeldb%model_data%total_dry_mass, dt,          &
+                               mesh, twod_mesh,                                &
+                               modeldb%model_data%total_energy,                &
+                               modeldb%model_data%total_energy_previous )
 
-        call scalar_to_field_alg(model_data%temperature_correction_rate, &
-                                 temp_correction_field)
+        call scalar_to_field_alg(                                              &
+                               modeldb%model_data%temperature_correction_rate, &
+                               temp_correction_field)
       end if
 
     end if
 
     if ( write_conservation_diag ) then
 
-      write(log_scratch_space, '(''fd total_mass = '', E32.24)') model_data%total_dry_mass
+      write(log_scratch_space, '(''fd total_mass = '', E32.24)') &
+                                    modeldb%model_data%total_dry_mass
       call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
 
       call conservation_algorithm( rho,              &

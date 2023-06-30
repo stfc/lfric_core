@@ -21,10 +21,10 @@ module tl_test_timesteps_alg_mod
                                             moisture_formulation_dry
   use fs_continuity_mod,              only: W2, W3, Wtheta
   use function_space_collection_mod,  only: function_space_collection
-  use gungho_model_data_mod,          only: model_data_type
   use gungho_step_mod,                only: gungho_step
   use gungho_model_mod,               only: initialise_model, &
                                             finalise_model
+  use gungho_modeldb_mod,             only: modeldb_type
   use log_mod,                        only: log_event,         &
                                             log_scratch_space, &
                                             LOG_LEVEL_INFO,    &
@@ -57,21 +57,21 @@ module tl_test_timesteps_alg_mod
   contains
 
   !> @brief Test the tangent linear runge-kutta algorithm.
-  !> @param[in] model_data    The working data set for a model run
+  !> @param[in] modeldb       The working data set for a model run
   !> @param[in] mesh          The current 3d mesh
   !> @param[in] twod_mesh     The current 2d mesh
   !> @param[in] model_clock   Time within the model.
   !>
-  subroutine test_timesteps( model_data, &
+  subroutine test_timesteps( modeldb, &
                              mesh,       &
                              twod_mesh,  &
                              model_clock )
 
     implicit none
 
+    type(modeldb_type), target,    intent(inout) :: modeldb
     type(mesh_type), pointer,      intent(in)    :: mesh
     type(mesh_type), pointer,      intent(in)    :: twod_mesh
-    type(model_data_type), target, intent(inout) :: model_data
     class(model_clock_type),       intent(in)    :: model_clock
 
     character(str_def) :: label = "timesteps"
@@ -131,12 +131,12 @@ module tl_test_timesteps_alg_mod
              log_level_error )
     end if
 
-    prognostic_fields => model_data%prognostic_fields
-    ls_fields         => model_data%ls_fields
-    moist_dyn         => model_data%moist_dyn
-    mr                => model_data%mr
-    ls_moist_dyn      => model_data%ls_moist_dyn
-    ls_mr             => model_data%ls_mr
+    prognostic_fields => modeldb%model_data%prognostic_fields
+    ls_fields         => modeldb%model_data%ls_fields
+    moist_dyn         => modeldb%model_data%moist_dyn
+    mr                => modeldb%model_data%mr
+    ls_moist_dyn      => modeldb%model_data%ls_moist_dyn
+    ls_mr             => modeldb%model_data%ls_mr
 
     ! Input
     call ls_fields%get_field('ls_u', ls_u)
@@ -279,11 +279,11 @@ module tl_test_timesteps_alg_mod
         call  moist_dyn_factors_alg( moist_dyn, mr )
 
         call initialise_model( mesh,  &
-                               model_data )
+                               modeldb%model_data )
 
         call gungho_step( mesh,       &
                           twod_mesh,  &
-                          model_data, &
+                          modeldb,    &
                           model_clock )
 
         if ( method == method_rk ) call rk_alg_final()
@@ -325,11 +325,11 @@ module tl_test_timesteps_alg_mod
         endif
 
         call initialise_linear_model( mesh,  &
-                                      model_data )
+                                      modeldb%model_data )
 
         call linear_step( mesh,       &
                           twod_mesh,  &
-                          model_data, &
+                          modeldb,    &
                           model_clock )
 
         call finalise_linear_model()
@@ -359,11 +359,11 @@ module tl_test_timesteps_alg_mod
 
 
         call initialise_model( mesh,  &
-                               model_data )
+                               modeldb%model_data )
 
         call gungho_step( mesh,       &
                           twod_mesh,  &
-                          model_data, &
+                          modeldb,    &
                           model_clock )
 
         if ( method == method_rk ) call rk_alg_final()

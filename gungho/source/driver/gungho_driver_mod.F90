@@ -16,12 +16,12 @@ module gungho_driver_mod
   use extrusion_mod,              only : TWOD
   use gungho_diagnostics_driver_mod, &
                                   only : gungho_diagnostics_driver
+  use gungho_modeldb_mod,         only : modeldb_type
   use gungho_model_mod,           only : initialise_infrastructure, &
                                          initialise_model, &
                                          finalise_infrastructure, &
                                          finalise_model
-  use gungho_model_data_mod,      only : model_data_type, &
-                                         create_model_data, &
+  use gungho_model_data_mod,      only : create_model_data, &
                                          initialise_model_data, &
                                          output_model_data, &
                                          finalise_model_data
@@ -71,22 +71,16 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Sets up required state in preparation for run.
   !> @param [in]     program_name An identifier given to the model being run
-  !> @param [in,out] model_data   The structure that holds model state
-  !> @param [in,out] mpi          The structure that holds comms details
-  subroutine initialise( program_name, model_data, mpi )
+  !> @param [in,out] modeldb      The structure that holds model state
+  subroutine initialise( program_name, modeldb )
 
     use io_context_mod,         only : io_context_type
     use lfric_xios_context_mod, only : lfric_xios_context_type
 
     implicit none
 
-    character(*), intent(in)             :: program_name
-    type(model_data_type), intent(inout) :: model_data
-
-    !> @todo There seems to be an Intel 19 bug which requires this to be
-    !>       intent(inout)
-
-    class(mpi_type), intent(inout)       :: mpi
+    character(*), intent(in)          :: program_name
+    type(modeldb_type), intent(inout) :: modeldb
 
     class(io_context_type), pointer :: io_context => null()
     type(mesh_type),        pointer :: mesh              => null()
@@ -95,7 +89,10 @@ contains
     type(mesh_type),        pointer :: aerosol_twod_mesh => null()
 
     ! Initialise infrastructure and setup constants
-    call initialise_infrastructure( program_name, model_data, model_clock, mpi )
+    call initialise_infrastructure( program_name,       &
+                                    modeldb%model_data, &
+                                    model_clock,        &
+                                    modeldb%mpi )
 
     ! Get primary and 2D meshes for initialising model data
     mesh => mesh_collection%get_mesh(prime_mesh_name)
@@ -114,18 +111,18 @@ contains
     end if
 
     ! Instantiate the fields stored in model_data
-    call create_model_data( model_data, mesh, twod_mesh, aerosol_mesh, aerosol_twod_mesh, model_clock )
+    call create_model_data( modeldb%model_data, mesh, twod_mesh, aerosol_mesh, aerosol_twod_mesh, model_clock )
 
     ! Initialise the fields stored in the model_data
-    call initialise_model_data( model_data, model_clock, mesh, twod_mesh )
+    call initialise_model_data( modeldb%model_data, model_clock, mesh, twod_mesh )
 
     ! Initial output
     io_context => get_io_context()
-    call write_initial_output( mesh, twod_mesh, model_data, model_clock, &
+    call write_initial_output( mesh, twod_mesh, modeldb%model_data, model_clock, &
                                io_context, nodal_output_on_w3 )
 
     ! Model configuration initialisation
-    call initialise_model( mesh, model_data )
+    call initialise_model( mesh, modeldb%model_data )
 
 #ifdef COUPLED
     ! Placeholder for ESM coupling initialisation code.
@@ -143,14 +140,15 @@ contains
   !> @brief Timesteps the model, calling the desired timestepping algorithm
   !>        based upon the configuration.
   !> @param [in]     program_name An identifier given to the model begin run
-  !> @param [in,out] model_data   The structure that holds model state
+  !> @param [in,out] modeldb   The structure that holds model state
   !>
-  subroutine run( program_name, model_data )
+  subroutine run( program_name, modeldb )
 
     implicit none
 
-    character(*), intent(in)             :: program_name
-    type(model_data_type), intent(inout) :: model_data
+    character(*), intent(in)          :: program_name
+    type(modeldb_type), intent(inout) :: modeldb
+
     type(mesh_type), pointer :: mesh      => null()
     type(mesh_type), pointer :: twod_mesh => null()
 
@@ -178,13 +176,13 @@ contains
                '(A, I0)') 'Coupling timestep: ', model_clock%get_step() - 1
          call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
-         call save_sea_ice_frac_previous(model_data%depository)
+         call save_sea_ice_frac_previous(modeldb%model_data%depository)
 
          ! Receive all incoming (ocean/seaice fields) from the coupler
-         call cpl_rcv(model_data%cpl_rcv, model_data%depository, model_clock)
+         call cpl_rcv(modeldb%model_data%cpl_rcv, modeldb%model_data%depository, model_clock)
 
          ! Send all outgoing (ocean/seaice driving fields) to the coupler
-         call cpl_snd(model_data%cpl_snd, model_data%depository, model_clock)
+         call cpl_snd(modeldb%model_data%cpl_snd, modeldb%model_data%depository, model_clock)
 
       endif
 #endif
@@ -192,13 +190,12 @@ contains
       if ( lbc_option == lbc_option_gungho_file .or. &
            lbc_option == lbc_option_um2lfric_file) then
 
-        call update_lbcs_file_alg( model_data%lbc_times_list, &
-                                   model_clock, model_data%lbc_fields )
+        call update_lbcs_file_alg( modeldb%model_data%lbc_times_list, &
+                                   model_clock, modeldb%model_data%lbc_fields )
       endif
 
       ! Perform a timestep
-      call gungho_step( mesh, twod_mesh, model_data, &
-                        model_clock )
+      call gungho_step( mesh, twod_mesh, modeldb, model_clock )
 
       ! Use diagnostic output frequency to determine whether to write
       ! diagnostics on this timestep
@@ -209,7 +206,7 @@ contains
         ! Calculation and output diagnostics
         call gungho_diagnostics_driver( mesh,        &
                                         twod_mesh,   &
-                                        model_data,  &
+                                        modeldb%model_data,  &
                                         model_clock, &
                                         nodal_output_on_w3 )
       end if
@@ -221,11 +218,11 @@ contains
       ! first thing that happens in a timestep is that the clock ticks to the
       ! end of timestep date.
       if ( ancil_option == ancil_option_updating ) then
-        call update_variable_fields( model_data%ancil_times_list, &
-                                     model_clock, model_data%ancil_fields )
-        call update_ancils_alg( model_data%ancil_times_list, &
-                                model_clock, model_data%ancil_fields, &
-                                model_data%surface_fields)
+        call update_variable_fields( modeldb%model_data%ancil_times_list, &
+                                     model_clock, modeldb%model_data%ancil_fields )
+        call update_ancils_alg( modeldb%model_data%ancil_times_list, &
+                                model_clock, modeldb%model_data%ancil_fields, &
+                                modeldb%model_data%surface_fields)
       end if
 
       ! Update the time varying trace gases
@@ -239,7 +236,7 @@ contains
        ! Ensure coupling fields are updated at the end of a cycle to ensure the values
        ! stored in and recovered from checkpoint dumps are correct and reproducible
        ! when (re)starting subsequent runs!
-       call cpl_fld_update(model_data%cpl_snd, model_data%depository, &
+       call cpl_fld_update(modeldb%model_data%cpl_snd, modeldb%model_data%depository, &
                            model_clock)
     endif
 #endif
@@ -251,26 +248,26 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Tidies up after a run.
   !> @param [in]     program_name An identifier given to the model begin run
-  !> @param [in,out] model_data   The structure that holds model state
+  !> @param [in,out] modeldb      The structure that holds model state
   !>
-  subroutine finalise( program_name, model_data )
+  subroutine finalise( program_name, modeldb )
 
     implicit none
 
-    character(*), intent(in)             :: program_name
-    type(model_data_type), intent(inout) :: model_data
+    character(*), intent(in)          :: program_name
+    type(modeldb_type), intent(inout) :: modeldb
 
     call log_event( 'Finalising '//program_name//' ...', LOG_LEVEL_ALWAYS )
 
     ! Output the fields stored in the model_data (checkpoint and dump)
-    call output_model_data( model_data, model_clock )
+    call output_model_data( modeldb%model_data, model_clock )
 
     ! Model configuration finalisation
-    call finalise_model( model_data, &
+    call finalise_model( modeldb%model_data, &
                          program_name )
 
     ! Destroy the fields stored in model_data
-    call finalise_model_data( model_data )
+    call finalise_model_data( modeldb%model_data )
 
     ! Finalise infrastructure and constants
     call finalise_infrastructure( program_name )

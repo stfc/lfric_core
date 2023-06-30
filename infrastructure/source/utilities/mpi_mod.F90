@@ -83,7 +83,7 @@ module mpi_mod
   !Global MPI object
   !> @todo This needs to be moved out of global scope and into the modeldb
   !>       object, when that object exists
-  type(mpi_type) :: global_mpi
+  type(mpi_type), target :: global_mpi
 
 contains
 

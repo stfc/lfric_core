@@ -18,7 +18,7 @@ module linear_step_mod
                                              moisture_formulation_dry, &
                                              use_physics
   use geometric_constants_mod,        only : get_da_at_w2
-  use gungho_model_data_mod,          only : model_data_type
+  use gungho_modeldb_mod,             only : modeldb_type
   use io_config_mod,                  only : write_conservation_diag, &
                                              write_minmax_tseries
   use log_mod,                        only : log_event, &
@@ -49,18 +49,18 @@ module linear_step_mod
   !> @brief Steps the linear app through one timestep
   !> @param[in] mesh      The identifier of the primary mesh
   !> @param[in] twod_mesh The identifier of the two-dimensional mesh
-  !> @param[inout] model_data The working data set for the model run
+  !> @param[inout] modeldbThe working data set for the model run
   !> @param[in] clock The model time
   subroutine linear_step( mesh,       &
                           twod_mesh,  &
-                          model_data, &
+                          modeldb,    &
                           model_clock )
 
     implicit none
 
     type( mesh_type ), pointer,      intent(in)    :: mesh
     type( mesh_type ), pointer,      intent(in)    :: twod_mesh
-    type( model_data_type ), target, intent(inout) :: model_data
+    type( modeldb_type ), target, intent(inout)    :: modeldb
     class(model_clock_type),         intent(in)    :: model_clock
 
     type( field_collection_type ), pointer :: prognostic_fields => null()
@@ -89,15 +89,15 @@ module linear_step_mod
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
     ! Get pointers to field collections for use downstream
-    prognostic_fields => model_data%prognostic_fields
-    diagnostic_fields => model_data%diagnostic_fields
-    mr => model_data%mr
-    moist_dyn => model_data%moist_dyn
-    derived_fields => model_data%derived_fields
+    prognostic_fields => modeldb%model_data%prognostic_fields
+    diagnostic_fields => modeldb%model_data%diagnostic_fields
+    mr => modeldb%model_data%mr
+    moist_dyn => modeldb%model_data%moist_dyn
+    derived_fields => modeldb%model_data%derived_fields
 
-    ls_fields => model_data%ls_fields
-    ls_mr => model_data%ls_mr
-    ls_moist_dyn => model_data%ls_moist_dyn
+    ls_fields => modeldb%model_data%ls_fields
+    ls_mr => modeldb%model_data%ls_mr
+    ls_moist_dyn => modeldb%model_data%ls_moist_dyn
 
     ! Get pointers to fields in the prognostic/diagnostic field collections
     ! for use downstream

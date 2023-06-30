@@ -11,7 +11,7 @@
 program semi_implicit
 
   use configuration_mod,     only : read_configuration, final_configuration
-  use gungho_model_data_mod, only : model_data_type
+  use gungho_modeldb_mod,    only : modeldb_type
   use halo_comms_mod,        only : initialise_halo_comms, finalise_halo_comms
   use log_mod,               only : log_event,       &
                                     LOG_LEVEL_ERROR, &
@@ -30,7 +30,7 @@ program semi_implicit
   implicit none
 
   ! Model run working data set
-  type(model_data_type) :: model_data
+  type(modeldb_type) :: modeldb
 
   character(*), parameter :: application_name = 'semi_implicit'
 
@@ -54,16 +54,18 @@ program semi_implicit
   ! Usage message to print
   character(len=256) :: usage_message
 
+  modeldb%mpi => global_mpi
+
   call create_comm( communicator )
-  call global_mpi%initialise( communicator )
+  call modeldb%mpi%initialise( communicator )
   call initialise_halo_comms( communicator )
 
   call log_event( 'TL testing running ...', LOG_LEVEL_INFO )
 
   ! Create the depository, prognostics and diagnostics field collections
-  call model_data%depository%initialise(name='depository', table_len=100)
-  call model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
-  call model_data%diagnostic_fields%initialise(name="diagnostics", table_len=100)
+  call modeldb%model_data%depository%initialise(name='depository', table_len=100)
+  call modeldb%model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
+  call modeldb%model_data%diagnostic_fields%initialise(name="diagnostics", table_len=100)
 
   ! Parse command line parameters
   call get_command_argument( 0, dummy, length, status )
@@ -116,28 +118,28 @@ program semi_implicit
   call read_configuration( filename )
   deallocate( filename )
 
-  call initialise( application_name, model_data, global_mpi )
+  call initialise( application_name, modeldb )
 
   if (do_test_timesteps) then
-    call run_timesteps(model_data)
+    call run_timesteps(modeldb)
   endif
   if (do_test_transport_control) then
-    call run_transport_control(model_data)
+    call run_transport_control(modeldb)
   endif
   if (do_test_rhs_alg) then
-    call run_rhs_alg(model_data)
+    call run_rhs_alg(modeldb)
   endif
   if (do_test_rhs_project_eos) then
-    call run_rhs_project_eos(model_data)
+    call run_rhs_project_eos(modeldb)
   endif
   if (do_test_rhs_sample_eos) then
-    call run_rhs_sample_eos(model_data)
+    call run_rhs_sample_eos(modeldb)
   endif
   if (do_test_semi_imp_alg) then
-    call run_semi_imp_alg(model_data)
+    call run_semi_imp_alg(modeldb)
   endif
 
-  call finalise( application_name, model_data )
+  call finalise( application_name, modeldb )
   call final_configuration()
   call finalise_halo_comms()
   call destroy_comm()

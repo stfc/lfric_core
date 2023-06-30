@@ -17,7 +17,7 @@ program multires_coupling
   use driver_config_mod,            only : init_config, final_config
   use driver_log_mod,               only : init_logger, final_logger
   use driver_timer_mod,             only : init_timers, final_timers
-  use gungho_model_data_mod,        only : model_data_type
+  use gungho_modeldb_mod,           only : modeldb_type
   use log_mod,                      only : log_event, log_level_trace
   use mpi_mod,                      only : global_mpi
   use multires_coupling_mod,        only : multires_required_namelists
@@ -28,37 +28,39 @@ program multires_coupling
   character(*), parameter :: program_name = "multires_coupling"
 
   ! Model run working data set
-  type (model_data_type) :: dynamics_mesh_model_data
-  type (model_data_type) :: physics_mesh_model_data
+  type (modeldb_type) :: dynamics_mesh_modeldb
+  type (modeldb_type) :: physics_mesh_modeldb
 
   character(:), allocatable :: filename
+
+  dynamics_mesh_modeldb%mpi => global_mpi
+  physics_mesh_modeldb%mpi => global_mpi
 
   call init_comm( program_name )
   call get_initial_filename( filename )
   call init_config( filename, multires_required_namelists )
   deallocate( filename )
-  call init_logger( global_mpi%get_comm(), program_name )
+  call init_logger( dynamics_mesh_modeldb%mpi%get_comm(), program_name )
   call init_timers( program_name )
 
   ! Create the dynamics depository, prognostics and diagnostics field collections
-  call dynamics_mesh_model_data%depository%initialise(name='depository', table_len=100)
-  call dynamics_mesh_model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
-  call dynamics_mesh_model_data%diagnostic_fields%initialise(name="diagnostics", table_len=100)
+  call dynamics_mesh_modeldb%model_data%depository%initialise(name='depository', table_len=100)
+  call dynamics_mesh_modeldb%model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
+  call dynamics_mesh_modeldb%model_data%diagnostic_fields%initialise(name="diagnostics", table_len=100)
 
   ! Create the physics depository, prognostics and diagnostics field collections
-  call physics_mesh_model_data%depository%initialise(name='depository', table_len=100)
-  call physics_mesh_model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
-  call physics_mesh_model_data%diagnostic_fields%initialise(name="diagnostics", table_len=100)
+  call physics_mesh_modeldb%model_data%depository%initialise(name='depository', table_len=100)
+  call physics_mesh_modeldb%model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
+  call physics_mesh_modeldb%model_data%diagnostic_fields%initialise(name="diagnostics", table_len=100)
 
   call log_event( 'Initialising' // program_name // ' ...', log_level_trace )
-  call initialise( dynamics_mesh_model_data, &
-                   physics_mesh_model_data,  &
-                   global_mpi,               &
+  call initialise( dynamics_mesh_modeldb, &
+                   physics_mesh_modeldb,  &
                    program_name )
-  call run( dynamics_mesh_model_data, physics_mesh_model_data )
+  call run( dynamics_mesh_modeldb, physics_mesh_modeldb )
   call log_event( 'Finalising ' // program_name // ' ...', log_level_trace )
-  call finalise( dynamics_mesh_model_data, &
-                 physics_mesh_model_data,  &
+  call finalise( dynamics_mesh_modeldb, &
+                 physics_mesh_modeldb,  &
                  program_name )
 
   call final_timers( program_name )

@@ -17,11 +17,11 @@ module linear_driver_mod
                                          initialise_model, &
                                          finalise_infrastructure, &
                                          finalise_model
-  use gungho_model_data_mod,      only : model_data_type, &
-                                         create_model_data, &
+  use gungho_model_data_mod,      only : create_model_data, &
                                          initialise_model_data, &
                                          output_model_data, &
                                          finalise_model_data
+  use gungho_modeldb_mod,         only : modeldb_type
   use gungho_step_mod,            only : gungho_step
   use init_fd_prognostics_mod,    only : init_fd_prognostics_dump
   use initial_output_mod,         only : write_initial_output
@@ -50,7 +50,6 @@ module linear_driver_mod
   use mesh_mod,                   only : mesh_type
   use mesh_collection_mod,        only : mesh_collection
   use model_clock_mod,            only : model_clock_type
-  use mpi_mod,                    only : mpi_type
   use multires_coupling_config_mod, &
                                   only : aerosol_mesh_name
   use create_tl_prognostics_mod,  only : create_tl_prognostics
@@ -70,15 +69,13 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Sets up required state in preparation for run.
   !> @param [in]     program_name An identifier given to the model being run
-  !> @param [in,out] model_data   The structure that holds model state
-  !> @param [in,out] mpi          The structure that holds comms details
-  subroutine initialise( program_name, model_data, mpi )
+  !> @param [in,out] modeldb      The structure that holds model state
+  subroutine initialise( program_name, modeldb )
 
     implicit none
 
     character(*),          intent(in)    :: program_name
-    type(model_data_type), intent(inout) :: model_data
-    class(mpi_type),       intent(inout) :: mpi
+    type(modeldb_type), intent(inout)    :: modeldb
 
     class(io_context_type), pointer :: io_context        => null()
     type( mesh_type ),      pointer :: aerosol_mesh      => null()
@@ -86,7 +83,10 @@ contains
 
 
     ! Initialise infrastructure and setup constants
-    call initialise_infrastructure( program_name, model_data, model_clock, mpi )
+    call initialise_infrastructure( program_name, &
+                                    modeldb%model_data, &
+                                    model_clock, &
+                                    modeldb%mpi )
 
     ! Get primary and 2D meshes for initialising model data
     mesh => mesh_collection%get_mesh(prime_mesh_name)
@@ -105,56 +105,56 @@ contains
     end if
 
     ! Instantiate the fields stored in model_data
-    call create_model_data( model_data,        &
-                            mesh,              &
-                            twod_mesh,         &
-                            aerosol_mesh,      &
-                            aerosol_twod_mesh, &
+    call create_model_data( modeldb%model_data, &
+                            mesh,               &
+                            twod_mesh,          &
+                            aerosol_mesh,       &
+                            aerosol_twod_mesh , &
                             model_clock )
 
     ! Instantiate the fields required to read the initial
     ! conditions from a file.
     if ( init_option == init_option_fd_start_dump ) then
-      call create_tl_prognostics( mesh, twod_mesh,       &
-                                  model_data%fd_fields,  &
-                                  model_data%depository)
+      call create_tl_prognostics( mesh, twod_mesh,              &
+                                  modeldb%model_data%fd_fields, &
+                                  modeldb%model_data%depository)
     end if
 
     ! Instantiate the linearisation state
-    call linear_create_ls( model_data, &
-                           mesh,       &
+    call linear_create_ls( modeldb%model_data, &
+                           mesh,               &
                            twod_mesh )
 
     ! Initialise the fields stored in the model_data
     if ( init_option == init_option_fd_start_dump ) then
-      call init_fd_prognostics_dump( model_data%fd_fields )
+      call init_fd_prognostics_dump( modeldb%model_data%fd_fields )
     else
-      call initialise_model_data( model_data, model_clock, mesh, twod_mesh )
+      call initialise_model_data( modeldb%model_data, model_clock, mesh, twod_mesh )
     end if
 
     ! Model configuration initialisation
-    call initialise_model( mesh,  &
-                           model_data )
+    call initialise_model( mesh, &
+                           modeldb%model_data )
 
     ! Initialise the linearisation state
-    call linear_init_ls( mesh,       &
-                         twod_mesh,  &
-                         model_data, &
+    call linear_init_ls( mesh,      &
+                         twod_mesh, &
+                         modeldb,   &
                          model_clock )
 
     ! Initialise the linear model perturbation state
     call linear_init_pert( mesh,      &
                            twod_mesh, &
-                           model_data )
+                           modeldb%model_data )
 
     ! Initial output
     io_context => get_io_context()
-    call write_initial_output( mesh, twod_mesh, model_data, model_clock, &
+    call write_initial_output( mesh, twod_mesh, modeldb%model_data, model_clock, &
                                io_context, nodal_output_on_w3 )
 
     ! Linear model configuration initialisation
     call initialise_linear_model( mesh,        &
-                                  model_data )
+                                  modeldb%model_data )
 
   end subroutine initialise
 
@@ -163,12 +163,12 @@ contains
   !         based upon the configuration
   !> @param [in]     program_name An identifier given to the model being run
   !> @param [in,out] model_data   The structure that holds model state
-  subroutine run( program_name, model_data )
+  subroutine run( program_name, modeldb )
 
     implicit none
 
-    character(*), intent(in)             :: program_name
-    type(model_data_type), intent(inout) :: model_data
+    character(*), intent(in)          :: program_name
+    type(modeldb_type), intent(inout) :: modeldb
 
     write( log_scratch_space,'(A)' ) 'Running '//program_name//' ...'
     call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
@@ -176,31 +176,31 @@ contains
     do while ( model_clock%tick() )
 
       if ( ls_option == ls_option_file ) then
-        call update_ls_file_alg( model_data%ls_times_list, &
-                                 model_clock,              &
-                                 model_data%ls_fields,     &
-                                 model_data%ls_mr,         &
-                                 model_data%ls_moist_dyn )
+        call update_ls_file_alg( modeldb%model_data%ls_times_list, &
+                                 model_clock,                      &
+                                 modeldb%model_data%ls_fields,     &
+                                 modeldb%model_data%ls_mr,         &
+                                 modeldb%model_data%ls_moist_dyn )
       end if
 
       call linear_step( mesh,       &
                         twod_mesh,  &
-                        model_data, &
+                        modeldb,    &
                         model_clock )
 
       if ( ( mod(model_clock%get_step(), diagnostic_frequency) == 0 ) &
            .and. ( write_diag ) ) then
 
         ! Calculation and output diagnostics
-        call gungho_diagnostics_driver( mesh,        &
-                                        twod_mesh,   &
-                                        model_data,  &
-                                        model_clock, &
+        call gungho_diagnostics_driver( mesh,               &
+                                        twod_mesh,          &
+                                        modeldb%model_data, &
+                                        model_clock,        &
                                         nodal_output_on_w3 )
 
-        call linear_diagnostics_driver( mesh,        &
-                                        model_data,  &
-                                        model_clock, &
+        call linear_diagnostics_driver( mesh,               &
+                                        modeldb%model_data, &
+                                        model_clock,        &
                                         nodal_output_on_w3 )
       end if
 
@@ -211,27 +211,27 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Tidies up after a run.
   !> @param [in]     program_name An identifier given to the model being run
-  !> @param [in,out] model_data   The structure that holds model state
-  subroutine finalise( program_name, model_data )
+  !> @param [in,out] modeldb   The structure that holds model state
+  subroutine finalise( program_name, modeldb )
 
     implicit none
 
-    character(*), intent(in)             :: program_name
-    type(model_data_type), intent(inout) :: model_data
+    character(*), intent(in)          :: program_name
+    type(modeldb_type), intent(inout) :: modeldb
 
     call log_event( 'Finalising '//program_name//' ...', LOG_LEVEL_ALWAYS )
 
     ! Output the fields stored in the model_data (checkpoint and dump)
-    call output_model_data( model_data, model_clock )
+    call output_model_data( modeldb%model_data, model_clock )
 
     ! Model configuration finalisation
-    call finalise_model( model_data, &
+    call finalise_model( modeldb%model_data, &
                          program_name )
 
     call finalise_linear_model( )
 
     ! Destroy the fields stored in model_data
-    call finalise_model_data( model_data )
+    call finalise_model_data( modeldb%model_data )
 
     ! Finalise infrastructure and constants
     call finalise_infrastructure( program_name )

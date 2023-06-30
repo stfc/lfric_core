@@ -18,6 +18,7 @@ module multires_coupling_driver_mod
            multires_coupling_mode,  &
            multires_coupling_mode_test
   use variable_fields_mod,                      only : update_variable_fields
+  use gungho_modeldb_mod,                       only : modeldb_type
   use gungho_step_mod,                          only : gungho_step
   use constants_mod,                            only : i_def, i_native, &
                                                        str_def, imdi
@@ -39,8 +40,7 @@ module multires_coupling_driver_mod
                                                        finalise_model,            &
                                                        initialise_infrastructure, &
                                                        finalise_infrastructure
-  use gungho_model_data_mod,                    only : model_data_type,       &
-                                                       create_model_data,     &
+  use gungho_model_data_mod,                    only : create_model_data,     &
                                                        finalise_model_data,   &
                                                        initialise_model_data
   use multires_coupling_diagnostics_driver_mod, only : multires_coupling_diagnostics_driver
@@ -73,21 +73,18 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Sets up required state in preparation for run.
   !>
-  !> @param [in,out] dynamics_mesh_model_data The structure that holds model
-  !>                                          state for the dynamics mesh
-  !> @param [in,out] physics_mesh_model_data  The structure that holds model
-  !>                                          state for the physics mesh
-  !> @param [in,out] mpi        The structure that holds comms details
-  subroutine initialise( dynamics_mesh_model_data, &
-                         physics_mesh_model_data,  &
-                         mpi,                      &
+  !> @param [in,out] dynamics_mesh_modeldb The structure that holds model
+  !>                                       state for the dynamics mesh
+  !> @param [in,out] physics_mesh_modeldb  The structure that holds model
+  !>                                       state for the physics mesh
+  subroutine initialise( dynamics_mesh_modeldb, &
+                         physics_mesh_modeldb,  &
                          program_name )
 
     implicit none
 
-    type(model_data_type), intent(inout) :: dynamics_mesh_model_data
-    type(model_data_type), intent(inout) :: physics_mesh_model_data
-    class(mpi_type),       intent(inout) :: mpi
+    type(modeldb_type), intent(inout) :: dynamics_mesh_modeldb
+    type(modeldb_type), intent(inout) :: physics_mesh_modeldb
     character(*),    intent(in)    :: program_name
 
     !-------------------------------------------------------------------------
@@ -101,7 +98,7 @@ contains
 
     call initialise_infrastructure( program_name,            &
                                     model_clock,             &
-                                    mpi )
+                                    dynamics_mesh_modeldb%mpi )
 
     dynamics_2D_mesh_name = trim(dynamics_mesh_name)//'_2d'
 
@@ -118,28 +115,28 @@ contains
     call log_event( 'Creating and Initialising Model Data...', LOG_LEVEL_ALWAYS )
 
     ! Instantiate the fields stored in model_data
-    call create_model_data( dynamics_mesh_model_data, &
-                            dynamics_mesh,            &
-                            dynamics_2D_mesh,         &
-                            aerosol_mesh,             &
-                            aerosol_2D_mesh,          &
+    call create_model_data( dynamics_mesh_modeldb%model_data, &
+                            dynamics_mesh,                    &
+                            dynamics_2D_mesh,                 &
+                            aerosol_mesh,                     &
+                            aerosol_2D_mesh,                  &
                             model_clock )
-    call create_model_data( physics_mesh_model_data, &
-                            physics_mesh,            &
-                            physics_2D_mesh,         &
-                            aerosol_mesh,            &
-                            aerosol_2D_mesh,         &
+    call create_model_data( physics_mesh_modeldb%model_data, &
+                            physics_mesh,                    &
+                            physics_2D_mesh,                 &
+                            aerosol_mesh,                    &
+                            aerosol_2D_mesh,                 &
                             model_clock )
 
 
     ! Initialise the fields stored in the model_data
-    call initialise_model_data( dynamics_mesh_model_data, &
-                                model_clock,              &
-                                dynamics_mesh,            &
+    call initialise_model_data( dynamics_mesh_modeldb%model_data, &
+                                model_clock,                      &
+                                dynamics_mesh,                    &
                                 dynamics_2D_mesh )
-    call initialise_model_data( physics_mesh_model_data, &
-                                model_clock,             &
-                                physics_mesh,            &
+    call initialise_model_data( physics_mesh_modeldb%model_data,  &
+                                model_clock,                      &
+                                physics_mesh,                     &
                                 physics_2D_mesh )
 
    ! Initial output
@@ -148,7 +145,7 @@ contains
         multires_coupling_mode /= multires_coupling_mode_test ) then
      call multires_coupling_diagnostics_driver( dynamics_mesh,            &
                                                 dynamics_2D_mesh,         &
-                                                dynamics_mesh_model_data, &
+                                        dynamics_mesh_modeldb%model_data, &
                                                 model_clock,              &
                                                 nodal_output_on_w3 )
    end if
@@ -156,9 +153,9 @@ contains
    if ( multires_coupling_mode /= multires_coupling_mode_test ) then
      ! Model configuration initialisation
      call initialise_model( dynamics_mesh,            &
-                            dynamics_mesh_model_data, &
+                    dynamics_mesh_modeldb%model_data, &
                             physics_mesh,             &
-                            physics_mesh_model_data )
+                    physics_mesh_modeldb%model_data )
    end if
 
   end subroutine initialise
@@ -166,16 +163,16 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !>
   !> @brief Timesteps the model, calling the desired timestepping algorithm
-  !> @param [in,out] dynamics_mesh_model_data The structure that holds model
-  !>                                          state for the dynamics mesh
-  !> @param [in,out] physics_mesh_model_data  The structure that holds model
-  !>                                          state for the physics mesh
-  subroutine run( dynamics_mesh_model_data, physics_mesh_model_data )
+  !> @param [in,out] dynamics_mesh_modeldb The structure that holds model
+  !>                                       state for the dynamics mesh
+  !> @param [in,out] physics_mesh_modeldb  The structure that holds model
+  !>                                       state for the physics mesh
+  subroutine run( dynamics_mesh_modeldb, physics_mesh_modeldb )
 
     implicit none
 
-    type(model_data_type), intent(inout) :: dynamics_mesh_model_data
-    type(model_data_type), intent(inout) :: physics_mesh_model_data
+    type(modeldb_type), intent(inout) :: dynamics_mesh_modeldb
+    type(modeldb_type), intent(inout) :: physics_mesh_modeldb
 
     if ( multires_coupling_mode == multires_coupling_mode_test ) then
       ! Call coupling test algorithm
@@ -184,14 +181,14 @@ contains
       ! Do timestep
       do while (model_clock%tick())
         ! Update time-varying fields
-        call update_variable_fields(                 &
-          dynamics_mesh_model_data%ancil_times_list, &
-          model_clock,                               &
-          dynamics_mesh_model_data%ancil_fields )
+        call update_variable_fields(                         &
+          dynamics_mesh_modeldb%model_data%ancil_times_list, &
+          model_clock,                                       &
+          dynamics_mesh_modeldb%model_data%ancil_fields )
         ! Perform gungho timestep
-        call gungho_step( dynamics_mesh,            &
-                          dynamics_2D_mesh,         &
-                          dynamics_mesh_model_data, &
+        call gungho_step( dynamics_mesh,         &
+                          dynamics_2D_mesh,      &
+                          dynamics_mesh_modeldb, &
                           model_clock )
         ! Write out output file
         call log_event( "Writing depository output", LOG_LEVEL_INFO )
@@ -199,10 +196,10 @@ contains
         if ( (mod(model_clock%get_step(), diagnostic_frequency) == 0) &
               .and. (write_diag) ) then
               call multires_coupling_diagnostics_driver( &
-                dynamics_mesh,            &
-                dynamics_2D_mesh,         &
-                dynamics_mesh_model_data, &
-                model_clock,              &
+                dynamics_mesh,                    &
+                dynamics_2D_mesh,                 &
+                dynamics_mesh_modeldb%model_data, &
+                model_clock,                      &
                 nodal_output_on_w3 )
         end if
       end do
@@ -212,19 +209,19 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Finalise after run
-  !> @param [in,out] dynamics_mesh_model_data The structure that holds model
-  !>                                          state for the dynamics mesh
-  !> @param [in,out] physics_mesh_model_data  The structure that holds model
-  !>                                          state for the physics mesh
+  !> @param [in,out] dynamics_mesh_modeldb The structure that holds model
+  !>                                       state for the dynamics mesh
+  !> @param [in,out] physics_mesh_modeldb  The structure that holds model
+  !>                                       state for the physics mesh
   !>
-  subroutine finalise( dynamics_mesh_model_data, &
-                       physics_mesh_model_data,  &
+  subroutine finalise( dynamics_mesh_modeldb, &
+                       physics_mesh_modeldb,  &
                        program_name )
 
     implicit none
 
-    type(model_data_type), intent(inout) :: dynamics_mesh_model_data
-    type(model_data_type), intent(inout) :: physics_mesh_model_data
+    type(modeldb_type), intent(inout) :: dynamics_mesh_modeldb
+    type(modeldb_type), intent(inout) :: physics_mesh_modeldb
 
     character(*), intent(in) :: program_name
 
@@ -242,14 +239,14 @@ contains
     end if
 
     if ( multires_coupling_mode /= multires_coupling_mode_test ) then
-      call finalise_model( dynamics_mesh_model_data, &
-                           physics_mesh_model_data,  &
+      call finalise_model( dynamics_mesh_modeldb%model_data, &
+                           physics_mesh_modeldb%model_data,  &
                            program_name )
     end if
 
     ! Destroy the fields stored in model_data
-    call finalise_model_data( dynamics_mesh_model_data )
-    call finalise_model_data( physics_mesh_model_data )
+    call finalise_model_data( dynamics_mesh_modeldb%model_data )
+    call finalise_model_data( physics_mesh_modeldb%model_data )
 
     call finalise_infrastructure( program_name )
 

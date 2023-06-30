@@ -16,6 +16,7 @@ module linear_model_data_mod
   use function_space_mod,             only : function_space_type
   use function_space_collection_mod,  only : function_space_collection
   use fs_continuity_mod,              only : W2, W3, WTheta, W2h
+  use gungho_modeldb_mod,             only : modeldb_type
   use init_time_axis_mod,             only : setup_field
   use initialization_config_mod,      only : ls_option,           &
                                              ls_option_analytic,  &
@@ -211,10 +212,10 @@ contains
   !!          solution.
   !> @param[in]    mesh        The current 3d mesh
   !> @param[in]    twod_mesh   The current 2d mesh
-  !> @param[inout] model_data  The working data set for a model run
+  !> @param[inout] modeldb     The working data set for a model run
   !> @param[in]    model_clock Time within the model.
   !>
-  subroutine linear_init_ls( mesh, twod_mesh, model_data, model_clock )
+  subroutine linear_init_ls( mesh, twod_mesh, modeldb, model_clock )
 
     use gungho_step_mod,                only : gungho_step
 
@@ -223,7 +224,7 @@ contains
     type( mesh_type ), pointer, intent(in) :: mesh
     type( mesh_type ), pointer, intent(in) :: twod_mesh
 
-    type( model_data_type ), target, intent(inout) :: model_data
+    type( modeldb_type ), target, intent(inout) :: modeldb
     class(model_clock_type),         intent(in)    :: model_clock
 
     integer(i_def)              :: i
@@ -249,18 +250,18 @@ contains
 
             ! Evolve the prognostic fields.
             do i = 1, number_steps
-              call gungho_step( mesh,       &
-                                twod_mesh,  &
-                                model_data, &
+              call gungho_step( mesh,      &
+                                twod_mesh, &
+                                modeldb,   &
                                 model_clock )
             end do
 
             ! Copy the prognostic fields to the LS and then zero the prognostics.
-            call linear_copy_model_to_ls( model_data )
+            call linear_copy_model_to_ls( modeldb%model_data )
 
         case( pert_option_analytic )
 
-          call linear_init_reference_ls( model_data )
+          call linear_init_reference_ls( modeldb%model_data )
 
         case( pert_option_file )
           call log_event("This pert_option not available with ls_option_analytic ", LOG_LEVEL_ERROR)
@@ -273,11 +274,11 @@ contains
 
       case( ls_option_file )
 
-        call init_ls_file_alg( model_data%ls_times_list, &
-                               model_clock,              &
-                               model_data%ls_fields,     &
-                               model_data%ls_mr,         &
-                               model_data%ls_moist_dyn )
+        call init_ls_file_alg( modeldb%model_data%ls_times_list, &
+                               model_clock,                      &
+                               modeldb%model_data%ls_fields,     &
+                               modeldb%model_data%ls_mr,         &
+                               modeldb%model_data%ls_moist_dyn )
 
       case default
 
@@ -286,19 +287,19 @@ contains
     end select
 
     ! Print the min and max values of the linearisation fields.
-    call model_data%ls_fields%get_field("ls_u", ls_field)
+    call modeldb%model_data%ls_fields%get_field("ls_u", ls_field)
     call ls_field%log_minmax(LOG_LEVEL_INFO,'ls_u')
 
-    call model_data%ls_fields%get_field("ls_rho", ls_field)
+    call modeldb%model_data%ls_fields%get_field("ls_rho", ls_field)
     call ls_field%log_minmax(LOG_LEVEL_INFO,'ls_rho')
 
-    call model_data%ls_fields%get_field("ls_exner", ls_field)
+    call modeldb%model_data%ls_fields%get_field("ls_exner", ls_field)
     call ls_field%log_minmax(LOG_LEVEL_INFO,'ls_exner')
 
-    call model_data%ls_fields%get_field("ls_theta", ls_field)
+    call modeldb%model_data%ls_fields%get_field("ls_theta", ls_field)
     call ls_field%log_minmax(LOG_LEVEL_INFO,'ls_theta')
 
-    ls_field => model_data%ls_mr(1)
+    ls_field => modeldb%model_data%ls_mr(1)
     call ls_field%log_minmax(LOG_LEVEL_INFO,'ls_mr')
 
   end subroutine linear_init_ls
