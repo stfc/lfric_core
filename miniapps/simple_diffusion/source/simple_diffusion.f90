@@ -44,7 +44,7 @@ program simple_diffusion
   call init_time( modeldb%clock )
 
   ! Create the depository field collection and place it in modeldb
-  call modeldb%model_data%add_empty_field_collection("depository")
+  call modeldb%fields%add_empty_field_collection("depository")
   call log_event( 'Initialising ' // program_name // ' ...', log_level_trace )
   call initialise( program_name, modeldb, get_calendar() )
 

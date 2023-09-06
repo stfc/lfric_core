@@ -66,7 +66,7 @@ module init_simple_diffusion_mod
     end if
 
     ! Add field to modeldb
-    depository => modeldb%model_data%get_field_collection("depository")
+    depository => modeldb%fields%get_field_collection("depository")
 
     ! Initialising field
     call assign_field_random_range( field_1, min_val, max_val )

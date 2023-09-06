@@ -68,7 +68,7 @@ module init_skeleton_mod
     end if
 
     ! Add field to modeldb
-    depository => modeldb%model_data%get_field_collection("depository")
+    depository => modeldb%fields%get_field_collection("depository")
     call depository%add_field(field_1)
 
     ! Create skeleton runtime constants. This creates various things

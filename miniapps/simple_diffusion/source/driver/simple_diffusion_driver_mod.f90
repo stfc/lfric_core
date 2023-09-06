@@ -101,7 +101,7 @@ contains
     type( field_collection_type ), pointer :: depository
     type( field_type ),            pointer :: field_1
 
-    depository => modeldb%model_data%get_field_collection("depository")
+    depository => modeldb%fields%get_field_collection("depository")
     call depository%get_field("field_1", field_1)
 
     ! Call an algorithm
@@ -123,7 +123,7 @@ contains
     type( field_collection_type ), pointer :: depository
     type( field_type ),            pointer :: field_1
 
-    depository => modeldb%model_data%get_field_collection("depository")
+    depository => modeldb%fields%get_field_collection("depository")
     call depository%get_field("field_1", field_1)
 
     !--------------------------------------------------------------------------

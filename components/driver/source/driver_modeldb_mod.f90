@@ -27,7 +27,7 @@ module driver_modeldb_mod
     private
 
     !> Stores all the fields used by the model
-    type( model_data_type ), public :: model_data
+    type( model_data_type ), public :: fields
 
     !> Tracks time in the model
     type(model_clock_type), public, allocatable :: clock

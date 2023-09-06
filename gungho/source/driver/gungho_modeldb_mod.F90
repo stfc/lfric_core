@@ -12,6 +12,7 @@
 !!
 module gungho_modeldb_mod
 
+  use driver_modeldb_mod,    only : driver_modeldb_type => modeldb_type
   use gungho_model_data_mod, only : model_data_type
   use gungho_time_axes_mod,  only : gungho_time_axes_type
   use model_clock_mod,       only : model_clock_type
@@ -23,7 +24,10 @@ module gungho_modeldb_mod
 
   !> Holds the technical and scientific model state for a model run
   !>
-  type :: modeldb_type
+  !> @todo We are in the middle of migrating all the functionality this class
+  !>       provides into its parent. Once done this class will be removed.
+  !>
+  type, extends(driver_modeldb_type) :: modeldb_type
 
     private
 
@@ -35,16 +39,6 @@ module gungho_modeldb_mod
     !> @todo Deliberately sub-optimal name in order to leave space for
     !>       driver equivalent.
     type(gungho_time_axes_type), public :: model_axes
-
-    !> Tracks time in the model
-    type(model_clock_type), public, allocatable :: clock
-
-    !> MPI object that contains all the functionality to perform MPI tasks
-    !> on the MPI communicator for this model instance.
-    !> @todo  Currently, this is juat a pointer to the global MPI object, as
-    !>        this is the only MPI object that PSyclone can use at the moment
-    !>        When PSyclone is updated, this can be the actual MPI object.
-    type(mpi_type), pointer, public :: mpi
 
     contains
 
