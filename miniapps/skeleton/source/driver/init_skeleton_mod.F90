@@ -48,7 +48,7 @@ module init_skeleton_mod
     type(modeldb_type), intent(inout)        :: modeldb
 
     type( field_type )                     :: field_1
-    type( field_collection_type ), pointer :: depository
+    type( field_collection_type ), pointer :: depository => null()
 
     procedure(write_interface), pointer :: tmp_ptr
 

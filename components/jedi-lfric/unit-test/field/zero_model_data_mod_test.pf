@@ -129,6 +129,8 @@ contains
     type(integer_field_proxy_type)                  :: int_field_proxy
     type(integer_field_proxy_type)                  :: int_returned_field_proxy
 
+    type(field_collection_type), pointer            :: depository => null()
+
     class(pure_abstract_field_type), pointer :: field_ptr => null()
     type(field_type), pointer                :: test_field_ptr => null()
     type(field_type), pointer                :: returned_field => null()
@@ -152,21 +154,22 @@ contains
     int_field_proxy%data(1) = 1_i_def
 
     ! Initialise depository
-    call model_data%depository%initialise(name = "depository", table_len=100)
+    call model_data%add_empty_field_collection("depository")
+    depository => model_data%get_field_collection("depository")
 
     ! Add a field collection to model data
     call model_data%add_empty_field_collection("collection_1")
 
     ! Add test_field to depository and a pointer to it to collection_1
-    call model_data%depository%add_field(test_field)
-    call model_data%depository%get_field("test_field", test_field_ptr)
+    call depository%add_field(test_field)
+    call depository%get_field("test_field", test_field_ptr)
     returned_collection => model_data%get_field_collection("collection_1")
     field_ptr => test_field_ptr
     call returned_collection%add_reference_to_field(field_ptr)
 
     ! Add int_test_field to depository and a pointer to it to collection_1
-    call model_data%depository%add_field(int_test_field)
-    call model_data%depository%get_field("int_test_field", int_test_field_ptr)
+    call depository%add_field(int_test_field)
+    call depository%get_field("int_test_field", int_test_field_ptr)
     int_field_ptr => int_test_field_ptr
     call returned_collection%add_reference_to_field(int_field_ptr)
 

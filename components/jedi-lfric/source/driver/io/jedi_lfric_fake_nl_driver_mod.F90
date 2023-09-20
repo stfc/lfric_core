@@ -15,6 +15,7 @@ module jedi_lfric_fake_nl_driver_mod
   use driver_mesh_mod,          only: init_mesh
   use driver_fem_mod,           only: init_fem, final_fem
   use inventory_by_mesh_mod,    only: inventory_by_mesh_type
+  use field_collection_mod,     only: field_collection_type
   use field_mod,                only: field_type
   use jedi_lfric_fake_nl_init_mod, &
                                 only: create_da_model_data, &
@@ -152,12 +153,14 @@ contains
 
     type(model_data_type), intent(inout) :: model_data
 
-    type(field_type),       pointer :: working_field    => null()
+    type(field_collection_type), pointer :: depository => null()
+    type(field_type),            pointer :: working_field => null()
 #ifdef USE_XIOS
-    class(io_context_type), pointer :: model_io_context => null()
+    class(io_context_type),      pointer :: model_io_context => null()
 #endif
 
-    call model_data%depository%get_field( test_field, working_field )
+    depository => model_data%get_field_collection("depository")
+    call depository%get_field( test_field, working_field )
 
 #ifdef USE_XIOS
     if ( use_xios_io ) then
@@ -171,7 +174,7 @@ contains
 
 #ifdef USE_XIOS
     if ( write_data ) then
-      call write_state( model_data%depository, prefix="write_" )
+      call write_state( depository, prefix="write_" )
     end if
 #endif
 

@@ -44,7 +44,7 @@ program diagnostics
     call init_time( model_clock )
 
     ! Create the depository
-    call model_data%depository%initialise(name = 'depository', table_len=100)
+    call model_data%add_empty_field_collection("depository")
 
     call log_event( 'Initialising ' // program_name // ' ...', &
                     log_level_trace )

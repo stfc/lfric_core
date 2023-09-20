@@ -31,12 +31,8 @@ module driver_model_data_mod
 
     private
 
-    !> Stores all the field collections, which contain pointers to
-    !> fields in the depository
-    type( linked_list_type ), private     :: field_collection_list
-
-    !> Stores all the fields used by the model
-    type( field_collection_type ), public :: depository
+    !> Stores all the field collections used by the model
+    type( linked_list_type ), private :: field_collection_list
 
     contains
 
@@ -221,9 +217,6 @@ contains
 
     ! Pointer to linked list - used for looping through the field_collection_list
     type(linked_list_item_type), pointer  :: loop => null()
-
-    ! Copy the depository
-    call self%depository%copy_collection(copy%depository)
 
     ! Copy the field_collection_list
     ! Start at the head of the field collection linked list

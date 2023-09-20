@@ -64,6 +64,7 @@ contains
         type (field_type), pointer :: tmp_field => null()
         class(pure_abstract_field_type), pointer  :: tmp_field_ptr => null()
 
+        type(field_collection_type), pointer :: depository => null()
         character(str_def)                   :: field_collection_name
         type(field_collection_type), pointer :: field_collection => null()
 
@@ -144,9 +145,10 @@ contains
             end if
 
             call log_event("Add to depository", LOG_LEVEL_INFO)
-            call model_data%depository%add_field(new_field)
+            depository => model_data%get_field_collection("depository")
+            call depository%add_field(new_field)
 
-            call model_data%depository%get_field(fieldspec%get_unique_id(), tmp_field)
+            call depository%get_field(fieldspec%get_unique_id(), tmp_field)
             tmp_field_ptr => tmp_field
 
             ! Add field collection to model data if necessary

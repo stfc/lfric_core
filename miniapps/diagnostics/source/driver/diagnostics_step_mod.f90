@@ -57,6 +57,7 @@ contains
         type(colours__diagnostics__meta_type) :: diagnostics_meta
         type(colours__non_spatial__meta_type) :: non_spatial_meta
         type(field_collection_type), pointer :: prognostic_fields => null()
+        type(field_collection_type), pointer :: depository => null()
         type(field_collection_type), pointer :: non_spatial_fields => null()
         character(str_def) :: hex_id
 
@@ -89,8 +90,9 @@ contains
         ! hex only exists if red, green and blue are all on so can assume
         ! they are present
         hex_id = diagnostics_meta%hex%get_unique_id()
-        if (model_data%depository%field_exists(hex_id)) then
-          call model_data%depository%get_field( hex_id, hex )
+        depository => model_data%get_field_collection("depository")
+        if (depository%field_exists(hex_id)) then
+          call depository%get_field( hex_id, hex )
           call hex_alg(red, green, blue, hex)
         end if
 

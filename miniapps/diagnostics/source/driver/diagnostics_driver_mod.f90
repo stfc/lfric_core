@@ -177,7 +177,7 @@ contains
     ! Model finalise
     !----------------------------------------------------------------------
 
-    depository => model_data%depository
+    depository => model_data%get_field_collection("depository")
     ! as with the run step this could use a specific checksum collection to
     ! control if it outputs a checksum for a given field
     call depository%get_field("colours__hex", hex)

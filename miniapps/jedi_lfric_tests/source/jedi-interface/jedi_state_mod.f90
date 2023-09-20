@@ -311,6 +311,10 @@ subroutine setup_interface_to_model_data( self )
   integer(i_def),   pointer :: horizontal_map_ptr(:)
   integer(i_def)            :: n_variables
 
+  type( field_collection_type ), pointer :: depository => null()
+
+  depository => self%model_data%get_field_collection("depository")
+
   n_variables = self%field_meta_data%get_n_variables()
 
   ! Allocate space for the interface fields
@@ -324,7 +328,7 @@ subroutine setup_interface_to_model_data( self )
 
     ! Get the required data
     call get_model_field( self%field_meta_data%get_variable_name(ivar), &
-                          self%model_data%depository,                   &
+                          depository,                                   &
                           lfric_field_ptr )
 
     atlas_data_ptr => self%fields(ivar)%get_data()

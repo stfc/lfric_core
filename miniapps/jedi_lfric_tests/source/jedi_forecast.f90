@@ -19,6 +19,8 @@ program jedi_forecast
   use log_mod,                 only : log_event, log_scratch_space, &
                                       LOG_LEVEL_ALWAYS
 
+  use field_collection_mod,  only : field_collection_type
+
   ! Data types and methods to get/store configurations
   use jedi_state_config_mod, only : jedi_state_config_type
   use cli_mod,               only : get_initial_filename
@@ -48,6 +50,8 @@ program jedi_forecast
   integer( kind=i_native )       :: model_communicator
 
   character(*), parameter        :: program_name = "jedi_forecast"
+
+  type( field_collection_type ), pointer :: depository => null()
 
   call log_event( 'Running ' // program_name // ' ...', LOG_LEVEL_ALWAYS )
   write(log_scratch_space,'(A)')                        &
@@ -91,6 +95,7 @@ program jedi_forecast
 
   call log_event( 'Finalising ' // program_name // ' ...', LOG_LEVEL_ALWAYS )
   ! To provide KGO
-  call output_checksum( program_name, jedi_state%model_data%depository )
+  depository => jedi_state%model_data%get_field_collection("depository")
+  call output_checksum( program_name, depository )
 
 end program jedi_forecast

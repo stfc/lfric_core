@@ -12,6 +12,7 @@ module jedi_lfric_fake_nl_init_mod
 
   use constants_mod,                  only : r_def
   use driver_model_data_mod,          only : model_data_type
+  use field_collection_mod,           only : field_collection_type
   use field_mod,                      only : field_type
   use fs_continuity_mod,              only : W2, W3, Wtheta
   use log_mod,                        only : log_event,       &
@@ -37,14 +38,17 @@ module jedi_lfric_fake_nl_init_mod
     type(mesh_type), intent(in), pointer        :: mesh2d
     type( model_data_type ), intent(inout)      :: model_data
 
+    type(field_collection_type), pointer        :: depository => null()
+
     call log_event( 'jedi_lfric_tests: Initialising miniapp ...', LOG_LEVEL_INFO )
 
-    call model_data%depository%initialise(name = 'depository', table_len=100)
+    call model_data%add_empty_field_collection("depository")
+    depository => model_data%get_field_collection("depository")
 
     ! Create fields and add them to model_data
-    call add_real_field( model_data%depository, mesh, Wtheta, "theta" )
-    call add_real_field( model_data%depository, mesh, W3,     "rho"   )
-    call add_real_field( model_data%depository, mesh2d, W3,   "u10m"  )
+    call add_real_field( depository, mesh, Wtheta, "theta" )
+    call add_real_field( depository, mesh, W3,     "rho"   )
+    call add_real_field( depository, mesh2d, W3,   "u10m"  )
 
     call log_event( 'jedi_lfric_tests: Miniapp initialised', LOG_LEVEL_INFO )
 
@@ -80,10 +84,12 @@ module jedi_lfric_fake_nl_init_mod
     type(model_data_type), intent(inout)  :: model_data
     character(*),          intent(in)     :: field_name
 
-    type(field_type), pointer :: field_ptr
+    type(field_collection_type), pointer  :: depository => null()
+    type(field_type),            pointer  :: field_ptr
 
     ! get field and set equal to 0
-    call model_data % depository % get_field(field_name, field_ptr)
+    depository => model_data%get_field_collection("depository")
+    call depository % get_field(field_name, field_ptr)
     call invoke(setval_c(field_ptr, 0.0_r_def))
 
   end subroutine initialise_real_field
