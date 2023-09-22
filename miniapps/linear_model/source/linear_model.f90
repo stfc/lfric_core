@@ -47,6 +47,8 @@ program linear_model
   call init_collections()
   call init_time( modeldb%clock )
 
+  call modeldb%values%initialise('values', 5)
+
   ! Create the depository, prognostics and diagnostics field collections
   call modeldb%model_data%depository%initialise(name='depository', table_len=100)
   call modeldb%model_data%prognostic_fields%initialise(name="prognostics", table_len=100)

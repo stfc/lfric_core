@@ -7,7 +7,6 @@
 !>
 module gungho_model_data_mod
 
-  use constants_mod,        only : r_def
   use field_mod,            only : field_type
   use field_collection_mod, only : field_collection_type
 
@@ -87,15 +86,6 @@ module gungho_model_data_mod
     type( field_type ), allocatable, public :: ls_mr(:)
     !> Array of linearisation fields containing the moist dynamics
     type( field_type ), allocatable, public :: ls_moist_dyn(:)
-
-    !> Rate of temperature adjustment for energy correction
-    real( kind=r_def ), public :: temperature_correction_rate
-    !> Total mass of dry atmosphere used for energy correction
-    real( kind=r_def ), public :: total_dry_mass
-    !> Total energy of moist atmosphere for calculating energy correction
-    real( kind=r_def ), public :: total_energy
-    !> Total energy of moist atmosphere at previous energy correction step
-    real( kind=r_def ), public :: total_energy_previous
 
     contains
 

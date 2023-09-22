@@ -39,6 +39,7 @@ module key_value_mod
   public :: r32_arr_key_value_type, r64_arr_key_value_type
   public :: logical_key_value_type, logical_arr_key_value_type
   public :: str_key_value_type,     str_arr_key_value_type
+  public :: create_key_value
 
   !=========================================
   ! Key-Value pair abstract type
@@ -176,6 +177,60 @@ module key_value_mod
   end type str_arr_key_value_type
 
 contains
+
+
+!> Instantiates correct object for given value type.
+!>
+!> Note that this routine allocates a pointer but it does not manage the
+!> freeing of that pointer. That is the calling routine's responsibility if
+!> memory leaks are to be avoided.
+!>
+!> @todo This is a partial implementation. Additional value types will need to
+!>       be added as needed.
+!>
+!> @todo Fortran "block" syntax was used to keep scoping neat but in order to
+!>       make progress in face of an fParser which doesn't recognise the syntax
+!>       they were removed. When fParser is fixed they could be put back again.
+!>
+function create_key_value( key, value ) result(instance)
+
+  implicit none
+
+  character(*), intent(in) :: key
+  class(*),     intent(in) :: value
+
+  class(key_value_type), pointer :: instance
+
+  type(i32_key_value_type) :: concrete_i32
+  type(i64_key_value_type) :: concrete_i64
+  type(r32_key_value_type) :: concrete_r32
+  type(r64_key_value_type) :: concrete_r64
+
+  select type (value)
+
+  type is (integer(int32))
+    call concrete_i32%initialise( key, value )
+    allocate( instance, source=concrete_i32 )
+
+  type is (integer(int64))
+    call concrete_i64%initialise( key, value )
+    allocate( instance, source=concrete_i64 )
+
+  type is (real(real32))
+    call concrete_r32%initialise( key, value )
+    allocate( instance, source=concrete_r32 )
+
+  type is (real(real64))
+    call concrete_r64%initialise( key, value )
+    allocate( instance, source=concrete_r64 )
+
+  class default
+    write( log_scratch_space, &
+           '("Unable to pair key ''", A, "'' with unsupported value")' ) key
+    call log_event( log_scratch_space, log_level_error )
+  end select
+
+end function create_key_value
 
 
 !=========================================

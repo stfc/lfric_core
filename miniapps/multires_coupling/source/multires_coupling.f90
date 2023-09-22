@@ -61,6 +61,9 @@ program multires_coupling
   call init_time( dynamics_mesh_modeldb%clock )
   call init_time( physics_mesh_modeldb%clock )
 
+  call dynamics_mesh_modeldb%values%initialise( 'dynamics_values', 5 )
+  call physics_mesh_modeldb%values%initialise( 'physics_values', 5 )
+
   ! Create the dynamics depository, prognostics and diagnostics field collections
   call dynamics_mesh_modeldb%model_data%depository%initialise(name='depository', table_len=100)
   call dynamics_mesh_modeldb%model_data%prognostic_fields%initialise(name="prognostics", table_len=100)

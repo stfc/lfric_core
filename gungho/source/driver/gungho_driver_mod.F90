@@ -11,6 +11,7 @@ module gungho_driver_mod
 
   use base_mesh_config_mod,       only : prime_mesh_name
   use calendar_mod,               only : calendar_type
+  use constants_mod,              only : r_def
   use derived_config_mod,         only : l_esm_couple
   use driver_io_mod,              only : get_io_context
   use extrusion_mod,              only : TWOD
@@ -110,6 +111,16 @@ contains
       aerosol_twod_mesh => twod_mesh
     end if
 
+    ! Rate of temperature adjustment for energy correction
+    call modeldb%values%add_key_value( 'temperature_correction_rate', &
+                                       0.0_r_def )
+    ! Total mass of dry atmosphere used for energy correction
+    call modeldb%values%add_key_value( 'total_dry_mass', 0.0_r_def )
+    ! Total energy of moist atmosphere for calculating energy correction
+    call modeldb%values%add_key_value( 'total_energy', 0.0_r_def )
+    ! Total energy of moist atmosphere at previous energy correction step
+    call modeldb%values%add_key_value( 'total_energy_previous', 0.0_r_def )
+
     ! Instantiate the fields stored in model_data
     call create_model_data( modeldb,         &
                             mesh, twod_mesh, &
@@ -120,8 +131,7 @@ contains
 
     ! Initial output
     io_context => get_io_context()
-    call write_initial_output( mesh, twod_mesh,                   &
-                               modeldb%model_data, modeldb%clock, &
+    call write_initial_output( modeldb, mesh, twod_mesh, &
                                io_context, nodal_output_on_w3 )
 
     ! Model configuration initialisation
@@ -200,10 +210,7 @@ contains
          .and. ( write_diag ) ) then
 
       ! Calculation and output diagnostics
-      call gungho_diagnostics_driver( mesh,               &
-                                      twod_mesh,          &
-                                      modeldb%model_data, &
-                                      modeldb%clock,      &
+      call gungho_diagnostics_driver( modeldb, mesh, twod_mesh, &
                                       nodal_output_on_w3 )
     end if
 

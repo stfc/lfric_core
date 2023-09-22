@@ -327,11 +327,10 @@ contains
 
     if ( use_multires_coupling ) then
       orography_mesh => mesh_collection%get_mesh(trim(orography_mesh_name))
-      orography_twod_mesh => mesh_collection%get_mesh(orography_mesh, TWOD)
     else
       orography_mesh => mesh_collection%get_mesh(prime_mesh_name)
-      orography_twod_mesh => mesh_collection%get_mesh(orography_mesh, TWOD)
     end if
+    orography_twod_mesh => mesh_collection%get_mesh(orography_mesh, TWOD)
 
     ! Set up surface altitude field - this will be used to generate orography
     ! for models with global land mass included (i.e GAL)

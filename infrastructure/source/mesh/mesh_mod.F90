@@ -628,9 +628,10 @@ contains
     type(partition_type), pointer :: partition
 
     partition => null()
-    call log_event( &
-     "Error: The function mesh%get_partition() is deprecated. Do not call it", &
-     LOG_LEVEL_ERROR )
+    call log_event(                                                      &
+      "The function mesh%get_partition() is deprecated. Do not call it", &
+      LOG_LEVEL_ERROR                                                    &
+    )
 
   end function get_partition
 

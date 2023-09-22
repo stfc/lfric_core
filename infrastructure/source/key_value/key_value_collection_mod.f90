@@ -22,7 +22,8 @@ module key_value_collection_mod
                                   r32_key_value_type, r64_key_value_type, &
                                   r32_arr_key_value_type, r64_arr_key_value_type, &
                                   logical_key_value_type, logical_arr_key_value_type, &
-                                  str_key_value_type, str_arr_key_value_type
+                                  str_key_value_type, str_arr_key_value_type, &
+                                  create_key_value
   use log_mod,              only: log_event, log_scratch_space, &
                                   LOG_LEVEL_ERROR
   use linked_list_data_mod, only: linked_list_data_type
@@ -50,7 +51,10 @@ module key_value_collection_mod
     integer(i_def) :: table_len
   contains
     procedure, public  :: initialise
-    procedure, public  :: add_key_value
+    procedure, private :: add_key_value_object
+    procedure, private :: create_key_value_object
+    generic            :: add_key_value => add_key_value_object, &
+                                           create_key_value_object
     procedure, public  :: remove_key_value
     procedure, public  :: key_value_exists
     procedure, private :: get_i32_value
@@ -74,9 +78,9 @@ module key_value_collection_mod
                                        get_i32_arr_value,     &
                                        get_i64_arr_value,     &
                                        get_r32_arr_value,     &
-                                      get_r64_arr_value,     &
-                                      get_logical_arr_value, &
-                                      get_str_arr_value
+                                       get_r64_arr_value,     &
+                                       get_logical_arr_value, &
+                                       get_str_arr_value
     procedure, public  :: get_length
     procedure, public  :: get_name
     procedure, public  :: get_table_len
@@ -121,7 +125,7 @@ end subroutine initialise
 !> collection as a copy of the original.
 !> @param [in] key_value The key_value pair that is to be copied into the
 !>                       collection.
-subroutine add_key_value(self, key_value)
+subroutine add_key_value_object(self, key_value)
 
   implicit none
 
@@ -142,7 +146,27 @@ subroutine add_key_value(self, key_value)
   ! Finished checking - so the key-value must be good to add - so add it
   call self%key_value_list(self%get_hash(key))%insert_item( key_value )
 
-end subroutine add_key_value
+end subroutine add_key_value_object
+
+
+!>
+!>
+subroutine create_key_value_object( self, key, value )
+
+  implicit none
+
+  class(key_value_collection_type), intent(inout) :: self
+  character(*),                     intent(in)    :: key
+  class(*),                         intent(in)    :: value
+
+  class(key_value_type), pointer :: instance
+
+  instance => create_key_value( key, value )
+  call self%add_key_value_object( instance )
+  deallocate( instance )
+
+end subroutine create_key_value_object
+
 
 !> Check if a key-value pair is present in the collection
 !> @param [in] key The key of the pair to be checked

@@ -244,11 +244,21 @@ subroutine create_model_data( modeldb,      &
     type( field_type ), pointer :: temp_correction_field => null()
     type( field_type ), pointer :: accumulated_fluxes    => null()
 
+    real(r_def), pointer :: temperature_correction_rate
+    real(r_def), pointer :: total_dry_mass
+    real(r_def), pointer :: total_energy_previous
+
 #ifdef UM_PHYSICS
     procedure(regridder), pointer :: regrid_operation => null()
 
     regrid_operation => map_scalar_field
 #endif
+
+    call modeldb%values%get_value( 'temperature_correction_rate', &
+                                   temperature_correction_rate )
+    call modeldb%values%get_value( 'total_dry_mass', total_dry_mass )
+    call modeldb%values%get_value( 'total_energy_previous', &
+                                   total_energy_previous )
 
     ! Initialise all the physics fields here. We'll then re initialise
     ! them below if need be
@@ -355,8 +365,6 @@ subroutine create_model_data( modeldb,      &
 
     end if
 
-    ! Set a default value for temperature_correction_rate for all runs
-    modeldb%model_data%temperature_correction_rate = 0.0_r_def
 
     ! Assuming this is only relevant for physics runs at the moment
     if (use_physics) then
@@ -448,11 +456,12 @@ subroutine create_model_data( modeldb,      &
 
       ! Initialise energy correction
       if ( encorr_usage /= encorr_usage_none ) then
-        call compute_total_mass_alg( modeldb%model_data%total_dry_mass, rho, mesh )
+        call compute_total_mass_alg( total_dry_mass, rho, mesh )
 
-        call compute_total_energy_alg( modeldb%model_data%total_energy_previous,                &
-                                       modeldb%model_data%derived_fields, u, theta, exner, rho, &
-                                       modeldb%model_data%mr,                                   &
+        call compute_total_energy_alg( total_energy_previous,                 &
+                                       modeldb%model_data%derived_fields,     &
+                                       u, theta, exner, rho,                  &
+                                       modeldb%model_data%mr,                 &
                                        mesh, twod_mesh )
 
         ! Initialise flux sum to zero
@@ -461,13 +470,13 @@ subroutine create_model_data( modeldb,      &
         if ( checkpoint_read ) then
           ! Read scalar temperature_correction_rate from checkponted field
           ! temp_correction_field
-          call field_to_scalar_alg(modeldb%model_data%temperature_correction_rate, &
-                                   temp_correction_field)
-          write(log_scratch_space, '(''restart_temperature_correction_rate = '', e30.22)') &
-               modeldb%model_data%temperature_correction_rate
+          call field_to_scalar_alg( temperature_correction_rate, &
+                                    temp_correction_field )
+          write( log_scratch_space,                                     &
+                 '("restart_temperature_correction_rate = ", e30.22)' ) &
+            temperature_correction_rate
           call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
         else
-          modeldb%model_data%temperature_correction_rate = 0.0_r_def
           call scalar_to_field_alg(0.0_r_def, temp_correction_field)
         end if
 

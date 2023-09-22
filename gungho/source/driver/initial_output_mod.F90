@@ -7,16 +7,14 @@
 !>
 module initial_output_mod
 
-  use clock_mod,                  only : clock_type
   use constants_mod,              only : i_def, l_def
   use io_config_mod,              only : write_diag, use_xios_io
   use io_context_mod,             only : io_context_type
-  use gungho_model_data_mod,      only : model_data_type
   use gungho_diagnostics_driver_mod, &
                                   only : gungho_diagnostics_driver
+  use gungho_modeldb_mod,         only : modeldb_type
   use log_mod,                    only : log_event, log_level_error
   use mesh_mod,                   only : mesh_type
-  use model_clock_mod,            only : model_clock_type
   use io_context_mod,             only : io_context_type
   use limited_area_constants_mod, only : write_masks
   use boundaries_config_mod,      only : limited_area, lbc_method, &
@@ -29,13 +27,15 @@ module initial_output_mod
 contains
 
   !> @brief Outputs simple diagnostics from Gungho/LFRic
-  !> @param[in] mesh       The primary mesh
-  !> @param[in] twod_mesh  The 2d mesh
-  !> @param[in] model_data The working data set for the model run
-  !> @param[in] io_context The model IO context
-  !> @param[in] nodal_output_on_w3 Flag that determines if vector fields
+  !>
+  !> @param[in,out] modeldb             Working data set of model.
+  !> @param[in]     mesh                The primary mesh
+  !> @param[in]     twod_mesh           The 2d mesh
+  !> @param[in]     io_context          The model IO context
+  !> @param[in]     nodal_output_on_w3  Flag that determines if vector fields
   !>                  should be projected to W3 for nodal output
-  subroutine write_initial_output( mesh, twod_mesh, model_data, model_clock, &
+  !>
+  subroutine write_initial_output( modeldb, mesh, twod_mesh, &
                                    io_context, nodal_output_on_w3 )
 
 #ifdef USE_XIOS
@@ -45,30 +45,28 @@ contains
 
     implicit none
 
+    class(modeldb_type),      intent(inout) :: modeldb
     type(mesh_type), pointer, intent(in)    :: mesh
     type(mesh_type), pointer, intent(in)    :: twod_mesh
-    type(model_data_type),    intent(in)    :: model_data
-    class(model_clock_type),  intent(in)    :: model_clock
     class(io_context_type),   intent(inout) :: io_context
     logical(l_def),           intent(in)    :: nodal_output_on_w3
 
 #ifdef USE_XIOS
 
     ! Call clock initial step before initial conditions output
-    if (model_clock%is_initialisation() .and. use_xios_io) then
+    if (modeldb%clock%is_initialisation() .and. use_xios_io) then
       select type (io_context)
       type is (lfric_xios_context_type)
-        call advance(io_context, model_clock)
+        call advance(io_context, modeldb%clock)
       end select
     end if
 #endif
 
-    if (model_clock%is_initialisation() .and. write_diag) then
+    if (modeldb%clock%is_initialisation() .and. write_diag) then
       ! Calculation and output of initial conditions
-      call gungho_diagnostics_driver( mesh,        &
-                                      twod_mesh,   &
-                                      model_data,  &
-                                      model_clock, &
+      call gungho_diagnostics_driver( modeldb,   &
+                                      mesh,      &
+                                      twod_mesh, &
                                       nodal_output_on_w3 )
 
       if ( limited_area )then

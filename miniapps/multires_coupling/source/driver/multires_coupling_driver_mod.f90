@@ -13,10 +13,10 @@
 module multires_coupling_driver_mod
 
   use calendar_mod,                             only : calendar_type
+  use constants_mod,                            only : i_def, i_native, &
+                                                       r_def, str_def, imdi
   use gungho_modeldb_mod,                       only : modeldb_type
   use gungho_step_mod,                          only : gungho_step
-  use constants_mod,                            only : i_def, i_native, &
-                                                       str_def, imdi
   use io_config_mod,                            only : write_diag,           &
                                                        use_xios_io,          &
                                                        diagnostic_frequency, &
@@ -127,10 +127,32 @@ contains
                             aerosol_2D_mesh )
 
 
+    call dynamics_mesh_modeldb%values%add_key_value( &
+      'temperature_correction_rate', 0.0_r_def   &
+    )
+    call dynamics_mesh_modeldb%values%add_key_value( &
+      'total_dry_mass', 0.0_r_def &
+    )
+    call dynamics_mesh_modeldb%values%add_key_value( &
+      'total_energy_previous', 0.0_r_def &
+    )
+
+
     ! Initialise the fields stored in the model_data
     call initialise_model_data( dynamics_mesh_modeldb, &
                                 dynamics_mesh,         &
                                 dynamics_2D_mesh )
+
+    call physics_mesh_modeldb%values%add_key_value( &
+      'temperature_correction_rate', 0.0_r_def   &
+    )
+    call physics_mesh_modeldb%values%add_key_value( &
+      'total_dry_mass', 0.0_r_def &
+    )
+    call physics_mesh_modeldb%values%add_key_value( &
+      'total_energy_previous', 0.0_r_def &
+    )
+
     call initialise_model_data( physics_mesh_modeldb, &
                                 physics_mesh,         &
                                 physics_2D_mesh )
@@ -140,10 +162,9 @@ contains
    if ( dynamics_mesh_modeldb%clock%is_initialisation() .and. write_diag .and. &
         multires_coupling_mode /= multires_coupling_mode_test ) then
      call multires_coupling_diagnostics_driver( &
+        dynamics_mesh_modeldb,                  &
         dynamics_mesh,                          &
         dynamics_2D_mesh,                       &
-        dynamics_mesh_modeldb%model_data,       &
-        dynamics_mesh_modeldb%clock,            &
         nodal_output_on_w3                      &
     )
    end if
@@ -188,10 +209,9 @@ contains
     if ( (mod(dynamics_mesh_modeldb%clock%get_step(), diagnostic_frequency) == 0) &
           .and. (write_diag) ) then
           call multires_coupling_diagnostics_driver( &
-            dynamics_mesh,                    &
-            dynamics_2D_mesh,                 &
-            dynamics_mesh_modeldb%model_data, &
-            dynamics_mesh_modeldb%clock,      &
+            dynamics_mesh_modeldb,                   &
+            dynamics_mesh,                           &
+            dynamics_2D_mesh,                        &
             nodal_output_on_w3 )
     end if
 

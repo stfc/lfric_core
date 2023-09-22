@@ -108,6 +108,11 @@ module gungho_step_mod
     type( field_type), pointer :: accumulated_fluxes => null()
     type( field_type), pointer :: temp_correction_field => null()
 
+    real(r_def), pointer :: temperature_correction_rate
+    real(r_def), pointer :: total_dry_mass
+    real(r_def), pointer :: total_energy
+    real(r_def), pointer :: total_energy_previous
+
     real( r_def )    :: dt
     real( r_def )    :: dtemp_encorr
     logical( l_def ) :: use_moisture
@@ -117,6 +122,13 @@ module gungho_step_mod
     write( log_scratch_space, &
            '(A,I0)' ) 'Start of timestep ', model_clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+    call modeldb%values%get_value( 'temperature_correction_rate', &
+                                   temperature_correction_rate )
+    call modeldb%values%get_value( 'total_dry_mass', total_dry_mass )
+    call modeldb%values%get_value( 'total_energy', total_energy )
+    call modeldb%values%get_value( 'total_energy_previous', &
+                                   total_energy_previous )
 
     use_moisture = ( moisture_formulation /= moisture_formulation_dry )
 
@@ -154,7 +166,7 @@ module gungho_step_mod
     dt = real(model_clock%get_seconds_per_step(), r_def)
 
     ! Get temperature increment for energy correction
-    dtemp_encorr = dt * modeldb%model_data%temperature_correction_rate
+    dtemp_encorr = dt * temperature_correction_rate
 
     select case( method )
       case( method_semi_implicit )  ! Semi-Implicit
@@ -195,32 +207,30 @@ module gungho_step_mod
       if ( mod( nint( dt * model_clock%get_step() ), &
                 3600_i_def * reset_hours ) == 0 ) then
 
-        call compute_total_mass_alg( modeldb%model_data%total_dry_mass, &
-                                     rho, mesh )
-        call compute_total_energy_alg( modeldb%model_data%total_energy,   &
+        call compute_total_mass_alg( total_dry_mass, rho, mesh )
+        call compute_total_energy_alg( total_energy,                      &
                                        modeldb%model_data%derived_fields, &
                                        u, theta, exner, rho, mr,          &
                                        mesh, twod_mesh )
 
-        call update_energy_correction_alg(                                     &
-                               modeldb%model_data%temperature_correction_rate, &
-                               accumulated_fluxes,                             &
-                               modeldb%model_data%total_dry_mass, dt,          &
-                               mesh, twod_mesh,                                &
-                               modeldb%model_data%total_energy,                &
-                               modeldb%model_data%total_energy_previous )
+        call update_energy_correction_alg(                  &
+                               temperature_correction_rate, &
+                               accumulated_fluxes,          &
+                               total_dry_mass, dt,          &
+                               mesh, twod_mesh,             &
+                               total_energy,                &
+                               total_energy_previous )
 
-        call scalar_to_field_alg(                                              &
-                               modeldb%model_data%temperature_correction_rate, &
-                               temp_correction_field)
+        call scalar_to_field_alg( temperature_correction_rate, &
+                                  temp_correction_field )
       end if
 
     end if
 
     if ( write_conservation_diag ) then
 
-      write(log_scratch_space, '(''fd total_mass = '', E32.24)') &
-                                    modeldb%model_data%total_dry_mass
+      write( log_scratch_space, &
+             '("fd total_mass = ", E32.24)') total_dry_mass
       call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
 
       call conservation_algorithm( rho,              &

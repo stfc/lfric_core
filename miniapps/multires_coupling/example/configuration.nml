@@ -20,6 +20,12 @@ domain_top=1000.0,
 method='uniform',
 number_of_layers=1,
 /
+&files
+checkpoint_stem_name='/home/h06/mhambley/cylc-run/r45084_MigrateScalars/share/data/restartMultires_Coupling_run_multires_coupling_coupling_test_C24_intel_64-bit_fast-debug',
+diag_stem_name='diagMultires_Coupling',
+start_dump_directory='',
+start_dump_filename='',
+/
 &finite_element
 cellshape='quadrilateral',
 coord_order=1,
@@ -63,11 +69,13 @@ test='gravity_wave',
 &initialization
 ancil_option='none',
 coarse_aerosol_ancil=.false.,
+coarse_orography_ancil=.false.,
 init_option='analytic',
 lbc_option='none',
 ls_option='none',
 n_orog_smooth=0,
 read_w2h_wind=.false.,
+w0_orography_mapping=.false.,
 /
 &initial_density
 density_background=0.1,
@@ -147,7 +155,7 @@ viscosity_mu=0.0,
 /
 &multires_coupling
 aerosol_mesh_name='dynamics',
-coarse_aerosol_transport=.false.
+coarse_aerosol_transport=.false.,
 dynamics_mesh_name='dynamics',
 multires_coupling_mesh_tags='dynamics',
 multires_coupling_mode='test',

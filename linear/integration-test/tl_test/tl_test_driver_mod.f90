@@ -11,7 +11,7 @@ module tl_test_driver_mod
 
   use base_mesh_config_mod,       only : prime_mesh_name
   use calendar_mod,               only : calendar_type
-  use constants_mod,              only : i_def, i_native, imdi
+  use constants_mod,              only : i_def, i_native, imdi, r_def
   use extrusion_mod,              only : TWOD
   use gungho_model_mod,           only : initialise_infrastructure, &
                                          initialise_model,          &
@@ -86,6 +86,8 @@ contains
     type(modeldb_type),   intent(inout) :: modeldb
     class(calendar_type), intent(in)    :: calendar
 
+    call modeldb%values%initialise( 'values', 5 )
+
     ! Initialise infrastructure and setup constants
     !
     call initialise_infrastructure( modeldb%model_data, &
@@ -100,6 +102,16 @@ contains
     ! Assume aerosol mesh is the same as dynamics mesh
     aerosol_mesh => mesh
     aerosol_twod_mesh => twod_mesh
+
+    ! gungho_init_field() expects these values to exist. The dependency of
+    ! the linear application tests on this procedure will hopefully be resolved
+    ! in the future, at which point this initialisation may be removed.
+    !
+    call modeldb%values%add_key_value( 'temperature_correction_rate', &
+                                       0.0_r_def )
+    call modeldb%values%add_key_value( 'total_dry_mass', 0.0_r_def )
+    call modeldb%values%add_key_value( 'total_energy', 0.0_r_def )
+    call modeldb%values%add_key_value( 'total_energy_previous', 0.0_r_def )
 
     ! Instantiate the fields stored in model_data
     call create_model_data( modeldb,      &

@@ -10,7 +10,7 @@
 module jedi_lfric_linear_driver_mod
 
   use base_mesh_config_mod,       only : prime_mesh_name
-  use constants_mod,              only : i_def, i_native, imdi
+  use constants_mod,              only : i_def, i_native, imdi, r_def
   use driver_io_mod,              only : get_io_context
   use extrusion_mod,              only : TWOD
   use field_mod,                  only : field_type
@@ -104,6 +104,11 @@ contains
       aerosol_twod_mesh => twod_mesh
     end if
 
+    call modeldb%values%add_key_value( 'temperature_correction_rate', &
+                                       0.0_r_def )
+    call modeldb%values%add_key_value( 'total_dry_mass', 0.0_r_def )
+    call modeldb%values%add_key_value( 'total_energy_previous', 0.0_r_def )
+
     ! Instantiate the fields stored in model_data
     call create_model_data( modeldb,         &
                             mesh, twod_mesh, &
@@ -141,9 +146,7 @@ contains
 
     ! Initial output
     io_context => get_io_context()
-    call write_initial_output( mesh, twod_mesh,    &
-                               modeldb%model_data, &
-                               modeldb%clock,      &
+    call write_initial_output( modeldb, mesh, twod_mesh, &
                                io_context, nodal_output_on_w3 )
 
     ! Linear model configuration initialisation
@@ -181,10 +184,7 @@ contains
           .and. ( write_diag ) ) then
 
       ! Calculation and output diagnostics
-      call gungho_diagnostics_driver( mesh,                &
-                                      twod_mesh,           &
-                                      modeldb%model_data,  &
-                                      model_clock,         &
+      call gungho_diagnostics_driver( modeldb, mesh, twod_mesh, &
                                       nodal_output_on_w3 )
 
       call linear_diagnostics_driver( mesh,                &
