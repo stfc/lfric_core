@@ -62,6 +62,7 @@ module check_configuration_mod
   public :: check_moisture_advective
   public :: check_horz_dep_pts
   public :: check_vert_dep_pts
+  public :: check_transport_name
   public :: get_required_stencil_depth
 
 contains
@@ -736,5 +737,31 @@ contains
     end do
 
   end function check_vert_dep_pts
+
+
+  !> @brief     Determine whether any transport of field name is requested
+  !> @details   Loops through the transport names and returns true if
+  !>            input name is present.
+  !>
+  !> @param[in] name       The transport_metadata name
+  !> @return    name_exists
+  function check_transport_name(name) result(name_exists)
+
+    implicit none
+
+    character(*), intent(in) :: name
+    logical(kind=l_def) :: name_exists
+    integer(kind=i_def) :: i
+
+    name_exists = .false.
+
+    do i = 1, profile_size
+      if ( trim(field_names(i)) == trim(name) ) then
+        name_exists = .true.
+        exit
+      end if
+    end do
+
+  end function check_transport_name
 
 end module check_configuration_mod

@@ -404,16 +404,16 @@ contains
     advection_flag = microphysics_casim
 
     call processor%apply(make_spec('nl_mphys', main%microphysics, Wtheta,             &
-        adv_coll=if_adv((advection_flag .and. casim_iopt_act /= 0_i_def), adv%last),  &
-        ckp=checkpoint_flag))
+        adv_coll=if_adv((advection_flag .and. casim_iopt_act /= 0_i_def),  &
+         adv%last_adv), ckp=checkpoint_flag))
     call processor%apply(make_spec('nr_mphys', main%microphysics, Wtheta,             &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_adv), ckp=checkpoint_flag))
     call processor%apply(make_spec('ni_mphys', main%microphysics, Wtheta,             &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_adv), ckp=checkpoint_flag))
     call processor%apply(make_spec('ns_mphys', main%microphysics, Wtheta,             &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_adv), ckp=checkpoint_flag))
     call processor%apply(make_spec('ng_mphys', main%microphysics, Wtheta,             &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_adv), ckp=checkpoint_flag))
 
     ! 2D fields, don't need checkpointing
     call processor%apply(make_spec('ls_rain', main%microphysics, W3, twod=.true.))
@@ -628,14 +628,14 @@ contains
     call processor%apply(make_spec('dv_conv', main%convection, W3))
 
     call processor%apply(make_spec('conv_prog_dtheta', main%convection, Wtheta,       &
-        adv_coll=if_adv((l_conv_prog_dtheta .and. adv_conv_prog_dtheta), adv%all),    &
-        ckp=l_conv_prog_dtheta))
+        adv_coll=if_adv((l_conv_prog_dtheta .and. adv_conv_prog_dtheta),              &
+        adv%all_adv), ckp=l_conv_prog_dtheta))
     call processor%apply(make_spec('conv_prog_dmv', main%convection, Wtheta,          &
-        adv_coll=if_adv((l_conv_prog_dq .and. adv_conv_prog_dq), adv%all),            &
+        adv_coll=if_adv((l_conv_prog_dq .and. adv_conv_prog_dq), adv%all_adv),            &
         ckp=l_conv_prog_dq))
 
     call processor%apply(make_spec('conv_prog_precip', main%convection, Wtheta,       &
-        adv_coll=if_adv(l_conv_prog_precip, adv%all), ckp=l_conv_prog_precip))
+        adv_coll=if_adv(l_conv_prog_precip, adv%all_adv), ckp=l_conv_prog_precip))
 
     !========================================================================
     ! Fields owned by the cloud scheme
@@ -657,15 +657,15 @@ contains
       advection_flag=.false.
     endif
     call processor%apply(make_spec('liquid_fraction', main%cloud, Wtheta,             &
-        adv_coll=if_adv(advection_flag, adv%all), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%all_adv), ckp=checkpoint_flag))
     call processor%apply(make_spec('frozen_fraction', main%cloud, Wtheta,             &
-        adv_coll=if_adv(advection_flag, adv%all), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%all_adv), ckp=checkpoint_flag))
     call processor%apply(make_spec('bulk_fraction', main%cloud, Wtheta,               &
-        adv_coll=if_adv(advection_flag, adv%all), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%all_adv), ckp=checkpoint_flag))
 
     call processor%apply(make_spec('rh_crit', main%cloud, Wtheta))
     call processor%apply(make_spec('departure_exner_wth', main%cloud, Wtheta,         &
-        adv_coll=if_adv(advection_flag, adv%last)))
+        adv_coll=if_adv(advection_flag, adv%last_adv)))
     call processor%apply(make_spec('sigma_mc', main%cloud, Wtheta))
 
     ! Fields for bimodal cloud scheme
@@ -942,19 +942,19 @@ contains
       advection_flag = .false.
     end if
     call processor%apply(make_spec('h2o2', main%chemistry, Wtheta,                    &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     call processor%apply(make_spec('dms', main%chemistry, Wtheta,                     &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     call processor%apply(make_spec('so2', main%chemistry, Wtheta,                     &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     call processor%apply(make_spec('h2so4', main%chemistry, Wtheta,                   &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     call processor%apply(make_spec('dmso', main%chemistry, Wtheta,                    &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     call processor%apply(make_spec('monoterpene', main%chemistry, Wtheta,             &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     call processor%apply(make_spec('secondary_organic', main%chemistry, Wtheta,       &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
 
     ! 3D fields, might need checkpointing
     ! Not advected in Offline Oxidants chemistry scheme
@@ -1083,13 +1083,13 @@ contains
     end if
     ! Nucleation soluble mode number mixing ratio
     call processor%apply(make_spec('n_nuc_sol', main%aerosol, Wtheta,                 &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Nucleation soluble H2SO4 aerosol mmr
     call processor%apply(make_spec('nuc_sol_su', main%aerosol, Wtheta,                &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Nucleation soluble organic carbon aerosol mmr
     call processor%apply(make_spec('nuc_sol_om', main%aerosol, Wtheta,                &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
 
     ! Set flag defaults
     checkpoint_flag     = .false.
@@ -1120,73 +1120,73 @@ contains
 
     ! Aitken soluble mode number mixing ratio
     call processor%apply(make_spec('n_ait_sol', main%aerosol, Wtheta,                 &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Aitken soluble H2SO4 aerosol mmr
     call processor%apply(make_spec('ait_sol_su', main%aerosol, Wtheta,                &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Aitken soluble black carbon aerosol mmr
     call processor%apply(make_spec('ait_sol_bc', main%aerosol, Wtheta,                &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Aitken soluble organic carbon aerosol mmr
     call processor%apply(make_spec('ait_sol_om', main%aerosol, Wtheta,                &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Accumulation soluble mode number mixing ratio
     call processor%apply(make_spec('n_acc_sol', main%aerosol, Wtheta,                 &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Accumulation soluble H2SO4 aerosol mmr
     call processor%apply(make_spec('acc_sol_su', main%aerosol, Wtheta,                &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Accumulation soluble black carbon aerosol mmr
     call processor%apply(make_spec('acc_sol_bc', main%aerosol, Wtheta,                &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Accumulation soluble organic carbon aerosol mmr
     call processor%apply(make_spec('acc_sol_om', main%aerosol, Wtheta,                &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Accumulation soluble sea salt aerosol mmr
     call processor%apply(make_spec('acc_sol_ss', main%aerosol, Wtheta,                &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Accumulation soluble dust aerosol mmr
     call processor%apply(make_spec('acc_sol_du', main%aerosol, Wtheta,                &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Coarse soluble mode number mixing ratio
     call processor%apply(make_spec('n_cor_sol', main%aerosol, Wtheta,                 &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Coarse soluble H2SO4 aerosol mmr
     call processor%apply(make_spec('cor_sol_su', main%aerosol, Wtheta,                &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Coarse soluble black carbon aerosol mmr
     call processor%apply(make_spec('cor_sol_bc', main%aerosol, Wtheta,                &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Coarse soluble organic carbon aerosol mmr
     call processor%apply(make_spec('cor_sol_om', main%aerosol, Wtheta,                &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Coarse soluble sea salt aerosol mmr
     call processor%apply(make_spec('cor_sol_ss', main%aerosol, Wtheta,                &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Coarse soluble dust aerosol mmr
     call processor%apply(make_spec('cor_sol_du', main%aerosol, Wtheta,                &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Aitken insoluble mode number mixing ratio
     call processor%apply(make_spec('n_ait_ins', main%aerosol, Wtheta,                 &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Aitken insoluble black carbon aerosol mmr
     call processor%apply(make_spec('ait_ins_bc', main%aerosol, Wtheta,                &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Aitken insoluble organic carbon aerosol mmr
     call processor%apply(make_spec('ait_ins_om', main%aerosol, Wtheta,                &
-        adv_coll=if_adv(advection_flag, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Accumulation insoluble mode number mixing ratio
     call processor%apply(make_spec('n_acc_ins', main%aerosol, Wtheta,                 &
-        adv_coll=if_adv(advection_flag_dust, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag_dust, adv%last_con), ckp=checkpoint_flag))
     ! Accumulation insoluble dust aerosol mmr
     call processor%apply(make_spec('acc_ins_du', main%aerosol, Wtheta,                &
-        adv_coll=if_adv(advection_flag_dust, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag_dust, adv%last_con), ckp=checkpoint_flag))
     ! Coarse insoluble mode number mixing ratio
     call processor%apply(make_spec('n_cor_ins', main%aerosol, Wtheta,                 &
-        adv_coll=if_adv(advection_flag_dust, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag_dust, adv%last_con), ckp=checkpoint_flag))
     ! Coarse insoluble dust aerosol mmr
     call processor%apply(make_spec('cor_ins_du', main%aerosol, Wtheta,                &
-        adv_coll=if_adv(advection_flag_dust, adv%last), ckp=checkpoint_flag))
+        adv_coll=if_adv(advection_flag_dust, adv%last_con), ckp=checkpoint_flag))
 
     ! 3D fields, might need checkpointing
     if (aerosol == aerosol_um .and. glomap_mode == glomap_mode_ukca) then

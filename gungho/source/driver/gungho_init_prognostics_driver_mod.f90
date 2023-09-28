@@ -43,8 +43,8 @@ contains
   !> @param[in,out] prognostic_fields the collection of prognostics
   !> @param[in,out] mr Field bundle containing the moisture mixing ratios
   !> @param[in,out] moist_dyn Auxilliary fields for moist dynamics
-  !> @param[in,out] adv_fields_last_outer Fields to transport on final solver iteration only
-  subroutine init_gungho_prognostics(prognostic_fields, mr, moist_dyn,adv_fields_last_outer)
+  !> @param[in,out] con_tracer_last_outer Fields to transport on final solver iteration only
+  subroutine init_gungho_prognostics(prognostic_fields, mr, moist_dyn,con_tracer_last_outer)
 
     implicit none
 
@@ -52,7 +52,7 @@ contains
     type( field_collection_type ), intent(inout) :: prognostic_fields
     type( field_type ),            intent(inout) :: mr(nummr), &
                                                     moist_dyn(num_moist_factors)
-    type( field_collection_type ), intent(inout) :: adv_fields_last_outer
+    type( field_collection_type ), intent(inout) :: con_tracer_last_outer
 
     ! Pointers to fields
     type( field_type ), pointer   :: u => null()
@@ -69,7 +69,7 @@ contains
     call prognostic_fields%get_field('exner', exner)
 
     if (transport_ageofair) then
-      call adv_fields_last_outer%get_field('ageofair',ageofair)
+      call con_tracer_last_outer%get_field('ageofair',ageofair)
     end if
 
     !=== Initialise global prognostic fields ==================================!

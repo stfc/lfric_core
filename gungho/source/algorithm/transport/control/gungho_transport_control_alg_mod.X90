@@ -18,6 +18,7 @@ module gungho_transport_control_alg_mod
   use log_mod,                           only: log_event,         &
                                                log_scratch_space, &
                                                LOG_LEVEL_INFO,    &
+                                               LOG_LEVEL_ERROR,   &
                                                LOG_LEVEL_ALWAYS
   use mesh_collection_mod,               only: mesh_collection
   use mesh_mod,                          only: mesh_type
@@ -30,6 +31,7 @@ module gungho_transport_control_alg_mod
                                                get_transport_runtime
   use transport_metadata_collection_mod, only: transport_metadata_collection_type, &
                                                transport_metadata_collection
+  use check_configuration_mod,           only: check_any_shifted, check_transport_name
 
   implicit none
 
@@ -48,7 +50,6 @@ contains
   !> @params[in] mesh   The mesh to initialise on
   subroutine gungho_transport_control_alg_init( mesh )
 
-    use check_configuration_mod,      only: check_any_shifted
     use reconstruct_w3_field_alg_mod, only: reconstruct_w3_field_alg_init
     use wt_advective_update_alg_mod,  only: wt_advective_update_alg_init
     use transport_config_mod,         only: profile_size,          &
@@ -163,25 +164,37 @@ contains
   !!                                iteration transport used for cheap transport update
   !> @param[in]     wind_prev       (Optional) Estimate of end of timestep wind from
   !!                                previous outer iteration
-  !> @param[in,out] adv_fields_all_outer
-  !!                                (Optional) Fields after transport on every iteration
-  !> @param[in]     adv_fields_all_outer_after_slow
-  !!                                (Optional) Fields to transport every iteration
-  !> @param[in,out] adv_fields_last_outer
-  !!                                (Optional) Fields after transport on final iteration only
-  !> @param[in]     adv_fields_last_outer_after_slow
-  !!                                (Optional) Fields to transport on final iteration only
+  !> @param[in,out] adv_tracer_all_outer
+  !!                                (Optional) Tracers after transport on every iteration
+  !> @param[in]     adv_tracer_all_outer_after_slow
+  !!                                (Optional) Tracers to transport every iteration
+  !> @param[in,out] adv_tracer_last_outer
+  !!                                (Optional) Tracers after transport on final iteration only
+  !> @param[in]     adv_tracer_last_outer_after_slow
+  !!                                (Optional) Tracers to transport on final iteration only
+  !> @param[in,out] con_tracer_all_outer
+  !!                                (Optional) Second group of tracers after transport on every iteration
+  !> @param[in]     con_tracer_all_outer_after_slow
+  !!                                (Optional) Second group of tracers to transport every iteration
+  !> @param[in,out] con_tracer_last_outer
+  !!                                (Optional) Second group of tracers after transport on final iteration only
+  !> @param[in]     con_tracer_last_outer_after_slow
+  !!                                (Optional) Second group of tracers to transport on final iteration only
 
   subroutine gungho_transport_control_alg(advection_inc, advected_fields,    &
                                           wind_np1, wind_n, mr_out, mr_in,   &
                                           model_clock, outer,                &
                                           cheap_update, prev_inc, wind_prev, &
-                                          adv_fields_all_outer,              &
-                                          adv_fields_all_outer_after_slow,   &
-                                          adv_fields_last_outer,             &
-                                          adv_fields_last_outer_after_slow)
+                                          adv_tracer_all_outer,              &
+                                          adv_tracer_all_outer_after_slow,   &
+                                          adv_tracer_last_outer,             &
+                                          adv_tracer_last_outer_after_slow,  &
+                                          con_tracer_all_outer,              &
+                                          con_tracer_all_outer_after_slow,   &
+                                          con_tracer_last_outer,             &
+                                          con_tracer_last_outer_after_slow   &
+                                          )
 
-    use check_configuration_mod,         only: check_any_shifted
     use derived_config_mod,              only: bundle_size
     use fem_constants_mod,               only: get_mass_matrix
     use field_bundle_mod,                only: bundle_inc_axpby, &
@@ -223,16 +236,19 @@ contains
     logical(kind=l_def),         intent(in)    :: cheap_update
     type(field_type),            intent(in),    optional :: prev_inc(bundle_size)
     type(field_type),            intent(in),    optional :: wind_prev
-    type(field_collection_type), intent(inout), optional :: adv_fields_all_outer
-    type(field_collection_type), intent(in),    optional :: adv_fields_all_outer_after_slow
-    type(field_collection_type), intent(inout), optional :: adv_fields_last_outer
-    type(field_collection_type), intent(in),    optional :: adv_fields_last_outer_after_slow
+    type(field_collection_type), intent(inout), optional :: adv_tracer_all_outer
+    type(field_collection_type), intent(in),    optional :: adv_tracer_all_outer_after_slow
+    type(field_collection_type), intent(inout), optional :: adv_tracer_last_outer
+    type(field_collection_type), intent(in),    optional :: adv_tracer_last_outer_after_slow
+    type(field_collection_type), intent(inout), optional :: con_tracer_all_outer
+    type(field_collection_type), intent(in),    optional :: con_tracer_all_outer_after_slow
+    type(field_collection_type), intent(inout), optional :: con_tracer_last_outer
+    type(field_collection_type), intent(in),    optional :: con_tracer_last_outer_after_slow
 
     ! Internal variables
     type(field_type)    :: fields_np1(bundle_size)
     type(field_type)    :: wind_for_adv
     logical(kind=l_def) :: do_moisture_diagnostics
-    logical(kind=l_def) :: any_shifted
     real(r_def)         :: cast_dt
     type(field_type)    :: aerosol_wind_n, aerosol_wind_np1
 
@@ -252,9 +268,6 @@ contains
     ! Pre-transport initialisation tasks
     ! ------------------------------------------------------------------------ !
 
-    ! Check if any transport scheme needs a shifted mesh
-    any_shifted = check_any_shifted()
-
     call wind_for_adv%initialise( wind_n%get_function_space() )
     if (cheap_update .AND. outer > 2 .AND. present(wind_prev) ) then
       ! Use previous wind in the advecting wind calculation
@@ -265,7 +278,7 @@ contains
     end if
 
     ! Create object in transport_runtime_collection (advecting wind etc)
-    if ( any_shifted ) then
+    if ( check_any_shifted() ) then
       primary_mesh => wind_n%get_mesh()
       shifted_mesh => mesh_collection%get_mesh(primary_mesh, SHIFTED)
 
@@ -329,12 +342,19 @@ contains
                                    cast_dt, transport_metadata )
 
       ! ---------------------------------------------------------------------- !
-      ! Transport fields which are active in fast physics, and therefore need
+      ! Transport tracers which are active in fast physics, and therefore need
       ! transporting on every outer iteration
-      if (present(adv_fields_all_outer)) then
-        transport_metadata => transport_metadata_collection%get_transport_metadata('tracer')
-        call tracer_collection_transport_alg(adv_fields_all_outer,            &
-                                             adv_fields_all_outer_after_slow, &
+      if (present(adv_tracer_all_outer) .and. check_transport_name('adv_tracer') ) then
+        transport_metadata => transport_metadata_collection%get_transport_metadata('adv_tracer')
+        call tracer_collection_transport_alg(adv_tracer_all_outer,            &
+                                             adv_tracer_all_outer_after_slow, &
+                                             cast_dt,                         &
+                                             transport_metadata)
+      end if
+      if (present(con_tracer_all_outer) .and. check_transport_name('con_tracer') ) then
+        transport_metadata => transport_metadata_collection%get_transport_metadata('con_tracer')
+        call tracer_collection_transport_alg(con_tracer_all_outer,            &
+                                             con_tracer_all_outer_after_slow, &
                                              cast_dt,                         &
                                              transport_metadata)
       end if
@@ -355,7 +375,7 @@ contains
       ! Transport fields which aren't needed in fast physics, and therefore
       ! only need transporting on the final outer iteration
       if (outer == outer_iterations) then
-        if (present(adv_fields_last_outer)) then
+        if (present(con_tracer_last_outer) .and. check_transport_name('con_tracer') ) then
 
           ! Set up a coarse transport_runtime if needed for aerosol transport
           if (use_multires_coupling .and. coarse_aerosol_transport) then
@@ -388,7 +408,7 @@ contains
             ! Transport on dynamics mesh and using cheap update
             ! Recompute transport_runtime with full wind instead of cheap update
             ! wind, and set cheap_update flag = .false.
-            if ( any_shifted ) then
+            if ( check_any_shifted() ) then
               primary_mesh => wind_n%get_mesh()
               shifted_mesh => mesh_collection%get_mesh(primary_mesh, SHIFTED)
 
@@ -400,28 +420,47 @@ contains
                                           model_clock, outer, &
                                           .false. )
             end if
+
+            write(log_scratch_space,'(A)') 'Conservative tracer transport is not '// &
+                          'yet fully implemented with the cheap_update scheme'
+            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+
+
           end if
 
           ! Transport of tracers -----------------------------------------------
-          transport_metadata => transport_metadata_collection%get_transport_metadata('tracer')
+          transport_metadata => transport_metadata_collection%get_transport_metadata('con_tracer')
 
           if (use_multires_coupling .and. coarse_aerosol_transport) then
             call coarse_collection_transport_alg &
             (                                    &
-              adv_fields_last_outer,             &
-              adv_fields_last_outer_after_slow,  &
+              con_tracer_last_outer,             &
+              con_tracer_last_outer_after_slow,  &
               cast_dt,                           &
               transport_metadata                 &
             )
           else
             call tracer_collection_transport_alg &
             (                                    &
-              adv_fields_last_outer,             &
-              adv_fields_last_outer_after_slow,  &
+              con_tracer_last_outer,             &
+              con_tracer_last_outer_after_slow,  &
               cast_dt,                           &
               transport_metadata                 &
             )
           end if
+
+        end if
+
+        if (present(adv_tracer_last_outer) .and. check_transport_name('adv_tracer') ) then
+          ! TODO: This implementation doesn't do coarse resolution transport for this group
+          transport_metadata => transport_metadata_collection%get_transport_metadata('adv_tracer')
+          call tracer_collection_transport_alg   &
+             (                                   &
+              adv_tracer_last_outer,             &
+              adv_tracer_last_outer_after_slow,  &
+              cast_dt,                           &
+              transport_metadata                 &
+              )
         end if
       end if
       ! ---------------------------------------------------------------------- !

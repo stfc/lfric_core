@@ -306,8 +306,10 @@ contains
   !> @param[in,out] exner                  Exner pressure
   !> @param[in,out] mr                     Mixing ratios
   !> @param[in,out] moist_dyn              Factors for moist dynamics
-  !> @param[in,out] adv_fields_all_outer   Group of fields to be advected
-  !> @param[in,out] adv_fields_last_outer  Group of fields to be advected
+  !> @param[in,out] adv_tracer_all_outer   Group of fields to be advected
+  !> @param[in,out] adv_tracer_last_outer  Group of fields to be advected
+  !> @param[in,out] con_tracer_all_outer   Second group of fields to be advected
+  !> @param[in,out] con_tracer_last_outer  Second group of fields to be advected
   !> @param[in,out] derived_fields         Group of derived fields
   !> @param[in,out] radition_fields        Fields for radiation scheme
   !> @param[in,out] microphysics_fields    Fields for mphys scheme
@@ -329,7 +331,8 @@ contains
   !> @param[in]     mesh                   The current mesh
   !> @param[in]     twod_mesh              The current 2d mesh
   subroutine semi_implicit_alg_step(u, rho, theta, exner, mr, moist_dyn,       &
-                                    adv_fields_all_outer,adv_fields_last_outer,&
+                                    adv_tracer_all_outer,adv_tracer_last_outer,&
+                                    con_tracer_all_outer,con_tracer_last_outer,&
                                     derived_fields, radiation_fields,          &
                                     microphysics_fields, electric_fields,      &
                                     orography_fields,                          &
@@ -346,8 +349,10 @@ contains
     type( field_type ), intent( inout ) :: mr(nummr)
     type( field_type ), intent( inout ) :: moist_dyn(num_moist_factors)
     ! field groups
-    type( field_collection_type ), intent( inout ) :: adv_fields_all_outer
-    type( field_collection_type ), intent( inout ) :: adv_fields_last_outer
+    type( field_collection_type ), intent( inout ) :: adv_tracer_all_outer
+    type( field_collection_type ), intent( inout ) :: adv_tracer_last_outer
+    type( field_collection_type ), intent( inout ) :: con_tracer_all_outer
+    type( field_collection_type ), intent( inout ) :: con_tracer_last_outer
     type( field_collection_type ), intent( inout ) :: derived_fields
     type( field_collection_type ), intent( inout ) :: radiation_fields
     type( field_collection_type ), intent( inout ) :: microphysics_fields
@@ -390,8 +395,10 @@ contains
     logical(kind=l_def) :: write_moisture_diag
 
     ! Fields after slow physics to be advected (i.e. field_n + slow phys inc)
-    type( field_collection_type ) :: adv_fields_all_outer_after_slow
-    type( field_collection_type ) :: adv_fields_last_outer_after_slow
+    type( field_collection_type ) :: adv_tracer_all_outer_after_slow
+    type( field_collection_type ) :: adv_tracer_last_outer_after_slow
+    type( field_collection_type ) :: con_tracer_all_outer_after_slow
+    type( field_collection_type ) :: con_tracer_last_outer_after_slow
     ! Cloud fields after advection / before fast physics updates
     type( field_collection_type ) :: cloud_fields_after_adv
 
@@ -470,26 +477,37 @@ contains
     !==========================================================================
     ! Start the Outer (advection) loop
     !==========================================================================
-    call conditional_collection_copy(adv_fields_all_outer_after_slow,  &
-              generic_fields_to_copy=adv_fields_all_outer,             &
-              field_list=adv_fields_all_outer)
-    call conditional_collection_copy(adv_fields_last_outer_after_slow, &
-              generic_fields_to_copy=adv_fields_last_outer,            &
-              field_list=adv_fields_last_outer)
+    call conditional_collection_copy(adv_tracer_all_outer_after_slow,  &
+              generic_fields_to_copy=adv_tracer_all_outer,             &
+              field_list=adv_tracer_all_outer)
+    call conditional_collection_copy(adv_tracer_last_outer_after_slow, &
+              generic_fields_to_copy=adv_tracer_last_outer,            &
+              field_list=adv_tracer_last_outer)
+    call conditional_collection_copy(con_tracer_all_outer_after_slow,  &
+              generic_fields_to_copy=con_tracer_all_outer,             &
+              field_list=con_tracer_all_outer)
+    call conditional_collection_copy(con_tracer_last_outer_after_slow, &
+              generic_fields_to_copy=con_tracer_last_outer,            &
+              field_list=con_tracer_last_outer)
     call invoke( setval_X(wind_prev, state(igh_u)) )
 
     outer_dynamics_loop: do outer = 1,outer_iterations
 
       if (use_wavedynamics) then
-        call gungho_transport_control_alg( rhs_adv, advected_state,         &
-                                           state(igh_u), state_n(igh_u),    &
-                                           mr, mr_after_slow, model_clock,  &
-                                           outer, cheap_update,             &
-                                           adv_inc_prev, wind_prev,         &
-                                           adv_fields_all_outer,            &
-                                           adv_fields_all_outer_after_slow, &
-                                           adv_fields_last_outer,           &
-                                           adv_fields_last_outer_after_slow )
+        call gungho_transport_control_alg( rhs_adv, advected_state,          &
+                                           state(igh_u), state_n(igh_u),     &
+                                           mr, mr_after_slow, model_clock,   &
+                                           outer, cheap_update,              &
+                                           adv_inc_prev, wind_prev,          &
+                                           adv_tracer_all_outer,             &
+                                           adv_tracer_all_outer_after_slow,  &
+                                           adv_tracer_last_outer,            &
+                                           adv_tracer_last_outer_after_slow, &
+                                           con_tracer_all_outer,             &
+                                           con_tracer_all_outer_after_slow,  &
+                                           con_tracer_last_outer,            &
+                                           con_tracer_last_outer_after_slow  &
+                                           )
 
         if ( cheap_update .AND. (outer < outer_iterations) ) then
           ! Copy transport increments to use in next outer iteration
@@ -500,9 +518,12 @@ contains
           call invoke( inc_X_plus_Y(advected_state(igh_d), rhs_adv(igh_d) ), &
                        inc_X_plus_Y(advected_state(igh_t), rhs_adv(igh_t) ),   &
                        inc_X_plus_Y(advected_state(igh_u), wind_fv_inc ) )
-          call conditional_collection_copy(adv_fields_all_outer_after_slow, &
-                      generic_fields_to_copy=adv_fields_all_outer,          &
-                      field_list=adv_fields_all_outer)
+          call conditional_collection_copy(adv_tracer_all_outer_after_slow, &
+                      generic_fields_to_copy=adv_tracer_all_outer,          &
+                      field_list=adv_tracer_all_outer)
+          call conditional_collection_copy(con_tracer_all_outer_after_slow, &
+                      generic_fields_to_copy=con_tracer_all_outer,          &
+                      field_list=con_tracer_all_outer)
           if (use_moisture) then
             call copy_bundle(mr, mr_after_slow, nummr)
           end if
@@ -536,9 +557,10 @@ contains
                                          model_clock )
         end if
         if (use_moisture) call copy_bundle(mr, mr_after_adv, nummr)
+        ! cloud fields are stored in the advective tracers
         call conditional_collection_copy(cloud_fields_after_adv,               &
                   generic_fields_to_copy=cloud_fields,                         &
-                  field_list=adv_fields_all_outer)
+                  field_list=adv_tracer_all_outer)
 
         !--------------------------------------------------------------------
         ! Call the fast physics terms
@@ -702,7 +724,7 @@ contains
     !--------------------------------------------------------------------
 
     if (transport_ageofair) then
-      call adv_fields_last_outer%get_field('ageofair', ageofair)
+      call con_tracer_last_outer%get_field('ageofair', ageofair)
       call ageofair_update(ageofair, model_clock)
     end if
 
@@ -764,7 +786,7 @@ contains
          mod(model_clock%get_step(),diagnostic_frequency) == 0 ) then
       call output_diags_for_si(state, state_n, state_after_slow, mr, mr_n,  &
                                mr_after_slow, mr_after_adv, derived_fields, &
-                               du, dtheta, adv_fields_all_outer,            &
+                               du, dtheta, adv_tracer_all_outer,            &
                                cloud_fields_after_adv)
     end if
 

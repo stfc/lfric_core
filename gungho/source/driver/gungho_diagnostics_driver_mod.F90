@@ -80,7 +80,7 @@ contains
     logical,             intent(in)             :: nodal_output_on_w3
 
     type( field_collection_type ), pointer :: prognostic_fields => null()
-    type( field_collection_type ), pointer :: adv_fields_last_outer => null()
+    type( field_collection_type ), pointer :: con_tracer_last_outer => null()
     type( field_collection_type ), pointer :: lbc_fields => null()
     type( field_type ),            pointer :: mr(:) => null()
     type( field_type ),            pointer :: moist_dyn(:) => null()
@@ -137,7 +137,7 @@ contains
     panel_id => get_panel_id(mesh%get_id())
     height_w3 => get_height(W3, mesh%get_id())
     height_wth => get_height(Wtheta, mesh%get_id())
-    adv_fields_last_outer =>  modeldb%model_data%adv_fields_last_outer
+    con_tracer_last_outer =>  modeldb%model_data%con_tracer_last_outer
 
     ! Can't just iterate through the prognostic/diagnostic collections as
     ! some fields are scalars and some fields are vectors, so explicitly
@@ -160,7 +160,7 @@ contains
                                  modeldb%clock, mesh, nodal_output_on_w3)
 
     if (transport_ageofair) then
-      call adv_fields_last_outer%get_field('ageofair',ageofair)
+      call con_tracer_last_outer%get_field('ageofair',ageofair)
       call write_scalar_diagnostic('ageofair', ageofair, &
                                    modeldb%clock, mesh, nodal_output_on_w3)
     end if

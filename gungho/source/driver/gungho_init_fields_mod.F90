@@ -163,8 +163,10 @@ subroutine create_model_data( modeldb,      &
                                     modeldb%model_data%depository,            &
                                     modeldb%model_data%prognostic_fields,     &
                                     modeldb%model_data%diagnostic_fields,     &
-                                    modeldb%model_data%adv_fields_all_outer,  &
-                                    modeldb%model_data%adv_fields_last_outer, &
+                                    modeldb%model_data%adv_tracer_all_outer,  &
+                                    modeldb%model_data%adv_tracer_last_outer, &
+                                    modeldb%model_data%con_tracer_all_outer,  &
+                                    modeldb%model_data%con_tracer_last_outer, &
                                     modeldb%model_data%mr,                    &
                                     modeldb%model_data%moist_dyn )
 
@@ -180,8 +182,10 @@ subroutine create_model_data( modeldb,      &
     if (use_physics) then
       call field_mapper%init( modeldb%model_data%depository,            &
                               modeldb%model_data%prognostic_fields,     &
-                              modeldb%model_data%adv_fields_all_outer,  &
-                              modeldb%model_data%adv_fields_last_outer, &
+                              modeldb%model_data%adv_tracer_all_outer,  &
+                              modeldb%model_data%adv_tracer_last_outer, &
+                              modeldb%model_data%con_tracer_all_outer,  &
+                              modeldb%model_data%con_tracer_last_outer, &
                               modeldb%model_data%derived_fields,        &
                               modeldb%model_data%radiation_fields,      &
                               modeldb%model_data%microphysics_fields,   &
@@ -287,10 +291,11 @@ subroutine create_model_data( modeldb,      &
         ! Initialise prognostics analytically according to
         ! namelist options
 
-        call init_gungho_prognostics( modeldb%model_data%prognostic_fields, &
-                                      modeldb%model_data%mr,                &
-                                      modeldb%model_data%moist_dyn,         &
-                                      modeldb%model_data%adv_fields_last_outer )
+        call init_gungho_prognostics( modeldb%model_data%prognostic_fields,     &
+                                      modeldb%model_data%mr,                    &
+                                      modeldb%model_data%moist_dyn,             &
+                                      modeldb%model_data%con_tracer_last_outer  &
+                                      )
 
       case ( init_option_checkpoint_dump )
 
@@ -540,8 +545,10 @@ subroutine create_model_data( modeldb,      &
       call model_data%depository%clear()
       call model_data%prognostic_fields%clear()
       call model_data%diagnostic_fields%clear()
-      call model_data%adv_fields_last_outer%clear()
-      call model_data%adv_fields_all_outer%clear()
+      call model_data%adv_tracer_last_outer%clear()
+      call model_data%adv_tracer_all_outer%clear()
+      call model_data%con_tracer_last_outer%clear()
+      call model_data%con_tracer_all_outer%clear()
       call model_data%derived_fields%clear()
       call model_data%radiation_fields%clear()
       call model_data%microphysics_fields%clear()

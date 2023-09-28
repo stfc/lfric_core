@@ -82,8 +82,10 @@ module gungho_step_mod
     type( field_collection_type ), pointer :: diagnostic_fields => null()
     type( field_type ),            pointer :: mr(:) => null()
     type( field_type ),            pointer :: moist_dyn(:) => null()
-    type( field_collection_type ), pointer :: adv_fields_all_outer => null()
-    type( field_collection_type ), pointer :: adv_fields_last_outer => null()
+    type( field_collection_type ), pointer :: adv_tracer_all_outer => null()
+    type( field_collection_type ), pointer :: adv_tracer_last_outer => null()
+    type( field_collection_type ), pointer :: con_tracer_all_outer => null()
+    type( field_collection_type ), pointer :: con_tracer_last_outer => null()
     type( field_collection_type ), pointer :: derived_fields => null()
     type( field_collection_type ), pointer :: radiation_fields => null()
     type( field_collection_type ), pointer :: microphysics_fields => null()
@@ -137,8 +139,10 @@ module gungho_step_mod
     diagnostic_fields => modeldb%model_data%diagnostic_fields
     mr => modeldb%model_data%mr
     moist_dyn => modeldb%model_data%moist_dyn
-    adv_fields_all_outer => modeldb%model_data%adv_fields_all_outer
-    adv_fields_last_outer => modeldb%model_data%adv_fields_last_outer
+    adv_tracer_all_outer => modeldb%model_data%adv_tracer_all_outer
+    adv_tracer_last_outer => modeldb%model_data%adv_tracer_last_outer
+    con_tracer_all_outer => modeldb%model_data%con_tracer_all_outer
+    con_tracer_last_outer => modeldb%model_data%con_tracer_last_outer
     derived_fields => modeldb%model_data%derived_fields
     radiation_fields => modeldb%model_data%radiation_fields
     microphysics_fields => modeldb%model_data%microphysics_fields
@@ -171,8 +175,10 @@ module gungho_step_mod
     select case( method )
       case( method_semi_implicit )  ! Semi-Implicit
         call semi_implicit_alg_step(u, rho, theta, exner, mr, moist_dyn,       &
-                                    adv_fields_all_outer,                      &
-                                    adv_fields_last_outer,                     &
+                                    adv_tracer_all_outer,                      &
+                                    adv_tracer_last_outer,                     &
+                                    con_tracer_all_outer,                      &
+                                    con_tracer_last_outer,                     &
                                     derived_fields, radiation_fields,          &
                                     microphysics_fields, electric_fields,      &
                                     orography_fields,                          &

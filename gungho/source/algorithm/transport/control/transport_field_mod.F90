@@ -4,12 +4,12 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 !> @brief Contains central routine for transporting fields.
-!> @details Contains routine to transport a (multidata) field pointing to
+!> @details Contains routine to transport a field pointing to
 !!          particular routines based on the specified transport options.
 
 module transport_field_mod
 
-  use constants_mod,                    only: r_def, r_tran
+  use constants_mod,                    only: r_def, r_tran, i_def
   use field_mod,                        only: field_type
   use r_tran_field_mod,                 only: r_tran_field_type
   use log_mod,                          only: log_event, LOG_LEVEL_ERROR
@@ -43,7 +43,7 @@ contains
 
   !> @brief Central routine for transporting fields.
   !> @details Performs a whole time step, solving the transport equation for
-  !!          a (multidata) field.
+  !!          a field.
   !> @param[in,out] field_np1_rdef     Field to return at end of transport step
   !> @param[in]     field_n_rdef       Field at the start of the transport step
   !> @param[in]     model_dt_rdef      Time difference across time step
@@ -157,5 +157,7 @@ contains
     end select
 
   end subroutine transport_field_r_tran
+
+
 
 end module transport_field_mod

@@ -73,8 +73,10 @@ module tl_test_semi_imp_alg_mod
     type( field_collection_type ), pointer :: diagnostic_fields => null()
     type( field_type ),            pointer :: mr(:) => null()
     type( field_type ),            pointer :: ls_mr(:) => null()
-    type( field_collection_type ), pointer :: adv_fields_all_outer => null()
-    type( field_collection_type ), pointer :: adv_fields_last_outer => null()
+    type( field_collection_type ), pointer :: adv_tracer_all_outer => null()
+    type( field_collection_type ), pointer :: adv_tracer_last_outer => null()
+    type( field_collection_type ), pointer :: con_tracer_all_outer => null()
+    type( field_collection_type ), pointer :: con_tracer_last_outer => null()
     type( field_collection_type ), pointer :: derived_fields => null()
     type( field_collection_type ), pointer :: radiation_fields => null()
     type( field_collection_type ), pointer :: microphysics_fields => null()
@@ -139,8 +141,10 @@ module tl_test_semi_imp_alg_mod
 
     mr => model_data%mr
     moist_dyn => model_data%moist_dyn
-    adv_fields_all_outer => model_data%adv_fields_all_outer
-    adv_fields_last_outer => model_data%adv_fields_last_outer
+    adv_tracer_all_outer => model_data%adv_tracer_all_outer
+    adv_tracer_last_outer => model_data%adv_tracer_last_outer
+    con_tracer_all_outer => model_data%con_tracer_all_outer
+    con_tracer_last_outer => model_data%con_tracer_last_outer
     derived_fields => model_data%derived_fields
     radiation_fields => model_data%radiation_fields
     microphysics_fields => model_data%microphysics_fields
@@ -238,7 +242,8 @@ module tl_test_semi_imp_alg_mod
     call semi_implicit_alg_init(mesh, u, rho, theta, exner, mr)
 
     call semi_implicit_alg_step(u, rho, theta, exner, mr, moist_dyn,         &
-                                adv_fields_all_outer, adv_fields_last_outer, &
+                                adv_tracer_all_outer, adv_tracer_last_outer, &
+                                con_tracer_all_outer, con_tracer_last_outer, &
                                 derived_fields, radiation_fields,            &
                                 microphysics_fields, electric_fields,        &
                                 orography_fields,                            &
@@ -298,7 +303,8 @@ module tl_test_semi_imp_alg_mod
 
       call semi_implicit_alg_step(n_u, n_rho, n_theta, n_exner, n_mr,         &
                                   n_moist_dyn,                                &
-                                  adv_fields_all_outer, adv_fields_last_outer,&
+                                  adv_tracer_all_outer, adv_tracer_last_outer,&
+                                  con_tracer_all_outer, con_tracer_last_outer,&
                                   derived_fields, radiation_fields,           &
                                   microphysics_fields, electric_fields,       &
                                   orography_fields,                           &

@@ -31,9 +31,12 @@ module gungho_model_data_mod
     type( field_collection_type ), public   :: prognostic_fields
     !> All the diagnostic fields
     type( field_collection_type ), public   :: diagnostic_fields
-    !> Fields that should be advected
-    type( field_collection_type ), public   :: adv_fields_last_outer
-    type( field_collection_type ), public   :: adv_fields_all_outer
+    !> Tracers that should be advected
+    type( field_collection_type ), public   :: adv_tracer_last_outer
+    type( field_collection_type ), public   :: adv_tracer_all_outer
+    !> Second group of tracers that should be advected
+    type( field_collection_type ), public   :: con_tracer_last_outer
+    type( field_collection_type ), public   :: con_tracer_all_outer
     !> FD fields derived from FE fields for use in physics time-stepping schemes
     type( field_collection_type ), public   :: derived_fields
     !> LBC fields - lateral boundary conditions to run a limited area model

@@ -98,14 +98,18 @@ contains
   !>                                 prognostic variables in the model
   !> @param[inout] diagnostic_fields A collection of the fields that make up the
   !>                                 diagnostic variables in the model
-  !> @param[inout] adv_fields_all_outer A collection of fields to be advected every outer iteration
-  !> @param[inout] adv_fields_last_outer A collection of all fields to be advected on last outer iteration
+  !> @param[inout] adv_tracer_all_outer A collection of fields to be advected every outer iteration
+  !> @param[inout] adv_tracer_last_outer A collection of all fields to be advected on last outer iteration
+  !> @param[inout] con_tracer_all_outer A second collection of fields to be transported every outer iteration
+  !> @param[inout] con_tracer_last_outer A second collection of all fields to be advected on last outer iteration
   !> @param[inout] mr An array of fields that hold the moisture mixing ratios
   !> @param[inout] moist_dyn An array of the moist dynamics fields
   subroutine create_gungho_prognostics( mesh, depository, &
                                         prognostic_fields, diagnostic_fields, &
-                                        adv_fields_all_outer, &
-                                        adv_fields_last_outer, &
+                                        adv_tracer_all_outer, &
+                                        adv_tracer_last_outer, &
+                                        con_tracer_all_outer, &
+                                        con_tracer_last_outer, &
                                         mr, moist_dyn )
     implicit none
 
@@ -114,8 +118,10 @@ contains
     type(field_collection_type), intent(inout):: depository
     type(field_collection_type), intent(inout):: prognostic_fields
     type(field_collection_type), intent(out)  :: diagnostic_fields
-    type(field_collection_type), intent(inout):: adv_fields_all_outer
-    type(field_collection_type), intent(inout):: adv_fields_last_outer
+    type(field_collection_type), intent(inout):: adv_tracer_all_outer
+    type(field_collection_type), intent(inout):: adv_tracer_last_outer
+    type(field_collection_type), intent(inout):: con_tracer_all_outer
+    type(field_collection_type), intent(inout):: con_tracer_last_outer
 
     type( field_type ), intent(inout), target :: mr(nummr)
     type( field_type ), intent(inout)         :: moist_dyn(num_moist_factors)
@@ -136,8 +142,10 @@ contains
     call log_event( 'GungHo: Creating prognostics...', LOG_LEVEL_INFO )
 
     ! Create collection of fields to be advected
-    call adv_fields_last_outer%initialise(name='adv_fields_last_outer', table_len=100)
-    call adv_fields_all_outer%initialise(name='adv_fields_all_outer', table_len=100)
+    call adv_tracer_last_outer%initialise(name='adv_tracer_last_outer', table_len=100)
+    call adv_tracer_all_outer%initialise(name='adv_tracer_all_outer', table_len=100)
+    call con_tracer_last_outer%initialise(name='con_tracer_last_outer', table_len=100)
+    call con_tracer_all_outer%initialise(name='con_tracer_all_outer', table_len=100)
 
     ! Create prognostic fields
     call theta%initialise( vector_space = &
@@ -295,7 +303,7 @@ contains
       call depository%get_field('ageofair', field_ptr)
       tmp_ptr => field_ptr
 
-      call adv_fields_last_outer%add_reference_to_field(tmp_ptr)
+      call con_tracer_last_outer%add_reference_to_field(tmp_ptr)
       call prognostic_fields%add_reference_to_field(tmp_ptr)
     end if
 

@@ -40,13 +40,15 @@ module field_spec_mod
   !> @brief Dictionary of advected field collections
   type :: adv_coll_dict_type
     integer(i_def) :: none       ! Not advected
-    integer(i_def) :: all        ! Adv_fields_all_outer
-    integer(i_def) :: last       ! Adv_fields_last_outer
+    integer(i_def) :: all_adv    ! Adv_fields_all_outer
+    integer(i_def) :: last_adv   ! Adv_fields_last_outer
+    integer(i_def) :: all_con    ! Con_fields_all_outer
+    integer(i_def) :: last_con   ! Con_fields_last_outer
   end type adv_coll_dict_type
 
   !> @brief Map advected field enumerators to collections.
   type(adv_coll_dict_type), parameter :: adv_coll_dict &
-    = adv_coll_dict_type(742, 775, 857)
+    = adv_coll_dict_type(742, 775, 857, 343, 242)
 
   !> @brief Metadata needed to construct a model field
   type :: field_spec_type

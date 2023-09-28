@@ -7,22 +7,17 @@
 
 module theta_transport_alg_mod
 
-  use constants_mod,                  only: i_def, r_def, r_tran
+  use constants_mod,                  only: i_def, r_def
   use dg_inc_matrix_vector_kernel_mod,    &
                                       only: dg_inc_matrix_vector_kernel_type
   use enforce_lower_bound_kernel_mod, only: enforce_lower_bound_kernel_type
-  use extrusion_mod,                  only: SHIFTED
   use fem_constants_mod,              only: get_inverse_lumped_mass_matrix, &
                                             get_mass_matrix_diagonal,       &
                                             get_mass_matrix
   use field_mod,                      only: field_type
-  use r_tran_field_mod,               only: r_tran_field_type
-  use fs_continuity_mod,              only: W2, W3, Wtheta
+  use fs_continuity_mod,              only: Wtheta
   use function_space_mod,             only: function_space_type
-  use function_space_collection_mod,  only: function_space_collection
   use geometric_constants_mod,        only: get_height
-  use inject_sh_w3_to_wt_kernel_mod,  only: inject_sh_w3_to_wt_kernel_type
-  use inject_wt_to_sh_w3_kernel_mod,  only: inject_wt_to_sh_w3_kernel_type
   use io_config_mod,                  only: subroutine_timers
   use log_mod,                        only: log_event,       &
                                             LOG_LEVEL_ERROR
@@ -43,13 +38,9 @@ module theta_transport_alg_mod
   use transport_enumerated_types_mod, only: equation_form_advective,    &
                                             equation_form_conservative, &
                                             equation_form_consistent
-  use transport_field_mod,            only: transport_field_r_tran, transport_field
+  use transport_field_mod,            only: transport_field
   use transport_metadata_mod,         only: transport_metadata_type
-  use transport_runtime_alg_mod,      only: transport_runtime_type
-  use transport_runtime_collection_mod,   &
-                                      only: get_transport_runtime
-  use psykal_lite_mod,                only: invoke_copy_rtran_to_rdef, &
-                                            invoke_copy_to_rtran
+  use transport_rho_times_field_alg_mod,  only: transport_rho_times_field_alg
 
   implicit none
 
@@ -92,29 +83,14 @@ contains
     type(transport_metadata_type), intent(in)    :: transport_metadata
 
     ! Internal variables
-    integer(kind=i_def)                   :: num_dry_steps
     real(kind=r_def)                      :: one
-    real(kind=r_tran)                     :: min_value
     type(field_type),             pointer :: theta_in_ptr => null()
     type(field_type),             pointer :: theta_out_ptr => null()
     type(field_type),              target :: theta_vd_in, theta_vd_out
     type(field_type)                      :: moist_factor_in, moist_factor_out
-    type(r_tran_field_type)               :: theta_sh_w3_in, theta_sh_w3_out
-    type(r_tran_field_type)               :: rho_theta_in, rho_theta_out
-    type(r_tran_field_type),      pointer :: rho_d_in => null()
-    type(r_tran_field_type),      pointer :: rho_d_out => null()
     type(field_type),             pointer :: height_wt
-
     type(function_space_type),    pointer :: wt_fs => null()
-    type(function_space_type),    pointer :: w3_shifted_fs => null()
-    type(mesh_type),              pointer :: primary_mesh => null()
-    type(mesh_type),              pointer :: shifted_mesh => null()
-    type(transport_runtime_type), pointer :: transport_runtime => null()
 
-    ! Local conversions to the r_tran precision
-    type(r_tran_field_type) :: theta_out_rtran
-    type(r_tran_field_type) :: theta_in_rtran
-    real(kind=r_tran)       :: model_dt
 
     ! ------------------------------------------------------------------------ !
     ! Convert to the particular potential temperature to be transported
@@ -159,18 +135,27 @@ contains
     end select
 
     ! ------------------------------------------------------------------------ !
-    ! Transport potential temperature depending on equation
+    ! Transport depending on equation
+    ! If the equation form is advective:
+    !           Simply transport field in native space
+    ! If the equation form is consistent:
+    !           Requires transformation to densities and evaluation of fluxes.
+    !           This is done in the lowest level algorithms, so can just call
+    !           transport_field.
+    ! If the equation form is conservative:
+    !           This also requires transformation to densities and evaluation
+    !           of fluxes, but is achieved using the transport_rho_times_field
+    !           algorithm (this also divides the result by density at the end
+    !           of the transport step and so returns an updated field.)
     ! ------------------------------------------------------------------------ !
     select case ( transport_metadata%get_equation_form() )
+
 
       ! ---------------------------------------------------------------------- !
       ! Advective and consistent forms of transport equation
       ! ---------------------------------------------------------------------- !
       case ( equation_form_advective, equation_form_consistent )
 
-        ! Advective:  Simply transport all the potential temperature in Wtheta
-        ! Consistent: Transformation to densities and evaluation of fluxes is in
-        !             lowest level algorithms, so just call transport_field
         call transport_field(theta_out_ptr, theta_in_ptr, model_dt_rdef, transport_metadata)
 
       ! ---------------------------------------------------------------------- !
@@ -178,66 +163,8 @@ contains
       ! ---------------------------------------------------------------------- !
       case ( equation_form_conservative )
 
-        ! Transfer r_def input to r_tran fields
-        call theta_out_rtran%initialise( theta_out_rdef%get_function_space()  )
-        call theta_in_rtran%initialise( theta_in_rdef%get_function_space()  )
-        call invoke_copy_to_rtran(theta_in_rtran, theta_in_ptr)
-        model_dt = real(model_dt_rdef, r_tran)
-
-        primary_mesh => theta_in_rtran%get_mesh()
-        shifted_mesh => mesh_collection%get_mesh(primary_mesh, SHIFTED)
-
-        w3_shifted_fs => function_space_collection%get_fs(shifted_mesh, 0, W3)
-
-        ! Get transport runtime
-        transport_runtime => get_transport_runtime(primary_mesh)
-
-        call theta_sh_w3_in%initialise( w3_shifted_fs )
-        call theta_sh_w3_out%initialise( w3_shifted_fs )
-        call rho_theta_in%initialise( w3_shifted_fs )
-        call rho_theta_out%initialise( w3_shifted_fs )
-
-        ! Get dry density from transport runtime
-        ! rho_d_n is from first step
-        rho_d_in => transport_runtime%get_rho_d_n(shifted_mesh%get_id(), 1)
-        ! rho_d_np1 is from final step
-        num_dry_steps = transport_runtime%get_num_dry_steps()
-        rho_d_out => transport_runtime%get_rho_d_np1(shifted_mesh%get_id(), num_dry_steps)
-
-        ! -------------------------------------------------------------------- !
-        ! Turn field into density on shifted mesh
-        ! -------------------------------------------------------------------- !
-
-        call invoke( inject_wt_to_sh_w3_kernel_type(theta_sh_w3_in, theta_in_rtran), &
-                     X_times_Y(rho_theta_in, theta_sh_w3_in, rho_d_in) )
-
-        ! -------------------------------------------------------------------- !
-        ! Actually transport density
-        ! -------------------------------------------------------------------- !
-
-        call transport_field_r_tran(rho_theta_out, rho_theta_in, model_dt, &
-                                    transport_metadata)
-
-        ! -------------------------------------------------------------------- !
-        ! Return from density on shifted mesh to field in Wtheta
-        ! -------------------------------------------------------------------- !
-
-        call invoke( X_divideby_Y(theta_sh_w3_out, rho_theta_out, rho_d_out) )
-        ! Turn back to Wtheta -- separate invoke as on different mesh
-        call invoke( inject_sh_w3_to_wt_kernel_type(theta_out_rtran, theta_sh_w3_out) )
-        ! This could lead to negative values at top so enforce lower bound
-        if ( transport_metadata%get_enforce_min_value() ) then
-          min_value = transport_metadata%get_min_value()
-          call invoke( enforce_lower_bound_kernel_type(theta_out_rtran, min_value) )
-        end if
-
-        ! -------------------------------------------------------------------- !
-        ! Copy transported fields back to r_def
-        ! -------------------------------------------------------------------- !
-        call invoke_copy_rtran_to_rdef(theta_out_ptr, theta_out_rtran)
-
-        nullify( rho_d_in, rho_d_out, transport_runtime, &
-                 w3_shifted_fs, primary_mesh, shifted_mesh )
+        call transport_rho_times_field_alg(theta_out_ptr, theta_in_ptr, &
+                                           model_dt_rdef, transport_metadata)
 
     ! ------------------------------------------------------------------------ !
     ! Default form of transport equation

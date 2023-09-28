@@ -7,18 +7,10 @@
 
 module moist_mr_transport_alg_mod
 
-  use constants_mod,                  only: i_def, r_def, r_tran
-  use enforce_lower_bound_kernel_mod, only: enforce_lower_bound_kernel_type
-  use extrusion_mod,                  only: SHIFTED
+  use constants_mod,                  only: i_def, r_def
   use fem_constants_mod,              only: get_inverse_lumped_mass_matrix, &
                                             get_mass_matrix_diagonal
   use field_mod,                      only: field_type
-  use r_tran_field_mod,               only: r_tran_field_type
-  use fs_continuity_mod,              only: W2, W3
-  use function_space_mod,             only: function_space_type
-  use function_space_collection_mod,  only: function_space_collection
-  use inject_sh_w3_to_wt_kernel_mod,  only: inject_sh_w3_to_wt_kernel_type
-  use inject_wt_to_sh_w3_kernel_mod,  only: inject_wt_to_sh_w3_kernel_type
   use io_config_mod,                  only: subroutine_timers
   use log_mod,                        only: log_event,       &
                                             LOG_LEVEL_ERROR
@@ -29,13 +21,9 @@ module moist_mr_transport_alg_mod
   use transport_enumerated_types_mod, only: equation_form_advective,    &
                                             equation_form_conservative, &
                                             equation_form_consistent
-  use transport_field_mod,            only: transport_field_r_tran, transport_field
+  use transport_field_mod,            only: transport_field
   use transport_metadata_mod,         only: transport_metadata_type
-  use transport_runtime_alg_mod,      only: transport_runtime_type
-  use transport_runtime_collection_mod,   &
-                                      only: get_transport_runtime
-  use psykal_lite_mod,                only: invoke_copy_rtran_to_rdef, &
-                                            invoke_copy_to_rtran
+  use transport_rho_times_field_alg_mod,  only: transport_rho_times_field_alg
 
   implicit none
 
@@ -71,126 +59,59 @@ contains
 
     ! Internal variables
     integer(kind=i_def)                :: imr
-    integer(kind=i_def)                :: num_dry_steps
-    real(kind=r_tran)                  :: min_value
-    type(r_tran_field_type)            :: mr_sh_w3_n, mr_sh_w3_star
-    type(r_tran_field_type)            :: rho_X_n(nummr), rho_X_star(nummr)
-    type(r_tran_field_type),   pointer :: rho_d_n => null()
-    type(r_tran_field_type),   pointer :: rho_d_star => null()
-    type(function_space_type), pointer :: w3_shifted_fs => null()
-    type(mesh_type),           pointer :: primary_mesh => null()
-    type(mesh_type),           pointer :: shifted_mesh => null()
-    type(transport_runtime_type), pointer :: transport_runtime => null()
-
-    ! Local conversions to the r_tran precision
-    type(r_tran_field_type) :: mr_out(nummr)
-    type(r_tran_field_type) :: mr_in(nummr)
-    real(kind=r_tran)       :: model_dt
 
     if ( subroutine_timers ) call timer('moist mixing ratio transport')
 
-    ! Choose form of transport equation
-    select case ( transport_metadata%get_equation_form() )
 
-    ! ------------------------------------------------------------------------ !
-    ! Advective and consistent forms of transport equation
-    ! ------------------------------------------------------------------------ !
-    case ( equation_form_advective, equation_form_consistent )
+    do imr = 1, nummr_to_transport
 
-      ! Advective:  Simply transport all the mixing ratio fields in Wtheta
-      ! Consistent: Transformation to densities and evaluation of fluxes is in
-      !             lowest level algorithms, so just call transport_field
-      do imr = 1, nummr_to_transport
-        call transport_field(mr_out_rdef(imr), mr_in_rdef(imr), model_dt_rdef, transport_metadata)
-      end do
+      ! ------------------------------------------------------------------------ !
+      ! Transport depending on equation
+      ! If the equation form is advective:
+      !           Simply transport field in native space
+      ! If the equation form is consistent:
+      !           Requires transformation to densities and evaluation of fluxes.
+      !           This is done in the lowest level algorithms, so can just call
+      !           transport_field.
+      ! If the equation form is conservative:
+      !           This also requires transformation to densities and evaluation
+      !           of fluxes, but is achieved using the transport_rho_times_field
+      !           algorithm (this also divides the result by density at the end
+      !           of the transport step and so returns an updated field.)
+      ! ------------------------------------------------------------------------ !
+      select case ( transport_metadata%get_equation_form() )
 
-    ! ------------------------------------------------------------------------ !
-    ! Conservative form of transport equation
-    ! ------------------------------------------------------------------------ !
-    case ( equation_form_conservative )
+        ! ---------------------------------------------------------------------- !
+        ! Advective and consistent forms of transport equation
+        ! ---------------------------------------------------------------------- !
+      case ( equation_form_advective, equation_form_consistent )
 
-      ! Transfer r_def input to r_tran fields - no need to copy those that are not transported
-      do imr = 1, nummr_to_transport
-        call mr_out(imr)%initialise( vector_space = mr_out_rdef(imr)%get_function_space()  )
-        call mr_in(imr)%initialise( vector_space = mr_in_rdef(imr)%get_function_space()  )
-        call invoke_copy_to_rtran( mr_in(imr), mr_in_rdef(imr) )
-      end do
-      model_dt = real( model_dt_rdef, r_tran )
+        call transport_field(mr_out_rdef(imr), mr_in_rdef(imr), model_dt_rdef, &
+                             transport_metadata)
 
-      primary_mesh => mr_in(1)%get_mesh()
-      shifted_mesh => mesh_collection%get_mesh(primary_mesh, SHIFTED)
+        ! ---------------------------------------------------------------------- !
+        ! Conservative form of transport equation
+        ! ---------------------------------------------------------------------- !
+      case ( equation_form_conservative )
 
-      w3_shifted_fs => function_space_collection%get_fs(shifted_mesh, 0_i_def, W3)
+        call transport_rho_times_field_alg(mr_out_rdef(imr), mr_in_rdef(imr),  &
+                                           model_dt_rdef, transport_metadata)
 
-      ! Get transport runtime
-      transport_runtime => get_transport_runtime(primary_mesh)
+        ! ---------------------------------------------------------------------- !
+        ! Default form of transport equation
+        ! ---------------------------------------------------------------------- !
+      case default
 
-      call mr_sh_w3_n%initialise( vector_space=w3_shifted_fs )
-      call mr_sh_w3_star%initialise( vector_space=w3_shifted_fs )
-      do imr = 1, nummr_to_transport
-        call rho_X_n(imr)%initialise( vector_space=w3_shifted_fs )
-        call rho_X_star(imr)%initialise( vector_space=w3_shifted_fs )
-      end do
+        call log_event('Form of moisture transport equation either not ' //    &
+                       'compatible or not implemented', LOG_LEVEL_ERROR)
 
-      ! Get dry density from transport runtime
-      ! rho_d_n is from first step
-      rho_d_n => transport_runtime%get_rho_d_n(shifted_mesh%get_id(), 1)
-      ! rho_d_np1 is from final step
-      num_dry_steps = transport_runtime%get_num_dry_steps()
-      rho_d_star => transport_runtime%get_rho_d_np1(shifted_mesh%get_id(), num_dry_steps)
+      end select
 
-      do imr = 1, nummr_to_transport
+    end do
 
-        ! -------------------------------------------------------------------- !
-        ! Turn mixing ratios into densities on shifted mesh
-        ! -------------------------------------------------------------------- !
-
-        call invoke( inject_wt_to_sh_w3_kernel_type(mr_sh_w3_n, mr_in(imr)), &
-                     X_times_Y(rho_X_n(imr), mr_sh_w3_n, rho_d_n) )
-
-        ! -------------------------------------------------------------------- !
-        ! Actually transport densities
-        ! -------------------------------------------------------------------- !
-
-        call transport_field_r_tran(rho_X_star(imr), rho_X_n(imr), model_dt, &
-                                    transport_metadata)
-
-        ! -------------------------------------------------------------------- !
-        ! Return from densities on shifted mesh to mixing ratios in Wtheta
-        ! -------------------------------------------------------------------- !
-
-        call invoke( X_divideby_Y(mr_sh_w3_star, rho_X_star(imr), rho_d_star) )
-        ! Turn back to Wtheta -- separate invoke as on different mesh
-        call invoke( inject_sh_w3_to_wt_kernel_type(mr_out(imr), mr_sh_w3_star) )
-        ! This could lead to negative values at top so enforce lower bound
-        if ( transport_metadata%get_enforce_min_value() ) then
-          min_value = transport_metadata%get_min_value()
-          call invoke( enforce_lower_bound_kernel_type(mr_out(imr), min_value) )
-        end if
-
-        ! -------------------------------------------------------------------- !
-        ! Copy transported fields back to r_def
-        ! -------------------------------------------------------------------- !
-        call invoke_copy_rtran_to_rdef( mr_out_rdef(imr), mr_out(imr) )
-
-      end do
-
-
-      nullify( rho_d_n, rho_d_star, transport_runtime, &
-               w3_shifted_fs, primary_mesh, shifted_mesh )
-
-    ! ------------------------------------------------------------------------ !
-    ! Default form of transport equation
-    ! ------------------------------------------------------------------------ !
-    case default
-      call log_event('Form of moisture transport equation either not ' // &
-                     'compatible or not implemented', LOG_LEVEL_ERROR)
-
-    end select
-
-    ! ------------------------------------------------------------------------ !
+    ! -------------------------------------------------------------------------- !
     ! Copy non-transported fields over
-    ! ------------------------------------------------------------------------ !
+    ! -------------------------------------------------------------------------- !
 
     do imr = nummr_to_transport + 1, nummr
       call mr_in_rdef(imr)%copy_field_properties(mr_out_rdef(imr))
