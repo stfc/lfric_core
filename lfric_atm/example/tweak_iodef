@@ -1,0 +1,20 @@
+#!/bin/sh
+
+# tweak_iodef: resolve env symbols in iodef.xml before rose suite starts.
+
+# note: this script is necessary for the lfric_atm canned tests to work.
+
+iodef=iodef.xml
+case $# in 
+0) ;;
+1) iodef=$1 ;;
+*) echo 'usage: tweak_iodef [iodef_file]' 1>&2; exit 2
+esac
+
+set -e
+temp_file=$(mktemp)
+trap 'rm -f $temp_file; exit 1' INT TERM EXIT
+sed 's@../metadata@$SOURCE_ROOT/lfric_atm/metadata@' $iodef >$temp_file
+rose env-cat $temp_file -o $iodef
+trap '' INT TERM EXIT
+rm $temp_file

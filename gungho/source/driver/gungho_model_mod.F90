@@ -30,8 +30,7 @@ module gungho_model_mod
   use field_collection_mod,       only : field_collection_type
   use field_spec_mod,             only : field_spec_type, processor_type
   use create_gungho_prognostics_mod, &
-                                  only : enable_gungho_prognostics, &
-                                         enable_checkpointing
+                                  only : enable_gungho_prognostics
   use boundaries_config_mod,      only : limited_area
   use create_lbcs_mod,            only : enable_lbc_fields
   use create_physics_prognostics_mod, &
@@ -56,8 +55,13 @@ module gungho_model_mod
   use io_config_mod,              only : use_xios_io,             &
                                          write_conservation_diag, &
                                          write_dump,              &
-                                         write_minmax_tseries
+                                         write_minmax_tseries,    &
+                                         checkpoint_read,         &
+                                         checkpoint_write
+  use initialization_config_mod,  only : init_option,             &
+                                         init_option_checkpoint_dump
   use lfric_xios_context_mod,     only : lfric_xios_context_type
+  use lfric_xios_metafile_mod,    only : metafile_type, add_field
   use linked_list_mod,            only : linked_list_type
   use log_mod,                    only : log_event,          &
                                          log_scratch_space,  &
@@ -121,60 +125,81 @@ module gungho_model_mod
   use stochastic_physics_config_mod, only : use_spt, use_skeb
 #endif
 
+
   implicit none
 
   private
 
   logical(l_def) :: use_moisture
 
-  !> @brief Processor class for enabling checkpointing fields
-  type, extends(processor_type) :: enabler_type
+  !> @brief Processor class for persisting fields
+  type, extends(processor_type) :: persistor_type
+    type(metafile_type) :: ckp_out
+    type(metafile_type) :: ckp_inp
   contains
     private
+
     ! main interface
-    procedure, public :: init => enabler_init
-    procedure, public :: apply => enabler_apply
+    procedure, public :: init => persistor_init
+    procedure, public :: apply => persistor_apply
 
     ! destructor - here to avoid gnu compiler bug
-    final :: enabler_dtor
-  end type enabler_type
+    final :: persistor_destructor
+  end type persistor_type
 
   public initialise_infrastructure, &
          initialise_model,          &
          finalise_infrastructure,   &
          finalise_model
 contains
-  !> @brief  Initialise processor object for enabling checkpointing
-  !> @param[in]   self      Enabler object
+
+  !> @brief  Initialise processor object for persisting LFRic fields
+  !> @param[in]   self      Persistor object
   !> @param[in]   clock     Model clock
-  subroutine enabler_init(self, clock)
+  subroutine persistor_init(self, clock)
     implicit none
-    class(enabler_type),       intent(inout) :: self
-    class(clock_type), target, intent(in)    :: clock
+    class(persistor_type),       intent(inout) :: self
+    class(clock_type), target,   intent(in)    :: clock
+
+    character(str_def), parameter :: ckp_out_id = 'lfric_checkpoint_write'
+    character(str_def), parameter :: ckp_inp_id = 'lfric_checkpoint_read'
 
     call self%set_clock(clock)
-  end subroutine enabler_init
 
-  !> @brief     Enabler's apply method
-  !> @details   Enable a field given by field specifier for checkpointing.
-  !> @param[in]   self      Enabler object
+    if (checkpoint_write) call self%ckp_out%init(ckp_out_id)
+    if (checkpoint_read .or. init_option == init_option_checkpoint_dump) &
+      call self%ckp_inp%init(ckp_inp_id)
+
+  end subroutine persistor_init
+
+  !> @brief     Persistor's apply method
+  !> @details   Persist a field given by field specifier by adding it to the checkpoint files
+  !> @param[in]   self      Persistor object
   !> @param[in]   spec      Field specifier
-  subroutine enabler_apply(self, spec)
+  subroutine persistor_apply(self, spec)
     implicit none
-    class(enabler_type),   intent(in) :: self
+    class(persistor_type), intent(in) :: self
     type(field_spec_type), intent(in) :: spec
 
-    if (spec%ckp) then
-      call enable_checkpointing(spec%name)
-    end if
-  end subroutine enabler_apply
+    character(str_def), parameter :: ckp_out_prefix = 'checkpoint_'
+    character(str_def), parameter :: ckp_inp_prefix = 'restart_'
+    character(20), parameter :: operation = 'once'
 
-  !> @brief Destructor of enabler object
-  !> @param[inout] self  Enabler object
-  subroutine enabler_dtor(self)
-    type(enabler_type), intent(inout) :: self
+    if (spec%ckp) then
+      if (checkpoint_write) &
+        call add_field(self%ckp_out, spec%name, ckp_out_prefix, operation)
+      if (checkpoint_read .or. init_option == init_option_checkpoint_dump) &
+        call add_field(self%ckp_inp, spec%name, ckp_inp_prefix, operation)
+    end if
+
+  end subroutine persistor_apply
+
+  !> @brief Destructor of persistor object
+  !> @param[inout] self  Persistor object
+  subroutine persistor_destructor(self)
+    type(persistor_type), intent(inout) :: self
     ! empty
-  end subroutine enabler_dtor
+  end subroutine persistor_destructor
 
   !> @brief Enable active state fields for checkpointing; sync xios axis dimensions
   !> @param[in] clock        The clock providing access to time information
@@ -185,13 +210,13 @@ contains
     implicit none
     class(clock_type), intent(in) :: clock
 
-    type(enabler_type) :: enabler
+    type(persistor_type) :: persistor
 
     call enable_gungho_prognostics()
     if (limited_area) call enable_lbc_fields()
     if (use_physics) then
-      call enabler%init(clock)
-      call process_physics_prognostics(enabler)
+      call persistor%init(clock)
+      call process_physics_prognostics(persistor)
       call sync_multidata_field_dimensions()
       call sync_time_dimensions()
     end if

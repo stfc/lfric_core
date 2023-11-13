@@ -19,6 +19,7 @@ module field_maker_mod
                                              checkpoint_read_interface
   use field_collection_mod,           only : field_collection_type
   use field_mapper_mod,               only : field_mapper_type
+  use field_from_metadata_mod,        only : init_field_from_metadata
   use function_space_mod,             only : function_space_type
   use function_space_collection_mod,  only : function_space_collection
   use mesh_mod,                       only : mesh_type
@@ -26,13 +27,16 @@ module field_maker_mod
   use field_spec_mod,                 only : main_coll_dict,                   &
                                              adv_coll_dict,                    &
                                              field_spec_type,                  &
-                                             processor_type
+                                             processor_type,                   &
+                                             missing_fs
   use field_mapper_mod,               only : field_mapper_type
-  use lfric_xios_diag_mod,            only : field_is_enabled
+  use lfric_xios_diag_mod,            only : field_is_valid
   use io_config_mod,                  only : use_xios_io, &
                                              checkpoint_write, checkpoint_read
-  use initialization_config_mod,      only: init_option,               &
-                                            init_option_checkpoint_dump
+  use initialization_config_mod,      only : init_option,                      &
+                                             init_option_checkpoint_dump
+  use empty_data_mod,                 only : empty_real_data,                  &
+                                             empty_integer_data
 
 #ifdef UM_PHYSICS
   use multidata_field_dimensions_mod, only :                                   &
@@ -56,7 +60,7 @@ module field_maker_mod
     procedure, public :: apply => field_maker_apply
 
     ! destructor - here to avoid gnu compiler bug
-    final :: field_maker_dtor
+    final :: field_maker_destructor
   end type field_maker_type
 
 contains
@@ -84,10 +88,10 @@ contains
 
   !> @brief Destructor for field maker objects
   !> @param[inout] self       Field maker object
-  subroutine field_maker_dtor(self)
+  subroutine field_maker_destructor(self)
     type(field_maker_type), intent(inout) :: self
     ! empty
-  end subroutine field_maker_dtor
+  end subroutine field_maker_destructor
 
   !> @brief Apply a field maker object to a specifier, creating a field.
   !> @param[in] self       Field maker object
@@ -115,22 +119,28 @@ contains
     advected = associated(adv_coll)
     if (.not. advected) adv_coll => main_coll ! arbirary, any collection will do
 
-    if (spec%twod) then
-      space => function_space_collection%get_fs(self%twod_mesh, 0, spec%space, ndata)
+    if (spec%space == missing_fs) then
+      space => null()                         ! to be inferred from metadata
     else
-      space => function_space_collection%get_fs(self%mesh, 0, spec%space, ndata)
+      if (spec%twod) then
+        space => function_space_collection%get_fs(self%twod_mesh, 0, spec%space, ndata)
+      else
+        space => function_space_collection%get_fs(self%mesh, 0, spec%space, ndata)
+      end if
     end if
 
     if (use_xios_io .and. spec%ckp) then
-      if (checkpoint_write .and. &
-          .not. field_is_enabled('checkpoint_' // trim(spec%name))) then
-          call log_event('checkpoint field not enabled for ' &
-            // trim(spec%name), log_level_error)
+      if (checkpoint_write) then
+          if (.not. field_is_valid('checkpoint_' // trim(spec%name))) then
+            call log_event('checkpoint field not enabled for ' &
+              // trim(spec%name), log_level_error)
+          end if
       end if
-      if ((checkpoint_read .or. init_option == init_option_checkpoint_dump) .and. &
-          .not. field_is_enabled('restart_' // trim(spec%name))) then
-          call log_event('restart field not enabled for ' &
-            // trim(spec%name), log_level_error)
+      if (checkpoint_read .or. init_option == init_option_checkpoint_dump) then
+          if (.not. field_is_valid('restart_' // trim(spec%name))) then
+            call log_event('restart field not enabled for ' &
+              // trim(spec%name), log_level_error)
+          end if
       end if
     end if
 
@@ -144,8 +154,8 @@ contains
         adv_coll, &
         spec%name, &
         space, &
+        spec%empty, &
         spec%ckp, &
-        spec%twod, &
         advected)
     else
       call add_physics_field( &
@@ -155,8 +165,8 @@ contains
         adv_coll, &
         spec%name, &
         space, &
+        spec%empty, &
         spec%ckp, &
-        spec%twod, &
         advected)
     end if
   end subroutine field_maker_apply
@@ -169,25 +179,22 @@ contains
   !> @param[in,out] advected_fields   Collection of fields to be advected
   !> @param[in]     name              Name of field to be added to collection
   !> @param[in]     vector_space      Function space of field to set behaviour for
+  !> @param[in]     empty             Flag whether this field is empty
   !> @param[in]     checkpoint_flag   Optional flag to allow checkpoint-
   !>                                   restart behaviour of field to be set
-  !> @param[in]     twod              Optional flag to determine if this is a
-  !>                                   2D field for diagnostic output
   !> @param[in]     advection_flag    Optional flag whether this field is to be advected
-  subroutine add_physics_field(field_collection, &
+   subroutine add_physics_field(field_collection, &
                               depository, prognostic_fields, advected_fields, &
-                              name, vector_space, &
-                              checkpoint_flag, twod, advection_flag)
+                              name, vector_space, empty, &
+                              checkpoint_flag, advection_flag)
 
     use io_config_mod,           only : use_xios_io, &
                                         write_diag, checkpoint_write, &
                                         checkpoint_read
     use initialization_config_mod, only: init_option,               &
                                          init_option_checkpoint_dump
-    use lfric_xios_read_mod,     only : read_field_face, &
-                                        read_field_single_face
-    use lfric_xios_write_mod,    only : write_field_face, &
-                                        write_field_single_face
+    use lfric_xios_read_mod,     only : read_field_generic
+    use lfric_xios_write_mod,    only : write_field_generic
     use io_mod,                  only : checkpoint_write_netcdf, &
                                         checkpoint_read_netcdf
 
@@ -199,14 +206,14 @@ contains
     type(field_collection_type), intent(inout)     :: prognostic_fields
     type(field_collection_type), intent(inout)     :: advected_fields
     type(function_space_type), pointer, intent(in) :: vector_space
+    logical(l_def), intent(in)                     :: empty
     logical(l_def), optional, intent(in)           :: checkpoint_flag
-    logical(l_def), optional, intent(in)           :: twod
     logical(l_def), optional, intent(in)           :: advection_flag
     !Local variables
     type(field_type)                               :: new_field
     type(field_type), pointer                      :: field_ptr => null()
     class(pure_abstract_field_type), pointer       :: tmp_ptr => null()
-    logical(l_def)                                 :: twod_field, checkpointed
+    logical(l_def)                                 :: checkpointed
     logical(l_def)                                 :: advected
 
     ! pointers for xios write interface
@@ -216,7 +223,16 @@ contains
     procedure(checkpoint_read_interface), pointer  :: checkpoint_read_behaviour => null()
 
     ! Create the new field
-    call new_field%initialise( vector_space, name=trim(name) )
+    if (associated(vector_space)) then
+      if (empty) then
+        call new_field%initialise( vector_space, name=trim(name), &
+          override_data = empty_real_data )
+      else
+        call new_field%initialise( vector_space, name=trim(name) )
+      end if
+    else
+      call init_field_from_metadata( new_field, trim(name), empty=empty )
+    end if
 
     ! Set advection flag
     if (present(advection_flag)) then
@@ -234,18 +250,8 @@ contains
 
     ! Set read and write behaviour
     if (use_xios_io) then
-      if (present(twod)) then
-        twod_field = twod
-      else
-        twod_field = .false.
-      end if
-      if (twod_field) then
-        write_behaviour => write_field_single_face
-        read_behaviour  => read_field_single_face
-      else
-        write_behaviour => write_field_face
-        read_behaviour  => read_field_face
-      end if
+      write_behaviour => write_field_generic
+      read_behaviour  => read_field_generic
       if (write_diag .or. checkpoint_write) &
         call new_field%set_write_behaviour(write_behaviour)
       if ((checkpoint_read .or. init_option == init_option_checkpoint_dump) &
@@ -283,25 +289,22 @@ contains
   !> @param[in,out] advected_fields   Collection of fields to be advected
   !> @param[in]     name              Name of field to be added to collection
   !> @param[in]     vector_space      Function space of field to set behaviour for
+  !> @param[in]     empty             Flag whether this field is empty
   !> @param[in]     checkpoint_flag   Optional flag to allow checkpoint-
   !>                                   restart behaviour of field to be set
-  !> @param[in]     twod              Optional flag to determine if this is a
-  !>                                   2D field for diagnostic output
   !> @param[in]     advection_flag    Optional flag whether this field is to be advected
   subroutine add_integer_field(field_collection, &
                               depository, prognostic_fields, advected_fields, &
-                              name, vector_space, &
-                              checkpoint_flag, twod, advection_flag)
+                              name, vector_space, empty, &
+                              checkpoint_flag, advection_flag)
 
     use io_config_mod,           only : use_xios_io, &
                                         write_diag, checkpoint_write, &
                                         checkpoint_read
     use initialization_config_mod, only: init_option,               &
                                          init_option_checkpoint_dump
-    use lfric_xios_read_mod,     only : read_field_face, &
-                                        read_field_single_face
-    use lfric_xios_write_mod,    only : write_field_face, &
-                                        write_field_single_face
+    use lfric_xios_read_mod,     only : read_field_generic
+    use lfric_xios_write_mod,    only : write_field_generic
     use io_mod,                  only : checkpoint_write_netcdf, &
                                         checkpoint_read_netcdf
 
@@ -313,14 +316,14 @@ contains
     type(field_collection_type), intent(inout)     :: prognostic_fields
     type(field_collection_type), intent(inout)     :: advected_fields
     type(function_space_type), pointer, intent(in) :: vector_space
+    logical(l_def), intent(in)                     :: empty
     logical(l_def), optional, intent(in)           :: checkpoint_flag
-    logical(l_def), optional, intent(in)           :: twod
     logical(l_def), optional, intent(in)           :: advection_flag
     !Local variables
     type(integer_field_type)                       :: new_field
     type(integer_field_type), pointer              :: field_ptr => null()
     class(pure_abstract_field_type), pointer       :: tmp_ptr => null()
-    logical(l_def)                                 :: twod_field, checkpointed
+    logical(l_def)                                 :: checkpointed
     logical(l_def)                                 :: advected
 
     ! pointers for xios write interface
@@ -330,7 +333,16 @@ contains
     procedure(checkpoint_read_interface), pointer  :: checkpoint_read_behaviour => null()
 
     ! Create the new field
-    call new_field%initialise( vector_space, name=trim(name) )
+    if (associated(vector_space)) then
+      if (empty) then
+        call new_field%initialise( vector_space, name=trim(name), &
+          override_data = empty_integer_data )
+      else
+        call new_field%initialise( vector_space, name=trim(name) )
+      end if
+    else
+      call init_field_from_metadata( new_field, trim(name), empty=empty )
+    end if
 
     ! Set advection flag
     if (present(advection_flag)) then
@@ -348,18 +360,8 @@ contains
 
     ! Set read and write behaviour
     if (use_xios_io) then
-      if (present(twod)) then
-        twod_field = twod
-      else
-        twod_field = .false.
-      end if
-      if (twod_field) then
-        write_behaviour => write_field_single_face
-        read_behaviour  => read_field_single_face
-      else
-        write_behaviour => write_field_face
-        read_behaviour  => read_field_face
-      end if
+      write_behaviour => write_field_generic
+      read_behaviour  => read_field_generic
       if (write_diag .or. checkpoint_write) &
         call new_field%set_write_behaviour(write_behaviour)
       if ((checkpoint_read .or. init_option == init_option_checkpoint_dump) &

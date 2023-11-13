@@ -63,7 +63,7 @@ module field_mapper_mod
     procedure, public :: get_main_coll_ptr
 
     ! destructor - here to avoid gnu compiler bug
-    final :: field_mapper_dtor
+    final :: field_mapper_destructor
   end type field_mapper_type
 
   public field_mapper_type
@@ -300,9 +300,9 @@ end subroutine init
 
   !> @brief Destructor for field mapper objects
   !> @param[inout] self       Field mapper object
-  subroutine field_mapper_dtor(self)
+  subroutine field_mapper_destructor(self)
     type(field_mapper_type), intent(inout) :: self
     ! empty
-  end subroutine field_mapper_dtor
+  end subroutine field_mapper_destructor
 
 end module field_mapper_mod

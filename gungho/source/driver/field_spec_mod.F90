@@ -8,7 +8,7 @@
 !
 module field_spec_mod
 
-  use constants_mod, only : i_def, l_def, str_def
+  use constants_mod, only : i_def, l_def, str_def, imdi
   use log_mod,       only : log_event, log_scratch_space, log_level_error
   use clock_mod,     only : clock_type
 
@@ -50,6 +50,9 @@ module field_spec_mod
   type(adv_coll_dict_type), parameter :: adv_coll_dict &
     = adv_coll_dict_type(742, 775, 857, 343, 242)
 
+  ! request function space discovery
+  integer, parameter :: missing_fs = imdi
+
   !> @brief Metadata needed to construct a model field
   type :: field_spec_type
     character(str_def) :: name        ! Field name
@@ -59,14 +62,20 @@ module field_spec_mod
     character(str_def) :: mult        ! Name of multidata item, or blank string
     logical(l_def) :: ckp             ! Is it a checkpoint (prognostic) field?
     logical(l_def) :: twod            ! Is it two-dimensional?
+    logical(l_def) :: empty           ! Is it empty (with an empty data array)?
     logical(l_def) :: is_int          ! Is it an integer field?
   end type field_spec_type
+
+  !> @brief Constructor interface
+  interface field_spec_type
+    module procedure field_spec_constructror
+  end interface field_spec_type
 
   private
   public :: field_spec_type, &
             main_coll_dict_type, main_coll_dict, &
             adv_coll_dict_type, adv_coll_dict, &
-            processor_type, make_spec, if_advected
+            processor_type, make_spec, if_advected, missing_fs
 
   !> @brief Base class for processor objects, operating on field specifiers
   type, abstract :: processor_type
@@ -117,6 +126,22 @@ contains
     self%clock => clock
   end subroutine processor_set_clock
 
+  !> @brief default constructor for field specifiers
+  !> @return constructed field specifier
+  function field_spec_constructror() result(self)
+    implicit none
+    type(field_spec_type) :: self
+    self%name = ''
+    self%main_coll = imdi
+    self%space = missing_fs
+    self%adv_coll = adv_coll_dict%none
+    self%mult = ''
+    self%ckp = .false.
+    self%twod = .false.
+    self%empty = .false.
+    self%is_int = .false.
+  end function field_spec_constructror
+
   !> @brief Convenience function for creating field specifiers
   !> @param[in] name               Field name
   !> @param[in] main_coll          Enurmerator of main fields collection
@@ -125,38 +150,33 @@ contains
   !> @param[in, optional] mult     Name of multidata item, or blank string
   !> @param[in, optional] ckp      Is it a checkpoint (prognostic) field?
   !> @param[in, optional] twod     Is it two-dimensional?
+  !> @param[in, optional] empty    Is it empty (with empty data array)?
   !> @param[in, optional] int      Is it an integer field?
   !> @return                       Specifier returned
   function make_spec(name, main_coll, space, adv_coll, &
-    mult, ckp, twod, is_int) result(field_spec)
+    mult, ckp, twod, empty, is_int) result(field_spec)
     implicit none
     character(*), intent(in) :: name
     integer(i_def), intent(in) :: main_coll
-    integer(i_def), intent(in) :: space
+    integer(i_def), optional, intent(in) :: space
     integer(i_def), optional, intent(in) :: adv_coll
     character(*), optional, intent(in) :: mult
     logical(l_def), optional, intent(in) :: ckp
     logical(l_def), optional, intent(in) :: twod
+    logical(l_def), optional, intent(in) :: empty
     logical(l_def), optional, intent(in) :: is_int
     type(field_spec_type) :: field_spec
 
-    integer(i_def) :: adv_coll1
-    character(str_def) :: mult1
-    logical(l_def) :: ckp1
-    logical(l_def) :: twod1
-    logical(l_def) :: is_int1
-    adv_coll1 = adv_coll_dict%none
-    mult1 = ''
-    ckp1 = .false.
-    twod1 = .false.
-    is_int1 = .false.
-    if (present(adv_coll)) adv_coll1=adv_coll
-    if (present(mult)) mult1=mult
-    if (present(ckp)) ckp1=ckp
-    if (present(twod)) twod1=twod
-    if (present(is_int)) is_int1=is_int
-    field_spec = field_spec_type( &
-          name, main_coll, space, adv_coll1, mult1, ckp1, twod1, is_int1)
+    field_spec = field_spec_type()
+    field_spec%name = name
+    field_spec%main_coll = main_coll
+    if (present(space)) field_spec%space=space
+    if (present(adv_coll)) field_spec%adv_coll=adv_coll
+    if (present(mult)) field_spec%mult=mult
+    if (present(ckp)) field_spec%ckp=ckp
+    if (present(twod)) field_spec%twod=twod
+    if (present(empty)) field_spec%empty=empty
+    if (present(is_int)) field_spec%is_int=is_int
   end function make_spec
 
   !> @brief If advected, return collection enumerator, otherwise NONE enumerator

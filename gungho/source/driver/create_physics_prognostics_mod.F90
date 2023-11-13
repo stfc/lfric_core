@@ -7,20 +7,16 @@
 !> @details Creates the physics prognostic fields
 module create_physics_prognostics_mod
 
-  use energy_correction_config_mod,   only : encorr_usage, &
+  use energy_correction_config_mod,   only : encorr_usage,                      &
                                              encorr_usage_none
   use clock_mod,                      only : clock_type
   use constants_mod,                  only : i_def, l_def
   use field_mod,                      only : field_type
   use integer_field_mod,              only : integer_field_type
-  use field_parent_mod,               only : write_interface, read_interface,  &
-                                             checkpoint_write_interface,       &
-                                             checkpoint_read_interface
-  use field_spec_mod,                 only : main_coll_dict, &
-                                             adv_coll_dict, &
-                                             field_spec_type, &
-                                             processor_type, &
-                                             make_spec, &
+  use field_spec_mod,                 only : main_coll_dict,                    &
+                                             adv_coll_dict,                     &
+                                             processor_type,                    &
+                                             make_spec,                         &
                                              if_adv => if_advected
   use field_mapper_mod,               only : field_mapper_type
   use field_maker_mod,                only : field_maker_type
@@ -30,40 +26,40 @@ module create_physics_prognostics_mod
   use field_collection_mod,           only : field_collection_type
   use fs_continuity_mod,              only : W2, W3, Wtheta, W2H
   use function_space_mod,             only : function_space_type
-  use log_mod,                        only : log_event,         &
-                                             LOG_LEVEL_INFO,    &
+  use log_mod,                        only : log_event,                         &
+                                             LOG_LEVEL_INFO,                    &
                                              LOG_LEVEL_ERROR
   use mesh_mod,                       only : mesh_type
   use mixing_config_mod,              only : smagorinsky
-  use physics_config_mod,             only : stochastic_physics_placement,     &
+  use physics_config_mod,             only : stochastic_physics_placement,      &
                                              stochastic_physics_placement_fast
   use pure_abstract_field_mod,        only : pure_abstract_field_type
-  use radiation_config_mod,           only : n_radstep, cloud_representation,  &
-                                             cloud_representation_combined,    &
+  use radiation_config_mod,           only : n_radstep, cloud_representation,   &
+                                             cloud_representation_combined,     &
                                              cloud_representation_conv_strat_liq_ice, &
-                                             cloud_representation_split,       &
-                                             topography, topography_flat,      &
-                                             topography_horizon,               &
-                                             n_horiz_layer, n_horiz_ang,       &
+                                             cloud_representation_split,        &
+                                             topography, topography_flat,       &
+                                             topography_horizon,                &
+                                             n_horiz_layer, n_horiz_ang,        &
                                              l_inc_radstep
-  use aerosol_config_mod,             only : glomap_mode,                      &
-                                             glomap_mode_climatology,          &
-                                             glomap_mode_dust_and_clim,        &
-                                             glomap_mode_ukca, n_radaer_step,  &
-                                             l_radaer, emissions,              &
-                                             emissions_GC3, emissions_GC5,     &
+  use aerosol_config_mod,             only : glomap_mode,                       &
+                                             glomap_mode_climatology,           &
+                                             glomap_mode_dust_and_clim,         &
+                                             glomap_mode_ukca, n_radaer_step,   &
+                                             l_radaer, emissions,               &
+                                             emissions_GC3, emissions_GC5,      &
                                              easyaerosol_sw, easyaerosol_lw
-  use section_choice_config_mod,      only : cloud, cloud_um,                  &
-                                             aerosol, aerosol_um,              &
-                                             radiation, radiation_socrates,    &
-                                             boundary_layer,                   &
-                                             boundary_layer_um,                &
-                                             electric, electric_um,            &
-                                             surface, surface_jules,           &
-                                             orographic_drag,                  &
-                                             orographic_drag_um,               &
+  use section_choice_config_mod,      only : cloud, cloud_um,                   &
+                                             aerosol, aerosol_um,               &
+                                             radiation, radiation_socrates,     &
+                                             boundary_layer,                    &
+                                             boundary_layer_um,                 &
+                                             electric, electric_um,             &
+                                             surface, surface_jules,            &
+                                             orographic_drag,                   &
+                                             orographic_drag_um,                &
                                              convection, convection_um
-  use cloud_config_mod,               only : scheme, &
+  use cloud_config_mod,               only : scheme,                            &
                                              scheme_pc2
   use microphysics_config_mod,        only : microphysics_casim
 
@@ -73,17 +69,17 @@ module create_physics_prognostics_mod
   use microphysics_config_mod,        only : turb_gen_mixph
   use derived_config_mod,             only : l_esm_couple
   use esm_couple_config_mod,          only : l_esm_couple_test
-  use chemistry_config_mod,           only : chem_scheme,                      &
-                                             chem_scheme_strattrop,            &
+  use chemistry_config_mod,           only : chem_scheme,                       &
+                                             chem_scheme_strattrop,             &
                                              chem_scheme_strat_test
 
 #ifdef UM_PHYSICS
-  use multidata_field_dimensions_mod, only :                                   &
+  use multidata_field_dimensions_mod, only :                                    &
        get_ndata_val => get_multidata_field_dimension
-  use cv_run_mod,                     only:  l_conv_prog_precip,               &
-                                             l_conv_prog_dtheta,               &
-                                             l_conv_prog_dq,                   &
-                                             adv_conv_prog_dtheta,             &
+  use cv_run_mod,                     only:  l_conv_prog_precip,                &
+                                             l_conv_prog_dtheta,                &
+                                             l_conv_prog_dq,                    &
+                                             adv_conv_prog_dtheta,              &
                                              adv_conv_prog_dq
   use mphys_inputs_mod, only: casim_iopt_act
 #endif
@@ -104,7 +100,7 @@ contains
   !> before the io context closes, and this is too early for field creation.
   !> @param  process Processor to be applied to selected field specifiers
   subroutine process_physics_prognostics(processor)
-    use field_spec_mod,            only : main => main_coll_dict, &
+    use field_spec_mod,            only : main => main_coll_dict,               &
                                           adv => adv_coll_dict
     implicit none
     class(processor_type) :: processor
@@ -131,15 +127,15 @@ contains
     call processor%apply(make_spec('exner_in_wth', main%derived, Wtheta))
     call processor%apply(make_spec('exner_wth_n', main%derived, Wtheta))
 
-    if ( boundary_layer == boundary_layer_um .or. &
+    if ( boundary_layer == boundary_layer_um .or.                               &
          convection     == convection_um ) then
 
       call processor%apply(make_spec('theta_star', main%derived, Wtheta))
 
     end if
 
-    if ( boundary_layer == boundary_layer_um .or. &
-         convection     == convection_um     .or. &
+    if ( boundary_layer == boundary_layer_um .or.                               &
+         convection     == convection_um     .or.                               &
          smagorinsky ) then
 
       call processor%apply(make_spec('shear', main%derived, Wtheta))
@@ -153,8 +149,8 @@ contains
     call processor%apply(make_spec('theta_in_w3', main%derived, W3))
     call processor%apply(make_spec('wetrho_in_w3', main%derived, W3))
 
-    if ( boundary_layer               == boundary_layer_um .or.                  &
-         convection                   == convection_um     .or.                  &
+    if ( boundary_layer               == boundary_layer_um .or.                 &
+         convection                   == convection_um     .or.                 &
          stochastic_physics_placement == stochastic_physics_placement_fast ) then
 
       call processor%apply(make_spec('u_in_w3_star', main%derived, W3))
@@ -175,10 +171,10 @@ contains
 
     ! 2D fields
     if ( encorr_usage /= encorr_usage_none ) then
-      call processor%apply(make_spec('temp_correction_field', main%derived, W3,       &
-          twod=.true., ckp=.true.))
+      call processor%apply(make_spec('temp_correction_field', main%derived,     &
+           ckp=.true.))
 
-      call processor%apply(make_spec('accumulated_fluxes', main%derived, W3,          &
+      call processor%apply(make_spec('accumulated_fluxes', main%derived, W3,    &
           twod=.true.))
     end if
 
@@ -193,25 +189,25 @@ contains
     else
       checkpoint_flag = .false.
     end if
-    call processor%apply(make_spec('albedo_obs_vis', main%radiation, W3, twod=.true., &
+    call processor%apply(make_spec('albedo_obs_vis', main%radiation,            &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('albedo_obs_nir', main%radiation, W3, twod=.true., &
+    call processor%apply(make_spec('albedo_obs_nir', main%radiation,            &
         ckp=checkpoint_flag))
 
     ! 3D fields, need checkpointing
-    call processor%apply(make_spec('ozone', main%radiation, Wtheta, ckp=.true.))
+    call processor%apply(make_spec('ozone', main%radiation,  ckp=.true.))
 
     ! 2D fields, don't need checkpointing
     call processor%apply(make_spec('lw_down_surf', main%radiation, W3, twod=.true.))
     call processor%apply(make_spec('sw_down_surf', main%radiation, W3, twod=.true.))
-    call processor%apply(make_spec('sw_direct_surf', main%radiation, W3,              &
+    call processor%apply(make_spec('sw_direct_surf', main%radiation, W3,        &
         twod=.true.))
-    call processor%apply(make_spec('sw_down_blue_surf', main%radiation, W3,           &
+    call processor%apply(make_spec('sw_down_blue_surf', main%radiation, W3,     &
         twod=.true.))
-    call processor%apply(make_spec('sw_direct_blue_surf', main%radiation, W3,         &
+    call processor%apply(make_spec('sw_direct_blue_surf', main%radiation, W3,   &
         twod=.true.))
 
-    call processor%apply(make_spec('cos_zenith_angle', main%radiation, W3,            &
+    call processor%apply(make_spec('cos_zenith_angle', main%radiation, W3,      &
         twod=.true.))
     call processor%apply(make_spec('lit_fraction', main%radiation, W3, twod=.true.))
 
@@ -222,42 +218,42 @@ contains
     call processor%apply(make_spec('dmv_pc2_rad', main%radiation, Wtheta))
 
     ! Fields on surface tiles, don't need checkpointing
-    call processor%apply(make_spec('lw_up_tile', main%radiation, W3,                  &
+    call processor%apply(make_spec('lw_up_tile', main%radiation, W3,            &
         mult='surface_tiles', twod=.true.))
-    call processor%apply(make_spec('sw_up_tile', main%radiation, W3,                  &
+    call processor%apply(make_spec('sw_up_tile', main%radiation, W3,            &
         mult='surface_tiles', twod=.true.))
-    call processor%apply(make_spec('sw_up_blue_tile', main%radiation, W3,             &
+    call processor%apply(make_spec('sw_up_blue_tile', main%radiation, W3,       &
         mult='surface_tiles', twod=.true.))
 
     ! Fields that need checkpointing for the topographic correction scheme
-    if (radiation == radiation_socrates .and. &
+    if (radiation == radiation_socrates .and.                                   &
         topography /= topography_flat) then
       checkpoint_flag = .true.
     else
       checkpoint_flag = .false.
     end if
-    call processor%apply(make_spec('slope_angle', main%radiation, W3, twod=.true.,    &
+    call processor%apply(make_spec('slope_angle', main%radiation,               &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('slope_aspect', main%radiation, W3, twod=.true.,   &
+    call processor%apply(make_spec('slope_aspect', main%radiation,              &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('skyview', main%radiation, W3, twod=.true.,        &
+    call processor%apply(make_spec('skyview', main%radiation,                   &
         ckp=checkpoint_flag))
-    if (radiation == radiation_socrates .and. &
+    if (radiation == radiation_socrates .and.                                   &
         topography == topography_horizon) then
       checkpoint_flag = .true.
-      ! h_ang_space => function_space_collection%get_fs( &
+      ! h_ang_space => function_space_collection%get_fs(                        &
                        ! twod_mesh, 0, W3, n_horiz_layer*n_horiz_ang)
-      ! h_asp_space => function_space_collection%get_fs( &
+      ! h_asp_space => function_space_collection%get_fs(                        &
                        ! twod_mesh, 0, W3, n_horiz_ang)
     else
       checkpoint_flag = .false.
       ! h_ang_space => function_space_collection%get_fs(twod_mesh, 0, W3, 1)
       ! h_asp_space => function_space_collection%get_fs(twod_mesh, 0, W3, 1)
     end if
-    call processor%apply(make_spec('horizon_angle', main%radiation, W3,               &
-        mult='horizon_angles', twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('horizon_aspect', main%radiation, W3,              &
-        mult='horizon_aspects', twod=.true., ckp=checkpoint_flag))
+    call processor%apply(make_spec('horizon_angle', main%radiation,             &
+          ckp=checkpoint_flag))
+    call processor%apply(make_spec('horizon_aspect', main%radiation,            &
+          ckp=checkpoint_flag))
 
     ! Fields which need checkpointing for radiation timestepping
     !
@@ -266,108 +262,108 @@ contains
     if (radiation == radiation_socrates) then
       ! Checkpoint unless both the first timestep of this run and the
       ! first timestep of the next run are radiation timesteps
-      checkpoint_flag = &
-        mod(clock%get_first_step()-1, n_radstep) /= 0 .or. &
+      checkpoint_flag =                                                         &
+        mod(clock%get_first_step()-1, n_radstep) /= 0 .or.                      &
         mod(clock%get_last_step(),    n_radstep) /= 0
     else
       checkpoint_flag = .false.
     end if
 
     ! 2D fields
-    call processor%apply(make_spec('lw_down_surf_rts', main%radiation, W3,            &
-        twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('sw_down_surf_rts', main%radiation, W3,            &
-        twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('sw_direct_surf_rts', main%radiation, W3,          &
-        twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('sw_down_blue_surf_rts', main%radiation, W3,       &
-        twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('sw_direct_blue_surf_rts', main%radiation, W3,     &
-        twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('lw_up_surf_rts', main%radiation, W3, twod=.true., &
+    call processor%apply(make_spec('lw_down_surf_rts', main%radiation,          &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('sw_down_surf_rts', main%radiation,          &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('sw_direct_surf_rts', main%radiation,        &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('sw_down_blue_surf_rts', main%radiation,     &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('sw_direct_blue_surf_rts', main%radiation,   &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('lw_up_surf_rts', main%radiation,            &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('sw_up_surf_rts', main%radiation, W3, twod=.true., &
+    call processor%apply(make_spec('sw_up_surf_rts', main%radiation,            &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('lw_up_toa_rts', main%radiation, W3, twod=.true.,  &
+    call processor%apply(make_spec('lw_up_toa_rts', main%radiation,             &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('sw_up_toa_rts', main%radiation, W3, twod=.true.,  &
+    call processor%apply(make_spec('sw_up_toa_rts', main%radiation,             &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('sw_direct_toa_rts', main%radiation, W3,           &
-        twod=.true., ckp=checkpoint_flag))
+    call processor%apply(make_spec('sw_direct_toa_rts', main%radiation,         &
+         ckp=checkpoint_flag))
 
-    call processor%apply(make_spec('cos_zenith_angle_rts', main%radiation, W3,        &
-        twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('lit_fraction_rts', main%radiation, W3,            &
-        twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('stellar_irradiance_rts', main%radiation, W3,      &
-        twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('sin_stellar_declination_rts', main%radiation, W3, &
-        twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('stellar_eqn_of_time_rts', main%radiation, W3,     &
-        twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('orographic_correction_rts', main%radiation, W3,   &
-        twod=.true., ckp=checkpoint_flag))
+    call processor%apply(make_spec('cos_zenith_angle_rts', main%radiation,      &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('lit_fraction_rts', main%radiation,          &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('stellar_irradiance_rts', main%radiation,    &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('sin_stellar_declination_rts', main%radiation,  &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('stellar_eqn_of_time_rts', main%radiation,   &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('orographic_correction_rts', main%radiation, &
+         ckp=checkpoint_flag))
 
     ! 3D fields
-    call processor%apply(make_spec('sw_heating_rate_rts', main%radiation, Wtheta,     &
+    call processor%apply(make_spec('sw_heating_rate_rts', main%radiation,       &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('lw_heating_rate_rts', main%radiation, Wtheta,     &
+    call processor%apply(make_spec('lw_heating_rate_rts', main%radiation,       &
         ckp=checkpoint_flag))
 
     ! Fields on surface tiles
-    call processor%apply(make_spec('lw_up_tile_rts', main%radiation, W3,              &
-        mult='surface_tiles', twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('sw_up_tile_rts', main%radiation, W3,              &
-        mult='surface_tiles', twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('sw_up_blue_tile_rts', main%radiation, W3,         &
-        mult='surface_tiles', twod=.true., ckp=checkpoint_flag))
+    call processor%apply(make_spec('lw_up_tile_rts', main%radiation,            &
+          ckp=checkpoint_flag))
+    call processor%apply(make_spec('sw_up_tile_rts', main%radiation,            &
+          ckp=checkpoint_flag))
+    call processor%apply(make_spec('sw_up_blue_tile_rts', main%radiation,       &
+          ckp=checkpoint_flag))
 
 
     ! Fields which need checkpointing for radiation incremental timestepping
     checkpoint_flag = checkpoint_flag .and. l_inc_radstep
 
     ! 2D fields
-    call processor%apply(make_spec('lw_down_surf_rtsi', main%radiation, W3,           &
-        twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('sw_down_surf_rtsi', main%radiation, W3,           &
-        twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('sw_direct_surf_rtsi', main%radiation, W3,         &
-        twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('sw_down_blue_surf_rtsi', main%radiation, W3,      &
-        twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('sw_direct_blue_surf_rtsi', main%radiation, W3,    &
-        twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('lw_up_surf_rtsi', main%radiation, W3,             &
-        twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('sw_up_surf_rtsi', main%radiation, W3,             &
-        twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('lw_up_toa_rtsi', main%radiation, W3, twod=.true., &
+    call processor%apply(make_spec('lw_down_surf_rtsi', main%radiation,         &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('sw_down_surf_rtsi', main%radiation,         &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('sw_direct_surf_rtsi', main%radiation,       &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('sw_down_blue_surf_rtsi', main%radiation,    &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('sw_direct_blue_surf_rtsi', main%radiation,  &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('lw_up_surf_rtsi', main%radiation,           &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('sw_up_surf_rtsi', main%radiation,           &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('lw_up_toa_rtsi', main%radiation,            &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('sw_up_toa_rtsi', main%radiation, W3, twod=.true., &
+    call processor%apply(make_spec('sw_up_toa_rtsi', main%radiation,            &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('sw_direct_toa_rtsi', main%radiation, W3,          &
-        twod=.true., ckp=checkpoint_flag))
+    call processor%apply(make_spec('sw_direct_toa_rtsi', main%radiation,        &
+         ckp=checkpoint_flag))
 
     ! 3D fields
-    call processor%apply(make_spec('sw_heating_rate_rtsi', main%radiation, Wtheta,    &
+    call processor%apply(make_spec('sw_heating_rate_rtsi', main%radiation,      &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('lw_heating_rate_rtsi', main%radiation, Wtheta,    &
+    call processor%apply(make_spec('lw_heating_rate_rtsi', main%radiation,      &
         ckp=checkpoint_flag))
 
     ! Fields on surface tiles
-    call processor%apply(make_spec('lw_up_tile_rtsi', main%radiation, W3,             &
-        mult='surface_tiles', twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('sw_up_tile_rtsi', main%radiation, W3,             &
-        mult='surface_tiles', twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('sw_up_blue_tile_rtsi', main%radiation, W3,        &
-        mult='surface_tiles', twod=.true., ckp=checkpoint_flag))
+    call processor%apply(make_spec('lw_up_tile_rtsi', main%radiation,           &
+          ckp=checkpoint_flag))
+    call processor%apply(make_spec('sw_up_tile_rtsi', main%radiation,           &
+          ckp=checkpoint_flag))
+    call processor%apply(make_spec('sw_up_blue_tile_rtsi', main%radiation,      &
+          ckp=checkpoint_flag))
 
     ! Fields which need checkpointing when superstepping radaer
     ! Checkpoint unless both the first timestep of this run and the
     ! first timestep of the next run are radaer timesteps
     if (l_radaer) then
-      checkpoint_flag = &
-        mod(clock%get_first_step()-1, n_radaer_step*n_radstep) /= 0 .or. &
+      checkpoint_flag =                                                         &
+        mod(clock%get_first_step()-1, n_radaer_step*n_radstep) /= 0 .or.        &
         mod(clock%get_last_step(),    n_radaer_step*n_radstep) /= 0
     else
       checkpoint_flag = .false.
@@ -375,24 +371,24 @@ contains
 
     ! vector_space=>function_space_collection%get_fs(mesh,0,Wtheta,
     !     get_ndata_val('aero_modes') )
-    call processor%apply(make_spec('aer_mix_ratio', main%radiation, Wtheta,           &
-        mult='aero_modes', ckp=checkpoint_flag))
+    call processor%apply(make_spec('aer_mix_ratio', main%radiation,             &
+         ckp=checkpoint_flag))
     ! vector_space=>function_space_collection%get_fs(mesh,0,Wtheta,
     !     get_ndata_val('sw_bands_aero_modes') )
-    call processor%apply(make_spec('aer_sw_absorption', main%radiation, Wtheta,       &
-        mult='sw_bands_aero_modes', ckp=checkpoint_flag))
-    call processor%apply(make_spec('aer_sw_scattering', main%radiation, Wtheta,       &
-        mult='sw_bands_aero_modes', ckp=checkpoint_flag))
-    call processor%apply(make_spec('aer_sw_asymmetry', main%radiation, Wtheta,        &
-        mult='sw_bands_aero_modes', ckp=checkpoint_flag))
+    call processor%apply(make_spec('aer_sw_absorption', main%radiation,         &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('aer_sw_scattering', main%radiation,         &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('aer_sw_asymmetry', main%radiation,          &
+         ckp=checkpoint_flag))
     ! vector_space=>function_space_collection%get_fs(mesh,0,Wtheta,
     !     get_ndata_val('lw_bands_aero_modes') )
-    call processor%apply(make_spec('aer_lw_absorption', main%radiation, Wtheta,       &
-        mult='lw_bands_aero_modes', ckp=checkpoint_flag))
-    call processor%apply(make_spec('aer_lw_scattering', main%radiation, Wtheta,       &
-        mult='lw_bands_aero_modes', ckp=checkpoint_flag))
-    call processor%apply(make_spec('aer_lw_asymmetry', main%radiation, Wtheta,        &
-        mult='lw_bands_aero_modes', ckp=checkpoint_flag))
+    call processor%apply(make_spec('aer_lw_absorption', main%radiation,         &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('aer_lw_scattering', main%radiation,         &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('aer_lw_asymmetry', main%radiation,          &
+         ckp=checkpoint_flag))
 
     !========================================================================
     ! Fields owned by the microphysics scheme
@@ -404,16 +400,16 @@ contains
     checkpoint_flag = microphysics_casim
     advection_flag = microphysics_casim
 
-    call processor%apply(make_spec('nl_mphys', main%microphysics, Wtheta,             &
-        adv_coll=if_adv((advection_flag .and. casim_iopt_act /= 0_i_def),  &
+    call processor%apply(make_spec('nl_mphys', main%microphysics,               &
+        adv_coll=if_adv((advection_flag .and. casim_iopt_act /= 0_i_def),       &
          adv%last_adv), ckp=checkpoint_flag))
-    call processor%apply(make_spec('nr_mphys', main%microphysics, Wtheta,             &
+    call processor%apply(make_spec('nr_mphys', main%microphysics,               &
         adv_coll=if_adv(advection_flag, adv%last_adv), ckp=checkpoint_flag))
-    call processor%apply(make_spec('ni_mphys', main%microphysics, Wtheta,             &
+    call processor%apply(make_spec('ni_mphys', main%microphysics,               &
         adv_coll=if_adv(advection_flag, adv%last_adv), ckp=checkpoint_flag))
-    call processor%apply(make_spec('ns_mphys', main%microphysics, Wtheta,             &
+    call processor%apply(make_spec('ns_mphys', main%microphysics,               &
         adv_coll=if_adv(advection_flag, adv%last_adv), ckp=checkpoint_flag))
-    call processor%apply(make_spec('ng_mphys', main%microphysics, Wtheta,             &
+    call processor%apply(make_spec('ng_mphys', main%microphysics,               &
         adv_coll=if_adv(advection_flag, adv%last_adv), ckp=checkpoint_flag))
 
     ! 2D fields, don't need checkpointing
@@ -441,8 +437,8 @@ contains
 
       ! 2D lightning potential field. Assuming needs checkpointing for now.
       ! This field doesn't need to be advected.
-      call processor%apply(make_spec('flash_potential', main%electric, W3,            &
-          twod=.true., ckp=.true.))
+      call processor%apply(make_spec('flash_potential', main%electric,          &
+           ckp=.true.))
 
     end if
 
@@ -451,25 +447,25 @@ contains
     !========================================================================
 
     ! 2D fields, might need checkpointing
-    if (boundary_layer == boundary_layer_um .or. &
-         surface == surface_jules           .or. &
+    if (boundary_layer == boundary_layer_um .or.                                &
+         surface == surface_jules           .or.                                &
          orographic_drag == orographic_drag_um) then
       checkpoint_flag = .true.
     else
       checkpoint_flag = .false.
     end if
-    call processor%apply(make_spec('sd_orog', main%orography, W3, twod=.true.,        &
+    call processor%apply(make_spec('sd_orog', main%orography,                   &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('grad_xx_orog', main%orography, W3, twod=.true.,   &
+    call processor%apply(make_spec('grad_xx_orog', main%orography,              &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('grad_xy_orog', main%orography, W3, twod=.true.,   &
+    call processor%apply(make_spec('grad_xy_orog', main%orography,              &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('grad_yy_orog', main%orography, W3, twod=.true.,   &
+    call processor%apply(make_spec('grad_yy_orog', main%orography,              &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('peak_to_trough_orog', main%orography, W3,         &
-        twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('silhouette_area_orog', main%orography, W3,        &
-        twod=.true., ckp=checkpoint_flag))
+    call processor%apply(make_spec('peak_to_trough_orog', main%orography,       &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('silhouette_area_orog', main%orography,      &
+         ckp=checkpoint_flag))
 
     !========================================================================
     ! Fields owned by the turbulence scheme
@@ -482,26 +478,26 @@ contains
     else
       checkpoint_flag = .false.
     end if
-    call processor%apply(make_spec('zh', main%turbulence, W3, twod=.true.,            &
+    call processor%apply(make_spec('zh', main%turbulence,                       &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('wvar', main%turbulence, Wtheta,                   &
+    call processor%apply(make_spec('wvar', main%turbulence,                     &
         ckp=turb_gen_mixph))
     call processor%apply(make_spec('gradrinr', main%turbulence, Wtheta))
 
     ! 2D fields, don't need checkpointing
-    call processor%apply(make_spec('ntml', main%turbulence, W3, twod=.true.,          &
+    call processor%apply(make_spec('ntml', main%turbulence, W3, twod=.true.,    &
         is_int=.true.))
-    call processor%apply(make_spec('cumulus', main%turbulence, W3, twod=.true.,       &
+    call processor%apply(make_spec('cumulus', main%turbulence, W3, twod=.true., &
         is_int=.true.))
     call processor%apply(make_spec('z_lcl', main%turbulence, W3, twod=.true.))
     call processor%apply(make_spec('inv_depth', main%turbulence, W3, twod=.true.))
-    call processor%apply(make_spec('qcl_at_inv_top', main%turbulence, W3,             &
+    call processor%apply(make_spec('qcl_at_inv_top', main%turbulence, W3,       &
         twod=.true.))
-    call processor%apply(make_spec('blend_height_tq', main%turbulence, W3,            &
+    call processor%apply(make_spec('blend_height_tq', main%turbulence, W3,      &
         twod=.true., is_int=.true.))
     call processor%apply(make_spec('zh_nonloc', main%turbulence, W3, twod=.true.))
     call processor%apply(make_spec('zhsc', main%turbulence, W3, twod=.true.))
-    call processor%apply(make_spec('bl_weight_1dbl', main%turbulence, W3,             &
+    call processor%apply(make_spec('bl_weight_1dbl', main%turbulence, W3,       &
         twod=.true.))
     call processor%apply(make_spec('level_ent', main%turbulence, W3, twod=.true.,     &
         is_int=.true.))
@@ -511,7 +507,7 @@ contains
     ! Space for the 7 BL types
     ! vector_space => function_space_collection%get_fs(twod_mesh, 0, W3,
     !     get_ndata_val('boundary_layer_types'))
-    call processor%apply(make_spec('bl_type_ind', main%turbulence, W3,                &
+    call processor%apply(make_spec('bl_type_ind', main%turbulence, W3,          &
         mult='boundary_layer_types', twod=.true., is_int=.true.))
 
     ! 3D fields, don't need checkpointing
@@ -537,17 +533,17 @@ contains
     ! Fields on entrainment levels, don't need checkpointing
     ! vector_space => function_space_collection%get_fs(twod_mesh, 0, W3,
     !     get_ndata_val('entrainment_levels'))
-    call processor%apply(make_spec('ent_we_lim', main%turbulence, W3,                 &
+    call processor%apply(make_spec('ent_we_lim', main%turbulence, W3,           &
         mult='entrainment_levels', twod=.true.))
-    call processor%apply(make_spec('ent_t_frac', main%turbulence, W3,                 &
+    call processor%apply(make_spec('ent_t_frac', main%turbulence, W3,           &
         mult='entrainment_levels', twod=.true.))
-    call processor%apply(make_spec('ent_zrzi', main%turbulence, W3,                   &
+    call processor%apply(make_spec('ent_zrzi', main%turbulence, W3,             &
         mult='entrainment_levels', twod=.true.))
-    call processor%apply(make_spec('ent_we_lim_dsc', main%turbulence, W3,             &
+    call processor%apply(make_spec('ent_we_lim_dsc', main%turbulence, W3,       &
         mult='entrainment_levels', twod=.true.))
-    call processor%apply(make_spec('ent_t_frac_dsc', main%turbulence, W3,             &
+    call processor%apply(make_spec('ent_t_frac_dsc', main%turbulence, W3,       &
         mult='entrainment_levels', twod=.true.))
-    call processor%apply(make_spec('ent_zrzi_dsc', main%turbulence, W3,               &
+    call processor%apply(make_spec('ent_zrzi_dsc', main%turbulence, W3,         &
         mult='entrainment_levels', twod=.true.))
 
     !========================================================================
@@ -560,18 +556,18 @@ contains
     else
       checkpoint_flag = .false.
     end if
-    call processor%apply(make_spec('conv_rain', main%convection, W3, twod=.true.,     &
+    call processor%apply(make_spec('conv_rain', main%convection,                &
         ckp=(checkpoint_flag .and. add_cgw)))
-    call processor%apply(make_spec('conv_snow', main%convection, W3, twod=.true.,     &
+    call processor%apply(make_spec('conv_snow', main%convection,                &
         ckp=(checkpoint_flag .and. add_cgw)))
-    call processor%apply(make_spec('dd_mf_cb', main%convection, W3, twod=.true.,      &
+    call processor%apply(make_spec('dd_mf_cb', main%convection,                 &
         ckp=(checkpoint_flag .and. srf_ex_cnv_gust)))
 
     ! 3D fields, might need checkpointing
     if (convection == convection_um) then
       select case (cloud_representation)
-      case (cloud_representation_combined, &
-            cloud_representation_conv_strat_liq_ice, &
+      case (cloud_representation_combined,                                      &
+            cloud_representation_conv_strat_liq_ice,                            &
             cloud_representation_split)
         checkpoint_flag = .true.
       case default
@@ -580,9 +576,9 @@ contains
     else
       checkpoint_flag = .false.
     end if
-    call processor%apply(make_spec('cca', main%convection, Wtheta,                    &
+    call processor%apply(make_spec('cca', main%convection,                      &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('ccw', main%convection, Wtheta,                    &
+    call processor%apply(make_spec('ccw', main%convection,                      &
         ckp=checkpoint_flag))
 
     ! 2D fields, don't need checkpointing
@@ -593,14 +589,14 @@ contains
     call processor%apply(make_spec('vw0_flux', main%convection, W3, twod=.true.))
     call processor%apply(make_spec('lcl_height', main%convection, W3, twod=.true.))
     call processor%apply(make_spec('parcel_top', main%convection, W3, twod=.true.))
-    call processor%apply(make_spec('level_parcel_top', main%convection, W3,           &
+    call processor%apply(make_spec('level_parcel_top', main%convection, W3,     &
         twod=.true., is_int=.true.))
     call processor%apply(make_spec('wstar', main%convection, W3, twod=.true.))
     call processor%apply(make_spec('thv_flux', main%convection, W3, twod=.true.))
-    call processor%apply(make_spec('parcel_buoyancy', main%convection, W3,            &
+    call processor%apply(make_spec('parcel_buoyancy', main%convection, W3,      &
         twod=.true.))
     call processor%apply(make_spec('qsat_at_lcl', main%convection, W3, twod=.true.))
-    call processor%apply(make_spec('cape_diluted', main%convection, W3,               &
+    call processor%apply(make_spec('cape_diluted', main%convection, W3,         &
         twod=.true.))
 
     ! 3D fields, don't need checkpointing
@@ -620,14 +616,14 @@ contains
     call processor%apply(make_spec('du_conv', main%convection, W3))
     call processor%apply(make_spec('dv_conv', main%convection, W3))
 
-    call processor%apply(make_spec('conv_prog_dtheta', main%convection, Wtheta,       &
-        adv_coll=if_adv((l_conv_prog_dtheta .and. adv_conv_prog_dtheta),              &
+    call processor%apply(make_spec('conv_prog_dtheta', main%convection,         &
+        adv_coll=if_adv((l_conv_prog_dtheta .and. adv_conv_prog_dtheta),        &
         adv%all_adv), ckp=l_conv_prog_dtheta))
-    call processor%apply(make_spec('conv_prog_dmv', main%convection, Wtheta,          &
-        adv_coll=if_adv((l_conv_prog_dq .and. adv_conv_prog_dq), adv%all_adv),            &
+    call processor%apply(make_spec('conv_prog_dmv', main%convection,            &
+        adv_coll=if_adv((l_conv_prog_dq .and. adv_conv_prog_dq), adv%all_adv),  &
         ckp=l_conv_prog_dq))
 
-    call processor%apply(make_spec('conv_prog_precip', main%convection, Wtheta,       &
+    call processor%apply(make_spec('conv_prog_precip', main%convection,         &
         adv_coll=if_adv(l_conv_prog_precip, adv%all_adv), ckp=l_conv_prog_precip))
 
     !========================================================================
@@ -640,7 +636,7 @@ contains
     else
       checkpoint_flag = .false.
     end if
-    call processor%apply(make_spec('area_fraction', main%cloud, Wtheta,               &
+    call processor%apply(make_spec('area_fraction', main%cloud,                 &
         ckp=(checkpoint_flag .and. radiation==radiation_socrates)))
 
     ! 3D fields, might need advecting
@@ -649,15 +645,15 @@ contains
     else
       advection_flag=.false.
     endif
-    call processor%apply(make_spec('liquid_fraction', main%cloud, Wtheta,             &
+    call processor%apply(make_spec('liquid_fraction', main%cloud,               &
         adv_coll=if_adv(advection_flag, adv%all_adv), ckp=checkpoint_flag))
-    call processor%apply(make_spec('frozen_fraction', main%cloud, Wtheta,             &
+    call processor%apply(make_spec('frozen_fraction', main%cloud,               &
         adv_coll=if_adv(advection_flag, adv%all_adv), ckp=checkpoint_flag))
-    call processor%apply(make_spec('bulk_fraction', main%cloud, Wtheta,               &
+    call processor%apply(make_spec('bulk_fraction', main%cloud,                 &
         adv_coll=if_adv(advection_flag, adv%all_adv), ckp=checkpoint_flag))
 
     call processor%apply(make_spec('rh_crit', main%cloud, Wtheta))
-    call processor%apply(make_spec('departure_exner_wth', main%cloud, Wtheta,         &
+    call processor%apply(make_spec('departure_exner_wth', main%cloud, Wtheta,   &
         adv_coll=if_adv(advection_flag, adv%last_adv)))
     call processor%apply(make_spec('sigma_mc', main%cloud, Wtheta))
 
@@ -688,50 +684,49 @@ contains
       checkpoint_couple = .false.
     end if
 
-    call processor%apply(make_spec('z0msea', main%surface, W3, twod=.true.,           &
+    call processor%apply(make_spec('z0msea', main%surface,                      &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('surface_conductance', main%surface, W3,           &
-        twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('chloro_sea', main%surface, W3, twod=.true.,       &
+    call processor%apply(make_spec('surface_conductance', main%surface,         &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('chloro_sea', main%surface,                  &
         ckp=(checkpoint_flag .and. sea_alb_var_chl)))
 
     ! Fields on surface tiles, might need checkpointing
-    call processor%apply(make_spec('tile_fraction', main%surface, W3,                 &
-        mult='surface_tiles', twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('tile_temperature', main%surface, W3,              &
-        mult='surface_tiles', twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('screen_temperature', main%surface, W3,            &
-        mult='surface_tiles', twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('time_since_transition', main%surface, W3,         &
-        twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('canopy_water', main%surface, W3,                  &
-        mult='surface_tiles', twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('tile_lw_grey_albedo', main%surface, W3,           &
-        mult='surface_tiles', twod=.true., ckp=checkpoint_flag))
+    call processor%apply(make_spec('tile_fraction', main%surface,               &
+          ckp=checkpoint_flag))
+    call processor%apply(make_spec('tile_temperature', main%surface,            &
+          ckp=checkpoint_flag))
+    call processor%apply(make_spec('screen_temperature', main%surface,          &
+          ckp=checkpoint_flag))
+    call processor%apply(make_spec('time_since_transition', main%surface,       &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('canopy_water', main%surface,                &
+          ckp=checkpoint_flag))
+    call processor%apply(make_spec('tile_lw_grey_albedo', main%surface,         &
+          ckp=checkpoint_flag))
 
     ! vector_space=>function_space_collection%get_fs(twod_mesh, 0, W3,
     !     get_ndata_val('land_tile_rad_band'))
-    call processor%apply(make_spec('albedo_obs_scaling', main%surface, W3,            &
-        mult='land_tile_rad_band', twod=.true.,                                       &
+    call processor%apply(make_spec('albedo_obs_scaling', main%surface,          &
         ckp=(checkpoint_flag .and. albedo_obs)))
 
     ! Fields on plant functional types, might need checkpointing
-    call processor%apply(make_spec('leaf_area_index', main%surface, W3,               &
-        mult='plant_func_types', twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('canopy_height', main%surface, W3,                 &
-        mult='plant_func_types', twod=.true., ckp=checkpoint_flag))
+    call processor%apply(make_spec('leaf_area_index', main%surface,             &
+          ckp=checkpoint_flag))
+    call processor%apply(make_spec('canopy_height', main%surface,               &
+          ckp=checkpoint_flag))
 
 
     ! Sea-ice category fields, might need checkpointing
-    call processor%apply(make_spec('sea_ice_thickness', main%surface, W3,             &
-        mult='sea_ice_categories', twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('sea_ice_temperature', main%surface, W3,           &
-        mult='sea_ice_categories', twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('sea_ice_conductivity', main%surface, W3,          &
+    call processor%apply(make_spec('sea_ice_thickness', main%surface,           &
+          ckp=checkpoint_flag))
+    call processor%apply(make_spec('sea_ice_temperature', main%surface,         &
+          ckp=checkpoint_flag))
+    call processor%apply(make_spec('sea_ice_conductivity', main%surface, W3,    &
         mult='sea_ice_categories', twod=.true., ckp=.false.))
-    call processor%apply(make_spec('melt_pond_fraction', main%surface, W3,            &
+    call processor%apply(make_spec('melt_pond_fraction', main%surface, W3,      &
         mult='sea_ice_categories', twod=.true., ckp=.false.))
-    call processor%apply(make_spec('melt_pond_depth', main%surface, W3,               &
+    call processor%apply(make_spec('melt_pond_depth', main%surface, W3,         &
         mult='sea_ice_categories', twod=.true., ckp=.false.))
 
     ! Sea surface velocity vector components provided via the coupler.
@@ -742,39 +737,39 @@ contains
     call processor%apply(make_spec('sea_current_w2', main%surface, W2, ckp=.false.))
 
     ! Fields on surface tiles, don't need checkpointing
-    call processor%apply(make_spec('tile_heat_flux', main%surface, W3,                &
+    call processor%apply(make_spec('tile_heat_flux', main%surface, W3,          &
         mult='surface_tiles', twod=.true.))
-    call processor%apply(make_spec('alpha1_tile', main%surface, W3,                   &
+    call processor%apply(make_spec('alpha1_tile', main%surface, W3,             &
         mult='surface_tiles', twod=.true.))
-    call processor%apply(make_spec('ashtf_prime_tile', main%surface, W3,              &
+    call processor%apply(make_spec('ashtf_prime_tile', main%surface, W3,        &
         mult='surface_tiles', twod=.true.))
-    call processor%apply(make_spec('dtstar_tile', main%surface, W3,                   &
+    call processor%apply(make_spec('dtstar_tile', main%surface, W3,             &
         mult='surface_tiles', twod=.true.))
-    call processor%apply(make_spec('fraca_tile', main%surface, W3,                    &
+    call processor%apply(make_spec('fraca_tile', main%surface, W3,              &
         mult='surface_tiles', twod=.true.))
-    call processor%apply(make_spec('z0h_tile', main%surface, W3,                      &
+    call processor%apply(make_spec('z0h_tile', main%surface, W3,                &
         mult='surface_tiles', twod=.true.))
-    call processor%apply(make_spec('z0m_tile', main%surface, W3,                      &
+    call processor%apply(make_spec('z0m_tile', main%surface, W3,                &
         mult='surface_tiles', twod=.true.))
-    call processor%apply(make_spec('rhokh_tile', main%surface, W3,                    &
+    call processor%apply(make_spec('rhokh_tile', main%surface, W3,              &
         mult='surface_tiles', twod=.true.))
-    call processor%apply(make_spec('chr1p5m_tile', main%surface, W3,                  &
+    call processor%apply(make_spec('chr1p5m_tile', main%surface, W3,            &
         mult='surface_tiles', twod=.true.))
-    call processor%apply(make_spec('resfs_tile', main%surface, W3,                    &
+    call processor%apply(make_spec('resfs_tile', main%surface, W3,              &
         mult='surface_tiles', twod=.true.))
-    call processor%apply(make_spec('canhc_tile', main%surface, W3,                    &
+    call processor%apply(make_spec('canhc_tile', main%surface, W3,              &
         mult='surface_tiles', twod=.true.))
     call processor%apply(make_spec('gc_tile', main%surface, W3, mult='surface_tiles', &
         twod=.true.))
 
    ! Fields on surface tiles used by coupler, need checkpointing in coupled models
-    call processor%apply(make_spec('tile_moisture_flux', main%surface, W3,            &
+    call processor%apply(make_spec('tile_moisture_flux', main%surface, W3,      &
         mult='surface_tiles', twod=.true., ckp=checkpoint_couple))
-    call processor%apply(make_spec('snowice_melt', main%surface, W3,                  &
+    call processor%apply(make_spec('snowice_melt', main%surface, W3,            &
         mult='surface_tiles', twod=.true., ckp=checkpoint_couple))
-    call processor%apply(make_spec('surf_ht_flux', main%surface, W3,                  &
+    call processor%apply(make_spec('surf_ht_flux', main%surface, W3,            &
         mult='surface_tiles', twod=.true., ckp=checkpoint_couple))
-    call processor%apply(make_spec('snowice_sublimation', main%surface, W3,           &
+    call processor%apply(make_spec('snowice_sublimation', main%surface, W3,     &
         mult='surface_tiles', twod=.true., ckp=checkpoint_couple))
 
     ! 2D fields, don't need checkpointing
@@ -798,7 +793,7 @@ contains
     ! Space for variables required for regridding to cell faces
     ! vector_space => function_space_collection%get_fs(twod_mesh, 0, W2,
     !     get_ndata_val('surface_regrid_vars'))
-    call processor%apply(make_spec('surf_interp_w2', main%surface, W2,                &
+    call processor%apply(make_spec('surf_interp_w2', main%surface, W2,          &
         mult='surface_regrid_vars', twod=.true.))
 
     ! 2D fields at W2 points
@@ -810,7 +805,7 @@ contains
     ! Field on soil levels and land tiles
     ! vector_space => function_space_collection%get_fs(twod_mesh, 0, W3,
     !     get_ndata_val('soil_levels_and_tiles'))
-    call processor%apply(make_spec('tile_water_extract', main%surface, W3,            &
+    call processor%apply(make_spec('tile_water_extract', main%surface, W3,      &
         mult='soil_levels_and_tiles', twod=.true.))
 
     !========================================================================
@@ -823,60 +818,60 @@ contains
     else
       checkpoint_flag = .false.
     end if
-    call processor%apply(make_spec('soil_albedo', main%soil, W3, twod=.true.,         &
+    call processor%apply(make_spec('soil_albedo', main%soil,                    &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('soil_roughness', main%soil, W3, twod=.true.,      &
+    call processor%apply(make_spec('soil_roughness', main%soil,                 &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('soil_thermal_cond', main%soil, W3, twod=.true.,   &
+    call processor%apply(make_spec('soil_thermal_cond', main%soil,              &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('mean_topog_index', main%soil, W3, twod=.true.,    &
+    call processor%apply(make_spec('mean_topog_index', main%soil,               &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('a_sat_frac', main%soil, W3, twod=.true.,          &
+    call processor%apply(make_spec('a_sat_frac', main%soil,                     &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('c_sat_frac', main%soil, W3, twod=.true.,          &
+    call processor%apply(make_spec('c_sat_frac', main%soil,                     &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('a_wet_frac', main%soil, W3, twod=.true.,          &
+    call processor%apply(make_spec('a_wet_frac', main%soil,                     &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('c_wet_frac', main%soil, W3, twod=.true.,          &
+    call processor%apply(make_spec('c_wet_frac', main%soil,                     &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('soil_sat_frac', main%soil, W3, twod=.true.,       &
+    call processor%apply(make_spec('soil_sat_frac', main%soil,                  &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('water_table', main%soil, W3, twod=.true.,         &
+    call processor%apply(make_spec('water_table', main%soil,                    &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('wetness_under_soil', main%soil, W3, twod=.true.,  &
+    call processor%apply(make_spec('wetness_under_soil', main%soil,             &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('soil_moist_wilt', main%soil, W3, twod=.true.,     &
+    call processor%apply(make_spec('soil_moist_wilt', main%soil,                &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('soil_moist_crit', main%soil, W3, twod=.true.,     &
+    call processor%apply(make_spec('soil_moist_crit', main%soil,                &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('soil_moist_sat', main%soil, W3, twod=.true.,      &
+    call processor%apply(make_spec('soil_moist_sat', main%soil,                 &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('soil_cond_sat', main%soil, W3, twod=.true.,       &
+    call processor%apply(make_spec('soil_cond_sat', main%soil,                  &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('soil_thermal_cap', main%soil, W3, twod=.true.,    &
+    call processor%apply(make_spec('soil_thermal_cap', main%soil,               &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('soil_suction_sat', main%soil, W3, twod=.true.,    &
+    call processor%apply(make_spec('soil_suction_sat', main%soil,               &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('clapp_horn_b', main%soil, W3, twod=.true.,        &
+    call processor%apply(make_spec('clapp_horn_b', main%soil,                   &
         ckp=checkpoint_flag))
     call processor%apply(make_spec('surface_runoff', main%soil, W3, twod=.true.))
-    call processor%apply(make_spec('sub_surface_runoff', main%soil, W3,               &
+    call processor%apply(make_spec('sub_surface_runoff', main%soil, W3,         &
         twod=.true.))
 
 
     ! Fields on soil levels
-    call processor%apply(make_spec('soil_temperature', main%soil, W3,                 &
-        mult='soil_levels', twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('soil_moisture', main%soil, W3,                    &
-        mult='soil_levels', twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('unfrozen_soil_moisture', main%soil, W3,           &
-        mult='soil_levels', twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('frozen_soil_moisture', main%soil, W3,             &
-        mult='soil_levels', twod=.true., ckp=checkpoint_flag))
+    call processor%apply(make_spec('soil_temperature', main%soil,               &
+          ckp=checkpoint_flag))
+    call processor%apply(make_spec('soil_moisture', main%soil,                  &
+          ckp=checkpoint_flag))
+    call processor%apply(make_spec('unfrozen_soil_moisture', main%soil,         &
+          ckp=checkpoint_flag))
+    call processor%apply(make_spec('frozen_soil_moisture', main%soil,           &
+          ckp=checkpoint_flag))
 
     ! 2D fields, don't need checkpointing
     call processor%apply(make_spec('soil_moist_avail', main%soil, W3, twod=.true.))
-    call processor%apply(make_spec('thermal_cond_wet_soil', main%soil, W3,            &
+    call processor%apply(make_spec('thermal_cond_wet_soil', main%soil, W3,      &
         twod=.true.))
 
     !========================================================================
@@ -889,37 +884,37 @@ contains
     else
       checkpoint_flag = .false.
     end if
-    call processor%apply(make_spec('tile_snow_mass', main%snow, W3,                   &
-        mult='surface_tiles', twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('tile_snow_rgrain', main%snow, W3,                 &
-        mult='surface_tiles', twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('n_snow_layers', main%snow, W3,                    &
-        mult='surface_tiles', twod=.true., ckp=checkpoint_flag, is_int=.true.))
-    call processor%apply(make_spec('snow_depth', main%snow, W3, mult='surface_tiles', &
-        twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('snowpack_density', main%snow, W3,                 &
-        mult='surface_tiles', twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('snow_under_canopy', main%snow, W3,                &
-        mult='surface_tiles', twod=.true., ckp=checkpoint_flag))
+    call processor%apply(make_spec('tile_snow_mass', main%snow,                 &
+          ckp=checkpoint_flag))
+    call processor%apply(make_spec('tile_snow_rgrain', main%snow,               &
+          ckp=checkpoint_flag))
+    call processor%apply(make_spec('n_snow_layers', main%snow,                  &
+          ckp=checkpoint_flag, is_int=.true.))
+    call processor%apply(make_spec('snow_depth', main%snow,                     &
+         ckp=checkpoint_flag))
+    call processor%apply(make_spec('snowpack_density', main%snow,               &
+          ckp=checkpoint_flag))
+    call processor%apply(make_spec('snow_under_canopy', main%snow,              &
+          ckp=checkpoint_flag))
 
     ! Fields on snow layers
-    call processor%apply(make_spec('snow_layer_thickness', main%snow, W3,             &
-        mult='snow_layers_and_tiles', twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('snow_layer_ice_mass', main%snow, W3,              &
-        mult='snow_layers_and_tiles', twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('snow_layer_liq_mass', main%snow, W3,              &
-        mult='snow_layers_and_tiles', twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('snow_layer_temp', main%snow, W3,                  &
-        mult='snow_layers_and_tiles', twod=.true., ckp=checkpoint_flag))
-    call processor%apply(make_spec('snow_layer_rgrain', main%snow, W3,                &
-        mult='snow_layers_and_tiles', twod=.true., ckp=checkpoint_flag))
+    call processor%apply(make_spec('snow_layer_thickness', main%snow,           &
+          ckp=checkpoint_flag))
+    call processor%apply(make_spec('snow_layer_ice_mass', main%snow,            &
+          ckp=checkpoint_flag))
+    call processor%apply(make_spec('snow_layer_liq_mass', main%snow,            &
+          ckp=checkpoint_flag))
+    call processor%apply(make_spec('snow_layer_temp', main%snow,                &
+          ckp=checkpoint_flag))
+    call processor%apply(make_spec('snow_layer_rgrain', main%snow,              &
+          ckp=checkpoint_flag))
 
     ! 2D fields
-    call processor%apply(make_spec('snow_soot', main%snow, W3, twod=.true.,           &
+    call processor%apply(make_spec('snow_soot', main%snow,                      &
         ckp=checkpoint_flag))
 
     ! Fields which don't need checkpointing
-    call processor%apply(make_spec('snow_unload_rate', main%snow, W3,                 &
+    call processor%apply(make_spec('snow_unload_rate', main%snow, W3,           &
         mult='plant_func_types', twod=.true.))
 
     !========================================================================
@@ -934,70 +929,70 @@ contains
       checkpoint_flag = .false.
       advection_flag = .false.
     end if
-    call processor%apply(make_spec('h2o2', main%chemistry, Wtheta,                    &
+    call processor%apply(make_spec('h2o2', main%chemistry,                      &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
-    call processor%apply(make_spec('dms', main%chemistry, Wtheta,                     &
+    call processor%apply(make_spec('dms', main%chemistry,                       &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
-    call processor%apply(make_spec('so2', main%chemistry, Wtheta,                     &
+    call processor%apply(make_spec('so2', main%chemistry,                       &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
-    call processor%apply(make_spec('h2so4', main%chemistry, Wtheta,                   &
+    call processor%apply(make_spec('h2so4', main%chemistry,                     &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
-    call processor%apply(make_spec('dmso', main%chemistry, Wtheta,                    &
+    call processor%apply(make_spec('dmso', main%chemistry,                      &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
-    call processor%apply(make_spec('monoterpene', main%chemistry, Wtheta,             &
+    call processor%apply(make_spec('monoterpene', main%chemistry,               &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
-    call processor%apply(make_spec('secondary_organic', main%chemistry, Wtheta,       &
+    call processor%apply(make_spec('secondary_organic', main%chemistry,         &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
 
     ! 3D fields, might need checkpointing
     ! Not advected in Offline Oxidants chemistry scheme
-    if ( aerosol == aerosol_um .and.            &
-         ( glomap_mode == glomap_mode_ukca .or. &
+    if ( aerosol == aerosol_um .and.                                            &
+         ( glomap_mode == glomap_mode_ukca .or.                                 &
            glomap_mode == glomap_mode_dust_and_clim ) ) then
-      call processor%apply(make_spec('o3', main%chemistry, Wtheta,                    &
+      call processor%apply(make_spec('o3', main%chemistry,                      &
           ckp=checkpoint_flag))
-      call processor%apply(make_spec('no3', main%chemistry, Wtheta,                   &
+      call processor%apply(make_spec('no3', main%chemistry,                     &
           ckp=checkpoint_flag))
-      call processor%apply(make_spec('oh', main%chemistry, Wtheta,                    &
+      call processor%apply(make_spec('oh', main%chemistry,                      &
           ckp=checkpoint_flag))
-      call processor%apply(make_spec('ho2', main%chemistry, Wtheta,                   &
+      call processor%apply(make_spec('ho2', main%chemistry,                     &
           ckp=checkpoint_flag))
-      call processor%apply(make_spec('h2o2_limit', main%chemistry, Wtheta,            &
+      call processor%apply(make_spec('h2o2_limit', main%chemistry,              &
           ckp=checkpoint_flag))
 
       ! Chemistry Emissions - need to define as long as ukca alg routine is
       ! called, but checkpointed only if chemistry is active, never advected
-      if ( chem_scheme == chem_scheme_strattrop .or.                           &
+      if ( chem_scheme == chem_scheme_strattrop .or.                            &
          chem_scheme == chem_scheme_strat_test ) then
         checkpoint_flag = .true.
       else
         checkpoint_flag = .false.
       end if
 
-      call processor%apply(make_spec('emiss_c2h6', main%chemistry, W3, twod=.true.,   &
+      call processor%apply(make_spec('emiss_c2h6', main%chemistry,              &
           ckp=checkpoint_flag))
-      call processor%apply(make_spec('emiss_c3h8', main%chemistry, W3, twod=.true.,   &
+      call processor%apply(make_spec('emiss_c3h8', main%chemistry,              &
           ckp=checkpoint_flag))
-      call processor%apply(make_spec('emiss_c5h8', main%chemistry, W3, twod=.true.,   &
+      call processor%apply(make_spec('emiss_c5h8', main%chemistry,              &
           ckp=checkpoint_flag))
-      call processor%apply(make_spec('emiss_ch4', main%chemistry, W3, twod=.true.,    &
+      call processor%apply(make_spec('emiss_ch4', main%chemistry,               &
           ckp=checkpoint_flag))
-      call processor%apply(make_spec('emiss_co', main%chemistry, W3, twod=.true.,     &
+      call processor%apply(make_spec('emiss_co', main%chemistry,                &
           ckp=checkpoint_flag))
-      call processor%apply(make_spec('emiss_hcho', main%chemistry, W3, twod=.true.,   &
+      call processor%apply(make_spec('emiss_hcho', main%chemistry,              &
           ckp=checkpoint_flag))
-      call processor%apply(make_spec('emiss_me2co', main%chemistry, W3, twod=.true.,  &
+      call processor%apply(make_spec('emiss_me2co', main%chemistry,             &
           ckp=checkpoint_flag))
-      call processor%apply(make_spec('emiss_mecho', main%chemistry, W3, twod=.true.,  &
+      call processor%apply(make_spec('emiss_mecho', main%chemistry,             &
           ckp=checkpoint_flag))
-      call processor%apply(make_spec('emiss_nh3', main%chemistry, W3, twod=.true.,    &
+      call processor%apply(make_spec('emiss_nh3', main%chemistry,               &
           ckp=checkpoint_flag))
-      call processor%apply(make_spec('emiss_no', main%chemistry, W3, twod=.true.,     &
+      call processor%apply(make_spec('emiss_no', main%chemistry,                &
           ckp=checkpoint_flag))
-      call processor%apply(make_spec('emiss_meoh', main%chemistry, W3, twod=.true.,   &
+      call processor%apply(make_spec('emiss_meoh', main%chemistry,              &
           ckp=checkpoint_flag))
       ! 3-D emissions
-      call processor%apply(make_spec('emiss_no_aircrft', main%chemistry, Wtheta,      &
+      call processor%apply(make_spec('emiss_no_aircrft', main%chemistry,        &
           ckp=checkpoint_flag))
 
     endif  ! glomap = ukca
@@ -1016,52 +1011,52 @@ contains
       checkpoint_GC3 = .false.
       checkpoint_GC5 = .false.
     end if
-    if ( aerosol == aerosol_um .and.            &
-         ( glomap_mode == glomap_mode_ukca .or. &
+    if ( aerosol == aerosol_um .and.                                            &
+         ( glomap_mode == glomap_mode_ukca .or.                                 &
            glomap_mode == glomap_mode_dust_and_clim ) ) then
-      call processor%apply(make_spec('emiss_bc_biofuel', main%aerosol, W3,            &
-          twod=.true., ckp=checkpoint_flag))
-      call processor%apply(make_spec('emiss_bc_fossil', main%aerosol, W3,             &
-          twod=.true., ckp=checkpoint_flag))
-      call processor%apply(make_spec('emiss_dms_land', main%aerosol, W3, twod=.true., &
+      call processor%apply(make_spec('emiss_bc_biofuel', main%aerosol,          &
+           ckp=checkpoint_flag))
+      call processor%apply(make_spec('emiss_bc_fossil', main%aerosol,           &
+           ckp=checkpoint_flag))
+      call processor%apply(make_spec('emiss_dms_land', main%aerosol,            &
           ckp=checkpoint_flag))
-      call processor%apply(make_spec('dms_conc_ocean', main%aerosol, W3, twod=.true., &
+      call processor%apply(make_spec('dms_conc_ocean', main%aerosol,            &
           ckp=checkpoint_flag))
-      call processor%apply(make_spec('emiss_monoterp', main%aerosol, W3, twod=.true., &
+      call processor%apply(make_spec('emiss_monoterp', main%aerosol,            &
           ckp=checkpoint_flag))
-      call processor%apply(make_spec('emiss_om_biofuel', main%aerosol, W3,            &
-          twod=.true., ckp=checkpoint_flag))
-      call processor%apply(make_spec('emiss_om_fossil', main%aerosol, W3,             &
-          twod=.true., ckp=checkpoint_flag))
-      call processor%apply(make_spec('emiss_so2_low', main%aerosol, W3, twod=.true.,  &
+      call processor%apply(make_spec('emiss_om_biofuel', main%aerosol,          &
+           ckp=checkpoint_flag))
+      call processor%apply(make_spec('emiss_om_fossil', main%aerosol,           &
+           ckp=checkpoint_flag))
+      call processor%apply(make_spec('emiss_so2_low', main%aerosol,             &
           ckp=checkpoint_flag))
-      call processor%apply(make_spec('emiss_so2_high', main%aerosol, W3, twod=.true., &
+      call processor%apply(make_spec('emiss_so2_high', main%aerosol,            &
           ckp=checkpoint_GC3))
-      call processor%apply(make_spec('emiss_bc_biomass_high', main%aerosol, W3,       &
-          twod=.true., ckp=checkpoint_GC5))
-      call processor%apply(make_spec('emiss_bc_biomass_low', main%aerosol, W3,        &
-          twod=.true., ckp=checkpoint_GC5))
-      call processor%apply(make_spec('emiss_om_biomass_high', main%aerosol, W3,       &
-          twod=.true., ckp=checkpoint_GC5))
-      call processor%apply(make_spec('emiss_om_biomass_low', main%aerosol, W3,        &
-          twod=.true., ckp=checkpoint_GC5))
-      call processor%apply(make_spec('surf_wetness', main%aerosol, W3, twod=.true.,   &
+      call processor%apply(make_spec('emiss_bc_biomass_high', main%aerosol,     &
+           ckp=checkpoint_GC5))
+      call processor%apply(make_spec('emiss_bc_biomass_low', main%aerosol,      &
+           ckp=checkpoint_GC5))
+      call processor%apply(make_spec('emiss_om_biomass_high', main%aerosol,     &
+           ckp=checkpoint_GC5))
+      call processor%apply(make_spec('emiss_om_biomass_low', main%aerosol,      &
+           ckp=checkpoint_GC5))
+      call processor%apply(make_spec('surf_wetness', main%aerosol,              &
           ckp=checkpoint_flag))
     end if
-    call processor%apply(make_spec('soil_clay', main%aerosol, W3, twod=.true.,        &
+    call processor%apply(make_spec('soil_clay', main%aerosol,                   &
         ckp=checkpoint_flag))
-    call processor%apply(make_spec('soil_sand', main%aerosol, W3, twod=.true.,        &
+    call processor%apply(make_spec('soil_sand', main%aerosol,                   &
         ckp=checkpoint_flag))
 
-    if ( aerosol == aerosol_um .and.            &
-         ( glomap_mode == glomap_mode_ukca .or. &
+    if ( aerosol == aerosol_um .and.                                            &
+         ( glomap_mode == glomap_mode_ukca .or.                                 &
            glomap_mode == glomap_mode_dust_and_clim ) ) then
       ! 3D fields, might need checkpointing
-      call processor%apply(make_spec('emiss_bc_biomass', main%aerosol, Wtheta,        &
+      call processor%apply(make_spec('emiss_bc_biomass', main%aerosol,          &
           ckp=checkpoint_GC3))
-      call processor%apply(make_spec('emiss_om_biomass', main%aerosol, Wtheta,        &
+      call processor%apply(make_spec('emiss_om_biomass', main%aerosol,          &
           ckp=checkpoint_GC3))
-      call processor%apply(make_spec('emiss_so2_nat', main%aerosol, Wtheta,           &
+      call processor%apply(make_spec('emiss_so2_nat', main%aerosol,             &
           ckp=checkpoint_flag))
     end if
 
@@ -1075,13 +1070,13 @@ contains
       advection_flag = .false.
     end if
     ! Nucleation soluble mode number mixing ratio
-    call processor%apply(make_spec('n_nuc_sol', main%aerosol, Wtheta,                 &
+    call processor%apply(make_spec('n_nuc_sol', main%aerosol,                   &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Nucleation soluble H2SO4 aerosol mmr
-    call processor%apply(make_spec('nuc_sol_su', main%aerosol, Wtheta,                &
+    call processor%apply(make_spec('nuc_sol_su', main%aerosol,                  &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Nucleation soluble organic carbon aerosol mmr
-    call processor%apply(make_spec('nuc_sol_om', main%aerosol, Wtheta,                &
+    call processor%apply(make_spec('nuc_sol_om', main%aerosol,                  &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
 
     ! Set flag defaults
@@ -1090,9 +1085,9 @@ contains
     advection_flag_dust = .false.
 
     ! 3D fields, might need checkpointing and/or advecting
-    if ( aerosol == aerosol_um .and.                   &
-         ( glomap_mode == glomap_mode_climatology .or. &
-           glomap_mode == glomap_mode_ukca        .or. &
+    if ( aerosol == aerosol_um .and.                                            &
+         ( glomap_mode == glomap_mode_climatology .or.                          &
+           glomap_mode == glomap_mode_ukca        .or.                          &
            glomap_mode == glomap_mode_dust_and_clim ) ) then
       checkpoint_flag = .true.
     end if
@@ -1112,73 +1107,73 @@ contains
     end if
 
     ! Aitken soluble mode number mixing ratio
-    call processor%apply(make_spec('n_ait_sol', main%aerosol, Wtheta,                 &
+    call processor%apply(make_spec('n_ait_sol', main%aerosol,                   &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Aitken soluble H2SO4 aerosol mmr
-    call processor%apply(make_spec('ait_sol_su', main%aerosol, Wtheta,                &
+    call processor%apply(make_spec('ait_sol_su', main%aerosol,                  &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Aitken soluble black carbon aerosol mmr
-    call processor%apply(make_spec('ait_sol_bc', main%aerosol, Wtheta,                &
+    call processor%apply(make_spec('ait_sol_bc', main%aerosol,                  &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Aitken soluble organic carbon aerosol mmr
-    call processor%apply(make_spec('ait_sol_om', main%aerosol, Wtheta,                &
+    call processor%apply(make_spec('ait_sol_om', main%aerosol,                  &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Accumulation soluble mode number mixing ratio
-    call processor%apply(make_spec('n_acc_sol', main%aerosol, Wtheta,                 &
+    call processor%apply(make_spec('n_acc_sol', main%aerosol,                   &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Accumulation soluble H2SO4 aerosol mmr
-    call processor%apply(make_spec('acc_sol_su', main%aerosol, Wtheta,                &
+    call processor%apply(make_spec('acc_sol_su', main%aerosol,                  &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Accumulation soluble black carbon aerosol mmr
-    call processor%apply(make_spec('acc_sol_bc', main%aerosol, Wtheta,                &
+    call processor%apply(make_spec('acc_sol_bc', main%aerosol,                  &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Accumulation soluble organic carbon aerosol mmr
-    call processor%apply(make_spec('acc_sol_om', main%aerosol, Wtheta,                &
+    call processor%apply(make_spec('acc_sol_om', main%aerosol,                  &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Accumulation soluble sea salt aerosol mmr
-    call processor%apply(make_spec('acc_sol_ss', main%aerosol, Wtheta,                &
+    call processor%apply(make_spec('acc_sol_ss', main%aerosol,                  &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Accumulation soluble dust aerosol mmr
-    call processor%apply(make_spec('acc_sol_du', main%aerosol, Wtheta,                &
+    call processor%apply(make_spec('acc_sol_du', main%aerosol,                  &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Coarse soluble mode number mixing ratio
-    call processor%apply(make_spec('n_cor_sol', main%aerosol, Wtheta,                 &
+    call processor%apply(make_spec('n_cor_sol', main%aerosol,                   &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Coarse soluble H2SO4 aerosol mmr
-    call processor%apply(make_spec('cor_sol_su', main%aerosol, Wtheta,                &
+    call processor%apply(make_spec('cor_sol_su', main%aerosol,                  &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Coarse soluble black carbon aerosol mmr
-    call processor%apply(make_spec('cor_sol_bc', main%aerosol, Wtheta,                &
+    call processor%apply(make_spec('cor_sol_bc', main%aerosol,                  &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Coarse soluble organic carbon aerosol mmr
-    call processor%apply(make_spec('cor_sol_om', main%aerosol, Wtheta,                &
+    call processor%apply(make_spec('cor_sol_om', main%aerosol,                  &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Coarse soluble sea salt aerosol mmr
-    call processor%apply(make_spec('cor_sol_ss', main%aerosol, Wtheta,                &
+    call processor%apply(make_spec('cor_sol_ss', main%aerosol,                  &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Coarse soluble dust aerosol mmr
-    call processor%apply(make_spec('cor_sol_du', main%aerosol, Wtheta,                &
+    call processor%apply(make_spec('cor_sol_du', main%aerosol,                  &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Aitken insoluble mode number mixing ratio
-    call processor%apply(make_spec('n_ait_ins', main%aerosol, Wtheta,                 &
+    call processor%apply(make_spec('n_ait_ins', main%aerosol,                   &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Aitken insoluble black carbon aerosol mmr
-    call processor%apply(make_spec('ait_ins_bc', main%aerosol, Wtheta,                &
+    call processor%apply(make_spec('ait_ins_bc', main%aerosol,                  &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Aitken insoluble organic carbon aerosol mmr
-    call processor%apply(make_spec('ait_ins_om', main%aerosol, Wtheta,                &
+    call processor%apply(make_spec('ait_ins_om', main%aerosol,                  &
         adv_coll=if_adv(advection_flag, adv%last_con), ckp=checkpoint_flag))
     ! Accumulation insoluble mode number mixing ratio
-    call processor%apply(make_spec('n_acc_ins', main%aerosol, Wtheta,                 &
+    call processor%apply(make_spec('n_acc_ins', main%aerosol,                   &
         adv_coll=if_adv(advection_flag_dust, adv%last_con), ckp=checkpoint_flag))
     ! Accumulation insoluble dust aerosol mmr
-    call processor%apply(make_spec('acc_ins_du', main%aerosol, Wtheta,                &
+    call processor%apply(make_spec('acc_ins_du', main%aerosol,                  &
         adv_coll=if_adv(advection_flag_dust, adv%last_con), ckp=checkpoint_flag))
     ! Coarse insoluble mode number mixing ratio
-    call processor%apply(make_spec('n_cor_ins', main%aerosol, Wtheta,                 &
+    call processor%apply(make_spec('n_cor_ins', main%aerosol,                   &
         adv_coll=if_adv(advection_flag_dust, adv%last_con), ckp=checkpoint_flag))
     ! Coarse insoluble dust aerosol mmr
-    call processor%apply(make_spec('cor_ins_du', main%aerosol, Wtheta,                &
+    call processor%apply(make_spec('cor_ins_du', main%aerosol,                  &
         adv_coll=if_adv(advection_flag_dust, adv%last_con), ckp=checkpoint_flag))
 
     ! 3D fields, might need checkpointing
@@ -1189,125 +1184,125 @@ contains
     end if
 
     ! Cloud droplet number concentration
-    call processor%apply(make_spec('cloud_drop_no_conc', main%aerosol, Wtheta,        &
+    call processor%apply(make_spec('cloud_drop_no_conc', main%aerosol,          &
         ckp=checkpoint_flag))
 
     if (aerosol == aerosol_um) then
         ! Dry diameter Aitken mode (Soluble)
-        call processor%apply(make_spec('drydp_ait_sol', main%aerosol, Wtheta,             &
+        call processor%apply(make_spec('drydp_ait_sol', main%aerosol,           &
             ckp=checkpoint_flag))
         ! Dry diameter Accumulation mode (Soluble)
-        call processor%apply(make_spec('drydp_acc_sol', main%aerosol, Wtheta,             &
+        call processor%apply(make_spec('drydp_acc_sol', main%aerosol,           &
             ckp=checkpoint_flag))
         ! Dry diameter Coarse mode (Soluble)
-        call processor%apply(make_spec('drydp_cor_sol', main%aerosol, Wtheta,             &
+        call processor%apply(make_spec('drydp_cor_sol', main%aerosol,           &
             ckp=checkpoint_flag))
         ! Dry diameter Aitken mode (Insoluble)
-        call processor%apply(make_spec('drydp_ait_ins', main%aerosol, Wtheta,             &
+        call processor%apply(make_spec('drydp_ait_ins', main%aerosol,           &
             ckp=checkpoint_flag))
         ! Dry diameter Accumulation mode (Insoluble)
-        call processor%apply(make_spec('drydp_acc_ins', main%aerosol, Wtheta,             &
+        call processor%apply(make_spec('drydp_acc_ins', main%aerosol,           &
             ckp=checkpoint_flag))
         ! Dry diameter Coarse mode (Insoluble)
-        call processor%apply(make_spec('drydp_cor_ins', main%aerosol, Wtheta,             &
+        call processor%apply(make_spec('drydp_cor_ins', main%aerosol,           &
             ckp=checkpoint_flag))
         ! Wet diameter Aitken mode (Soluble)
-        call processor%apply(make_spec('wetdp_ait_sol', main%aerosol, Wtheta,             &
+        call processor%apply(make_spec('wetdp_ait_sol', main%aerosol,           &
             ckp=checkpoint_flag))
         ! Wet diameter Accumulation mode (Soluble)
-        call processor%apply(make_spec('wetdp_acc_sol', main%aerosol, Wtheta,             &
+        call processor%apply(make_spec('wetdp_acc_sol', main%aerosol,           &
             ckp=checkpoint_flag))
         ! Wet diameter Coarse mode (Soluble)
-        call processor%apply(make_spec('wetdp_cor_sol', main%aerosol, Wtheta,             &
+        call processor%apply(make_spec('wetdp_cor_sol', main%aerosol,           &
             ckp=checkpoint_flag))
         ! Particle density Aitken mode (Soluble)
-        call processor%apply(make_spec('rhopar_ait_sol', main%aerosol, Wtheta,            &
+        call processor%apply(make_spec('rhopar_ait_sol', main%aerosol,          &
             ckp=checkpoint_flag))
         ! Particle density Accumulation mode (Soluble)
-        call processor%apply(make_spec('rhopar_acc_sol', main%aerosol, Wtheta,            &
+        call processor%apply(make_spec('rhopar_acc_sol', main%aerosol,          &
             ckp=checkpoint_flag))
         ! Particle density Coarse mode (Soluble)
-        call processor%apply(make_spec('rhopar_cor_sol', main%aerosol, Wtheta,            &
+        call processor%apply(make_spec('rhopar_cor_sol', main%aerosol,          &
             ckp=checkpoint_flag))
         ! Particle density Aitken mode (Insoluble)
-        call processor%apply(make_spec('rhopar_ait_ins', main%aerosol, Wtheta,            &
+        call processor%apply(make_spec('rhopar_ait_ins', main%aerosol,          &
             ckp=checkpoint_flag))
         ! Particle density Accumulation mode (Insoluble)
-        call processor%apply(make_spec('rhopar_acc_ins', main%aerosol, Wtheta,            &
+        call processor%apply(make_spec('rhopar_acc_ins', main%aerosol,          &
             ckp=checkpoint_flag))
         ! Particle density Coarse mode (Insoluble)
-        call processor%apply(make_spec('rhopar_cor_ins', main%aerosol, Wtheta,            &
+        call processor%apply(make_spec('rhopar_cor_ins', main%aerosol,          &
             ckp=checkpoint_flag))
         ! Partial volume of water Aitken mode (Soluble)
-        call processor%apply(make_spec('pvol_wat_ait_sol', main%aerosol, Wtheta,          &
+        call processor%apply(make_spec('pvol_wat_ait_sol', main%aerosol,        &
             ckp=checkpoint_flag))
         ! Partial volume of water Accumulation mode (Soluble)
-        call processor%apply(make_spec('pvol_wat_acc_sol', main%aerosol, Wtheta,          &
+        call processor%apply(make_spec('pvol_wat_acc_sol', main%aerosol,        &
             ckp=checkpoint_flag))
         ! Partial volume of water Coarse mode (Soluble)
-        call processor%apply(make_spec('pvol_wat_cor_sol', main%aerosol, Wtheta,          &
+        call processor%apply(make_spec('pvol_wat_cor_sol', main%aerosol,        &
             ckp=checkpoint_flag))
         ! Partial volume component Sulphate Aitken mode (Soluble)
-        call processor%apply(make_spec('pvol_su_ait_sol', main%aerosol, Wtheta,           &
+        call processor%apply(make_spec('pvol_su_ait_sol', main%aerosol,         &
             ckp=checkpoint_flag))
         ! Partial volume component Black Carbon Aitken mode (Soluble)
-        call processor%apply(make_spec('pvol_bc_ait_sol', main%aerosol, Wtheta,           &
+        call processor%apply(make_spec('pvol_bc_ait_sol', main%aerosol,         &
             ckp=checkpoint_flag))
         ! Partial volume component Organic Matter Aitken mode (Soluble)
-        call processor%apply(make_spec('pvol_om_ait_sol', main%aerosol, Wtheta,           &
+        call processor%apply(make_spec('pvol_om_ait_sol', main%aerosol,         &
             ckp=checkpoint_flag))
         ! Partial volume component Sulphate Accumulation mode (Soluble)
-        call processor%apply(make_spec('pvol_su_acc_sol', main%aerosol, Wtheta,           &
+        call processor%apply(make_spec('pvol_su_acc_sol', main%aerosol,         &
             ckp=checkpoint_flag))
         ! Partial volume component Black Carbon Accumulation mode (Soluble)
-        call processor%apply(make_spec('pvol_bc_acc_sol', main%aerosol, Wtheta,           &
+        call processor%apply(make_spec('pvol_bc_acc_sol', main%aerosol,         &
             ckp=checkpoint_flag))
         ! Partial volume component Organic Matter Accumulation mode (Soluble)
-        call processor%apply(make_spec('pvol_om_acc_sol', main%aerosol, Wtheta,           &
+        call processor%apply(make_spec('pvol_om_acc_sol', main%aerosol,         &
             ckp=checkpoint_flag))
         ! Partial volume component Sea Salt Accumulation mode (Soluble)
-        call processor%apply(make_spec('pvol_ss_acc_sol', main%aerosol, Wtheta,           &
+        call processor%apply(make_spec('pvol_ss_acc_sol', main%aerosol,         &
             ckp=checkpoint_flag))
         ! Partial volume component Dust Accumulation mode (Soluble)
-        call processor%apply(make_spec('pvol_du_acc_sol', main%aerosol, Wtheta,           &
+        call processor%apply(make_spec('pvol_du_acc_sol', main%aerosol,         &
             ckp=checkpoint_flag))
         ! Partial volume component Sulphate Coarse mode (Soluble)
-        call processor%apply(make_spec('pvol_su_cor_sol', main%aerosol, Wtheta,           &
+        call processor%apply(make_spec('pvol_su_cor_sol', main%aerosol,         &
             ckp=checkpoint_flag))
         ! Partial volume component Black Carbon Coarse mode (Soluble)
-        call processor%apply(make_spec('pvol_bc_cor_sol', main%aerosol, Wtheta,           &
+        call processor%apply(make_spec('pvol_bc_cor_sol', main%aerosol,         &
             ckp=checkpoint_flag))
         ! Partial volume component Organic Matter Coarse mode (Soluble)
-        call processor%apply(make_spec('pvol_om_cor_sol', main%aerosol, Wtheta,           &
+        call processor%apply(make_spec('pvol_om_cor_sol', main%aerosol,         &
             ckp=checkpoint_flag))
         ! Partial volume component Sea Salt Coarse mode (Soluble)
-        call processor%apply(make_spec('pvol_ss_cor_sol', main%aerosol, Wtheta,           &
+        call processor%apply(make_spec('pvol_ss_cor_sol', main%aerosol,         &
             ckp=checkpoint_flag))
         ! Partial volume component Dust Coarse mode (Soluble)
-        call processor%apply(make_spec('pvol_du_cor_sol', main%aerosol, Wtheta,           &
+        call processor%apply(make_spec('pvol_du_cor_sol', main%aerosol,         &
             ckp=checkpoint_flag))
         ! Partial volume component Black Carbon Aitken mode (Insoluble)
-        call processor%apply(make_spec('pvol_bc_ait_ins', main%aerosol, Wtheta,           &
+        call processor%apply(make_spec('pvol_bc_ait_ins', main%aerosol,         &
             ckp=checkpoint_flag))
         ! Partial volume component Organic Matter Aitken mode (Insoluble)
-        call processor%apply(make_spec('pvol_om_ait_ins', main%aerosol, Wtheta,           &
+        call processor%apply(make_spec('pvol_om_ait_ins', main%aerosol,         &
             ckp=checkpoint_flag))
         ! Partial volume component Dust Accumulation mode (Insoluble)
-        call processor%apply(make_spec('pvol_du_acc_ins', main%aerosol, Wtheta,           &
+        call processor%apply(make_spec('pvol_du_acc_ins', main%aerosol,         &
             ckp=checkpoint_flag))
         ! Partial volume component Dust Coarse mode (Insoluble)
-        call processor%apply(make_spec('pvol_du_cor_ins', main%aerosol, Wtheta,           &
+        call processor%apply(make_spec('pvol_du_cor_ins', main%aerosol,         &
             ckp=checkpoint_flag))
     end if
 
     ! Fields on dust space, might need checkpointing
     ! vector_space => function_space_collection%get_fs(twod_mesh, 0, W3,
     !     get_ndata_val('dust_divisions'))
-    call processor%apply(make_spec('dust_mrel', main%aerosol, W3,                     &
-        mult='dust_divisions', twod=.true., ckp=checkpoint_flag))
+    call processor%apply(make_spec('dust_mrel', main%aerosol,                   &
+          ckp=checkpoint_flag))
 
     ! Fields on dust space, don't need checkpointing
-    call processor%apply(make_spec('dust_flux', main%aerosol, W3,                     &
+    call processor%apply(make_spec('dust_flux', main%aerosol, W3,               &
         mult='dust_divisions', twod=.true.))
 
     ! 3D fields, don't need checkpointing
@@ -1318,28 +1313,28 @@ contains
     if ( easyaerosol_sw ) then
        checkpoint_flag = .true.
 
-      call processor%apply(make_spec('easy_absorption_sw', main%aerosol, Wtheta, &
-        mult='sw_bands', ckp=checkpoint_flag))
+      call processor%apply(make_spec('easy_absorption_sw', main%aerosol,        &
+         ckp=checkpoint_flag))
 
-      call processor%apply(make_spec('easy_extinction_sw', main%aerosol, Wtheta, &
-        mult='sw_bands', ckp=checkpoint_flag))
+      call processor%apply(make_spec('easy_extinction_sw', main%aerosol,        &
+         ckp=checkpoint_flag))
 
-      call processor%apply(make_spec('easy_asymmetry_sw', main%aerosol, Wtheta, &
-        mult='sw_bands', ckp=checkpoint_flag))
+      call processor%apply(make_spec('easy_asymmetry_sw', main%aerosol,         &
+         ckp=checkpoint_flag))
 
     end if
 
     if ( easyaerosol_lw ) then
        checkpoint_flag = .true.
 
-      call processor%apply(make_spec('easy_absorption_lw', main%aerosol, Wtheta, &
-        mult='lw_bands', ckp=checkpoint_flag))
+      call processor%apply(make_spec('easy_absorption_lw', main%aerosol,        &
+         ckp=checkpoint_flag))
 
-      call processor%apply(make_spec('easy_extinction_lw', main%aerosol, Wtheta, &
-        mult='lw_bands', ckp=checkpoint_flag))
+      call processor%apply(make_spec('easy_extinction_lw', main%aerosol,        &
+         ckp=checkpoint_flag))
 
-      call processor%apply(make_spec('easy_asymmetry_lw', main%aerosol, Wtheta, &
-        mult='lw_bands', ckp=checkpoint_flag))
+      call processor%apply(make_spec('easy_asymmetry_lw', main%aerosol,         &
+         ckp=checkpoint_flag))
 
     end if
 
@@ -1364,9 +1359,9 @@ contains
   !> @param[in]    twod_mesh            The current 2d mesh
   !> @param[in]    field_mapper         Provides access to the field collections
   !> @param[in]    clock                Model clock
-  subroutine create_physics_prognostics( mesh,                  &
-                                         twod_mesh,             &
-                                         field_mapper,          &
+  subroutine create_physics_prognostics( mesh,                                  &
+                                         twod_mesh,                             &
+                                         field_mapper,                          &
                                          clock )
     implicit none
 

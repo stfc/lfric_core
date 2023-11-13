@@ -16,7 +16,7 @@
     <domain domain_ref="edge"/>
     <axis axis_ref="vert_axis_half_levels"/>
   </grid>
-  <grid id="aero_mode_grid">
+  <grid id="full_level_face_grid_aero_modes">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels"/>
     <axis axis_ref="aero_modes"/>

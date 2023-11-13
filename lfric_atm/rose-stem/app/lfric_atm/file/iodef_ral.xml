@@ -14,6 +14,7 @@
     <grid_definition src="./grid_def_aero_ctl.xml"/>
 
     <!-- Include field definitions -->
+    <field_definition src="$SOURCE_ROOT/lfric_atm/metadata/lfric_dictionary.xml"/>
     <field_definition src="./field_def_diags.xml"/>
     <field_definition src="./field_def_initial_diags.xml"/>
     <field_definition src="./field_def_lbc_diags.xml"/>
