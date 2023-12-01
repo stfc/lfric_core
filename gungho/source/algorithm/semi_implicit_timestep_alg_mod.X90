@@ -555,7 +555,7 @@ contains
              then
           call calc_phys_predictors_alg( derived_fields, rhs_np1, rhs_adv, &
                                          rhs_n, state, state_after_slow,   &
-                                         model_clock )
+                                         lbc_fields, model_clock )
         end if
         if (use_moisture) call copy_bundle(mr, mr_after_adv, nummr)
         ! cloud fields are stored in the advective tracers

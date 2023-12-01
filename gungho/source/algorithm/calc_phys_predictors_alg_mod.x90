@@ -24,6 +24,10 @@ module calc_phys_predictors_alg_mod
   use io_config_mod,             only: subroutine_timers
   use timer_mod,                 only: timer
 
+  use limited_area_lbc_alg_mod,  only: overwrite_blending_zone
+  use boundaries_config_mod,     only: limited_area, transport_boundary_depth
+  use base_mesh_config_mod,      only: topology, topology_non_periodic
+
   implicit none
 
   private
@@ -40,14 +44,18 @@ contains
   !> @param[in]     rhs_n            State vector at time n
   !> @param[in]     state            Current prognostic state
   !> @param[in]     state_after_slow State after slow physics
+  !> @param[in]     lbc_fields       Group of lateral boundary fields
   !> @param[in]     clock            The model clock
-subroutine calc_phys_predictors_alg( derived_fields, rhs_np1,                 &
-                                     rhs_adv, rhs_n, state, state_after_slow, &
-                                     model_clock )
+subroutine calc_phys_predictors_alg( derived_fields, rhs_np1, rhs_adv, &
+                                     rhs_n, state, state_after_slow,   &
+                                     lbc_fields, model_clock )
 
     implicit none
     ! Prognostic fields
     type( field_collection_type ), intent(inout) :: derived_fields
+
+    type( field_collection_type ), intent(in)    :: lbc_fields
+
     type( field_type ), intent(inout) :: rhs_np1(bundle_size)
 
     type( field_type ), intent(in)    :: state(bundle_size)
@@ -65,6 +73,9 @@ subroutine calc_phys_predictors_alg( derived_fields, rhs_np1,                 &
     type( field_type ), pointer :: v_in_w3_star => null()
     type( field_type ), pointer :: w_in_w3_star => null()
     type( field_type ), pointer :: u_physics_star => null()
+
+    type( field_type ), pointer :: lbc_u => null()
+    type( field_type ), pointer :: lbc_theta => null()
 
     type( field_type ), pointer :: dA => null()
 
@@ -91,6 +102,25 @@ subroutine calc_phys_predictors_alg( derived_fields, rhs_np1,                 &
                    inc_X_plus_Y(rhsu_np1, rhs_adv(igh_u)) )
       call mass_matrix_solver_alg(du, rhsu_np1 )
       call invoke( X_plus_Y(u_star, du, state(igh_u)) )
+
+      if ( limited_area .and. topology == topology_non_periodic ) then
+
+        ! After advection, values in the lateral boundary rim are overwritten
+        ! by the LBC data, to a depth given by transport_boundary_depth. This
+        ! affects the rhs_a term, but not the rhs_np1 term and this inconsistency
+        ! can give nonphysical values of u_star. Therefore the resulting
+        ! u_star needs to overwritten by the LBC data, to ensure that 'sensible'
+        ! values are used by the physics schemes.
+
+        call lbc_fields%get_field( 'lbc_u',     lbc_u )
+        call lbc_fields%get_field( 'lbc_theta', lbc_theta )
+
+        call overwrite_blending_zone( &
+                 u_star, lbc_u, depth = transport_boundary_depth )
+        call overwrite_blending_zone( &
+                 theta_star, lbc_theta, depth = transport_boundary_depth )
+
+      end if
     else
       ! predictors are just the current state
       call invoke( setval_X(theta_star, state_after_slow(igh_t)), &
