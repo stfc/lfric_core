@@ -48,6 +48,7 @@ contains
   !> @param[in,out] quintic_index_wt  The quintic interpolation indices for Wtheta fields
   !> @param[in,out] linear_coefs_wt   The linear interpolation coefficients for Wtheta fields
   !> @param[in]     dep_pts           The vertical departure points
+  !> @param[in]     dep_pts_half      The vertical departure points with dt/2 for VHV Strang splitting
   !> @param[in]     strang            Flag to indicate VHV Strang splitting is being used and
   !!                                  so half departure points are needed
   subroutine compute_vert_quintic_coefficients_alg( quintic_coefs_w3, &
@@ -57,6 +58,7 @@ contains
                                                     quintic_index_wt, &
                                                     linear_coefs_wt,  &
                                                     dep_pts,          &
+                                                    dep_pts_half,     &
                                                     strang )
 
     implicit none
@@ -69,6 +71,7 @@ contains
     type( integer_field_type ), intent(inout) :: quintic_index_wt
     type( r_tran_field_type ),  intent(inout) :: linear_coefs_wt
     type( r_tran_field_type ),  intent(in)    :: dep_pts
+    type( r_tran_field_type ),  intent(in)    :: dep_pts_half
     logical( kind=l_def ),      intent(in)    :: strang
 
     ! Pointers
@@ -90,7 +93,7 @@ contains
     ! If VHV Strang splitting we need half departure points
     call dep_pts_z%initialise( vector_space = dep_pts%get_function_space() )
     if (strang) then
-      call invoke( a_times_X(dep_pts_z, 0.5_r_tran, dep_pts) )
+      call invoke( setval_X(dep_pts_z, dep_pts_half) )
     else
       call invoke( setval_X(dep_pts_z, dep_pts) )
     end if
@@ -126,6 +129,7 @@ contains
   !> @param[in,out] cubic_index_wt  The cubic interpolation indices for Wtheta fields
   !> @param[in,out] linear_coefs_wt The linear interpolation coefficients for Wtheta fields
   !> @param[in]     dep_pts         The vertical departure points
+  !> @param[in]     dep_pts_half      The vertical departure points with dt/2 for VHV Strang splitting
   !> @param[in]     hermite         Flag to compute cubic Hermite coefficients
   !> @param[in]     strang          Flag to indicate VHV Strang splitting is being used and
   !!                                so half departure points are needed
@@ -136,6 +140,7 @@ contains
                                                   cubic_index_wt,  &
                                                   linear_coefs_wt, &
                                                   dep_pts,         &
+                                                  dep_pts_half,    &
                                                   hermite,         &
                                                   strang )
 
@@ -149,6 +154,7 @@ contains
     type( integer_field_type ), intent(inout) :: cubic_index_wt
     type( r_tran_field_type ),  intent(inout) :: linear_coefs_wt
     type( r_tran_field_type ),  intent(in)    :: dep_pts
+    type( r_tran_field_type ),  intent(in)    :: dep_pts_half
     logical( kind=l_def ),      intent(in)    :: hermite
     logical( kind=l_def ),      intent(in)    :: strang
 
@@ -171,7 +177,7 @@ contains
     ! If VHV Strang splitting we need half departure points
     call dep_pts_z%initialise( vector_space = dep_pts%get_function_space() )
     if (strang) then
-      call invoke( a_times_X(dep_pts_z, 0.5_r_tran, dep_pts) )
+      call invoke( setval_X(dep_pts_z, dep_pts_half) )
     else
       call invoke( setval_X(dep_pts_z, dep_pts) )
     end if

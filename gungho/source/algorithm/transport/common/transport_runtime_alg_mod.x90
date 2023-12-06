@@ -84,6 +84,7 @@ module transport_runtime_alg_mod
     type(r_tran_field_type),    allocatable, dimension(:)   :: departure_points_x_w2
     type(r_tran_field_type),    allocatable, dimension(:)   :: departure_points_y_w2
     type(r_tran_field_type),    allocatable, dimension(:)   :: departure_points_z_w2
+    type(r_tran_field_type),    allocatable, dimension(:)   :: departure_points_z_half_w2
     type(r_tran_field_type),    allocatable, dimension(:)   :: frac_wind_z
     type(r_tran_field_type),    allocatable, dimension(:)   :: frac_wind_z_half
     type(r_tran_field_type),    allocatable, dimension(:)   :: adv_unity_x
@@ -247,10 +248,10 @@ contains
 
     type(mesh_type),  pointer, intent(in), optional :: shifted_mesh
 
-    type(r_tran_field_type)          :: cfl, vertical_cfl, horizontal_cfl, cfl_dep
+    type(r_tran_field_type)          :: cfl, vertical_cfl, horizontal_cfl
+    type(r_tran_field_type)          :: cfl_dep, cfl_dep_half
     type(r_tran_field_type)          :: sum_cfl, sum_horizontal_cfl, hori_cfl_dep
     type(r_tran_field_type)          :: dep_pt_wind_n, dep_pt_wind_np1
-    type(r_tran_field_type)          :: departure_points_z_w2_half
     integer(kind=i_def)              :: mesh_idx, num_compute_meshes
     integer(kind=i_def)              :: n_steps, n_meshes
     type(mesh_type),         pointer :: mesh => null()
@@ -355,45 +356,46 @@ contains
     self%local_mesh_id = local_mesh%get_id()
 
     if (.not. allocated( self%mesh_ids ) ) then
-      allocate( self%mesh_ids(self%n_meshes),                  &
-                self%advecting_wind(self%n_meshes),            &
-                self%horizontal_advecting_wind(self%n_meshes), &
-                self%vertical_advecting_wind(self%n_meshes),   &
-                self%detj_at_w2h_transport(self%n_meshes),     &
-                self%detj_at_w2v_transport(self%n_meshes),     &
-                self%departure_points_x_w2(self%n_meshes),     &
-                self%departure_points_y_w2(self%n_meshes),     &
-                self%departure_points_z_w2(self%n_meshes),     &
-                self%frac_wind_z(self%n_meshes),               &
-                self%frac_wind_z_half(self%n_meshes),          &
-                self%dep_stencil_extent_x(self%n_meshes),      &
-                self%dep_stencil_extent_y(self%n_meshes),      &
-                self%adv_unity_x(self%n_meshes),               &
-                self%adv_unity_y(self%n_meshes),               &
-                self%adv_unity_z(self%n_meshes),               &
-                self%adv_unity_half_x(self%n_meshes),          &
-                self%adv_unity_half_y(self%n_meshes),          &
-                self%adv_unity_half_z(self%n_meshes),          &
-                self%vert_cubic_coef_w3(self%n_meshes),        &
-                self%vert_cubic_index_w3(self%n_meshes),       &
-                self%vert_hermite_coef_w3(self%n_meshes),      &
-                self%vert_hermite_index_w3(self%n_meshes),     &
-                self%vert_quintic_coef_w3(self%n_meshes),      &
-                self%vert_quintic_index_w3(self%n_meshes),     &
-                self%vert_linear_coef_w3(self%n_meshes),       &
-                self%vert_cubic_coef_wt(self%n_meshes),        &
-                self%vert_cubic_index_wt(self%n_meshes),       &
-                self%vert_hermite_coef_wt(self%n_meshes),      &
-                self%vert_hermite_index_wt(self%n_meshes),     &
-                self%vert_quintic_coef_wt(self%n_meshes),      &
-                self%vert_quintic_index_wt(self%n_meshes),     &
-                self%vert_linear_coef_wt(self%n_meshes),       &
-                self%cosmic_istart_x(self%n_meshes),           &
-                self%cosmic_iend_x(self%n_meshes),             &
-                self%cosmic_istart_y(self%n_meshes),           &
-                self%cosmic_iend_y(self%n_meshes),             &
-                self%horizontal_cfl_max(self%n_meshes),        &
-                self%vertical_cfl_max(self%n_meshes),          &
+      allocate( self%mesh_ids(self%n_meshes),                   &
+                self%advecting_wind(self%n_meshes),             &
+                self%horizontal_advecting_wind(self%n_meshes),  &
+                self%vertical_advecting_wind(self%n_meshes),    &
+                self%detj_at_w2h_transport(self%n_meshes),      &
+                self%detj_at_w2v_transport(self%n_meshes),      &
+                self%departure_points_x_w2(self%n_meshes),      &
+                self%departure_points_y_w2(self%n_meshes),      &
+                self%departure_points_z_w2(self%n_meshes),      &
+                self%departure_points_z_half_w2(self%n_meshes), &
+                self%frac_wind_z(self%n_meshes),                &
+                self%frac_wind_z_half(self%n_meshes),           &
+                self%dep_stencil_extent_x(self%n_meshes),       &
+                self%dep_stencil_extent_y(self%n_meshes),       &
+                self%adv_unity_x(self%n_meshes),                &
+                self%adv_unity_y(self%n_meshes),                &
+                self%adv_unity_z(self%n_meshes),                &
+                self%adv_unity_half_x(self%n_meshes),           &
+                self%adv_unity_half_y(self%n_meshes),           &
+                self%adv_unity_half_z(self%n_meshes),           &
+                self%vert_cubic_coef_w3(self%n_meshes),         &
+                self%vert_cubic_index_w3(self%n_meshes),        &
+                self%vert_hermite_coef_w3(self%n_meshes),       &
+                self%vert_hermite_index_w3(self%n_meshes),      &
+                self%vert_quintic_coef_w3(self%n_meshes),       &
+                self%vert_quintic_index_w3(self%n_meshes),      &
+                self%vert_linear_coef_w3(self%n_meshes),        &
+                self%vert_cubic_coef_wt(self%n_meshes),         &
+                self%vert_cubic_index_wt(self%n_meshes),        &
+                self%vert_hermite_coef_wt(self%n_meshes),       &
+                self%vert_hermite_index_wt(self%n_meshes),      &
+                self%vert_quintic_coef_wt(self%n_meshes),       &
+                self%vert_quintic_index_wt(self%n_meshes),      &
+                self%vert_linear_coef_wt(self%n_meshes),        &
+                self%cosmic_istart_x(self%n_meshes),            &
+                self%cosmic_iend_x(self%n_meshes),              &
+                self%cosmic_istart_y(self%n_meshes),            &
+                self%cosmic_iend_y(self%n_meshes),              &
+                self%horizontal_cfl_max(self%n_meshes),         &
+                self%vertical_cfl_max(self%n_meshes),           &
                 self%total_cfl_max(self%n_meshes) )
     end if
 
@@ -445,28 +447,27 @@ contains
       w3_fs => function_space_collection%get_fs(tmp_mesh, element_order, W3)
       w3_2d_fs => function_space_collection%get_fs(twod_mesh, element_order, W3)
 
-      if (.not. self%advecting_wind(mesh_idx)%is_initialised()) then
-        call self%advecting_wind(mesh_idx)%initialise( w2_fs )
-        call self%horizontal_advecting_wind(mesh_idx)%initialise( w2h_fs )
-        call self%vertical_advecting_wind(mesh_idx)%initialise( w2v_fs )
-        call self%detj_at_w2h_transport(mesh_idx)%initialise( w2h_fs )
-        call self%detj_at_w2v_transport(mesh_idx)%initialise( w2v_fs )
-        call self%departure_points_z_w2(mesh_idx)%initialise( w2v_fs )
-        call self%frac_wind_z(mesh_idx)%initialise( w2v_fs )
-        call self%frac_wind_z_half(mesh_idx)%initialise( w2v_fs )
-        call self%departure_points_x_w2(mesh_idx)%initialise( w2h_fs )
-        call self%departure_points_y_w2(mesh_idx)%initialise( w2h_fs )
-        call self%adv_unity_x(mesh_idx)%initialise( w3_fs )
-        call self%adv_unity_y(mesh_idx)%initialise( w3_fs )
-        call self%adv_unity_z(mesh_idx)%initialise( w3_fs )
-        call self%adv_unity_half_x(mesh_idx)%initialise( w3_fs )
-        call self%adv_unity_half_y(mesh_idx)%initialise( w3_fs )
-        call self%adv_unity_half_z(mesh_idx)%initialise( w3_fs )
-        call self%cosmic_istart_x(mesh_idx)%initialise( w3_2d_fs )
-        call self%cosmic_iend_x(mesh_idx)%initialise( w3_2d_fs )
-        call self%cosmic_istart_y(mesh_idx)%initialise( w3_2d_fs )
-        call self%cosmic_iend_y(mesh_idx)%initialise( w3_2d_fs )
-      end if
+      call self%advecting_wind(mesh_idx)%initialise( w2_fs )
+      call self%horizontal_advecting_wind(mesh_idx)%initialise( w2h_fs )
+      call self%vertical_advecting_wind(mesh_idx)%initialise( w2v_fs )
+      call self%detj_at_w2h_transport(mesh_idx)%initialise( w2h_fs )
+      call self%detj_at_w2v_transport(mesh_idx)%initialise( w2v_fs )
+      call self%departure_points_z_w2(mesh_idx)%initialise( w2v_fs )
+      call self%departure_points_z_half_w2(mesh_idx)%initialise( w2v_fs )
+      call self%departure_points_x_w2(mesh_idx)%initialise( w2h_fs )
+      call self%departure_points_y_w2(mesh_idx)%initialise( w2h_fs )
+      call self%frac_wind_z(mesh_idx)%initialise( w2v_fs )
+      call self%frac_wind_z_half(mesh_idx)%initialise( w2v_fs )
+      call self%adv_unity_x(mesh_idx)%initialise( w3_fs )
+      call self%adv_unity_y(mesh_idx)%initialise( w3_fs )
+      call self%adv_unity_z(mesh_idx)%initialise( w3_fs )
+      call self%adv_unity_half_x(mesh_idx)%initialise( w3_fs )
+      call self%adv_unity_half_y(mesh_idx)%initialise( w3_fs )
+      call self%adv_unity_half_z(mesh_idx)%initialise( w3_fs )
+      call self%cosmic_istart_x(mesh_idx)%initialise( w3_2d_fs )
+      call self%cosmic_iend_x(mesh_idx)%initialise( w3_2d_fs )
+      call self%cosmic_istart_y(mesh_idx)%initialise( w3_2d_fs )
+      call self%cosmic_iend_y(mesh_idx)%initialise( w3_2d_fs )
     end do
 
     ! ======================================================================== !
@@ -538,34 +539,44 @@ contains
 
       ! If any vertical scheme is ffsl/sl compute vertical departure points
       if (any_vert_dep_pts) then
+
         call cfl_dep%initialise( vector_space = &
                 function_space_collection%get_fs(tmp_mesh, element_order, W2) )
 
-        call calc_vert_dep_pts( self%departure_points_z_w2(mesh_idx), &
-                                cfl_dep,                              &
-                                dep_pt_wind_n,                        &
-                                dep_pt_wind_np1,                      &
-                                detj_at_w2_transport,                 &
-                                cast_dt )
-
-        ! Compute fractional wind
-        call invoke( fractional_vertical_wind_kernel_type(            &
-                                self%frac_wind_z(mesh_idx),           &
-                                self%departure_points_z_w2(mesh_idx), &
-                                self%detj_at_w2v_transport(mesh_idx), &
-                                cast_dt ) )
+        ! TODO #4160: this assumes that if any_splitting_vhv=.true. then all transport uses VHV splitting
         if (any_splitting_vhv) then
-          ! Compute fractional wind for half step of Strang splitting
-          w2v_fs => function_space_collection%get_fs(tmp_mesh, element_order, W2v)
-          call departure_points_z_w2_half%initialise( w2v_fs )
-          half_dt = cast_dt * 0.5_r_tran
-          call invoke( a_times_X(departure_points_z_w2_half, 0.5_r_tran, &
-                                 self%departure_points_z_w2(mesh_idx) ), &
-                       fractional_vertical_wind_kernel_type(             &
-                                  self%frac_wind_z_half(mesh_idx),       &
-                                  departure_points_z_w2_half,            &
-                                  self%detj_at_w2v_transport(mesh_idx),  &
+          ! If any splitting is VHV then compute departure points with half time step
+          half_dt = 0.5_r_tran * cast_dt
+          call cfl_dep_half%initialise( vector_space = &
+                  function_space_collection%get_fs(tmp_mesh, element_order, W2) )
+          call calc_vert_dep_pts( self%departure_points_z_half_w2(mesh_idx), &
+                                  cfl_dep_half,                              &
+                                  dep_pt_wind_n,                             &
+                                  dep_pt_wind_np1,                           &
+                                  detj_at_w2_transport,                      &
+                                  half_dt )
+          ! Multiply CFL by 2 to get full CFL
+          call invoke( a_times_X(cfl_dep, 2.0_r_tran, cfl_dep_half),         &
+          ! Compute fractional wind with half time step
+                       fractional_vertical_wind_kernel_type(                 &
+                                  self%frac_wind_z_half(mesh_idx),           &
+                                  self%departure_points_z_half_w2(mesh_idx), &
+                                  self%detj_at_w2v_transport(mesh_idx),      &
                                   half_dt ) )
+        else
+          ! If splitting is not VHV then compute full departure points
+          call calc_vert_dep_pts( self%departure_points_z_w2(mesh_idx), &
+                                  cfl_dep,                              &
+                                  dep_pt_wind_n,                        &
+                                  dep_pt_wind_np1,                      &
+                                  detj_at_w2_transport,                 &
+                                  cast_dt )
+          ! Compute fractional wind
+          call invoke( fractional_vertical_wind_kernel_type(            &
+                                  self%frac_wind_z(mesh_idx),           &
+                                  self%departure_points_z_w2(mesh_idx), &
+                                  self%detj_at_w2v_transport(mesh_idx), &
+                                  cast_dt ) )
         end if
 
       end if
@@ -654,19 +665,20 @@ contains
       ! For FFSL schemes we require the transport of a unity field to get
       ! the advective FFSL transport
       if (any_scheme_ffsl) then
-        call ffsl_unity_transport_alg( self%departure_points_x_w2(mesh_idx), &
-                                       self%departure_points_y_w2(mesh_idx), &
-                                       self%departure_points_z_w2(mesh_idx), &
-                                       self%detj_at_w2h_transport(mesh_idx), &
-                                       self%detj_at_w2v_transport(mesh_idx), &
-                                       self%dep_stencil_extent_x(mesh_idx),  &
-                                       self%dep_stencil_extent_y(mesh_idx),  &
-                                       cast_dt,                              &
-                                       self%adv_unity_x(mesh_idx),           &
-                                       self%adv_unity_y(mesh_idx),           &
-                                       self%adv_unity_z(mesh_idx),           &
-                                       self%adv_unity_half_x(mesh_idx),      &
-                                       self%adv_unity_half_y(mesh_idx),      &
+        call ffsl_unity_transport_alg( self%departure_points_x_w2(mesh_idx),      &
+                                       self%departure_points_y_w2(mesh_idx),      &
+                                       self%departure_points_z_w2(mesh_idx),      &
+                                       self%departure_points_z_half_w2(mesh_idx), &
+                                       self%detj_at_w2h_transport(mesh_idx),      &
+                                       self%detj_at_w2v_transport(mesh_idx),      &
+                                       self%dep_stencil_extent_x(mesh_idx),       &
+                                       self%dep_stencil_extent_y(mesh_idx),       &
+                                       cast_dt,                                   &
+                                       self%adv_unity_x(mesh_idx),                &
+                                       self%adv_unity_y(mesh_idx),                &
+                                       self%adv_unity_z(mesh_idx),                &
+                                       self%adv_unity_half_x(mesh_idx),           &
+                                       self%adv_unity_half_y(mesh_idx),           &
                                        self%adv_unity_half_z(mesh_idx) )
       end if
 
@@ -708,13 +720,14 @@ contains
               call self%vert_hermite_index_wt(mesh_idx)%initialise( vector_space=wt_md4_fs )
             end if
 
-            call compute_vert_cubic_coefficients_alg( self%vert_hermite_coef_w3(mesh_idx),  &
-                                                      self%vert_hermite_index_w3(mesh_idx), &
-                                                      self%vert_linear_coef_w3(mesh_idx),   &
-                                                      self%vert_hermite_coef_wt(mesh_idx),  &
-                                                      self%vert_hermite_index_wt(mesh_idx), &
-                                                      self%vert_linear_coef_wt(mesh_idx),   &
-                                                      self%departure_points_z_w2(mesh_idx), &
+            call compute_vert_cubic_coefficients_alg( self%vert_hermite_coef_w3(mesh_idx),       &
+                                                      self%vert_hermite_index_w3(mesh_idx),      &
+                                                      self%vert_linear_coef_w3(mesh_idx),        &
+                                                      self%vert_hermite_coef_wt(mesh_idx),       &
+                                                      self%vert_hermite_index_wt(mesh_idx),      &
+                                                      self%vert_linear_coef_wt(mesh_idx),        &
+                                                      self%departure_points_z_w2(mesh_idx),      &
+                                                      self%departure_points_z_half_w2(mesh_idx), &
                                                       hermite_sl, vhv_split_sl )
 
           end if
@@ -733,13 +746,14 @@ contains
               call self%vert_quintic_index_wt(mesh_idx)%initialise( vector_space=wt_md6_fs )
             end if
 
-            call compute_vert_quintic_coefficients_alg( self%vert_quintic_coef_w3(mesh_idx),  &
-                                                        self%vert_quintic_index_w3(mesh_idx), &
-                                                        self%vert_linear_coef_w3(mesh_idx),   &
-                                                        self%vert_quintic_coef_wt(mesh_idx),  &
-                                                        self%vert_quintic_index_wt(mesh_idx), &
-                                                        self%vert_linear_coef_wt(mesh_idx),   &
-                                                        self%departure_points_z_w2(mesh_idx), &
+            call compute_vert_quintic_coefficients_alg( self%vert_quintic_coef_w3(mesh_idx),       &
+                                                        self%vert_quintic_index_w3(mesh_idx),      &
+                                                        self%vert_linear_coef_w3(mesh_idx),        &
+                                                        self%vert_quintic_coef_wt(mesh_idx),       &
+                                                        self%vert_quintic_index_wt(mesh_idx),      &
+                                                        self%vert_linear_coef_wt(mesh_idx),        &
+                                                        self%departure_points_z_w2(mesh_idx),      &
+                                                        self%departure_points_z_half_w2(mesh_idx), &
                                                         vhv_split_sl )
             nullify( w3_md6_fs, wt_md6_fs )
           else
@@ -752,13 +766,14 @@ contains
             end if
 
             hermite_sl = .false.
-            call compute_vert_cubic_coefficients_alg( self%vert_cubic_coef_w3(mesh_idx),    &
-                                                      self%vert_cubic_index_w3(mesh_idx),   &
-                                                      self%vert_linear_coef_w3(mesh_idx),   &
-                                                      self%vert_cubic_coef_wt(mesh_idx),    &
-                                                      self%vert_cubic_index_wt(mesh_idx),   &
-                                                      self%vert_linear_coef_wt(mesh_idx),   &
-                                                      self%departure_points_z_w2(mesh_idx), &
+            call compute_vert_cubic_coefficients_alg( self%vert_cubic_coef_w3(mesh_idx),         &
+                                                      self%vert_cubic_index_w3(mesh_idx),        &
+                                                      self%vert_linear_coef_w3(mesh_idx),        &
+                                                      self%vert_cubic_coef_wt(mesh_idx),         &
+                                                      self%vert_cubic_index_wt(mesh_idx),        &
+                                                      self%vert_linear_coef_wt(mesh_idx),        &
+                                                      self%departure_points_z_w2(mesh_idx),      &
+                                                      self%departure_points_z_half_w2(mesh_idx), &
                                                       hermite_sl, vhv_split_sl )
           end if
 
@@ -1669,17 +1684,22 @@ contains
   !> @brief Returns a pointer to the z departure points at W2v DoFs
   !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The departure points for the z direction at W2v DoFs
-  function get_departure_points_z_w2(self, mesh_id) result(departure_points_z_w2)
+  function get_departure_points_z_w2(self, mesh_id, strang) result(departure_points_z_w2)
 
     implicit none
 
     class(transport_runtime_type), target, intent(in) :: self
     integer(kind=i_def),                   intent(in) :: mesh_id
+    logical(kind=l_def),                   intent(in) :: strang
     type(r_tran_field_type),               pointer    :: departure_points_z_w2
     character(str_def)                                :: field_name
 
     field_name = 'get_departure_points_z_w2'
-    departure_points_z_w2 => self%departure_points_z_w2(self%idx_from_mesh_id(mesh_id))
+    if (strang) then
+      departure_points_z_w2 => self%departure_points_z_half_w2(self%idx_from_mesh_id(mesh_id))
+    else
+      departure_points_z_w2 => self%departure_points_z_w2(self%idx_from_mesh_id(mesh_id))
+    end if
     call check_initialised_field(departure_points_z_w2, field_name, mesh_id)
 
   end function get_departure_points_z_w2

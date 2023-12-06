@@ -123,14 +123,12 @@ contains
     call flux%initialise( w2v_fs )
 
     ! Get departure points from transport_runtime
-    dep_pts_z_get  => transport_runtime%get_departure_points_z_w2( field_n%get_mesh_id() )
+    dep_pts_z_get  => transport_runtime%get_departure_points_z_w2(    &
+      field_n%get_mesh_id(),                                          &
+      ( transport_metadata%get_splitting() ==  splitting_strang_vhv ) &
+      )
     call dep_pts_z%initialise( vector_space = dep_pts_z_get%get_function_space() )
     call invoke( setval_X(dep_pts_z, dep_pts_z_get) )
-
-    ! If Strang splitting divide departure distance by 2
-    if ( transport_metadata%get_splitting() ==  splitting_strang_vhv ) then
-      call invoke( inc_a_times_X(0.5_r_tran, dep_pts_z) )
-    end if
 
     ! Compute conservative SL transport (vertical only) of
     ! field_np1 =  field_n_D

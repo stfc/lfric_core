@@ -234,6 +234,7 @@ contains
     logical(kind=l_def) :: log_space
     integer(kind=i_def) :: monotone
     logical(kind=l_def) :: reversible
+    logical(kind=l_def) :: strang_vhv
 
     ! Internal fields
     type(r_tran_field_type) :: dep_pts_z
@@ -250,8 +251,15 @@ contains
     mesh => field_n%get_mesh()
     transport_runtime => get_transport_runtime(mesh)
 
+    ! Determine if VHV splitting for departure points
+    if ( transport_metadata%get_splitting() ==  splitting_strang_vhv ) then
+      strang_vhv = .true.
+    else
+      strang_vhv = .false.
+    end if
+
     ! Get pre-computed fields
-    dep_pts_z_ptr => transport_runtime%get_departure_points_z_w2(mesh_id)
+    dep_pts_z_ptr => transport_runtime%get_departure_points_z_w2(mesh_id, strang_vhv)
     detj_at_w2v => transport_runtime%get_detj_at_w2_transport(mesh_id, direction_v)
     dz_w3_rdef => get_dz_w3(mesh_id)
 
@@ -273,14 +281,15 @@ contains
     call dz_w3%initialise( vector_space = field_fs )
     call dep_pts_z%initialise( vector_space = dep_fs_v )
 
-    ! If vertical scheme for Strang splitting divide departure distance by 2
+    ! Get the correct fractional wind
     if ( transport_metadata%get_splitting() ==  splitting_strang_vhv ) then
-      call invoke( a_times_X(dep_pts_z, 0.5_r_tran, dep_pts_z_ptr) )
       frac_wind => transport_runtime%get_frac_wind_z_half(mesh_id)
     else
-      call invoke( setval_X(dep_pts_z, dep_pts_z_ptr) )
       frac_wind => transport_runtime%get_frac_wind_z(mesh_id)
     end if
+
+    ! Set vertical departure points
+    call invoke( setval_X(dep_pts_z, dep_pts_z_ptr) )
 
     ! Initialise variables
     call invoke( setval_c(mass_flux, 0.0_r_tran) )
