@@ -18,6 +18,8 @@ module gungho_init_fields_mod
   use field_collection_mod,               only : field_collection_type
   use gungho_modeldb_mod,                 only : modeldb_type
   use gungho_model_data_mod,              only : model_data_type
+  use gungho_time_axes_mod,               only : gungho_time_axes_type, &
+                                                 get_time_axes_from_collection
   use constants_mod,                      only : i_def, l_def, r_def
   use log_mod,                            only : log_event,       &
                                                  LOG_LEVEL_INFO,  &
@@ -142,6 +144,8 @@ subroutine create_model_data( modeldb,      &
     type(field_array_type)               :: ls_mr_array_local
     type(field_array_type)               :: ls_moist_dyn_array_local
 
+    type(gungho_time_axes_type), pointer :: model_axes
+
     !-------------------------------------------------------------------------
     ! Select how to initialize model prognostic fields
     !-------------------------------------------------------------------------
@@ -153,6 +157,9 @@ subroutine create_model_data( modeldb,      &
     ! Get the specified namelist options for prognostic initialisation
     prognostic_init_choice = init_option
     ancil_choice = ancil_option
+
+    ! Get model_axes out of modeldb
+    model_axes => get_time_axes_from_collection(modeldb%values, "model_axes" )
 
     ! If checkpoint reading has been specified then override these options
     if (checkpoint_read) then
@@ -205,8 +212,7 @@ subroutine create_model_data( modeldb,      &
       depository,                             &
       modeldb%model_data%prognostic_fields,   &
       modeldb%model_data%lbc_fields,          &
-      modeldb%model_axes%lbc_times_list       &
-    )
+      model_axes%lbc_times_list )
 
     if ( iau ) call create_iau_fields( mesh, twod_mesh,                      &
                                        depository,                           &
@@ -255,7 +261,7 @@ subroutine create_model_data( modeldb,      &
                                  mesh, twod_mesh ,                &
                                  aerosol_mesh,                    &
                                  aerosol_twod_mesh,               &
-                                 modeldb%model_axes%ancil_times_list )
+                                 model_axes%ancil_times_list )
       end select
 #endif
     end if
@@ -287,6 +293,8 @@ subroutine create_model_data( modeldb,      &
     type( field_collection_type ), pointer :: depository => null()
     type( field_collection_type ), pointer :: field_collection_ptr => null()
 
+    type(gungho_time_axes_type), pointer :: model_axes
+
     real(r_def), pointer :: temperature_correction_rate
     real(r_def), pointer :: total_dry_mass
     real(r_def), pointer :: total_energy_previous
@@ -302,6 +310,9 @@ subroutine create_model_data( modeldb,      &
 #endif
 
     depository => modeldb%fields%get_field_collection("depository")
+
+    ! Get model_axes out of modeldb
+    model_axes => get_time_axes_from_collection(modeldb%values, "model_axes" )
 
     call modeldb%values%get_value( 'temperature_correction_rate', &
                                    temperature_correction_rate )
@@ -411,13 +422,13 @@ subroutine create_model_data( modeldb,      &
                                        modeldb%model_data%lbc_fields )
 
         case ( lbc_option_gungho_file )
-          call init_lbcs_file_alg( modeldb%model_axes%lbc_times_list, &
-                                   modeldb%clock,                     &
+          call init_lbcs_file_alg( model_axes%lbc_times_list, &
+                                   modeldb%clock,             &
                                    modeldb%model_data%lbc_fields )
 
         case ( lbc_option_um2lfric_file )
-          call init_lbcs_file_alg( modeldb%model_axes%lbc_times_list, &
-                                   modeldb%clock,                     &
+          call init_lbcs_file_alg( model_axes%lbc_times_list, &
+                                   modeldb%clock,             &
                                    modeldb%model_data%lbc_fields )
 
         case ( lbc_option_none )
@@ -464,7 +475,7 @@ subroutine create_model_data( modeldb,      &
           call update_tstar_alg(modeldb%model_data%surface_fields, &
                                 modeldb%model_data%fd_fields, put_field=.true. )
         case ( ancil_option_fixed, ancil_option_updating )
-          call init_variable_fields( modeldb%model_axes%ancil_times_list, &
+          call init_variable_fields( model_axes%ancil_times_list,         &
                                      modeldb%clock,                       &
                                      modeldb%model_data%ancil_fields,     &
                                      regrid_operation )

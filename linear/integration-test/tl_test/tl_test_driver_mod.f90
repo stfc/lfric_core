@@ -21,6 +21,7 @@ module tl_test_driver_mod
                                          initialise_model_data, &
                                          finalise_model_data
   use gungho_modeldb_mod,         only : modeldb_type
+  use gungho_time_axes_mod,       only : gungho_time_axes_type
   use io_context_mod,             only : io_context_type
   use log_mod,                    only : log_event,         &
                                          LOG_LEVEL_ALWAYS
@@ -86,12 +87,17 @@ contains
     type(modeldb_type),   intent(inout) :: modeldb
     class(calendar_type), intent(in)    :: calendar
 
+    type(gungho_time_axes_type)     :: model_axes
+
     call modeldb%values%initialise( 'values', 5 )
 
     ! Initialise infrastructure and setup constants
     !
     call initialise_infrastructure( modeldb, &
                                     calendar )
+
+    ! Add a place to store time axes in modeldb
+    call modeldb%values%add_key_value('model_axes', model_axes)
 
     ! Get primary and 2D meshes for initialising model data
     mesh => mesh_collection%get_mesh(prime_mesh_name)

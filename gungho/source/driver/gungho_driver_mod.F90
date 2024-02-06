@@ -29,6 +29,8 @@ module gungho_driver_mod
                                          finalise_infrastructure, &
                                          finalise_model
   use gungho_step_mod,            only : gungho_step
+  use gungho_time_axes_mod,       only : gungho_time_axes_type, &
+                                         get_time_axes_from_collection
   use initial_output_mod,         only : write_initial_output
   use io_config_mod,              only : write_diag, &
                                          diagnostic_frequency, &
@@ -94,6 +96,8 @@ contains
     type(modeldb_type),   intent(inout) :: modeldb
     class(calendar_type), intent(in)    :: calendar
 
+    type(gungho_time_axes_type)     :: model_axes
+
     class(io_context_type), pointer :: io_context => null()
     type(mesh_type),        pointer :: mesh              => null()
     type(mesh_type),        pointer :: twod_mesh         => null()
@@ -108,6 +112,9 @@ contains
     ! Initialise infrastructure and setup constants
     call initialise_infrastructure( modeldb, &
                                     calendar )
+
+    ! Add a place to store time axes in modeldb
+    call modeldb%values%add_key_value('model_axes', model_axes)
 
     ! Get primary and 2D meshes for initialising model data
     mesh => mesh_collection%get_mesh(prime_mesh_name)
@@ -204,6 +211,8 @@ contains
     type( field_collection_type ), pointer :: depository => null()
 #endif
 
+    type(gungho_time_axes_type), pointer :: model_axes
+
 #ifdef UM_PHYSICS
     procedure(regridder), pointer :: regrid_operation => null()
 
@@ -212,6 +221,9 @@ contains
 
     regrid_operation => map_scalar_field
 #endif
+    ! Get model_axes out of modeldb
+    model_axes => get_time_axes_from_collection(modeldb%values, "model_axes" )
+
     ! Get primary and 2D meshes
     mesh => mesh_collection%get_mesh(prime_mesh_name)
     twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
@@ -243,7 +255,7 @@ contains
     if ( lbc_option == lbc_option_gungho_file .or. &
          lbc_option == lbc_option_um2lfric_file) then
 
-      call update_lbcs_file_alg( modeldb%model_axes%lbc_times_list, &
+      call update_lbcs_file_alg( model_axes%lbc_times_list, &
                                  modeldb%clock, modeldb%model_data%lbc_fields )
     endif
 
@@ -288,11 +300,11 @@ contains
     ! first thing that happens in a timestep is that the clock ticks to the
     ! end of timestep date.
     if ( ancil_option == ancil_option_updating ) then
-      call update_variable_fields( modeldb%model_axes%ancil_times_list, &
+      call update_variable_fields( model_axes%ancil_times_list, &
                                    modeldb%clock,                       &
                                    modeldb%model_data%ancil_fields,     &
                                    regrid_operation )
-      call update_ancils_alg( modeldb%model_axes%ancil_times_list, &
+      call update_ancils_alg( model_axes%ancil_times_list, &
                               modeldb%clock,                       &
                               modeldb%model_data%ancil_fields,     &
                               modeldb%model_data%surface_fields)

@@ -17,6 +17,8 @@ module linear_model_data_mod
   use function_space_collection_mod,  only : function_space_collection
   use fs_continuity_mod,              only : W2, W3, WTheta, W2h
   use gungho_modeldb_mod,             only : modeldb_type
+  use gungho_time_axes_mod,           only : gungho_time_axes_type, &
+                                             get_time_axes_from_collection
   use init_time_axis_mod,             only : setup_field
   use initialization_config_mod,      only : ls_option,           &
                                              ls_option_analytic,  &
@@ -84,6 +86,8 @@ contains
     type(field_array_type), pointer      :: ls_mr_array => null()
     type(field_array_type), pointer      :: ls_moist_dyn_array => null()
 
+    type(gungho_time_axes_type), pointer :: model_axes
+
     integer(i_def)     :: imr
     character(str_def) :: name
     character(str_def) :: moist_dyn_name
@@ -96,7 +100,11 @@ contains
 
     depository => modeldb%fields%get_field_collection("depository")
     prognostics => modeldb%model_data%prognostic_fields
-    ls_times_list => modeldb%model_axes%ls_times_list
+
+    ! Get model_axes out of modeldb
+    model_axes => get_time_axes_from_collection(modeldb%values, "model_axes" )
+
+    ls_times_list => model_axes%ls_times_list
     ls_fields => modeldb%model_data%ls_fields
 
     moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
@@ -242,6 +250,11 @@ contains
     type(field_array_type), pointer      :: ls_mr_array => null()
     type(field_array_type), pointer      :: ls_moist_dyn_array => null()
 
+    type(gungho_time_axes_type), pointer :: model_axes
+
+    ! Get model_axes out of modeldb
+    model_axes => get_time_axes_from_collection(modeldb%values, "model_axes" )
+
     moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
     call moisture_fields%get_field("ls_mr", ls_mr_array)
     call moisture_fields%get_field("ls_moist_dyn", ls_moist_dyn_array)
@@ -289,7 +302,7 @@ contains
 
       case( ls_option_file )
 
-        call init_ls_file_alg( modeldb%model_axes%ls_times_list, &
+        call init_ls_file_alg( model_axes%ls_times_list, &
                                modeldb%clock,                    &
                                modeldb%model_data%ls_fields,     &
                                ls_mr_array%bundle,               &

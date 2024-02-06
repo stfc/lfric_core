@@ -26,6 +26,8 @@ module linear_driver_mod
                                          finalise_model_data
   use gungho_modeldb_mod,         only : modeldb_type
   use gungho_step_mod,            only : gungho_step
+  use gungho_time_axes_mod,       only : gungho_time_axes_type, &
+                                         get_time_axes_from_collection
   use init_fd_prognostics_mod,    only : init_fd_prognostics_dump
   use initial_output_mod,         only : write_initial_output
   use initialization_config_mod,  only : ls_option,                 &
@@ -80,6 +82,8 @@ contains
     type(modeldb_type),   intent(inout) :: modeldb
     class(calendar_type), intent(in)    :: calendar
 
+    type(gungho_time_axes_type)     :: model_axes
+
     class(io_context_type), pointer :: io_context        => null()
     type( mesh_type ),      pointer :: aerosol_mesh      => null()
     type( mesh_type ),      pointer :: aerosol_twod_mesh => null()
@@ -96,6 +100,9 @@ contains
     ! Initialise infrastructure and setup constants
     call initialise_infrastructure( modeldb, &
                                     calendar )
+
+    ! Add a place to store time axes in modeldb
+    call modeldb%values%add_key_value('model_axes', model_axes)
 
     ! Get primary and 2D meshes for initialising model data
     mesh => mesh_collection%get_mesh(prime_mesh_name)
@@ -175,13 +182,18 @@ contains
     type(field_array_type), pointer      :: ls_mr_array => null()
     type(field_array_type), pointer      :: ls_moist_dyn_array => null()
 
+    type(gungho_time_axes_type), pointer :: model_axes
+
+    ! Get model_axes out of modeldb
+    model_axes => get_time_axes_from_collection(modeldb%values, "model_axes" )
+
     moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
     call moisture_fields%get_field("ls_mr", ls_mr_array)
     call moisture_fields%get_field("ls_moist_dyn", ls_moist_dyn_array)
 
     if ( ls_option == ls_option_file ) then
-      call update_ls_file_alg( modeldb%model_axes%ls_times_list, &
-                               modeldb%clock,                    &
+      call update_ls_file_alg( model_axes%ls_times_list, &
+                               modeldb%clock,            &
                                modeldb%model_data%ls_fields,     &
                                ls_mr_array%bundle,               &
                                ls_moist_dyn_array%bundle )
