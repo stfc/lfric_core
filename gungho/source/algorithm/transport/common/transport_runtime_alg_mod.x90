@@ -53,7 +53,8 @@ module transport_runtime_alg_mod
                                             outer_order,           &
                                             inner_order
   use timer_mod,                      only: timer
-  use transport_config_mod,           only: extended_mesh
+  use transport_config_mod,           only: extended_mesh,        &
+                                            special_edges_treatment
   use transport_enumerated_types_mod, only: scheme_split,         &
                                             direction_h,          &
                                             direction_v,          &
@@ -840,8 +841,13 @@ contains
       ! COSMIC splitting (to get the correct field_x/y at panel edge)
       ! and the required horizontal stencil size based on the maximum CFL
       if (any_horz_dep_pts) then
-        full_stencil_extent_x = self%dep_stencil_extent_x(mesh_idx) + 1 + outer_order
-        full_stencil_extent_y = self%dep_stencil_extent_y(mesh_idx) + 1 + outer_order
+        if ( special_edges_treatment ) then
+          full_stencil_extent_x = self%dep_stencil_extent_x(mesh_idx) + 2 + outer_order
+          full_stencil_extent_y = self%dep_stencil_extent_y(mesh_idx) + 2 + outer_order
+        else
+          full_stencil_extent_x = self%dep_stencil_extent_x(mesh_idx) + 1 + outer_order
+          full_stencil_extent_y = self%dep_stencil_extent_y(mesh_idx) + 1 + outer_order
+        end if
 
         call cosmic_index_alg( self%cosmic_istart_x(mesh_idx),      &
                                self%cosmic_iend_x(mesh_idx),        &
@@ -1722,8 +1728,14 @@ contains
           ! We don't need these fields when doing SWIFT tracer splitting
           ! As the SWIFT inner step doesn't involve swapping x- and y-sweeps
           if (any_consistent_cosmic) then
-            full_stencil_extent_x = self%tracer_stencil_extent_ix(i,step) + 1 + outer_order
-            full_stencil_extent_y = self%tracer_stencil_extent_iy(i,step) + 1 + outer_order
+            if ( special_edges_treatment ) then
+                full_stencil_extent_x = self%tracer_stencil_extent_ix(i,step) + 2 + outer_order
+                full_stencil_extent_y = self%tracer_stencil_extent_iy(i,step) + 2 + outer_order
+             else
+                full_stencil_extent_x = self%tracer_stencil_extent_ix(i,step) + 1 + outer_order
+                full_stencil_extent_y = self%tracer_stencil_extent_iy(i,step) + 1 + outer_order
+            end if
+
             call cosmic_index_alg( self%tracer_istart_ix(i,step),              &
                                    self%tracer_iend_ix(i,step),                &
                                    self%tracer_istart_iy(i,step),              &
@@ -1789,8 +1801,14 @@ contains
               MAX( int(abs(dep_max), i_def), int(abs(dep_min), i_def) )
 
             ! Compute indices for crossing panels
-            full_stencil_extent_x = self%tracer_stencil_extent_ox(i,step) + 1 + outer_order
-            full_stencil_extent_y = self%tracer_stencil_extent_oy(i,step) + 1 + outer_order
+
+            if ( special_edges_treatment ) then
+              full_stencil_extent_x = self%tracer_stencil_extent_ox(i,step) + 2 + outer_order
+              full_stencil_extent_y = self%tracer_stencil_extent_oy(i,step) + 2 + outer_order
+            else
+              full_stencil_extent_x = self%tracer_stencil_extent_ox(i,step) + 1 + outer_order
+              full_stencil_extent_y = self%tracer_stencil_extent_oy(i,step) + 1 + outer_order
+            end if
 
             call cosmic_index_alg( self%tracer_istart_ox(i,step),         &
                                    self%tracer_iend_ox(i,step),           &

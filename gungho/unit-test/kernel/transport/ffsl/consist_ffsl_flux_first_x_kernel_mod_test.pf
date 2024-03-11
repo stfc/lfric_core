@@ -7,7 +7,7 @@
 
 module consist_ffsl_flux_first_x_kernel_mod_test
 
-  use constants_mod, only : i_def, r_tran
+  use constants_mod, only : i_def, r_tran, r_def, l_def
   use pFUnit_Mod
 
   implicit none
@@ -62,6 +62,14 @@ contains
     real(kind=r_tran), dimension(undf_w3) :: detj
     real(kind=r_tran), dimension(undf_w3) :: rho_d
 
+    integer(kind=i_def), parameter         :: stencil_size_p = 9
+    integer(kind=i_def), parameter         :: ndf_wp = 1
+    integer(kind=i_def), parameter         :: undf_wp = ndf_wp*nlayers*stencil_size_p
+    integer(kind=i_def), dimension(ndf_wp) :: map_wp
+    real(kind=r_def), dimension(undf_wp)   :: panel_id
+    logical(kind=l_def)                    :: edges_spt =.false.
+    integer(kind=i_def), dimension(ndf_wp,stencil_size_p) :: stencil_map_p
+
     real(kind=r_tran)   :: dt
     integer(kind=i_def) :: monotone
 
@@ -69,6 +77,8 @@ contains
     stencil_map(1,:) = (/ 5, 4, 3, 2, 1, 6, 7, 8, 9 /)
     map_w2(:) = (/ 1, 2, 3, 4 /)
     map_w3(1) = 1
+    map_wp(1) = 1
+    panel_id(:) = 1.0_r_def
 
     ! Set no monotonicity
     monotone = horizontal_monotone_none
@@ -106,18 +116,25 @@ contains
                                          rho_d,          &
                                          stencil_size,   &
                                          stencil_map,    &
+                                         panel_id,       &
+                                         stencil_size_p, &
+                                         stencil_map_p,  &
                                          dep_pts,        &
                                          frac_dry_flux,  &
                                          order,          &
                                          monotone,       &
                                          stencil_extent, &
                                          dt,             &
+                                         edges_spt,      &
                                          ndf_w2,         &
                                          undf_w2,        &
                                          map_w2,         &
                                          ndf_w3,         &
                                          undf_w3,        &
-                                         map_w3 )
+                                         map_w3,         &
+                                         ndf_wp,         &
+                                         undf_wp,        &
+                                         map_wp )
     ! Get correct tolerance
     if ( r_tran == real64 ) then
       use_tol = tol
@@ -153,18 +170,25 @@ contains
                                          rho_d,          &
                                          stencil_size,   &
                                          stencil_map,    &
+                                         panel_id,       &
+                                         stencil_size_p, &
+                                         stencil_map_p,  &
                                          dep_pts,        &
                                          frac_dry_flux,  &
                                          order,          &
                                          monotone,       &
                                          stencil_extent, &
                                          dt,             &
+                                         edges_spt,      &
                                          ndf_w2,         &
                                          undf_w2,        &
                                          map_w2,         &
                                          ndf_w3,         &
                                          undf_w3,        &
-                                         map_w3 )
+                                         map_w3,         &
+                                         ndf_wp,         &
+                                         undf_wp,        &
+                                         map_wp )
     answer = 1.704_r_tran
     @assertEqual(answer, flux_high(1), use_tol)
     answer = 1.224_r_tran
@@ -190,18 +214,25 @@ contains
                                          rho_d,          &
                                          stencil_size,   &
                                          stencil_map,    &
+                                         panel_id,       &
+                                         stencil_size_p, &
+                                         stencil_map_p,  &
                                          dep_pts,        &
                                          frac_dry_flux,  &
                                          order,          &
                                          monotone,       &
                                          stencil_extent, &
                                          dt,             &
+                                         edges_spt,      &
                                          ndf_w2,         &
                                          undf_w2,        &
                                          map_w2,         &
                                          ndf_w3,         &
                                          undf_w3,        &
-                                         map_w3 )
+                                         map_w3,         &
+                                         ndf_wp,         &
+                                         undf_wp,        &
+                                         map_wp )
     answer = -1.224_r_tran
     @assertEqual(answer, flux_high(1), use_tol)
     answer = -1.704_r_tran

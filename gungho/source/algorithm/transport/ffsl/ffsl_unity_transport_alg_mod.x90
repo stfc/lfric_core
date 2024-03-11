@@ -134,6 +134,8 @@ contains
     integer(kind=i_def) :: stencil_extent
     integer(kind=i_def) :: cfl_stencil_extent
     real(kind=r_tran)   :: half_dt
+    logical(kind=l_def), parameter :: edges_treatment = .false.
+    integer(kind=i_def), parameter :: extra_points = 1_i_def
 
     if ( subroutine_timers ) call timer('transport.ffsl_unity')
 
@@ -173,21 +175,27 @@ contains
                    setval_c(flux_y,    0.0_r_tran)  )
 
       ! x-direction ------------------------------------------------------------
-      stencil_extent = dep_stencil_x + 1_i_def + order
+      stencil_extent = dep_stencil_x + extra_points + order
       cfl_stencil_extent = stencil_extent
-      call invoke( ffsl_flux_first_x_kernel_type(flux_x, ini_one,              &
-                                                 stencil_extent, dep_pts_x,    &
+      call invoke( ffsl_flux_first_x_kernel_type(flux_x,                       &
+                                                 ini_one,  stencil_extent,     &
+                                                 panel_id, stencil_extent,     &
+                                                 dep_pts_x,                    &
                                                  detj_at_w3, stencil_extent,   &
                                                  order, hori_monotone,         &
-                                                 cfl_stencil_extent, dt) )
+                                                 cfl_stencil_extent, dt,       &
+                                                 edges_treatment) )
       ! y-direction ------------------------------------------------------------
-      stencil_extent = dep_stencil_y + 1_i_def + order
+      stencil_extent = dep_stencil_y + extra_points + order
       cfl_stencil_extent = stencil_extent
-      call invoke( ffsl_flux_first_y_kernel_type(flux_y, ini_one,              &
-                                                 stencil_extent, dep_pts_y,    &
+      call invoke( ffsl_flux_first_y_kernel_type(flux_y,                       &
+                                                 ini_one,  stencil_extent,     &
+                                                 panel_id, stencil_extent,     &
+                                                 dep_pts_y,                    &
                                                  detj_at_w3, stencil_extent,   &
                                                  order, hori_monotone,         &
-                                                 cfl_stencil_extent, dt ) )
+                                                 cfl_stencil_extent, dt,       &
+                                                 edges_treatment ) )
       call invoke( fv_divergence_x_kernel_type( inc_one_x, flux_x, m3_inv ),   &
                    fv_divergence_y_kernel_type( inc_one_y, flux_y, m3_inv ),   &
                    ! Get the updated unity values: np1 = 1 - dt * F(1)

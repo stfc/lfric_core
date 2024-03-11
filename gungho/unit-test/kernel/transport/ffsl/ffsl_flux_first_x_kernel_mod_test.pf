@@ -7,7 +7,7 @@
 
 module ffsl_flux_first_x_kernel_mod_test
 
-  use constants_mod, only : i_def, r_tran
+  use constants_mod, only : i_def, r_tran, l_def, r_def
   use pFUnit_Mod
 
   implicit none
@@ -44,6 +44,7 @@ contains
     integer(kind=i_def), parameter :: ndf_w3 = 1
     integer(kind=i_def), parameter :: ndf_w2 = 4
     integer(kind=i_def), parameter :: stencil_size = 9
+
     integer(kind=i_def), parameter :: stencil_extent = ( stencil_size - 1_i_def ) / 2_i_def
     integer(kind=i_def), parameter :: undf_w2 = ndf_w2*nlayers
     integer(kind=i_def), parameter :: undf_w3 = ndf_w3*nlayers*stencil_size
@@ -58,21 +59,33 @@ contains
     real(kind=r_tran), dimension(undf_w2) :: flux
     real(kind=r_tran), dimension(undf_w3) :: detj
 
-    real(kind=r_tran)   :: dt
-    integer(kind=i_def) :: monotone
+    integer(kind=i_def), parameter         :: stencil_size_p = stencil_size
+    integer(kind=i_def), parameter         :: ndf_wp = 1
+    integer(kind=i_def), parameter         :: undf_wp = ndf_wp*nlayers*stencil_size_p
+    integer(kind=i_def), dimension(ndf_wp) :: map_wp
+    real(kind=r_def), dimension(undf_wp)   :: panel_id
+    logical(kind=l_def)                    :: edges_spt
+    integer(kind=i_def), dimension(ndf_wp,stencil_size_p) :: stencil_map_p
+
+    real(kind=r_tran)   :: dt, x, const(3)
+    integer(kind=i_def) :: monotone, i, order_spt
 
     ! Set up maps
     stencil_map(1,:) = (/ 5, 4, 3, 2, 1, 6, 7, 8, 9 /)
+    stencil_map_p = stencil_map
     map_w2(:) = (/ 1, 2, 3, 4 /)
     map_w3(1) = 1
+    map_wp(1) = 1
+    panel_id(:) = 1.0_r_def
+    edges_spt =.false.
 
     ! Set no monotonicity
     monotone = horizontal_monotone_none
 
     ! Set up field to have quadratic profile
-    field(:) = (/ 17.0_r_tran, 10.0_r_tran, 5.0_r_tran, &
-                  2.0_r_tran,  1.0_r_tran,  2.0_r_tran, &
-                  5.0_r_tran,  10.0_r_tran, 17.0_r_tran /)
+    field(:) = (/ 17.0_r_tran,  10.0_r_tran,  5.0_r_tran, &
+                   2.0_r_tran,   1.0_r_tran,  2.0_r_tran, &
+                   5.0_r_tran,  10.0_r_tran, 17.0_r_tran /)
 
     ! Initialise flux to zero before each test
     flux(:) = 0.0_r_tran
@@ -81,13 +94,16 @@ contains
     detj(:) = 2.0_r_tran
 
     ! Test with integer departure distance
-    dep_pts(:) = 1.0_r_tran
+    dep_pts(:) = 1.0_r_def
     dt = 1.0_r_tran
     call ffsl_flux_first_x_code( nlayers,        &
                                  flux,           &
                                  field,          &
                                  stencil_size,   &
                                  stencil_map,    &
+                                 panel_id,       &
+                                 stencil_size_p, &
+                                 stencil_map_p,  &
                                  dep_pts,        &
                                  detj,           &
                                  stencil_size,   &
@@ -96,9 +112,13 @@ contains
                                  monotone,       &
                                  stencil_extent, &
                                  dt,             &
+                                 edges_spt,      &
                                  ndf_w2,         &
                                  undf_w2,        &
                                  map_w2,         &
+                                 ndf_wp,         &
+                                 undf_wp,        &
+                                 map_wp,         &
                                  ndf_w3,         &
                                  undf_w3,        &
                                  map_w3 )
@@ -122,6 +142,9 @@ contains
                                  field,          &
                                  stencil_size,   &
                                  stencil_map,    &
+                                 panel_id,       &
+                                 stencil_size_p, &
+                                 stencil_map_p,  &
                                  dep_pts,        &
                                  detj,           &
                                  stencil_size,   &
@@ -130,9 +153,13 @@ contains
                                  monotone,       &
                                  stencil_extent, &
                                  dt,             &
+                                 edges_spt,      &
                                  ndf_w2,         &
                                  undf_w2,        &
                                  map_w2,         &
+                                 ndf_wp,         &
+                                 undf_wp,        &
+                                 map_wp,         &
                                  ndf_w3,         &
                                  undf_w3,        &
                                  map_w3 )
@@ -150,6 +177,9 @@ contains
                                  field,          &
                                  stencil_size,   &
                                  stencil_map,    &
+                                 panel_id,       &
+                                 stencil_size_p, &
+                                 stencil_map_p,  &
                                  dep_pts,        &
                                  detj,           &
                                  stencil_size,   &
@@ -158,9 +188,13 @@ contains
                                  monotone,       &
                                  stencil_extent, &
                                  dt,             &
+                                 edges_spt,      &
                                  ndf_w2,         &
                                  undf_w2,        &
                                  map_w2,         &
+                                 ndf_wp,         &
+                                 undf_wp,        &
+                                 map_wp,         &
                                  ndf_w3,         &
                                  undf_w3,        &
                                  map_w3 )
@@ -168,6 +202,96 @@ contains
     @assertEqual(answer, flux(1), use_tol)
     answer = -1.136_r_tran
     @assertEqual(answer, flux(3), use_tol)
+
+    ! Testing special_edges_treatment (edges_spt=T)
+    ! We create a moving edge along the stencil by changing the panel_id
+    ! to test all the cases
+    !
+    ! (1) Testing PPM (order_spt=2)
+
+    const =(/2.0_r_tran, -1.0_r_tran, 0.5_r_tran/)
+    order_spt = 2_i_def
+    detj(:) = 1.0_r_tran
+    dep_pts(:) = 0.6_r_tran
+    dt = 1.0_r_tran
+    answer = 2.336_r_tran
+    edges_spt = .true.
+
+    do i=1,9
+      x = real(i-1,r_tran)
+      field(i)= const(1)+const(2)*x + const(3)*x*x
+    end do
+
+    panel_id(:) = 1.0_r_def
+    do i = 1,9
+       panel_id(1:i) = 2.0_r_def
+       flux(:) = 0.0_r_tran
+       call ffsl_flux_first_x_code( nlayers,        &
+                                    flux,           &
+                                    field,          &
+                                    stencil_size,   &
+                                    stencil_map,    &
+                                    panel_id,       &
+                                    stencil_size_p, &
+                                    stencil_map_p,  &
+                                    dep_pts,        &
+                                    detj,           &
+                                    stencil_size,   &
+                                    stencil_map,    &
+                                    order_spt,      &
+                                    monotone,       &
+                                    stencil_extent, &
+                                    dt,             &
+                                    edges_spt,      &
+                                    ndf_w2,         &
+                                    undf_w2,        &
+                                    map_w2,         &
+                                    ndf_wp,         &
+                                    undf_wp,        &
+                                    map_wp,         &
+                                    ndf_w3,         &
+                                    undf_w3,        &
+                                    map_w3 )
+       panel_id(:) = 1.0_r_def
+       @assertEqual(answer, flux(1), use_tol)
+    end do
+
+    ! (2) Testing Nirvana (order_spt=1)
+
+    order_spt = 1_i_def
+    panel_id(:) = 1.0_r_def
+    do i = 1,9
+       panel_id(1:i) = 2.0_r_def
+       flux(:) = 0.0_r_tran
+       call ffsl_flux_first_x_code( nlayers,        &
+                                    flux,           &
+                                    field,          &
+                                    stencil_size,   &
+                                    stencil_map,    &
+                                    panel_id,       &
+                                    stencil_size_p, &
+                                    stencil_map_p,  &
+                                    dep_pts,        &
+                                    detj,           &
+                                    stencil_size,   &
+                                    stencil_map,    &
+                                    order_spt,      &
+                                    monotone,       &
+                                    stencil_extent, &
+                                    dt,             &
+                                    edges_spt,      &
+                                    ndf_w2,         &
+                                    undf_w2,        &
+                                    map_w2,         &
+                                    ndf_wp,         &
+                                    undf_wp,        &
+                                    map_wp,         &
+                                    ndf_w3,         &
+                                    undf_w3,        &
+                                    map_w3 )
+       panel_id(:) = 1.0_r_def
+       @assertEqual(answer, flux(1), use_tol)
+    end do
 
   end subroutine test_all
 

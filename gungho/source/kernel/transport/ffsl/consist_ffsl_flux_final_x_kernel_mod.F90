@@ -19,13 +19,14 @@
 
 module consist_ffsl_flux_final_x_kernel_mod
 
-  use argument_mod,       only : arg_type,                 &
-                                 GH_FIELD, GH_REAL,        &
-                                 CELL_COLUMN, GH_WRITE,    &
-                                 GH_READ, GH_SCALAR,       &
-                                 STENCIL, X1D, GH_INTEGER, &
-                                 ANY_DISCONTINUOUS_SPACE_1
-  use constants_mod,      only : r_tran, i_def
+  use argument_mod,       only : arg_type,                  &
+                                 GH_FIELD, GH_REAL,         &
+                                 CELL_COLUMN, GH_WRITE,     &
+                                 GH_READ, GH_SCALAR,        &
+                                 STENCIL, X1D, GH_INTEGER,  &
+                                 ANY_DISCONTINUOUS_SPACE_1, &
+                                 GH_LOGICAL
+  use constants_mod,      only : r_tran, i_def, l_def, r_def
   use fs_continuity_mod,  only : W3, W2h
   use kernel_mod,         only : kernel_type
 
@@ -39,23 +40,25 @@ module consist_ffsl_flux_final_x_kernel_mod
   !> The type declaration for the kernel. Contains the metadata needed by the PSy layer
   type, public, extends(kernel_type) :: consist_ffsl_flux_final_x_kernel_type
     private
-    type(arg_type) :: meta_args(16) = (/                                        &
-         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, W2h),                        & ! flux_high
-         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, W2h),                        & ! flux_low
-         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, W2h),                        & ! flux_int
-         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W3, STENCIL(X1D)),           & ! field_x
-         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W3, STENCIL(X1D)),           & ! field_y
-         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W3, STENCIL(X1D)),           & ! detj
-         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W3, STENCIL(X1D)),           & ! rho_d_x
-         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W3, STENCIL(X1D)),           & ! rho_d_y
-         arg_type(GH_FIELD,  GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_1 ), & ! i_start
-         arg_type(GH_FIELD,  GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_1 ), & ! i_end
-         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W2h),                        & ! dep_pts
-         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W2h),                        & ! frac_dry_flux
-         arg_type(GH_SCALAR, GH_INTEGER, GH_READ      ),                        & ! order
-         arg_type(GH_SCALAR, GH_INTEGER, GH_READ      ),                        & ! monotone
-         arg_type(GH_SCALAR, GH_INTEGER, GH_READ      ),                        & ! extent_size
-         arg_type(GH_SCALAR, GH_REAL,    GH_READ      )                         & ! dt
+    type(arg_type) :: meta_args(18) = (/                                                     &
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, W2h),                                     & ! flux_high
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, W2h),                                     & ! flux_low
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, W2h),                                     & ! flux_int
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W3, STENCIL(X1D)),                        & ! field_x
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W3, STENCIL(X1D)),                        & ! field_y
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W3, STENCIL(X1D)),                        & ! detj
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W3, STENCIL(X1D)),                        & ! rho_d_x
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W3, STENCIL(X1D)),                        & ! rho_d_y
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_1, STENCIL(X1D)), & ! panel_id
+         arg_type(GH_FIELD,  GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_1 ),              & ! i_start
+         arg_type(GH_FIELD,  GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_1 ),              & ! i_end
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W2h),                                     & ! dep_pts
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W2h),                                     & ! frac_dry_flux
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ      ),                                     & ! order
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ      ),                                     & ! monotone
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ      ),                                     & ! extent_size
+         arg_type(GH_SCALAR, GH_REAL,    GH_READ      ),                                     & ! dt
+         arg_type(GH_SCALAR, GH_LOGICAL, GH_READ      )                                      & ! edges_spt
          /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -89,6 +92,9 @@ contains
   !> @param[in]     rho_d             Dry density at W3 points
   !> @param[in]     stencil_size_rho  Local length of rho stencil
   !> @param[in]     stencil_map_rho   Dofmap for the rho stencil
+  !> @param[in]     panel_id          Panel IDs
+  !> @param[in]     stencil_size_p    Local length of panel_id stencil
+  !> @param[in]     stencil_map_p     Dofmap for the  panel_id stencil
   !> @param[in]     i_start           Start index for change in panel ID orientation
   !> @param[in]     i_end             End index for change in panel ID orientation
   !> @param[in]     dep_pts           Departure points in x
@@ -97,6 +103,7 @@ contains
   !> @param[in]     monotone          Horizontal monotone option for FFSL
   !> @param[in]     extent_size       Stencil extent needed for the LAM edge
   !> @param[in]     dt                Time step
+  !> @param[in]     edges_spt         Logical for using (not) special edges treatment
   !> @param[in]     ndf_w2h           Number of degrees of freedom for W2h per cell
   !> @param[in]     undf_w2h          Number of unique degrees of freedom for W2h
   !> @param[in]     map_w2h           Map for W2h
@@ -128,6 +135,9 @@ contains
                                              rho_d_y,          &
                                              stencil_size_ry,  &
                                              stencil_map_ry,   &
+                                             panel_id,         &
+                                             stencil_size_p,   &
+                                             stencil_map_p,    &
                                              i_start,          &
                                              i_end,            &
                                              dep_pts,          &
@@ -136,6 +146,7 @@ contains
                                              monotone,         &
                                              extent_size,      &
                                              dt,               &
+                                             edges_spt,        &
                                              ndf_w2h,          &
                                              undf_w2h,         &
                                              map_w2h,          &
@@ -146,8 +157,10 @@ contains
                                              undf_wp,          &
                                              map_wp )
 
-    use subgrid_rho_mod, only: horizontal_nirvana_recon, &
-                               horizontal_ppm_recon
+    use subgrid_rho_mod, only: horizontal_nirvana_recon,           &
+                               horizontal_ppm_recon,               &
+                               horizontal_nirvana_recon_spt_edges, &
+                               horizontal_ppm_recon_spt_edges
     use cosmic_flux_mod, only: get_index_negative, &
                                get_index_positive
 
@@ -166,6 +179,7 @@ contains
     integer(kind=i_def), intent(in) :: stencil_size_dj
     integer(kind=i_def), intent(in) :: stencil_size_rx
     integer(kind=i_def), intent(in) :: stencil_size_ry
+    integer(kind=i_def), intent(in) :: stencil_size_p
 
     ! Arguments: Maps
     integer(kind=i_def), dimension(ndf_w3),  intent(in) :: map_w3
@@ -176,6 +190,7 @@ contains
     integer(kind=i_def), dimension(ndf_w3,stencil_size_dj), intent(in) :: stencil_map_dj
     integer(kind=i_def), dimension(ndf_w3,stencil_size_rx), intent(in) :: stencil_map_rx
     integer(kind=i_def), dimension(ndf_w3,stencil_size_ry), intent(in) :: stencil_map_ry
+    integer(kind=i_def), dimension(ndf_wp,stencil_size_p),  intent(in) :: stencil_map_p
 
     ! Arguments: Fields
     real(kind=r_tran),   dimension(undf_w2h), intent(inout) :: flux_high
@@ -183,6 +198,7 @@ contains
     real(kind=r_tran),   dimension(undf_w2h), intent(inout) :: flux_int
     real(kind=r_tran),   dimension(undf_w3),  intent(in)    :: field_x
     real(kind=r_tran),   dimension(undf_w3),  intent(in)    :: field_y
+    real(kind=r_def),    dimension(undf_wp),  intent(in)    :: panel_id
     integer(kind=i_def), dimension(undf_wp),  intent(in)    :: i_start
     integer(kind=i_def), dimension(undf_wp),  intent(in)    :: i_end
     real(kind=r_tran),   dimension(undf_w2h), intent(in)    :: dep_pts
@@ -194,6 +210,7 @@ contains
     integer(kind=i_def),                      intent(in)    :: monotone
     integer(kind=i_def),                      intent(in)    :: extent_size
     real(kind=r_tran),                        intent(in)    :: dt
+    logical(kind=l_def),                      intent(in)    :: edges_spt
 
     ! Variables for flux calculation
     real(kind=r_tran) :: departure_dist
@@ -210,6 +227,7 @@ contains
     real(kind=r_tran)   :: rho_d_y_local(1:stencil_size_ry)
     real(kind=r_tran)   :: rho_d_local(1:stencil_size_y)
     real(kind=r_tran)   :: detj_local(1:stencil_size_dj)
+    integer(kind=i_def) :: ipanel_local(1:stencil_size_p)
 
     ! DOFs
     integer(kind=i_def) :: local_dofs(1:2)
@@ -251,6 +269,16 @@ contains
     else
 
       ! Not at edge of LAM so compute fluxes
+
+      ! Set up local panel ID if required
+      if ( edges_spt ) then
+        do jj = 1, stencil_half
+          ipanel_local(jj) = int(panel_id(stencil_map_p(1,stencil_half+1-jj)), i_def)
+        end do
+        do jj = stencil_half+1, stencil_size
+          ipanel_local(jj) = int(panel_id(stencil_map_p(1,jj)), i_def)
+        end do
+      end if
 
       ! Initialise field_local to zero
       field_local(1:stencil_size) = 0.0_r_tran
@@ -318,12 +346,25 @@ contains
               reconstruction = reconstruction_low
             else if ( order == 1 ) then
               ! Get Nirvana flux in reconstruction form
-              call horizontal_nirvana_recon(reconstruction, fractional_distance, &
-                                            field_local(ind_lo+1:ind_hi-1), monotone)
+              if ( edges_spt ) then
+                call horizontal_nirvana_recon_spt_edges(reconstruction, fractional_distance,  &
+                                                         field_local(ind_lo:ind_hi),          &
+                                                        ipanel_local(ind_lo:ind_hi), monotone )
+
+              else
+                call horizontal_nirvana_recon(reconstruction, fractional_distance,     &
+                                              field_local(ind_lo+1:ind_hi-1), monotone )
+              end if
             else
               ! Piecewise parabolic flux in reconstruction form
-              call horizontal_ppm_recon(reconstruction, fractional_distance, &
-                                        field_local(ind_lo:ind_hi), monotone)
+              if ( edges_spt ) then
+                 call horizontal_ppm_recon_spt_edges(reconstruction, fractional_distance,      &
+                                                      field_local(ind_lo-1:ind_hi+1),          &
+                                                     ipanel_local(ind_lo-1:ind_hi+1), monotone )
+              else
+                 call horizontal_ppm_recon(reconstruction, fractional_distance, &
+                                           field_local(ind_lo:ind_hi), monotone )
+              end if
             end if
 
             ! Build up whole cell part

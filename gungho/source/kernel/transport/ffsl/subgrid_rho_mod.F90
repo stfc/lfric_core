@@ -12,7 +12,8 @@ module subgrid_rho_mod
 
 use constants_mod,                  only: i_def, r_tran, l_def, EPS_R_TRAN
 use transport_enumerated_types_mod, only: horizontal_monotone_strict,  &
-                                          horizontal_monotone_relaxed
+                                          horizontal_monotone_relaxed, &
+                                          horizontal_monotone_none
 
 implicit none
 
@@ -32,6 +33,14 @@ public :: vertical_nirvana_recon_relax
 public :: vertical_ppm_recon
 public :: vertical_ppm_strict
 public :: vertical_ppm_relax
+public :: horizontal_ppm_recon_spt_edges
+public :: ppm_density_at_any_edge
+public :: horizontal_nirvana_coeffs_general
+public :: horizontal_nirvana_recon_spt_edges
+public :: horizontal_nirvana_case
+public :: horizontal_ppm_case
+public :: calculate_parabola_coeffs
+public :: parabola_mono
 
 contains
 
@@ -489,6 +498,353 @@ contains
     end if
 
   end subroutine horizontal_ppm_recon
+
+  !----------------------------------------------------------------------------
+  !> @brief  Returns the horizontal PPM reconstruction. This is similar to the
+  !!         subroutine "horizontal_ppm_recon" with special treatment of panel edges
+  !!         and larger stencil around the cell (7 Cells instead of 5)
+  !!
+  !! @param[out]  recon       The PPM reconstruction
+  !! @param[in]   dep         The fractional departure distance for the reconstruction point.
+  !! @param[in]   field       Field values in the 7 cells with ordering
+  !!                          | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+  !! @param[in]   ipanel      Panel IDs for the 7 cells
+  !! @param[in]   monotone    Monotone option to ensures no over/undershoots
+  !----------------------------------------------------------------------------
+  subroutine horizontal_ppm_recon_spt_edges(recon,dep,field,ipanel,monotone)
+
+    implicit none
+
+    real(kind=r_tran),    intent(out) :: recon
+    real(kind=r_tran),    intent(in)  :: dep
+    real(kind=r_tran),    intent(in)  :: field(1:7)
+    integer(kind=i_def),  intent(in)  :: ipanel(1:7)
+    integer(kind=i_def),  intent(in)  :: monotone
+    !Local variables
+    real(kind=r_tran)   :: density_left, density_right, s
+    real(kind=r_tran)   :: coeffs(1:3)
+    integer(kind=i_def) :: rec_case, cell
+    real(kind=r_tran), parameter  :: half = 0.5_r_tran
+    real(kind=r_tran), parameter  :: third = 1.0_r_tran/3.0_r_tran
+    real(kind=r_tran), parameter  :: one = 1.0_r_tran
+    real(kind=r_tran), parameter  :: two = 2.0_r_tran
+
+    ! Get reconstruction case
+
+    call horizontal_ppm_case(ipanel,rec_case)
+
+    ! Get PPM edge values depending on which case
+
+    select case (rec_case)
+    case (1) !all points on same panel
+      density_left  = ppm_density_at_any_edge(field(2:5),3_i_def)
+      density_right = ppm_density_at_any_edge(field(3:6),3_i_def)
+    case (2) !2-3-4-5 on same panel and 6 on different panel (edge 5/6)
+      density_left  = ppm_density_at_any_edge(field(2:5),3_i_def)
+      density_right = ppm_density_at_any_edge(field(2:5),4_i_def)
+    case (3) !1-2-3-4 on same panel and 5-6 on different panel (edge 4/5)
+      density_left  = ppm_density_at_any_edge(field(1:4),4_i_def)
+      density_right = ppm_density_at_any_edge(field(1:4),5_i_def)
+    case (4) !3-4-5-6 on same panel and 2 on different panel (edge 2/3)
+      density_left  = ppm_density_at_any_edge(field(3:6),2_i_def)
+      density_right = ppm_density_at_any_edge(field(3:6),3_i_def)
+    case (5) !4-5-6-7 on same panel and 2-3 on different panel (edge 3/4)
+      density_left  = ppm_density_at_any_edge(field(4:7),1_i_def)
+      density_right = ppm_density_at_any_edge(field(4:7),2_i_def)
+    end select
+
+    ! Compute parabola coeffs
+    cell = 4_i_def
+    call calculate_parabola_coeffs(density_left,density_right,field(cell),coeffs)
+
+    !If monotone correct coeffs
+    if (monotone /= horizontal_monotone_none ) then
+       call parabola_mono(coeffs,field(3),field(4),field(5),monotone)
+    end if
+
+    !Compute reconstruction from dep and coeffs
+    s = abs(dep)
+    if ( dep >= 0.0_r_tran) then
+      recon = ( third*(s**two) - s + one )*coeffs(3) +  &
+                (one - half*s)*coeffs(2) + coeffs(1)
+    else
+      recon = third*(s**two)*coeffs(3) + half*s*coeffs(2) + coeffs(1)
+    end if
+
+  end subroutine horizontal_ppm_recon_spt_edges
+
+  !----------------------------------------------------------------------------
+  !> @brief  Returns the horizontal PPM reconstruction for any cell edge (1:5) from
+  !!         the 4 cells data density(1:4)
+  !! @param[in]  density         Field values for 4 cells | 1 | 2 | 3 | 4 |
+  !! @param[in]  edge            The edge=(1:5) where the density is required
+  !! @param[out] density_at_edge Density at the edge specified
+  !----------------------------------------------------------------------------
+  function ppm_density_at_any_edge(density,edge) result(density_at_edge)
+
+    implicit none
+
+    real(kind=r_tran),   intent(in) :: density(1:4)
+    integer(kind=i_def), intent(in) :: edge
+
+    real(kind=r_tran)   :: density_at_edge
+    integer(kind=i_def) :: i
+    real(kind=r_tran), parameter, dimension(4,5) :: ppm_w =  reshape(  &
+            (/25.0_r_tran, -23.0_r_tran, 13.0_r_tran, -3.0_r_tran,     &
+               3.0_r_tran,  13.0_r_tran, -5.0_r_tran,  1.0_r_tran,     &
+              -1.0_r_tran,   7.0_r_tran,  7.0_r_tran, -1.0_r_tran,     &
+               1.0_r_tran,  -5.0_r_tran, 13.0_r_tran,  3.0_r_tran,     &
+              -3.0_r_tran,  13.0_r_tran,-23.0_r_tran, 25.0_r_tran/)/12.0_r_tran, shape(ppm_w))
+
+    density_at_edge = 0.0_r_tran
+    do i = 1,4
+      density_at_edge = density_at_edge + ppm_w(i,edge)*density(i)
+    end do
+
+  end function ppm_density_at_any_edge
+
+  !----------------------------------------------------------------------------------------
+  !> @brief Identify which case for ppm reconstruction
+  !! This subroutine identify if it leaves the reconstruction centred around
+  !! cell 4 (default=case 1) away from panel edges, or shift the stencil left
+  !! (by either 1 or 2 cells) or shift right (by either 1 or 2 cells)
+  !! case 1 = all points (2:6) on same panel
+  !! case 2 = points (2:5) on same panel and 6 on different one   (shift left by 1 cell)
+  !! case 3 = points (1:4) on same panel and 5/6 on different one (shift left by 2 cells)
+  !! case 4 = points (3:6) on same panel and 2 on different one (shift right by 1 cell)
+  !! case 5 = points (4:7) on same panel and 1/2 on different one (shift right by 2 cells)
+  !! @param[in]   ipanel  Panel IDs
+  !! @param[out]  case    Identifies which cases 1:5
+  !----------------------------------------------------------------------------------------
+  subroutine horizontal_ppm_case(ipanel,case)
+
+    implicit none
+
+    integer(kind=i_def),  intent(in)   :: ipanel(1:7)
+    integer(kind=i_def),  intent(out)  :: case
+
+    integer(kind=i_def) :: test(1:4)
+    integer(kind=i_def) :: test1, test2
+
+    test(1) = ipanel(4) - ipanel(3)
+    test(2) = ipanel(4) - ipanel(2)
+    test(3) = ipanel(4) - ipanel(5)
+    test(4) = ipanel(4) - ipanel(6)
+    test1 = test(1)+test(2)+test(3)+test(4)
+
+    if ( test1 == 0_i_def ) then !all points on same panel
+      case =  1_i_def
+    else !Not all points on same panel
+      test2 = test(1)+test(2)
+      if (test2 == 0_i_def ) then ! edge on right (5 or 6 on different panel)
+          if ( test(3) == 0_i_def ) then !edge between 5/6
+             case =  2_i_def
+          else  !edge between 4/5
+             case =  3_i_def
+          end if
+      else ! 2 or 3 on different panel / edge on left
+         if ( test(1) == 0_i_def ) then  !edge between 2/3
+            case =  4_i_def
+         else  !edge between 3/4
+            case =  5_i_def
+         end if
+      end if
+    end if
+  end subroutine horizontal_ppm_case
+
+  !----------------------------------------------------------------------------
+  !> @brief Identify which case for nirvana reconstruction
+  !! This subroutine identify if it leaves the reconstruction centred around
+  !! cell 3 (default=case 1) away from panel edges, or shift the stencil left
+  !! (case 2) or shift right (case 3)
+  !! case 1 = all points (2:4) on same panel
+  !! case 2 = points (1:3) on same panel and 4/5 on different one (shift left)
+  !! case 3 = points (3:5) on same panel and 1/2 on different one (shift right)
+  !! @param[in]   ipanel  Panel IDs
+  !! @param[out]  case    Identifies which cases 1:3
+  !----------------------------------------------------------------------------
+  subroutine horizontal_nirvana_case(ipanel,case)
+
+    implicit none
+
+    integer(kind=i_def),  intent(in)   :: ipanel(1:5)
+    integer(kind=i_def),  intent(out)  :: case
+    integer(kind=i_def) :: test1, test2, test3
+
+    test1 = ipanel(3) - ipanel(2)
+    test2 = ipanel(3) - ipanel(4)
+    test3 = test1+test2
+
+    if ( test3 == 0_i_def ) then !the 3 poins (2:4) on same panel
+      case =  1_i_def
+    else ! Not all 3 points on same panel
+      if ( test1 == 0_i_def ) then ! point 4 is on different panel
+        case =  2_i_def
+      else ! point 2 is on different panel
+        case =  3_i_def
+      end if
+    end if
+  end subroutine horizontal_nirvana_case
+
+!----------------------------------------------------------------------------
+!> @brief  Returns the horizontal Nirvana reconstruction parabola coefficients
+!!         for any cell(i),i=1,3 from the array density(1:3).
+!! @param[in]  rho        Field values for the 3 cells | 1 | 2 | 3 |
+!! @param[in]  cell       The cell=(1:3) where the coefficients are required
+!! @param[out] coeffs     Parabola coefficients for the required cell
+!----------------------------------------------------------------------------
+  subroutine horizontal_nirvana_coeffs_general(coeffs,rho,cell)
+
+    implicit none
+
+    ! Arguments
+    real(kind=r_tran),   intent(out) :: coeffs(1:3)
+    real(kind=r_tran),   intent(in)  :: rho(1:3)
+    integer(kind=i_def), intent(in)  :: cell
+
+    ! Internal variables
+    real(kind=r_tran), parameter, dimension(3,3) :: c1_w =  reshape(     &
+                               (/11.0_r_tran, -7.0_r_tran,  2.0_r_tran,  &
+                                  2.0_r_tran,  5.0_r_tran, -1.0_r_tran,  &
+                                -1.0_r_tran,  5.0_r_tran,  2.0_r_tran/)/6.0_r_tran, shape(c1_w))
+    real(kind=r_tran), parameter, dimension(3,3) :: c2_w =  reshape(    &
+                               (/-2.0_r_tran,  3.0_r_tran, -1.0_r_tran, &
+                                 -1.0_r_tran,  1.0_r_tran,  0.0_r_tran, &
+                                  0.0_r_tran, -1.0_r_tran,  1.0_r_tran/), shape(c2_w))
+    real(kind=r_tran), parameter, dimension(3) :: c3_w = (/0.5_r_tran, -1.0_r_tran, 0.5_r_tran/)
+    integer(kind=i_def) :: i
+
+    ! Initialise coefficients to be zero
+    coeffs(:) = 0.0_r_tran
+
+    do i = 1, 3
+      coeffs(1) = coeffs(1) + c1_w(i,cell)*rho(i)
+      coeffs(2) = coeffs(2) + c2_w(i,cell)*rho(i)
+      coeffs(3) = coeffs(3) + c3_w(i)*rho(i)
+    end do
+
+  end subroutine horizontal_nirvana_coeffs_general
+
+  !----------------------------------------------------------------------------
+  !> @brief  Returns the horizontal Nirvana reconstruction at a cell edge with
+  !!         a special treatment of cells adjacent to panel edges.
+  !! @param[out]  recon     The Nirvana reconstruction
+  !! @param[in]   dep       The fractional departure distance for the reconstruction point.
+  !! @param[in]   field     Field values of three cells which have the ordering
+  !!                        | 1 | 2 | 3 | 4 | 5 |
+  !! @param[in]   ipanel    Panel IDs for the 5 cells
+  !! @param[in]   monotone  Monotone option to ensures no over/undershoots
+  !----------------------------------------------------------------------------
+  subroutine horizontal_nirvana_recon_spt_edges(recon, dep, field, ipanel, monotone)
+
+    implicit none
+
+    ! Arguments
+    real(kind=r_tran),   intent(out) :: recon
+    real(kind=r_tran),   intent(in)  :: dep
+    real(kind=r_tran),   intent(in)  :: field(1:5)
+    integer(kind=i_def), intent(in)  :: ipanel(1:5)
+    integer(kind=i_def), intent(in)  :: monotone
+
+    ! Internal variables
+    real(kind=r_tran)   :: coeffs(1:3)
+    integer(kind=i_def) :: rec_case
+    real(kind=r_tran)   :: s
+    real(kind=r_tran), parameter  :: half = 0.5_r_tran
+    real(kind=r_tran), parameter  :: third = 1.0_r_tran/3.0_r_tran
+    real(kind=r_tran), parameter  :: one = 1.0_r_tran
+    real(kind=r_tran), parameter  :: two = 2.0_r_tran
+
+    ! Identify which reconstruction case (rec_case)
+
+    call horizontal_nirvana_case(ipanel,rec_case)
+
+    ! Compute parabola coefficients
+
+    select case (rec_case)
+    case (1) !points (2:4) on same panel
+      call horizontal_nirvana_coeffs_general(coeffs,field(2:4),2_i_def)
+    case (2) !point (1:3) on same panel
+      call horizontal_nirvana_coeffs_general(coeffs,field(1:3),3_i_def)
+    case (3) !point (3:5) on same panel
+      call horizontal_nirvana_coeffs_general(coeffs,field(3:5),1_i_def)
+    end select
+
+    !If monotone correct coeffs
+    if (monotone /= horizontal_monotone_none ) then
+       call parabola_mono(coeffs,field(2),field(3),field(4),monotone)
+    end if
+
+    !Compute reconstruction from dep and coeffs
+    s = abs(dep)
+    if ( dep >= 0.0_r_tran) then
+      recon = ( third*(s**two) - s + one )*coeffs(3) +  &
+                (one - half*s)*coeffs(2) + coeffs(1)
+    else
+       recon = third*(s**two)*coeffs(3) + half*s*coeffs(2) + coeffs(1)
+    end if
+
+  end subroutine horizontal_nirvana_recon_spt_edges
+
+  !----------------------------------------------------------------------------------
+  !> @brief check if the parabola is monotone otherwise change it to a monotone one
+  !! @param[inout]  coeffs          The cell parabola coefficients
+  !! @param[in]     density_left    Density at the left of the cell
+  !! @param[in]     density         Density of the cell
+  !! @param[in]     density_right   Density at the right of the cell
+  !! @param[in]     monotone        Monotone option
+  !----------------------------------------------------------------------------------
+  subroutine parabola_mono(coeffs,density_left,density,density_right,monotone)
+
+    implicit none
+
+    real(kind=r_tran),   intent(inout) :: coeffs(1:3)
+    real(kind=r_tran),   intent(in)    :: density
+    real(kind=r_tran),   intent(in)    :: density_left, density_right
+    integer(kind=i_def), intent(in)    :: monotone
+    real(kind=r_tran) :: t, test1, test2, test3, test4
+    real(kind=r_tran) :: val_left, val_right, val_mid
+
+    t = - coeffs(2)/(2.0_r_tran*coeffs(3) + EPS_R_TRAN)
+    test1 = (t+EPS_R_TRAN)*((1.0_r_tran + EPS_R_TRAN)-t)
+    val_left  = coeffs(1)
+    val_right = coeffs(1) + coeffs(2) + coeffs(3)
+
+    ! If test1 > 0 then there is a turning point inside the interval [0,1],
+    ! Therefore, we need to modify the parabola to a monotone reconstruction
+    ! We have 2 options:
+    ! If (monotone=horizontal_monotone_strict) we reduce the reconstruction to constant.
+    !     With this option we also reduce to linear if the end-values (val_left,val_right)
+    !     of the parabola are outside the immidiate neighbours
+    ! If (monotone/=horizontal_monotone_strict) then we reduces to a monotone parbola
+
+    if ( monotone == horizontal_monotone_strict ) then
+      test2 = (val_left - density_left)*(density - val_left)
+      test3 = (val_right - density)*(density_right - val_right)
+      if ( (test1 > 0.0_r_tran) .or.  &
+           (test2 < 0.0_r_tran) .or.  &
+           (test3 < 0.0_r_tran)         ) then
+         coeffs(1) = density
+         coeffs(2) = 0.0_r_tran
+         coeffs(3) = 0.0_r_tran
+      end if
+    else
+      if ( test1 > 0.0_r_tran ) then
+         val_mid   = 0.5_r_tran*(val_left + val_right)
+         test4 = (density - val_left)*(val_mid - density)
+         if ( test4 > 0.0_r_tran ) then !Left flat monotone parabola
+           coeffs(1) = val_left
+           coeffs(2) = 0.0_r_tran
+           coeffs(3) = 3.0_r_tran*density -  3.0_r_tran*val_left
+         else !Right flat monotone parabola
+           coeffs(1) =  3.0_r_tran*density - 2.0_r_tran*val_right
+           coeffs(2) = -6.0_r_tran*density + 6.0_r_tran*val_right
+           coeffs(3) =  3.0_r_tran*density - 3.0_r_tran*val_right
+         end if
+      end if
+    end if
+
+  end subroutine parabola_mono
 
   !----------------------------------------------------------------------------
   !> @brief  Returns the horizontal Nirvana reconstruction at a cell edge.
@@ -961,5 +1317,30 @@ contains
     end if
 
   end subroutine vertical_ppm_relax
+  !----------------------------------------------------------------------------------
+  !> @brief computes the 3 coefficients of a cell parabola rho(x) which satifies
+  !!        (i)   rho(0) = density_left,
+  !!        (ii)  rho(1) = density_right,
+  !!        (iii) integral(rho(x),x=0...1) = density
+  !! @param[out]  coeffs          The cell parabola coefficients
+  !! @param[in]   density_left    Parabola left value at x=0
+  !! @param[in]   density         Density of the cell
+  !! @param[in]   density_right   Parabola right value at x=1
+  !----------------------------------------------------------------------------------
+  subroutine calculate_parabola_coeffs(density_left,density_right,density_cell,coeffs)
+
+    implicit none
+
+    real(kind=r_tran),    intent(in)  :: density_left
+    real(kind=r_tran),    intent(in)  :: density_right
+    real(kind=r_tran),    intent(in)  :: density_cell
+    real(kind=r_tran),    intent(out) :: coeffs(1:3)
+
+    ! Calculate coefficients
+    coeffs(1) = density_left
+    coeffs(2) = -4.0_r_tran*density_left - 2.0_r_tran*density_right + 6.0_r_tran*density_cell
+    coeffs(3) =  3.0_r_tran*density_left + 3.0_r_tran*density_right - 6.0_r_tran*density_cell
+
+  end subroutine calculate_parabola_coeffs
 
 end module subgrid_rho_mod

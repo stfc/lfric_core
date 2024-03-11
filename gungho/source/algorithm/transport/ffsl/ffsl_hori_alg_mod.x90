@@ -60,16 +60,18 @@ module ffsl_hori_alg_mod
   use io_config_mod,                    only: subroutine_timers
   use subgrid_config_mod,               only: inner_order, outer_order
   use finite_element_config_mod,        only: element_order
-  use transport_config_mod,             only: extended_mesh, dry_field_name
+  use transport_config_mod,             only: extended_mesh, dry_field_name, &
+                                              special_edges_treatment
 
   implicit none
 
   private
 
-  public :: ffsl_hori_splitting_alg
-  public :: ffsl_hori_first_alg
-  public :: ffsl_hori_final_alg
-  public :: consistent_ffsl_hori_first_alg
+  public  :: ffsl_hori_splitting_alg
+  public  :: ffsl_hori_first_alg
+  public  :: ffsl_hori_final_alg
+  public  :: consistent_ffsl_hori_first_alg
+  private :: ffsl_extra_points
 
 contains
 
@@ -278,6 +280,7 @@ contains
     integer(kind=i_def) :: cfl_stencil_x
     integer(kind=i_def) :: cfl_stencil_y
     real(kind=r_tran)   :: one_over_dt
+    integer(kind=i_def) :: extra_points
     integer(kind=i_def) :: remap_depth
 
     ! Get pre-computed objects and set pointers --------------------------------
@@ -332,9 +335,10 @@ contains
     call divide_part%initialise( vector_space = field_fs )
 
     ! Set constant values
+    extra_points = ffsl_extra_points(special_edges_treatment)
     one_over_dt = 1.0_r_tran / dt
-    stencil_extent_x = dep_stencil_extent_x + 1_i_def + inner_order
-    stencil_extent_y = dep_stencil_extent_y + 1_i_def + inner_order
+    stencil_extent_x = dep_stencil_extent_x + extra_points + inner_order
+    stencil_extent_y = dep_stencil_extent_y + extra_points + inner_order
     ! PSyclone needs these to be different variables to the stencil_extents
     cfl_stencil_x = stencil_extent_x
     cfl_stencil_y = stencil_extent_y
@@ -357,19 +361,25 @@ contains
 
     if ( subroutine_timers ) call timer('transport.ffsl_hori_sweeps')
     ! Compute the mass fluxes: x-direction -------------------------------------
-    call invoke( setval_c(flux_x, 0.0_r_tran),                                 &
-                 ffsl_flux_first_x_kernel_type(flux_x, field_big_halo,         &
-                                               stencil_extent_x, dep_pts_x,    &
-                                               detj_at_w3, stencil_extent_x,   &
-                                               inner_order, monotone,          &
-                                               cfl_stencil_x, dt),             &
+    call invoke( setval_c(flux_x, 0.0_r_tran),                                   &
+                 ffsl_flux_first_x_kernel_type(flux_x,                           &
+                                               field_big_halo, stencil_extent_x, &
+                                               panel_id, stencil_extent_x,       &
+                                               dep_pts_x,                        &
+                                               detj_at_w3, stencil_extent_x,     &
+                                               inner_order, monotone,            &
+                                               cfl_stencil_x, dt,                &
+                                               special_edges_treatment),         &
     ! Compute the mass fluxes: y-direction -------------------------------------
-                 setval_c(flux_y, 0.0_r_tran),                                 &
-                 ffsl_flux_first_y_kernel_type(flux_y, field_big_halo,         &
-                                               stencil_extent_y, dep_pts_y,    &
-                                               detj_at_w3, stencil_extent_y,   &
-                                               inner_order, monotone,          &
-                                               cfl_stencil_y, dt) )
+                 setval_c(flux_y, 0.0_r_tran),                                   &
+                 ffsl_flux_first_y_kernel_type(flux_y,                           &
+                                               field_big_halo, stencil_extent_y, &
+                                               panel_id, stencil_extent_y,       &
+                                               dep_pts_y,                        &
+                                               detj_at_w3, stencil_extent_y,     &
+                                               inner_order, monotone,            &
+                                               cfl_stencil_y, dt,                &
+                                               special_edges_treatment) )
     if ( subroutine_timers ) call timer('transport.ffsl_hori_sweeps')
 
     ! fluxes may need unifying to guarantee a unique flux for each face --------
@@ -525,6 +535,7 @@ contains
     real(kind=r_tran)   :: half_dt
     logical(kind=l_def) :: to_compute_adv_inc
     logical(kind=l_def) :: to_compute_field_np1
+    integer(kind=i_def) :: extra_points
     logical(kind=l_def) :: outer
     logical(kind=l_def) :: is_dry_field
 
@@ -619,9 +630,12 @@ contains
     call flux_y_int%initialise( vector_space = w2h_fs )
 
     ! Set constant values
+    extra_points = ffsl_extra_points(special_edges_treatment)
     one_over_dt = 1.0_r_tran / dt
-    stencil_extent_x = dep_stencil_extent_x + 1_i_def + order
-    stencil_extent_y = dep_stencil_extent_y + 1_i_def + order
+    stencil_extent_x = dep_stencil_extent_x + extra_points + order
+    stencil_extent_y = dep_stencil_extent_y + extra_points + order
+
+
     ! PSyclone needs these to be different variables to the stencil_extents
     cfl_stencil_x = stencil_extent_x
     cfl_stencil_y = stencil_extent_y
@@ -666,9 +680,11 @@ contains
                                               detj_at_w3, stencil_extent_x,    &
                                               rho_d_x, stencil_extent_x,       &
                                               rho_d_y, stencil_extent_x,       &
+                                              panel_id, stencil_extent_x,      &
                                               cosmic_istart_y, cosmic_iend_y,  &
                                               dep_pts_x, frac_flux_x, order,   &
-                                              monotone, cfl_stencil_x, dt),    &
+                                              monotone, cfl_stencil_x, dt,     &
+                                              special_edges_treatment),        &
       ! Compute the mass fluxes: y-direction -----------------------------------
                    setval_c(flux_y_high, 0.0_r_tran),                          &
                    setval_c(flux_y_low, 0.0_r_tran),                           &
@@ -681,9 +697,11 @@ contains
                                               detj_at_w3, stencil_extent_y,    &
                                               rho_d_x, stencil_extent_y,       &
                                               rho_d_y, stencil_extent_y,       &
+                                              panel_id, stencil_extent_y,      &
                                               cosmic_istart_x, cosmic_iend_x,  &
                                               dep_pts_y, frac_flux_y, order,   &
-                                              monotone, cfl_stencil_y, dt),    &
+                                              monotone, cfl_stencil_y, dt,     &
+                                              special_edges_treatment),        &
       ! Combine integer and fractional fluxes ----------------------------------
                    X_plus_Y(flux_x, flux_x_high, flux_x_int),                  &
                    ! Minus sign here to correct for FFSL having the opposite
@@ -700,10 +718,12 @@ contains
                                               flux_x_low, flux_x_int,          &
                                               remap_field_x, stencil_extent_x, &
                                               remap_field_y, stencil_extent_x, &
+                                              panel_id, stencil_extent_x,      &
                                               cosmic_istart_y, cosmic_iend_y,  &
                                               dep_pts_x, detj_at_w3,           &
                                               stencil_extent_x, order,         &
-                                              monotone, cfl_stencil_x, dt),    &
+                                              monotone, cfl_stencil_x, dt,     &
+                                              special_edges_treatment),        &
       ! Compute the mass fluxes: y-direction -----------------------------------
                    setval_c(flux_y_high, 0.0_r_tran),                          &
                    setval_c(flux_y_low, 0.0_r_tran),                           &
@@ -713,10 +733,12 @@ contains
                                               flux_y_low, flux_y_int,          &
                                               remap_field_x, stencil_extent_y, &
                                               remap_field_y, stencil_extent_y, &
+                                              panel_id, stencil_extent_y,      &
                                               cosmic_istart_x, cosmic_iend_x,  &
                                               dep_pts_y, detj_at_w3,           &
                                               stencil_extent_y, order,         &
-                                              monotone, cfl_stencil_y, dt),    &
+                                              monotone, cfl_stencil_y, dt,     &
+                                              special_edges_treatment),        &
       ! Combine integer and fractional fluxes ----------------------------------
                    X_plus_Y(flux_x, flux_x_high, flux_x_int),                  &
                    X_plus_Y(flux_y, flux_y_int, flux_y_high) )
@@ -958,6 +980,7 @@ contains
     integer(kind=i_def) :: stencil_extent_y
     integer(kind=i_def) :: cfl_stencil_x
     integer(kind=i_def) :: cfl_stencil_y
+    integer(kind=i_def) :: extra_points
     integer(kind=i_def) :: remap_depth
 
     ! Get pre-computed objects and set pointers --------------------------------
@@ -1002,8 +1025,9 @@ contains
     call increment_y%initialise( vector_space = field_fs )
 
     ! Set constant values
-    stencil_extent_x = dep_stencil_extent_x + 1_i_def + order
-    stencil_extent_y = dep_stencil_extent_y + 1_i_def + order
+    extra_points = ffsl_extra_points(special_edges_treatment)
+    stencil_extent_x = dep_stencil_extent_x + extra_points + order
+    stencil_extent_y = dep_stencil_extent_y + extra_points + order
     ! PSyclone needs these to be different variables to the stencil_extents
     cfl_stencil_x = stencil_extent_x
     cfl_stencil_y = stencil_extent_y
@@ -1035,8 +1059,10 @@ contains
                                             field_big_halo, stencil_extent_x,  &
                                             detj_at_w3, stencil_extent_x,      &
                                             rho_d_n, stencil_extent_x,         &
+                                            panel_id, stencil_extent_x,        &
                                             dep_pts_x, frac_flux_x, order,     &
-                                            monotone, cfl_stencil_x, step_dt), &
+                                            monotone, cfl_stencil_x, step_dt,  &
+                                            special_edges_treatment),          &
     ! Compute the mass fluxes: y-direction -------------------------------------
                  setval_c(flux_y_high, 0.0_r_tran),                            &
                  setval_c(flux_y_low, 0.0_r_tran),                             &
@@ -1044,11 +1070,13 @@ contains
                  consist_ffsl_flux_first_y_kernel_type(                        &
                                             flux_y_high,                       &
                                             flux_y_low, flux_y_int,            &
-                                            field_big_halo, stencil_extent_y,       &
+                                            field_big_halo, stencil_extent_y,  &
                                             detj_at_w3, stencil_extent_y,      &
                                             rho_d_n, stencil_extent_y,         &
+                                            panel_id, stencil_extent_y,        &
                                             dep_pts_y, frac_flux_y, order,     &
-                                            monotone, cfl_stencil_y, step_dt), &
+                                            monotone, cfl_stencil_y, step_dt,  &
+                                            special_edges_treatment),          &
     ! Combine integer and fractional fluxes ------------------------------------
                   X_plus_Y(flux_x, flux_x_high, flux_x_int),                   &
                   ! Minus sign here to correct for FFSL having the opposite
@@ -1086,5 +1114,24 @@ contains
             dep_stencil_extent_x, dep_stencil_extent_y, field_fs, w2h_fs)
 
   end subroutine consistent_ffsl_hori_first_alg
+
+  !----------------------------------------------------------------------------
+  !> @brief  Returns the number of extra points required for ffsl stencil
+  !! @param[in]   special_edges_treatment    Logical special_edges_treatment=T/F
+  !! @return      extra_points               The number of extra points required
+  !----------------------------------------------------------------------------
+  function ffsl_extra_points(special_edges_treatment) result(extra_points)
+
+   implicit none
+
+   logical(kind=l_def), intent(in) :: special_edges_treatment
+   integer(kind=i_def)             :: extra_points
+
+   if ( special_edges_treatment ) then
+       extra_points = 2_i_def
+    else
+       extra_points = 1_i_def
+   end if
+  end function ffsl_extra_points
 
 end module ffsl_hori_alg_mod

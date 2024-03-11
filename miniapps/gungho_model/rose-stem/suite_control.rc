@@ -88,6 +88,7 @@
       'schar_cart_8s', 'schar_cart_8s_lagged_orog', 'schar_cart_8s_inconsistent', 'bell_3d_cart',
       'bryan_fritsch-dry', 'bryan_fritsch-moist', 'grabowski-clark',
       'runge-kutta-for-linear', 'semi-implicit-for-linear',
+      'baroclinic-ffsl-split-spt-edges',
       'default'
     ] } %}
 
@@ -113,6 +114,11 @@
                           "directives":{"default":{"mpi_parts":6, "threads":4, "wallclock":"00:10:00"} } },
                      plotstr="baroclinic.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR dcmip dry surface_pressure_temperature")',
     'run_application("gungho_model", "baroclinic",
+                     resolutions=[("C24_MG",3600.0)],
+                     env={"crun":1, "nrun":240,
+                          "directives":{"default":{"mpi_parts":6, "threads":4, "wallclock":"00:10:00"} } },
+                     plotstr="baroclinic.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR dcmip dry surface_pressure_temperature")',
+    'run_application("gungho_model", "baroclinic-ffsl-split-spt-edges",
                      resolutions=[("C24_MG",3600.0)],
                      env={"crun":1, "nrun":240,
                           "directives":{"default":{"mpi_parts":6, "threads":4, "wallclock":"00:10:00"} } },

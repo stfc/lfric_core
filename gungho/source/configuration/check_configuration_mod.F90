@@ -30,6 +30,7 @@ module check_configuration_mod
                                   max_vert_cfl_calc_dep_point,     &
                                   equation_form,                   &
                                   extended_mesh,                   &
+                                  special_edges_treatment,         &
                                   dry_field_name,                  &
                                   field_names,                     &
                                   use_density_predictor,           &
@@ -303,6 +304,24 @@ contains
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
       end if
+      if ( special_edges_treatment ) then
+        if ( geometry /= geometry_spherical ) then
+          write( log_scratch_space, '(A)' ) 'Special_edges_treatment only valid for spherical geometry'
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+        if ( coord_system /=  coord_system_alphabetaz ) then
+          write( log_scratch_space, '(A)' ) 'Special_edges_treatment only valid for alphabetaz coordinates'
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+        if ( topology /=  topology_fully_periodic) then
+          write( log_scratch_space, '(A)' ) 'Special_edges_treatment only valid for fully periodic topology'
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+        if ( coord_order /= 1 ) then
+          write( log_scratch_space, '(A)' ) 'Special_edges_treatment only valid for linear coord_order'
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+      end if
 
       ! Find splitting used by dry field
       dry_field_splitting = -1
@@ -550,6 +569,9 @@ contains
       stencil_depth = max( stencil_depth,          &
                            dep_pt_stencil_extent + &
                            sl_reconstruction_depth )
+      if ( special_edges_treatment ) then
+         stencil_depth = stencil_depth + 1_i_def
+      end if
     end if
 
   end function get_required_stencil_depth

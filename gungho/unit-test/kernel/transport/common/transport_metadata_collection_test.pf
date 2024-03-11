@@ -112,7 +112,8 @@ contains
                                  cap_density_predictor = 0.001_r_def,                 &
                                  max_vert_cfl_calc = max_vert_cfl_calc_uniform,       &
                                  reversible = (/ .false., .false., .false. /),        &
-                                 extended_mesh = .false.                              &
+                                 extended_mesh = .false.,                             &
+                                 special_edges_treatment = .false.                    &
                                  )
 
 

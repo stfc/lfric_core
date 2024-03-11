@@ -7,7 +7,7 @@
 
 module consist_ffsl_flux_final_x_kernel_mod_test
 
-  use constants_mod, only : i_def, r_tran
+  use constants_mod, only : i_def, r_tran, r_def, l_def
   use pFUnit_Mod
 
   implicit none
@@ -47,7 +47,7 @@ contains
     integer(kind=i_def), parameter :: stencil_extent = ( stencil_size - 1_i_def ) / 2_i_def
     integer(kind=i_def), parameter :: undf_w2 = ndf_w2*nlayers
     integer(kind=i_def), parameter :: undf_w3 = ndf_w3*nlayers*stencil_size
-    integer(kind=i_def), parameter :: undf_wp = ndf_wp
+    integer(kind=i_def), parameter :: undf_wp = ndf_wp*nlayers*stencil_size
     integer(kind=i_def), parameter :: order = 2
 
     integer(kind=i_def), dimension(ndf_w3)              :: map_w3
@@ -67,6 +67,11 @@ contains
     real(kind=r_tran),   dimension(undf_w3) :: detj
     real(kind=r_tran),   dimension(undf_w3) :: rho_d
 
+    integer(kind=i_def), parameter         :: stencil_size_p = 9
+    real(kind=r_def), dimension(undf_wp)   :: panel_id
+    logical(kind=l_def)                    :: edges_spt =.false.
+    integer(kind=i_def), dimension(ndf_wp,stencil_size_p) :: stencil_map_p
+
     real(kind=r_tran)   :: dt
     integer(kind=i_def) :: monotone
 
@@ -75,6 +80,7 @@ contains
     map_w2(:) = (/ 1, 2, 3, 4 /)
     map_w3(1) = 1
     map_wp(1) = 1
+    panel_id(:) = 1.0_r_def
 
     ! Set no monotonicity
     monotone = horizontal_monotone_none
@@ -121,6 +127,9 @@ contains
                                          rho_d,          &
                                          stencil_size,   &
                                          stencil_map,    &
+                                         panel_id,       &
+                                         stencil_size_p, &
+                                         stencil_map_p,  &
                                          i_start,        &
                                          i_end,          &
                                          dep_pts,        &
@@ -129,6 +138,7 @@ contains
                                          monotone,       &
                                          stencil_extent, &
                                          dt,             &
+                                         edges_spt,      &
                                          ndf_w2,         &
                                          undf_w2,        &
                                          map_w2,         &
@@ -182,6 +192,9 @@ contains
                                          rho_d,          &
                                          stencil_size,   &
                                          stencil_map,    &
+                                         panel_id,       &
+                                         stencil_size_p, &
+                                         stencil_map_p,  &
                                          i_start,        &
                                          i_end,          &
                                          dep_pts,        &
@@ -190,6 +203,7 @@ contains
                                          monotone,       &
                                          stencil_extent, &
                                          dt,             &
+                                         edges_spt,      &
                                          ndf_w2,         &
                                          undf_w2,        &
                                          map_w2,         &
@@ -233,6 +247,9 @@ contains
                                          rho_d,          &
                                          stencil_size,   &
                                          stencil_map,    &
+                                         panel_id,       &
+                                         stencil_size_p, &
+                                         stencil_map_p,  &
                                          i_start,        &
                                          i_end,          &
                                          dep_pts,        &
@@ -241,6 +258,7 @@ contains
                                          monotone,       &
                                          stencil_extent, &
                                          dt,             &
+                                         edges_spt,      &
                                          ndf_w2,         &
                                          undf_w2,        &
                                          map_w2,         &
@@ -284,6 +302,9 @@ contains
                                          rho_d,          &
                                          stencil_size,   &
                                          stencil_map,    &
+                                         panel_id,       &
+                                         stencil_size_p, &
+                                         stencil_map_p,  &
                                          i_start,        &
                                          i_end,          &
                                          dep_pts,        &
@@ -292,6 +313,7 @@ contains
                                          monotone,       &
                                          stencil_extent, &
                                          dt,             &
+                                         edges_spt,      &
                                          ndf_w2,         &
                                          undf_w2,        &
                                          map_w2,         &
