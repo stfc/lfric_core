@@ -125,12 +125,13 @@ module linear_step_mod
 
     select case( method )
       case( method_semi_implicit )  ! Semi-Implicit
-        call tl_semi_implicit_alg_step(u, rho, theta,                     &
-                                       exner, mr, moist_dyn,              &
-                                       ls_u, ls_rho, ls_theta,            &
-                                       ls_exner, ls_mr, ls_moist_dyn,     &
-                                       derived_fields,                    &
-                                       model_clock, mesh, twod_mesh)
+        call tl_semi_implicit_alg_step(u, rho, theta,                 &
+                                       exner, mr, moist_dyn,          &
+                                       ls_u, ls_rho, ls_theta,        &
+                                       ls_exner, ls_mr, ls_moist_dyn, &
+                                       derived_fields,                &
+                                       model_clock, mesh, twod_mesh,  &
+                                       modeldb%Configuration)
       case( method_rk )             ! RK
         call tl_rk_alg_step(u, rho, theta, moist_dyn, exner, mr,  &
                             ls_u, ls_rho, ls_theta,               &

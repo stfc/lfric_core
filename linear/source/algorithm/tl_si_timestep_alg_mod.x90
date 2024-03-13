@@ -14,6 +14,8 @@ module tl_si_timestep_alg_mod
                                          LOG_LEVEL_INFO,    &
                                          LOG_LEVEL_ERROR
   use model_clock_mod,             only: model_clock_type
+  use namelist_collection_mod,     only: namelist_collection_type
+  use namelist_mod,                only: namelist_type
   use reference_element_mod,       only: T
 
   ! Configuration options
@@ -161,7 +163,7 @@ contains
   !> @param[in]     ls_moist_dyn Lin. state for moist dynamical factors
   subroutine tl_semi_implicit_alg_init( mesh, u, rho, theta, exner, mr,   &
                                         ls_u, ls_rho, ls_theta, ls_exner, &
-                                        ls_mr, ls_moist_dyn)
+                                        ls_mr, ls_moist_dyn )
 
     implicit none
 
@@ -317,11 +319,13 @@ contains
   !> @param[in]     model_clock            Time within the model.
   !> @param[in]     mesh                   The current mesh
   !> @param[in]     twod_mesh              The current 2d mesh
-  subroutine tl_semi_implicit_alg_step(u, rho, theta, exner, mr, moist_dyn, &
-                                       ls_u, ls_rho, ls_theta, ls_exner,    &
-                                       ls_mr, ls_moist_dyn,                 &
-                                       derived_fields,                      &
-                                       model_clock, mesh, twod_mesh)
+  !> @param[in]     configuration          The model namelist configuration
+  subroutine tl_semi_implicit_alg_step( u, rho, theta, exner, mr, moist_dyn, &
+                                        ls_u, ls_rho, ls_theta, ls_exner,    &
+                                        ls_mr, ls_moist_dyn,                 &
+                                        derived_fields,                      &
+                                        model_clock, mesh, twod_mesh,        &
+                                        configuration )
 
     implicit none
 
@@ -336,27 +340,33 @@ contains
     ! field groups
     type( field_collection_type ), intent( inout ) :: derived_fields
 
-    class(model_clock_type), intent(in) :: model_clock
+    class( model_clock_type ), intent( in ) :: model_clock
 
-    type(mesh_type), intent(in), pointer :: mesh
-    type(mesh_type), intent(in), pointer :: twod_mesh
+    type( mesh_type ), intent( in ), pointer :: mesh
+    type( mesh_type ), intent( in ), pointer :: twod_mesh
 
-    real(kind=r_def) :: cast_dt
+    type( namelist_collection_type ), intent( in ) :: configuration
+
+    real( kind=r_def ) :: cast_dt
 
     ! Quadrature object
     type( quadrature_xyoz_type ), pointer :: qr => null()
 
-    type(operator_type), pointer :: mm_wt  => null()
-    type(operator_type), pointer :: mm_vel => null()
+    type( operator_type ), pointer :: mm_wt  => null()
+    type( operator_type ), pointer :: mm_vel => null()
 
-    integer(kind=i_def) :: outer, inner, reset_ref_state, i_mr
-    integer(kind=i_def) :: next_outer, next_inner
-    real(kind=r_def)    :: varalpha, varbeta ! alpha, beta weight to use
-                                             ! these may differ from input values
-                                             ! during the spinup period
+    integer( kind=i_def ) :: outer, inner, reset_ref_state, i_mr
+    integer( kind=i_def ) :: next_outer, next_inner
+    real( kind=r_def )    :: varalpha, varbeta ! alpha, beta weight to use
+                                               ! these may differ from input
+                                               ! values during the spinup period
 
     ! Don't write moisture diagnostics in linear app
-    logical(kind=l_def) :: write_moisture_diag = .false.
+    logical( kind=l_def ) :: write_moisture_diag = .false.
+
+    ! Configuration
+    type( namelist_type ), pointer :: mixed_solver_nml
+    real( kind=r_def )             :: mixed_solver_a_tol
 
     if ( subroutine_timers ) call timer('semi_implicit_timestep_alg')
 
@@ -782,16 +792,19 @@ contains
           ! Solve semi-implicit system: A*inc = rhs, and increment state by inc
           !--------------------------------------------------------------------
 
+          mixed_solver_nml => configuration%get_namelist('mixed_solver')
+          call mixed_solver_nml%get_value( 'mixed_solver_a_tol', &
+                                            mixed_solver_a_tol )
+
           ! If rhs_np1 is zero, there is no need to call the SI solver
-          if ( bundle_is_zero(1e-10_r_def, rhs_np1, bundle_size) ) then
-            call set_bundle_scalar(0.0_r_def, state, bundle_size)
-          else
+          if ( .not. &
+               bundle_is_zero(mixed_solver_a_tol, rhs_np1, bundle_size) ) then
             call semi_implicit_solver_alg_step( state, rhs_np1,      &
                                                 moist_dyn(gas_law),  &
                                                 mr,                  &
                                                 write_moisture_diag, &
                                                 first_iteration=(inner==1) )
-          endif
+          end if
 
           ! Update factors for moist dynamics
           if (use_moisture) then
