@@ -56,9 +56,11 @@ program jedi_lfric_tests
   call modeldb%fields%add_empty_field_collection("diagnostic_fields",         &
                                                   table_len = 100)
 
+  call modeldb%io_contexts%initialise(program_name, 100)
+
   call log_event( 'Initialising ' // program_name // ' ...', log_level_trace )
   call init_time( modeldb%clock, modeldb%calendar )
-  call initialise( modeldb, modeldb%calendar )
+  call initialise( program_name, modeldb )
 
   call log_event( 'Running ' // program_name // ' ...', log_level_trace )
   do while ( modeldb%clock%tick() )

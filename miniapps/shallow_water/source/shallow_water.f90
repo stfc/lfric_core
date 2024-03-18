@@ -50,6 +50,8 @@ program shallow_water
   call modeldb%fields%add_empty_field_collection("prognostics", &
                                                  table_len = 100)
 
+  call modeldb%io_contexts%initialise(program_name, 100)
+
   call init_comm( program_name, global_mpi )
   call get_initial_filename( filename )
   call init_config( filename, shallow_water_required_namelists, &

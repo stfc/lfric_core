@@ -93,8 +93,7 @@ contains
 
     ! Initialise infrastructure and setup constants
     !
-    call initialise_infrastructure( modeldb, &
-                                    calendar )
+    call initialise_infrastructure( program_name, modeldb )
 
     ! Add a place to store time axes in modeldb
     call modeldb%values%add_key_value('model_axes', model_axes)
@@ -385,7 +384,7 @@ contains
     call finalise_model_data( modeldb )
 
     ! Finalise infrastructure and constants
-    call finalise_infrastructure()
+    call finalise_infrastructure(modeldb)
 
   end subroutine finalise
 

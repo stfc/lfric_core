@@ -7,8 +7,9 @@
 !>
 module io_context_mod
 
+  use constants_mod,   only : str_def
   use clock_mod,       only : clock_type
-  use event_mod,       only : event_actor_type
+  use event_actor_mod, only : event_actor_type
   use linked_list_mod, only : linked_list_type
 
   implicit none
@@ -19,8 +20,11 @@ module io_context_mod
   !>
   type, public, abstract, extends(event_actor_type) :: io_context_type
     private
+    character(str_def) :: context_name
   contains
     private
+    procedure, public :: initialise_io_context
+    procedure, public :: get_context_name
     procedure(get_filelist_if), public, deferred :: get_filelist
     procedure(set_current_if) , public, deferred :: set_current
   end type io_context_type
@@ -61,5 +65,28 @@ module io_context_mod
   public :: callback_clock_arg
 
 contains
+
+  !> @brief Initialise the abstract I/O context
+  !> @param name The name of the I/O context
+  subroutine initialise_io_context(this, name)
+    implicit none
+    class(io_context_type), intent(inout) :: this
+    character(*), intent(in) :: name
+
+    this%context_name = trim(name)
+    call this%init_event_actor(name)
+
+  end subroutine initialise_io_context
+
+  !> @brief Returns the name of this I/O context
+  !> @return name The name of the I/O context
+  function get_context_name(this) result(name)
+    implicit none
+    class(io_context_type) :: this
+    character(str_def) :: name
+
+    name = this%context_name
+
+  end function get_context_name
 
 end module io_context_mod

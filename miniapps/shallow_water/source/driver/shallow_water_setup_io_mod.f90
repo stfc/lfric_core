@@ -10,7 +10,7 @@ module shallow_water_setup_io_mod
 
   use constants_mod,                 only: i_def, &
                                            str_def, str_max_filename
-  use driver_model_data_mod,         only: model_data_type
+  use driver_modeldb_mod,            only: modeldb_type
   use file_mod,                      only: FILE_MODE_READ, &
                                            FILE_MODE_WRITE
   use files_config_mod,              only: checkpoint_stem_name
@@ -33,12 +33,12 @@ module shallow_water_setup_io_mod
 
   !> @brief  Sets up I/O configuration.
   !> @param[out] files_list The list of I/O files
-  subroutine init_shallow_water_files(files_list, model_data)
+  subroutine init_shallow_water_files(files_list, modeldb)
 
     implicit none
 
-    type(linked_list_type),                   intent(out) :: files_list
-    class(model_data_type), optional, target, intent(in)  :: model_data
+    type(linked_list_type),        intent(out) :: files_list
+    type(modeldb_type), optional, intent(inout)  :: modeldb
 
     character(len=str_max_filename) :: checkpoint_write_fname, &
                                        checkpoint_read_fname

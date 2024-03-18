@@ -52,6 +52,8 @@ program lfric_atm
   call modeldb%fields%add_empty_field_collection("diagnostic_fields", &
                                                   table_len = 100)
 
+  call modeldb%io_contexts%initialise(application_name, 100)
+
   call init_comm( application_name, modeldb%mpi )
   call get_initial_filename( filename )
   call init_config( filename, gungho_required_namelists, &
@@ -63,7 +65,7 @@ program lfric_atm
   call init_counters( application_name )
   deallocate( filename )
 
-  call initialise( application_name, modeldb, modeldb%calendar )
+  call initialise( application_name, modeldb )
   do while (modeldb%clock%tick())
     call step( modeldb )
   end do

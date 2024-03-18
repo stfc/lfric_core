@@ -1,0 +1,78 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! For further details please refer to the file LICENCE which you should have
+! received as part of this distribution.
+!-----------------------------------------------------------------------------
+!> @brief Test the functionality of hash_mod
+!>
+!> @details A pFUnit test module to exercise the hashing algorithms.
+!>
+module hash_mod_test
+
+  use pFUnit_Mod
+  use mpi_mod, only : global_mpi
+  use constants_mod, only: i_def, str_def
+
+  implicit none
+
+  private
+
+  public test_string_hashing
+
+  @TestCase
+  type, extends(MPITestCase), public :: hash_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_string_hashing
+  end type hash_test_type
+
+contains
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(hash_test_type), intent(inout) :: this
+
+    !Store the MPI communicator for later use
+    call global_mpi%initialise(this%getMpiCommunicator())
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(hash_test_type), intent(inout) :: this
+
+    ! Clear the stored MPI communicator
+    call global_mpi%finalise()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test( npes=[1] )
+  subroutine test_string_hashing(this)
+
+    use hash_mod, only : hash_string
+
+    implicit none
+
+    class(hash_test_type), intent(inout) :: this
+
+    character(str_def) :: string
+    integer(i_def) :: hash, result
+
+    string = "This is a string"
+    result = 1484
+
+    hash = hash_string(trim(string))
+
+    @assertEqual(result, hash)
+
+  end subroutine test_string_hashing
+
+end module hash_mod_test

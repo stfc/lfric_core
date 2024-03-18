@@ -7,9 +7,7 @@
 module linear_driver_mod
 
   use base_mesh_config_mod,       only : prime_mesh_name
-  use calendar_mod,               only : calendar_type
   use constants_mod,              only : i_def, r_def, imdi
-  use driver_io_mod,              only : get_io_context
   use extrusion_mod,              only : TWOD
   use field_array_mod,            only : field_array_type
   use field_mod,                  only : field_type
@@ -71,24 +69,24 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Sets up required state in preparation for run.
-  !>
+  !> @param [in]     program_name An identifier given to the model being run
   !> @param [in,out] modeldb   The structure that holds model state
-  !> @param [in]     calendar  Interprets dates.
   !>
-  subroutine initialise( modeldb, calendar )
+  subroutine initialise( program_name, modeldb )
 
     implicit none
 
+    character(*),         intent(in)    :: program_name
     type(modeldb_type),   intent(inout) :: modeldb
-    class(calendar_type), intent(in)    :: calendar
 
     type(gungho_time_axes_type)     :: model_axes
 
-    class(io_context_type), pointer :: io_context        => null()
     type( mesh_type ),      pointer :: aerosol_mesh      => null()
     type( mesh_type ),      pointer :: aerosol_twod_mesh => null()
 
     type( field_collection_type ), pointer :: depository => null()
+
+    character(len=*), parameter :: io_context_name = "gungho_atm"
 
     depository => modeldb%fields%get_field_collection("depository")
 
@@ -98,8 +96,7 @@ contains
     call modeldb%values%add_key_value( 'total_energy_previous', 0.0_r_def )
 
     ! Initialise infrastructure and setup constants
-    call initialise_infrastructure( modeldb, &
-                                    calendar )
+    call initialise_infrastructure( io_context_name, modeldb )
 
     ! Add a place to store time axes in modeldb
     call modeldb%values%add_key_value('model_axes', model_axes)
@@ -158,9 +155,8 @@ contains
                            modeldb )
 
     ! Initial output
-    io_context => get_io_context()
     call write_initial_output( modeldb, mesh, twod_mesh, &
-                               io_context, nodal_output_on_w3 )
+                               io_context_name, nodal_output_on_w3 )
 
     ! Linear model configuration initialisation
     call initialise_linear_model( mesh,        &
@@ -240,7 +236,7 @@ contains
     call finalise_model_data( modeldb )
 
     ! Finalise infrastructure and constants
-    call finalise_infrastructure()
+    call finalise_infrastructure(modeldb)
 
   end subroutine finalise
 

@@ -12,7 +12,7 @@ module gungho_setup_io_mod
 
   use constants_mod,             only: i_def, str_def, &
                                        str_max_filename
-  use driver_model_data_mod,     only: model_data_type
+  use driver_modeldb_mod,        only: modeldb_type
   use file_mod,                  only: FILE_MODE_READ, &
                                        FILE_MODE_WRITE
   use lfric_xios_file_mod,       only: lfric_xios_file_type
@@ -151,14 +151,16 @@ module gungho_setup_io_mod
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Adds details of all files-of-interest to a list.
   !>
-  !> @param[out] files_list  Array of lfric_xios_file_type objects.
+  !> @param[out]   files_list Array of lfric_xios_file_type objects.
+  !> @param[inout] modeldb    The modeldb holding the model state [unused here
+  !>                          but required by the procedure interface]
   !>
-  subroutine init_gungho_files( files_list, model_data )
+  subroutine init_gungho_files( files_list, modeldb )
 
     implicit none
 
-    type(linked_list_type),                   intent(out) :: files_list
-    class(model_data_type), optional, target, intent(in)  :: model_data
+    type(linked_list_type),                intent(out) :: files_list
+    type(modeldb_type), optional,          intent(inout)  :: modeldb
 
     character(len=str_max_filename) :: checkpoint_write_fname, &
                                        checkpoint_read_fname,  &

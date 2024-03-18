@@ -7,11 +7,12 @@
 !>
 module model_clock_mod
 
-  use clock_mod,     only : clock_type
-  use constants_mod, only : i_timestep, i_def, r_def, r_second
-  use event_mod,     only : event_type, event_actor_type, event_action
-  use log_mod,       only : log_event, log_level_error, log_scratch_space, &
-                            log_set_timestep, log_forget_timestep
+  use clock_mod,       only : clock_type
+  use constants_mod,   only : i_timestep, i_def, r_def, r_second
+  use event_mod,       only : event_type, event_action
+  use event_actor_mod, only : event_actor_type
+  use log_mod,         only : log_event, log_level_error, log_scratch_space, &
+                              log_set_timestep, log_forget_timestep
 
   implicit none
 
@@ -36,7 +37,7 @@ module model_clock_mod
     real(r_def)         :: spinup_fraction
     logical             :: initialisation_phase
     logical             :: starting
-    type(event_type)    :: ts_events(2)
+    type(event_type)    :: ts_events(3)
   contains
     private
     procedure, public :: tick

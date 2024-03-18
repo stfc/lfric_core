@@ -137,9 +137,6 @@
                 ],
                 'intel-perf' : [
                     'module load meto-environment/lfric-perftools/intel/17.0.0.098/2'
-                ],
-                'cray' : [
-                    'module load meto-environment/lfric/cce/8.7.0/6'
                 ]
             },
             'reveal' : ['module list 2>&1', 'export'],
@@ -207,9 +204,6 @@
                 ],
                 'intel-perf' : [
                     'module load meto-environment/lfric-perftools/intel/17.0.0.098/2'
-                ],
-                'cray' : [
-                    'module load meto-environment/lfric/cray/8.7.0/7'
                 ]
             },
             'reveal' : ['module list 2>&1', 'export'],
@@ -274,9 +268,6 @@
             'compiler' : {
                 'intel' : [
                     'module load meto-environment/lfric/intel/17.0.0.098/6'
-                ],
-                'cray' : [
-                    'module load meto-environment/lfric/cray/8.7.0/6'
                 ]
             },
             'reveal' : ['module list 2>&1', 'export'],

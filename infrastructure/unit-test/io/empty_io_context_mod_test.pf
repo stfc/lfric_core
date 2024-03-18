@@ -1,0 +1,83 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2018 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Test the selected functionality of io_mod
+!>
+!> @details A pFUnit test module to exercise the functionality in io_mod.
+!>
+module empty_io_context_mod_test
+
+  use mpi_mod, only : global_mpi
+  use pFUnit_mod
+
+  implicit none
+
+  private
+  public :: test_empty_io_context
+
+  @TestCase
+  type, public, extends(MpiTestCase) :: empty_io_context_test_type
+
+    private
+
+  contains
+
+    procedure setUp
+    procedure tearDown
+    procedure test_empty_io_context
+
+  end type empty_io_context_test_type
+
+contains
+
+
+  subroutine setUp( this )
+
+    implicit none
+
+    class(empty_io_context_test_type), intent(inout) :: this
+
+    call global_mpi%initialise(this%getMpiCommunicator())
+
+  end subroutine setUp
+
+
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(empty_io_context_test_type), intent(inout) :: this
+
+    call global_mpi%finalise()
+
+  end subroutine tearDown
+
+  ! Test filename generation for restart files
+  @test( npes=[1] )
+  subroutine test_empty_io_context( this )
+    use empty_io_context_mod, only: empty_io_context_type
+    use linked_list_mod, only: linked_list_type
+    use linked_list_int_mod, only: linked_list_int_type
+
+    implicit none
+
+    class(empty_io_context_test_type), intent(inout) :: this
+
+    type(empty_io_context_type) :: test_io_context
+    type(linked_list_type), target :: tmp_list
+    type(linked_list_type), pointer :: filelist => null()
+
+    tmp_list = linked_list_type()
+    call tmp_list%insert_item(linked_list_int_type(1))
+    filelist => tmp_list
+    @assertTrue(associated(filelist, tmp_list))
+    call test_io_context%initialise("empty_context")
+
+    filelist => test_io_context%get_filelist()
+    @assertFalse(associated(filelist))
+
+  end subroutine test_empty_io_context
+
+end module empty_io_context_mod_test

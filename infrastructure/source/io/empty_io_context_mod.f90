@@ -22,9 +22,19 @@ module empty_io_context_mod
     private
     procedure, public :: get_filelist
     procedure, public :: set_current
+    procedure, public :: initialise => empty_io_context_initialiser
   end type empty_io_context_type
 
 contains
+
+  subroutine empty_io_context_initialiser(this, name)
+    implicit none
+    class(empty_io_context_type), intent(inout) :: this
+    character(*), intent(in) :: name
+
+    call this%initialise_io_context(name)
+
+  end subroutine empty_io_context_initialiser
 
   !> @brief  Deferred procedure implementation - does nothing
   !>

@@ -11,8 +11,8 @@
 
 program gravity_wave
 
-  use calendar_mod,            only: calendar_type
   use cli_mod,                 only: get_initial_filename
+  use driver_modeldb_mod,      only: modeldb_type
   use driver_collections_mod,  only: init_collections, final_collections
   use driver_comm_mod,         only: init_comm, final_comm
   use driver_config_mod,       only: init_config, final_config
@@ -24,48 +24,49 @@ program gravity_wave
   use log_mod,                 only: log_event,       &
                                      log_level_trace, &
                                      log_scratch_space
-  use model_clock_mod,         only: model_clock_type
   use mpi_mod,                 only: global_mpi
-  use namelist_collection_mod, only: namelist_collection_type
 
   implicit none
 
+  type(modeldb_type)        :: modeldb
   character(*), parameter   :: program_name = "gravity_wave"
   character(:), allocatable :: filename
 
-  type(model_clock_type), allocatable  :: model_clock
-  class(calendar_type),   allocatable  :: model_calendar
-  type(namelist_collection_type), save :: configuration
+  call modeldb%configuration%initialise( program_name, table_len=10 )
 
-  call configuration%initialise( program_name, table_len=10 )
-
-  call init_comm( program_name, global_mpi )
+  modeldb%mpi => global_mpi
+  call init_comm( program_name, modeldb%mpi )
   call get_initial_filename( filename )
   call init_config( filename, gravity_wave_required_namelists, &
-                    configuration )
-  call init_logger( global_mpi%get_comm(), program_name )
-  call init_collections()
-  call init_timers( program_name )
-  call init_time( model_clock, model_calendar )
+                    modeldb%configuration )
   deallocate( filename )
 
+  call init_logger( modeldb%mpi%get_comm(), program_name )
+  call init_collections()
+  call init_timers( program_name )
+  call init_time( modeldb%clock, modeldb%calendar )
+
+  ! Create the depository field collection and place it in modeldb
+  call modeldb%fields%add_empty_field_collection("depository")
+
+  call modeldb%io_contexts%initialise(program_name, 100)
   call log_event( 'Initialising '//program_name//' ...', log_level_trace )
-  call initialise( configuration, global_mpi, model_clock, model_calendar )
+  call initialise( program_name, modeldb )
 
   write(log_scratch_space,'("Running ",A, " ...")') program_name
   call log_event( log_scratch_space, log_level_trace )
-  do while (model_clock%tick())
-    call step( model_clock, program_name )
+  do while (modeldb%clock%tick())
+    call step( program_name, modeldb )
   end do
 
   call log_event( 'Finalising '//program_name//' ...', log_level_trace )
-  call finalise( model_clock, program_name )
+  call finalise( program_name, modeldb )
 
-  call final_time( model_clock, model_calendar )
+  call final_time( modeldb%clock, modeldb%calendar )
   call final_timers( program_name )
   call final_collections()
   call final_logger( program_name )
   call final_config()
-  call final_comm( global_mpi )
+  call final_comm( modeldb%mpi )
 
 end program gravity_wave

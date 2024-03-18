@@ -45,6 +45,8 @@ program io_dev
   call modeldb%fields%add_empty_field_collection("dump_fields", table_len=1)
   call modeldb%fields%add_empty_field_collection("alg_fields", table_len=1)
 
+  call modeldb%io_contexts%initialise(program_name, 100)
+
   write( log_scratch_space,'(A)' )                         &
       'Application built with ' // trim(precision_real) // &
       '-bit real numbers.'
@@ -61,8 +63,7 @@ program io_dev
   deallocate( filename )
 
   call log_event( 'Initialising '//program_name//' ...', log_level_trace )
-  call initialise( modeldb, &
-                   program_name, modeldb%calendar )
+  call initialise( program_name, modeldb )
 
   write(log_scratch_space,'("Running ", A, " ...")') program_name
   call log_event( log_scratch_space, log_level_trace )

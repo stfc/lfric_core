@@ -17,8 +17,7 @@ module io_dev_init_files_mod
                                    OPERATION_TIMESERIES
   use linked_list_mod,       only: linked_list_type
   use log_mod,               only: log_event, log_level_error
-  use io_dev_modeldb_mod,    only: modeldb_type
-  use driver_model_data_mod, only: model_data_type
+  use driver_modeldb_mod,    only: modeldb_type
 
   ! Configuration modules
   use files_config_mod,    only: diag_stem_name,            &
@@ -46,12 +45,12 @@ module io_dev_init_files_mod
 
   contains
 
-  subroutine init_io_dev_files(files_list, model_fields)
+  subroutine init_io_dev_files(files_list, modeldb)
 
     implicit none
 
-    type(linked_list_type),                   intent(out) :: files_list
-    class(model_data_type), optional, target, intent(in)  :: model_fields
+    type(linked_list_type),       intent(out)    :: files_list
+    type(modeldb_type), optional,  intent(inout)  :: modeldb
 
     character(len=str_max_filename)  :: checkpoint_write_fname, &
                                         checkpoint_read_fname,  &
@@ -63,9 +62,9 @@ module io_dev_init_files_mod
     type(field_collection_type), pointer :: depository
     type(field_collection_type), pointer :: dump_fields
     type(field_collection_type), pointer :: alg_fields
-    depository  => model_fields%get_field_collection("depository")
-    dump_fields => model_fields%get_field_collection("dump_fields")
-    alg_fields  => model_fields%get_field_collection("alg_fields")
+    depository  => modeldb%fields%get_field_collection("depository")
+    dump_fields => modeldb%fields%get_field_collection("dump_fields")
+    alg_fields  => modeldb%fields%get_field_collection("alg_fields")
 
     ! Get time configuration in integer form
     read(timestep_start,*,iostat=rc)  ts_start

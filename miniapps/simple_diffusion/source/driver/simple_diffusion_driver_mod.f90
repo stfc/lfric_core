@@ -10,7 +10,6 @@
 module simple_diffusion_driver_mod
 
   use add_mesh_map_mod,           only : assign_mesh_maps
-  use calendar_mod,               only : calendar_type
   use checksum_alg_mod,           only : checksum_alg
   use constants_mod,              only : i_def, str_def, &
                                          r_def, r_second
@@ -58,14 +57,12 @@ contains
   !> Sets up required state in preparation for run.
   !> @param [in]     program_name An identifier given to the model being run
   !> @param [in,out] modeldb      The structure that holds model state
-  !> @param [in]     calendar     The model calendar
-    subroutine initialise( program_name, modeldb, calendar )
+    subroutine initialise( program_name, modeldb)
 
     implicit none
 
     character(*),         intent(in)    :: program_name
     type(modeldb_type),   intent(inout) :: modeldb
-    class(calendar_type), intent(in)    :: calendar
 
     ! Coordinate field
     type(field_type),             pointer :: chi(:) => null()
@@ -187,8 +184,7 @@ contains
     ! 3.0 Setup I/O system.
     !=======================================================================
     ! Initialise I/O context
-    call init_io( program_name, modeldb%mpi%get_comm(), chi_inventory, &
-                  panel_id_inventory, modeldb%clock, calendar )
+    call init_io( program_name, modeldb, chi_inventory, panel_id_inventory )
 
 
     !=======================================================================
@@ -224,7 +220,7 @@ contains
     call log_event(program_name//": Calculating diffusion", LOG_LEVEL_INFO)
     call simple_diffusion_alg(diffusion_field)
 
-    if (write_diag ) then
+    if (write_diag) then
         ! Write out output file
         call log_event(program_name//": Writing diagnostic output", LOG_LEVEL_INFO)
         call diffusion_field%write_field('diffusion_field')
@@ -259,7 +255,7 @@ contains
     ! Driver layer finalise
     !-------------------------------------------------------------------------
     ! Finalise IO
-    call final_io()
+    call final_io(modeldb)
     call final_fem()
 
   end subroutine finalise

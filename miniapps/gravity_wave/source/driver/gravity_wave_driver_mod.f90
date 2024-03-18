@@ -9,7 +9,7 @@
 module gravity_wave_driver_mod
 
   use base_mesh_config_mod,           only: prime_mesh_name
-  use calendar_mod,                   only: calendar_type
+  use driver_modeldb_mod,             only: modeldb_type
   use constants_mod,                  only: i_def, r_def
   use gravity_wave_infrastructure_mod,only: initialise_infrastructure, &
                                             finalise_infrastructure
@@ -47,7 +47,6 @@ module gravity_wave_driver_mod
                                             log_scratch_space
   use mesh_mod,                       only: mesh_type
   use mesh_collection_mod,            only: mesh_collection
-  use model_clock_mod,                only: model_clock_type
   use mpi_mod,                        only: mpi_type
   use namelist_collection_mod,        only: namelist_collection_type
   use io_mod,                         only: ts_fname
@@ -71,18 +70,17 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Sets up required state in preparation for run.
   !>
-  subroutine initialise( configuration, mpi, model_clock, calendar )
+  !> @param[in]    program_name  The name of the program being run
+  !> @param[inout] modeldb       The modeldb object
+  subroutine initialise( program_name, modeldb )
 
   implicit none
 
-  type(namelist_collection_type), intent(inout) :: configuration
-
-  class(mpi_type),         intent(inout) :: mpi
-  class(model_clock_type), intent(inout) :: model_clock
-  class(calendar_type),    intent(in)    :: calendar
+  character(*),       intent(in)    :: program_name
+  type(modeldb_type), intent(inout) :: modeldb
 
   ! Initialise aspects of the infrastructure
-  call initialise_infrastructure( configuration, model_clock, mpi, calendar )
+  call initialise_infrastructure( program_name, modeldb)
 
   ! The limited area version is unable to work with buoyancy in W0 when using
   ! a biperiodic mesh. However, this could be solved by breaking the continuity
@@ -110,19 +108,19 @@ contains
      call log_event( 'Reading checkpoint file to restart wind', LOG_LEVEL_INFO)
      call wind%read_checkpoint("restart_wind",                                &
           trim(ts_fname(checkpoint_stem_name,                                 &
-          "","wind",model_clock%get_step()-1,"")) )
+          "","wind",modeldb%clock%get_step()-1,"")) )
 
      call log_event( 'Reading checkpoint file to restart pressure',           &
           LOG_LEVEL_INFO)
      call pressure%read_checkpoint("restart_pressure",                        &
           trim(ts_fname(checkpoint_stem_name,"",                              &
-          "pressure",model_clock%get_step()-1,"")) )
+          "pressure",modeldb%clock%get_step()-1,"")) )
 
      call log_event( 'Reading checkpoint file to restart buoyancy',           &
           LOG_LEVEL_INFO)
      call buoyancy%read_checkpoint("restart_buoyancy",                        &
           trim(ts_fname(checkpoint_stem_name,"",                              &
-          "buoyancy",model_clock%get_step()-1,"")) )
+          "buoyancy",modeldb%clock%get_step()-1,"")) )
 
   else                                      ! No check point to start from
      call gw_init_fields_alg(wind, pressure, buoyancy)
@@ -133,12 +131,12 @@ contains
 
   ! Output initial conditions
   ! We only want these once at the beginning of a run
-  if (model_clock%is_initialisation() .and. write_diag) then
+  if (modeldb%clock%is_initialisation() .and. write_diag) then
     call gravity_wave_diagnostics_driver( mesh,        &
                                           wind,        &
                                           pressure,    &
                                           buoyancy,    &
-                                          model_clock, &
+                                          modeldb%clock, &
                                           nodal_output_on_w3)
   end if
 
@@ -146,13 +144,15 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Performs time step.
-  !>
-  subroutine step( model_clock, program_name )
+  !> @param[in]    program_name  The name of the program being run
+  !> @param[inout] modeldb       The modeldb object
+  subroutine step(program_name, modeldb)
 
     implicit none
 
-    class(model_clock_type), intent(in) :: model_clock
-    character(*),            intent(in) :: program_name
+    character(*),        intent(in)    :: program_name
+    class(modeldb_type), intent(inout) :: modeldb
+
 
     ! Update XIOS calendar if we are using it for diagnostic output or
     ! checkpoint
@@ -165,17 +165,17 @@ contains
     write( log_scratch_space, '("/",A,"\ ")' ) repeat('*', 76)
     call log_event( log_scratch_space, LOG_LEVEL_TRACE )
     write( log_scratch_space, &
-           '(A,I0)' ) 'Start of timestep ', model_clock%get_step()
+           '(A,I0)' ) 'Start of timestep ', modeldb%clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
     call gravity_wave_alg_step(wind, pressure, buoyancy)
 
     write( log_scratch_space, &
-           '(A,I0)' ) 'End of timestep ', model_clock%get_step()
+           '(A,I0)' ) 'End of timestep ', modeldb%clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
     write( log_scratch_space, '("\",A,"/ ")' ) repeat('*', 76)
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
-    if ( (mod(model_clock%get_step(), diagnostic_frequency) == 0) &
+    if ( (mod(modeldb%clock%get_step(), diagnostic_frequency) == 0) &
          .and. (write_diag) ) then
 
       call log_event("Gravity Wave: writing diagnostic output", LOG_LEVEL_INFO)
@@ -184,7 +184,7 @@ contains
                                             wind,        &
                                             pressure,    &
                                             buoyancy,    &
-                                            model_clock, &
+                                            modeldb%clock, &
                                             nodal_output_on_w3)
     end if
 
@@ -193,13 +193,14 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Tidies up after a run.
-  !>
-  subroutine finalise( model_clock, program_name )
+  !> @param[in]    program_name  The name of the program being run
+  !> @param[inout] modeldb       The modeldb object
+  subroutine finalise(program_name, modeldb)
 
   implicit none
 
-  class(model_clock_type), intent(in) :: model_clock
-  character(*),            intent(in) :: program_name
+  character(*),        intent(in)    :: program_name
+  class(modeldb_type), intent(inout) :: modeldb
 
   !--------------------------------------------------------------------------
   ! Model finalise
@@ -213,15 +214,15 @@ contains
   if( checkpoint_write ) then
      call wind%write_checkpoint("restart_wind",                               &
           trim(ts_fname(checkpoint_stem_name,                                 &
-          "","wind",model_clock%get_step(),"")) )
+          "","wind",modeldb%clock%get_step(),"")) )
 
      call pressure%write_checkpoint("restart_pressure",                       &
           trim(ts_fname(checkpoint_stem_name,"",                              &
-          "pressure",model_clock%get_step(),"")) )
+          "pressure",modeldb%clock%get_step(),"")) )
 
      call buoyancy%write_checkpoint("restart_buoyancy",                       &
           trim(ts_fname(checkpoint_stem_name,"",                              &
-          "buoyancy",model_clock%get_step(),"")) )
+          "buoyancy",modeldb%clock%get_step(),"")) )
 
   end if
 
@@ -231,7 +232,7 @@ contains
 
   call log_event( program_name//' completed.', LOG_LEVEL_ALWAYS )
 
-  call finalise_infrastructure()
+  call finalise_infrastructure(modeldb)
 
   end subroutine finalise
 

@@ -10,10 +10,8 @@
 module gungho_driver_mod
 
   use base_mesh_config_mod,       only : prime_mesh_name
-  use calendar_mod,               only : calendar_type
   use constants_mod,              only : r_def
   use derived_config_mod,         only : l_esm_couple
-  use driver_io_mod,              only : get_io_context
   use extrusion_mod,              only : TWOD
   use field_collection_mod,       only : field_collection_type
   use gungho_diagnostics_driver_mod, &
@@ -90,25 +88,22 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Sets up required state in preparation for run.
   !> @param [in]     program_name An identifier given to the model being run
-  !> @param [in,out] modeldb      The structure that holds model state
-  subroutine initialise( program_name, modeldb, calendar )
-
-    use io_context_mod,         only : io_context_type
-    use lfric_xios_context_mod, only : lfric_xios_context_type
+  !> @param [in,out] modeldb   The structure that holds model state
+  subroutine initialise( program_name, modeldb )
 
     implicit none
 
     character(*),         intent(in)    :: program_name
     type(modeldb_type),   intent(inout) :: modeldb
-    class(calendar_type), intent(in)    :: calendar
 
     type(gungho_time_axes_type)     :: model_axes
 
-    class(io_context_type), pointer :: io_context => null()
     type(mesh_type),        pointer :: mesh              => null()
     type(mesh_type),        pointer :: twod_mesh         => null()
     type(mesh_type),        pointer :: aerosol_mesh      => null()
     type(mesh_type),        pointer :: aerosol_twod_mesh => null()
+
+    character(len=*), parameter :: io_context_name = "gungho_atm"
 
 #ifdef UM_PHYSICS
     ! For clearing IAU fields after use
@@ -116,8 +111,7 @@ contains
 #endif
 
     ! Initialise infrastructure and setup constants
-    call initialise_infrastructure( modeldb, &
-                                    calendar )
+    call initialise_infrastructure( io_context_name, modeldb )
 
     ! Add a place to store time axes in modeldb
     call modeldb%values%add_key_value('model_axes', model_axes)
@@ -157,9 +151,8 @@ contains
     call initialise_model_data( modeldb, mesh, twod_mesh )
 
     ! Initial output
-    io_context => get_io_context()
     call write_initial_output( modeldb, mesh, twod_mesh, &
-                               io_context, nodal_output_on_w3 )
+                               io_context_name, nodal_output_on_w3 )
 
     ! Model configuration initialisation
     call initialise_model( mesh, modeldb )
@@ -374,7 +367,7 @@ contains
     call finalise_model_data( modeldb )
 
     ! Finalise infrastructure and constants
-    call finalise_infrastructure()
+    call finalise_infrastructure(modeldb)
 
   end subroutine finalise
 

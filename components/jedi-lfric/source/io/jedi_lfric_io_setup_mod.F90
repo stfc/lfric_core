@@ -153,11 +153,11 @@ contains
         call io_context%set_timer_flag(subroutine_timers)
 
         ! Setup the context
-        call io_context%initialise( context_name,          &
-                                    communicator,          &
-                                    chi, panel_id,         &
-                                    model_clock, calendar, &
-                                    before_close_ptr )
+        call io_context%initialise( context_name )
+        call io_context%initialise_xios_context( communicator,          &
+                                                 chi, panel_id,         &
+                                                 model_clock, calendar, &
+                                                 before_close_ptr )
       end select
 
 #else

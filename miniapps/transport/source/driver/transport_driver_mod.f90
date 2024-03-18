@@ -9,7 +9,6 @@
 module transport_driver_mod
 
   use add_mesh_map_mod,                 only: assign_mesh_maps
-  use calendar_mod,                     only: calendar_type
   use checksum_alg_mod,                 only: checksum_alg
   use check_configuration_mod,          only: get_required_stencil_depth
   use configuration_mod,                only: final_configuration
@@ -19,6 +18,7 @@ module transport_driver_mod
   use driver_fem_mod,                   only: init_fem
   use driver_io_mod,                    only: init_io, final_io
   use driver_mesh_mod,                  only: init_mesh
+  use driver_modeldb_mod,               only: modeldb_type
   use derived_config_mod,               only: set_derived_config
   use diagnostics_io_mod,               only: write_scalar_diagnostic, &
                                               write_vector_diagnostic
@@ -32,7 +32,6 @@ module transport_driver_mod
   use field_mod,                        only: field_type
   use geometric_constants_mod,          only: get_chi_inventory, &
                                               get_panel_id_inventory
-  use io_context_mod,                   only: io_context_type
 
   use inventory_by_mesh_mod,            only: inventory_by_mesh_type
   use local_mesh_mod,                   only: local_mesh_type
@@ -46,12 +45,9 @@ module transport_driver_mod
   use mesh_mod,                         only: mesh_type
   use mesh_collection_mod,              only: mesh_collection
   use model_clock_mod,                  only: model_clock_type
-  use mpi_mod,                          only: mpi_type
   use mr_indices_mod,                   only: nummr
-  use namelist_collection_mod,          only: namelist_collection_type
   use namelist_mod,                     only: namelist_type
   use runtime_constants_mod,            only: create_runtime_constants
-  use step_calendar_mod,                only: step_calendar_type
   use timer_mod,                        only: timer
   use transport_init_fields_alg_mod,    only: transport_init_fields_alg
   use transport_control_alg_mod,        only: transport_prerun_setup,          &
@@ -94,26 +90,17 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Sets up required state in preparation for run.
-  !> @param [in]      configuration Configuration object
-  !> @param [in,out]  mpi           The structure that holds comms details
-  !> @param [in,out]  model_clock   Time within the model
-  !> @param [in]      program_name  Identifier given to the model being run
-  !> @param [in]      calendar      The model calendar
-  subroutine initialise_transport( configuration,    &
-                                   mpi, model_clock, &
-                                   program_name, calendar )
+  !> @param[in]      program_name  Identifier given to the model being run
+  !> @param[inout]   modeldb       The modeldb object
+  subroutine initialise_transport( program_name, modeldb)
 
     use io_config_mod, only: nodal_output_on_w3, &
                              write_diag
 
     implicit none
 
-    type(namelist_collection_type), intent(in) :: configuration
-
-    class(mpi_type),         intent(inout) :: mpi
-    class(model_clock_type), intent(inout) :: model_clock
     character(*),            intent(in)    :: program_name
-    class(calendar_type),    intent(in)    :: calendar
+    type(modeldb_type),      intent(inout) :: modeldb
 
     character(len=*), parameter :: xios_ctx  = "transport"
 
@@ -170,23 +157,23 @@ contains
     !=======================================================================
     ! 0.0 Extract configuration variables
     !=======================================================================
-    base_mesh_nml   => configuration%get_namelist('base_mesh')
-    formulation_nml => configuration%get_namelist('formulation')
-    extrusion_nml   => configuration%get_namelist('extrusion')
-    planet_nml      => configuration%get_namelist('planet')
+    base_mesh_nml   => modeldb%configuration%get_namelist('base_mesh')
+    formulation_nml => modeldb%configuration%get_namelist('formulation')
+    extrusion_nml   => modeldb%configuration%get_namelist('extrusion')
+    planet_nml      => modeldb%configuration%get_namelist('planet')
 
     call formulation_nml%get_value( 'l_multigrid', l_multigrid )
     call formulation_nml%get_value( 'use_multires_coupling', &
                                     use_multires_coupling )
     if (use_multires_coupling) then
-      multires_coupling_nml => configuration%get_namelist('multires_coupling')
+      multires_coupling_nml => modeldb%configuration%get_namelist('multires_coupling')
       call multires_coupling_nml%get_value( 'aerosol_mesh_name', &
                                             aerosol_mesh_name )
       multires_coupling_nml => null()
     end if
 
     if (l_multigrid) then
-      multigrid_nml => configuration%get_namelist('multigrid')
+      multigrid_nml => modeldb%configuration%get_namelist('multigrid')
       call multigrid_nml%get_value( 'chain_mesh_tags', chain_mesh_tags )
       multigrid_nml => null()
     end if
@@ -298,9 +285,9 @@ contains
       apply_partition_check = .true.
     end if
 
-    call init_mesh( configuration,                &
-                    mpi%get_comm_rank(),          &
-                    mpi%get_comm_size(),          &
+    call init_mesh( modeldb%configuration,        &
+                    modeldb%mpi%get_comm_rank(),  &
+                    modeldb%mpi%get_comm_size(),  &
                     base_mesh_names,              &
                     extrusion, stencil_depth,     &
                     apply_partition_check )
@@ -358,7 +345,7 @@ contains
     call create_runtime_constants( mesh_collection,    &
                                    chi_inventory,      &
                                    panel_id_inventory, &
-                                   model_clock,        &
+                                   modeldb%clock,      &
                                    create_rdef_div_operators )
 
     ! Set up transport runtime collection type
@@ -402,50 +389,46 @@ contains
       allocate(extra_io_mesh_names(1))
       extra_io_mesh_names(1) = aerosol_mesh%get_mesh_name()
       call init_io( xios_ctx,           &
-                    mpi%get_comm(),     &
+                    modeldb,            &
                     chi_inventory,      &
                     panel_id_inventory, &
-                    model_clock,        &
-                    calendar,           &
                     alt_mesh_names=extra_io_mesh_names )
     else
       call init_io( xios_ctx,           &
-                    mpi%get_comm(),     &
+                    modeldb,            &
                     chi_inventory,      &
-                    panel_id_inventory, &
-                    model_clock,        &
-                    calendar )
+                    panel_id_inventory )
     end if
 
     ! Output initial conditions
-    if (model_clock%is_initialisation() .and. write_diag) then
+    if (modeldb%clock%is_initialisation() .and. write_diag) then
 
-      call write_vector_diagnostic( 'u', wind, model_clock, &
+      call write_vector_diagnostic( 'u', wind, modeldb%clock, &
                                     mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'rho', density, model_clock, &
+      call write_scalar_diagnostic( 'rho', density, modeldb%clock, &
                                     mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'theta', theta, model_clock, &
+      call write_scalar_diagnostic( 'theta', theta, modeldb%clock, &
                                     mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'tracer_con', tracer_con, model_clock, &
+      call write_scalar_diagnostic( 'tracer_con', tracer_con, modeldb%clock, &
                                     mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'tracer_adv', tracer_adv, model_clock, &
+      call write_scalar_diagnostic( 'tracer_adv', tracer_adv, modeldb%clock, &
                                     mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'constant', constant, model_clock, &
+      call write_scalar_diagnostic( 'constant', constant, modeldb%clock, &
                                     mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'm_v', mr(1), model_clock, &
+      call write_scalar_diagnostic( 'm_v', mr(1), modeldb%clock, &
                                     mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'divergence', divergence, model_clock, &
+      call write_scalar_diagnostic( 'divergence', divergence, modeldb%clock, &
                                     mesh, nodal_output_on_w3 )
       if (use_w2_vector) then
-        call write_vector_diagnostic( 'w2_vector', w2_vector, model_clock, &
+        call write_vector_diagnostic( 'w2_vector', w2_vector, modeldb%clock, &
                                       mesh, nodal_output_on_w3 )
       end if
       if (use_aerosols) then
-        call write_vector_diagnostic( 'aerosol_wind', aerosol_wind, model_clock, &
+        call write_vector_diagnostic( 'aerosol_wind', aerosol_wind, modeldb%clock, &
                                       aerosol_mesh, nodal_output_on_w3 )
-        call write_scalar_diagnostic( 'w3_aerosol', w3_aerosol, model_clock, &
+        call write_scalar_diagnostic( 'w3_aerosol', w3_aerosol, modeldb%clock, &
                                       aerosol_mesh, nodal_output_on_w3 )
-        call write_scalar_diagnostic( 'wt_aerosol', wt_aerosol, model_clock, &
+        call write_scalar_diagnostic( 'wt_aerosol', wt_aerosol, modeldb%clock, &
                                       aerosol_mesh, nodal_output_on_w3 )
       end if
     end if
@@ -580,11 +563,12 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Tidies up after a run.
   !>
-  subroutine finalise_transport( program_name )
+  subroutine finalise_transport( program_name, modeldb )
 
     implicit none
 
-    character(*), intent(in) :: program_name
+    character(*),        intent(in)    :: program_name
+    class(modeldb_type), intent(inout) :: modeldb
 
     call transport_final( density, theta, tracer_con, tracer_adv, &
                           constant, mr, w2_vector, w3_aerosol, wt_aerosol )
@@ -598,9 +582,9 @@ contains
                        theta, 'theta', tracer_adv, 'tracer',      &
                        field_bundle=mr, bundle_name='mr' )
 
-    call final_io()
-
     call transport_runtime_collection_final()
+
+    call final_io(modeldb)
 
   end subroutine finalise_transport
 

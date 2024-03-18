@@ -9,7 +9,6 @@ module shallow_water_model_mod
 
   use add_mesh_map_mod,               only: assign_mesh_maps
   use assign_orography_field_mod,     only: assign_orography_field
-  use calendar_mod,                   only: calendar_type
   use check_configuration_mod,        only: get_required_stencil_depth
   use checksum_alg_mod,               only: checksum_alg
   use conservation_algorithm_mod,     only: conservation_algorithm
@@ -19,7 +18,7 @@ module shallow_water_model_mod
   use create_mesh_mod,                only: create_mesh, create_extrusion
   use derived_config_mod,             only: set_derived_config
   use driver_fem_mod,                 only: init_fem, final_fem
-  use driver_io_mod,                  only: init_io, final_io, &
+  use driver_io_mod,                  only: init_io, &
                                             filelist_populator
   use driver_modeldb_mod,             only: modeldb_type
   use driver_mesh_mod,                only: init_mesh
@@ -44,8 +43,6 @@ module shallow_water_model_mod
   use minmax_tseries_mod,             only: minmax_tseries,      &
                                             minmax_tseries_init, &
                                             minmax_tseries_final
-  use model_clock_mod,                only: model_clock_type
-  use mpi_mod,                        only: mpi_type
   use namelist_collection_mod,        only: namelist_collection_type
   use namelist_mod,                   only: namelist_type
   use runtime_constants_mod,          only: create_runtime_constants
@@ -69,24 +66,14 @@ module shallow_water_model_mod
   !=============================================================================
   !> @brief Initialises the infrastructure and sets up constants used
   !!        by the model.
-  !> @param[in]     configuration  Configuration object.
   !> @param[in]     program_name   Identifier given to the model being run
-  !> @param[in,out] model_clock    Time within the model
-  !> @param[in]     mpi            Communication object
-  subroutine initialise_infrastructure( configuration, &
-                                        program_name,  &
-                                        model_clock,   &
-                                        calendar,      &
-                                        mpi )
+  !> @param[inout]  modeldb        The ModelDB object
+  subroutine initialise_infrastructure( program_name, modeldb)
 
     implicit none
 
-    type(namelist_collection_type), intent(in) :: configuration
-
     character(*),           intent(in)    :: program_name
-    type(model_clock_type), intent(inout) :: model_clock
-    class(calendar_type),   intent(in)    :: calendar
-    class(mpi_type),        intent(inout) :: mpi
+    class(modeldb_type),    intent(inout) :: modeldb
 
     type(inventory_by_mesh_type),  pointer :: chi_inventory      => null()
     type(inventory_by_mesh_type),  pointer :: panel_id_inventory => null()
@@ -122,9 +109,9 @@ module shallow_water_model_mod
     !=======================================================================
     ! 0.0 Extract configuration variables
     !=======================================================================
-    base_mesh_nml => configuration%get_namelist('base_mesh')
-    planet_nml    => configuration%get_namelist('planet')
-    extrusion_nml => configuration%get_namelist('extrusion')
+    base_mesh_nml => modeldb%configuration%get_namelist('base_mesh')
+    planet_nml    => modeldb%configuration%get_namelist('planet')
+    extrusion_nml => modeldb%configuration%get_namelist('extrusion')
 
     call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
     call base_mesh_nml%get_value( 'geometry', geometry )
@@ -195,9 +182,9 @@ module shallow_water_model_mod
     ! ---------------------------------------------------------
     check_partitions = .false.
     stencil_depth = get_required_stencil_depth()
-    call init_mesh( configuration,                &
-                    mpi%get_comm_rank(),          &
-                    mpi%get_comm_size(),          &
+    call init_mesh( modeldb%configuration,                &
+                    modeldb%mpi%get_comm_rank(),          &
+                    modeldb%mpi%get_comm_size(),          &
                     base_mesh_names, extrusion,   &
                     stencil_depth, check_partitions )
 
@@ -225,9 +212,8 @@ module shallow_water_model_mod
     ! domain and context
 
     files_init_ptr => init_shallow_water_files
-    call init_io( io_context_name, mpi%get_comm(),   &
+    call init_io( io_context_name, modeldb,   &
                   chi_inventory, panel_id_inventory, &
-                  model_clock, calendar,             &
                   populate_filelist=files_init_ptr )
 
     !-------------------------------------------------------------------------
@@ -239,7 +225,7 @@ module shallow_water_model_mod
     ! matrix diagonal fields and the geopotential field
     create_rdef_div_operators = .true.
     call create_runtime_constants(mesh_collection, chi_inventory,  &
-                                  panel_id_inventory, model_clock, &
+                                  panel_id_inventory, modeldb%clock, &
                                   create_rdef_div_operators)
 
     deallocate(base_mesh_names)

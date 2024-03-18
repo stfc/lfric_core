@@ -11,7 +11,6 @@
 module io_dev_driver_mod
 
   use add_mesh_map_mod,           only : assign_mesh_maps
-  use calendar_mod,               only: calendar_type
   use checksum_alg_mod,           only: checksum_alg
   use clock_mod,                  only: clock_type
   use constants_mod,              only: i_def, str_def, &
@@ -21,8 +20,7 @@ module io_dev_driver_mod
   use driver_mesh_mod,            only: init_mesh
   use driver_fem_mod,             only: init_fem, final_fem
   use driver_io_mod,              only: init_io, final_io, &
-                                        filelist_populator, &
-                                        get_io_context
+                                        filelist_populator
   use extrusion_mod,              only: extrusion_type,         &
                                         uniform_extrusion_type, &
                                         PRIME_EXTRUSION, TWOD
@@ -46,8 +44,6 @@ module io_dev_driver_mod
                                         update_model_data,         &
                                         output_model_data,         &
                                         finalise_model_data
-
-  use io_context_mod,         only: io_context_type
   use lfric_xios_context_mod, only: lfric_xios_context_type, advance
 
   use namelist_collection_mod, only: namelist_collection_type
@@ -69,16 +65,14 @@ module io_dev_driver_mod
   contains
 
   !> @brief Sets up required state in preparation for run.
-  !> @param[in,out] modeldb The database holding the model state.
   !> @param[in] program_name The name of the program.
-  !> @param[in] calendar The calendar for timekeeping.
-  subroutine initialise( modeldb, program_name, calendar )
+  !> @param[in,out] modeldb The database holding the model state.
+  subroutine initialise( program_name, modeldb )
 
     implicit none
 
-    type(modeldb_type),     intent(inout) :: modeldb
     character(*),           intent(in)    :: program_name
-    class(calendar_type),   intent(in)    :: calendar
+    class(modeldb_type),    intent(inout) :: modeldb
 
 
     type(field_type), pointer :: chi(:) => null()
@@ -93,7 +87,7 @@ module io_dev_driver_mod
     character(str_def), allocatable :: alt_mesh_names(:)
     character(str_def), allocatable :: twod_names(:)
 
-    class(io_context_type), pointer :: io_context
+    type(lfric_xios_context_type), pointer :: io_context
 
     procedure(filelist_populator), pointer :: files_init_ptr => null()
 
@@ -214,33 +208,26 @@ module io_dev_driver_mod
       alt_mesh_names(1) = alt_mesh_name
       call create_model_data( modeldb, chi, panel_id,        &
                               mesh, twod_mesh, alt_mesh )
-      call init_io( program_name, modeldb%mpi%get_comm(),    &
+      call init_io( program_name, modeldb,    &
                     chi_inventory, panel_id_inventory,       &
-                    modeldb%clock, calendar,                 &
                     populate_filelist = files_init_ptr,      &
-                    model_data = modeldb%fields,             &
                     alt_mesh_names = alt_mesh_names )
 
     else
       call create_model_data( modeldb, chi, panel_id,        &
                               mesh, twod_mesh )
-      call init_io( program_name, modeldb%mpi%get_comm(),    &
+      call init_io( program_name, modeldb,    &
                     chi_inventory, panel_id_inventory,       &
-                    modeldb%clock, calendar,                 &
-                    populate_filelist = files_init_ptr,      &
-                    model_data = modeldb%fields )
+                    populate_filelist = files_init_ptr )
     end if
 
     ! Initialise the fields stored in the modeldb
     call initialise_model_data( modeldb, chi, panel_id )
 
     ! Write initial output
-    io_context => get_io_context()
     if (modeldb%clock%is_initialisation()) then
-      select type (io_context)
-      type is (lfric_xios_context_type)
-          call advance(io_context, modeldb%clock)
-      end select
+      call modeldb%io_contexts%get_io_context(program_name, io_context)
+      call advance(io_context, modeldb%clock)
     end if
 
     nullify(mesh, twod_mesh, chi, panel_id, files_init_ptr)
@@ -280,8 +267,8 @@ module io_dev_driver_mod
 
     class(modeldb_type), intent(inout) :: modeldb
 
-    ! Finalise IO context
-    call final_io()
+    ! Finalise the IO
+    call final_io( modeldb )
 
     ! Destroy the fields stored in modeldb
     call finalise_model_data( modeldb )

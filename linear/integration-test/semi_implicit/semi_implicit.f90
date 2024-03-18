@@ -72,6 +72,8 @@ program semi_implicit
   call modeldb%fields%add_empty_field_collection("diagnostic_fields", &
                                                   table_len = 100)
 
+  call modeldb%io_contexts%initialise(program_name, 100)
+
   ! Parse command line parameters
   call get_command_argument( 0, dummy, length, status )
   allocate(character(length)::program_name)

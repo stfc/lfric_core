@@ -9,11 +9,10 @@
 module gungho_model_mod
 
   use add_mesh_map_mod,           only : assign_mesh_maps
-  use calendar_mod,               only : calendar_type
   use checksum_alg_mod,           only : checksum_alg
   use driver_fem_mod,             only : init_fem, final_fem, &
                                          init_function_space_chains
-  use driver_io_mod,              only : init_io, final_io,  &
+  use driver_io_mod,              only : init_io, final_io, &
                                          filelist_populator
   use driver_mesh_mod,            only : init_mesh
   use check_configuration_mod,    only : get_required_stencil_depth, &
@@ -284,12 +283,10 @@ contains
 
   !> @brief Initialises the infrastructure and sets up constants used by the
   !>        model.
-  !>
+  !> @param [in]               The name of the IO context of the model
   !> @param [in,out] modeldb   The full model database for the model run
-  !> @param [in]     calendar  Calendar object
   !>
-  subroutine initialise_infrastructure( modeldb, &
-                                        calendar )
+  subroutine initialise_infrastructure( io_context_name, modeldb )
 
     use base_mesh_config_mod, only: GEOMETRY_PLANAR, &
                                     GEOMETRY_SPHERICAL
@@ -304,10 +301,8 @@ contains
 
     implicit none
 
-    type(modeldb_type),   intent(inout) :: modeldb
-    class(calendar_type), intent(in)    :: calendar
-
-    character(len=*), parameter :: io_context_name = "gungho_atm"
+    character(*),         intent(in)    :: io_context_name
+    class(modeldb_type),  intent(inout) :: modeldb
 
     type(mesh_type), pointer :: mesh                => null()
     type(mesh_type), pointer :: shifted_mesh        => null()
@@ -699,17 +694,15 @@ contains
         end if
       end do
 
-      call init_io( io_context_name, modeldb%mpi%get_comm(), &
+      call init_io( io_context_name, modeldb, &
                     chi_inventory, panel_id_inventory,       &
-                    modeldb%clock, calendar,                 &
                     populate_filelist=files_init_ptr,        &
                     alt_mesh_names=extra_io_mesh_names,      &
                     before_close=before_context_close )
 
     else
-      call init_io( io_context_name, modeldb%mpi%get_comm(), &
+      call init_io( io_context_name, modeldb, &
                     chi_inventory, panel_id_inventory,       &
-                    modeldb%clock, calendar,                 &
                     populate_filelist=files_init_ptr,        &
                     before_close=before_context_close )
     end if
@@ -901,20 +894,20 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Finalises infrastructure and constants used by the model.
   !>
-  subroutine finalise_infrastructure()
+  subroutine finalise_infrastructure(modeldb)
 
     implicit none
 
-    !-------------------------------------------------------------------------
-    ! Finalise I/O
-    !-------------------------------------------------------------------------
+    class(modeldb_type), intent(inout) :: modeldb
 
-    call final_io()
+    !-------------------------------------------------------------------------
+    ! Finalise IO
+    !-------------------------------------------------------------------------
+    call final_io( modeldb )
 
     !-------------------------------------------------------------------------
     ! Finalise constants
     !-------------------------------------------------------------------------
-
     call final_runtime_constants()
 
     !-------------------------------------------------------------------------

@@ -245,8 +245,9 @@ model_clock = model_clock_type( first_step, last_step, seconds_per_step, &
 allocate( io_context )
 file_list => io_context%get_filelist()
 CALL io_config%init_lfricinp_files(file_list)
-CALL io_context%initialise( xios_ctx, comm, chi, panel_id, &
-                            model_clock, model_calendar, before_close )
+call io_context%initialise( xios_ctx )
+CALL io_context%initialise_xios_context( comm, chi, panel_id, &
+                                         model_clock, model_calendar, before_close )
 CALL advance(io_context, model_clock)
 
 ! Initialise runtime constants

@@ -55,6 +55,8 @@ program gungho_model
   call modeldb%fields%add_empty_field_collection("diagnostic_fields", &
                                                  table_len = 100)
 
+  call modeldb%io_contexts%initialise(application_name, 100)
+
   call init_comm( application_name, modeldb%mpi )
   call get_initial_filename( filename )
   call init_config( filename, gungho_required_namelists, &
@@ -68,7 +70,7 @@ program gungho_model
 
   write( log_scratch_space, '("Initialise ", A, " ...")' ) application_name
   call log_event( log_scratch_space, log_level_trace )
-  call initialise( application_name, modeldb, modeldb%calendar )
+  call initialise( application_name, modeldb )
 
   if (l_esm_couple) then
     write(log_scratch_space,'("Configuration is coupled to ocean")')

@@ -37,7 +37,7 @@ program simple_diffusion
         trim(precision_real)
   call log_event( log_scratch_space, log_level_trace )
   modeldb%mpi => global_mpi
-  call init_comm("simple_diffusion", modeldb%mpi)
+  call init_comm(program_name, modeldb%mpi)
   call get_initial_filename( filename )
   call init_config( filename,                            &
                     simple_diffusion_required_namelists, &
@@ -50,8 +50,10 @@ program simple_diffusion
 
   ! Create the depository field collection and place it in modeldb
   call modeldb%fields%add_empty_field_collection("depository")
+
+  call modeldb%io_contexts%initialise(program_name, 100)
   call log_event( 'Initialising ' // program_name // ' ...', log_level_trace )
-  call initialise( program_name, modeldb, modeldb%calendar )
+  call initialise( program_name, modeldb)
 
   do while (modeldb%clock%tick())
     call step( program_name, modeldb )

@@ -7,27 +7,11 @@
 !> the ticking of a model clock
 !>
 module event_mod
-
-  use clock_mod,     only : clock_type
-  use constants_mod, only : i_def
-
+  use event_actor_mod, only : event_actor_type
+  use clock_mod,       only : clock_type
   implicit none
 
   private
-
-  ! Abstract class used for timestep event interface
-  type, public, abstract :: event_actor_type
-  contains
-  end type event_actor_type
-
-  ! Abstract interface for timestep event actions
-  abstract interface
-    subroutine event_action( actor, clock )
-      import event_actor_type, clock_type
-      class(event_actor_type), intent(inout) :: actor
-      class(clock_type),       intent(in)    :: clock
-    end subroutine event_action
-  end interface
 
   ! Type containing an event that will be attached to the model clock's tick
   type, public :: event_type
@@ -43,6 +27,16 @@ module event_mod
   interface event_type
     procedure event_constructor
   end interface event_type
+
+  ! Abstract interface for timestep event actions
+  abstract interface
+    subroutine event_action( actor, clock )
+      import event_actor_type, clock_type
+      class(event_actor_type), intent(inout) :: actor
+      class(clock_type),       intent(in)    :: clock
+    end subroutine event_action
+  end interface
+
 
   public :: event_action
 
@@ -74,7 +68,16 @@ contains
     class(event_type), intent(inout) :: this
     logical                          :: l_active
 
-    l_active = this%active
+    if (.not. associated(this%actor)) then
+      l_active = .false.
+      return
+    end if
+
+    if (this%active .and. this%actor%is_active()) then
+      l_active = .true.
+    else
+      l_active = .false.
+    end if
 
   end function is_active
 

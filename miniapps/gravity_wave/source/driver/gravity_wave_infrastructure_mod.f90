@@ -9,7 +9,7 @@
 module gravity_wave_infrastructure_mod
 
   use add_mesh_map_mod,           only : assign_mesh_maps
-  use calendar_mod,               only : calendar_type
+  use driver_modeldb_mod,         only : modeldb_type
   use check_configuration_mod,    only : get_required_stencil_depth
   use constants_mod,              only : i_def,           &
                                          PRECISION_REAL,  &
@@ -29,9 +29,6 @@ module gravity_wave_infrastructure_mod
                                          LOG_LEVEL_ALWAYS,   &
                                          LOG_LEVEL_ERROR
   use mesh_collection_mod,        only : mesh_collection
-  use model_clock_mod,            only : model_clock_type
-  use mpi_mod,                    only : mpi_type
-  use namelist_collection_mod,    only : namelist_collection_type
   use namelist_mod,               only : namelist_type
   use field_mod,                  only : field_type
   use driver_fem_mod,             only : init_fem, init_function_space_chains
@@ -49,28 +46,19 @@ module gravity_wave_infrastructure_mod
   private
   public initialise_infrastructure, finalise_infrastructure
 
-  character(*), public, parameter   :: xios_ctx = 'gravity_wave'
-
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Initialises the infrastructure used by the model
-  !> @param [in]      configuration Configuration object
-  !> @param [in,out]  model_clock   Time within the model
-  !> @param [in,out]  mpi           The structure that holds comms details
-  !> @param [in]      calendar      The model calendar
-  subroutine initialise_infrastructure( configuration, &
-                                        model_clock,   &
-                                        mpi,           &
-                                        calendar )
+  !> @param [in]      program_name  The name of the program being run
+  !> @param [in,out]  modeldb       The modeldb object
+  subroutine initialise_infrastructure( program_name,  &
+                                        modeldb)
 
     implicit none
 
-    type(namelist_collection_type), intent(in) :: configuration
-
-    type(model_clock_type), intent(inout) :: model_clock
-    class(mpi_type),        intent(inout) :: mpi
-    class(calendar_type),   intent(in)    :: calendar
+    character(*),       intent(in)    :: program_name
+    type(modeldb_type), intent(inout) :: modeldb
 
     type(inventory_by_mesh_type), pointer :: chi_inventory => null()
     type(inventory_by_mesh_type), pointer :: panel_id_inventory => null()
@@ -113,15 +101,15 @@ contains
     !=======================================================================
     ! 0.0 Extract configuration variables
     !=======================================================================
-    base_mesh_nml   => configuration%get_namelist('base_mesh')
-    formulation_nml => configuration%get_namelist('formulation')
-    extrusion_nml   => configuration%get_namelist('extrusion')
-    planet_nml      => configuration%get_namelist('planet')
+    base_mesh_nml   => modeldb%configuration%get_namelist('base_mesh')
+    formulation_nml => modeldb%configuration%get_namelist('formulation')
+    extrusion_nml   => modeldb%configuration%get_namelist('extrusion')
+    planet_nml      => modeldb%configuration%get_namelist('planet')
 
     call formulation_nml%get_value( 'l_multigrid', l_multigrid )
 
     if (l_multigrid) then
-      multigrid_nml => configuration%get_namelist('multigrid')
+      multigrid_nml => modeldb%configuration%get_namelist('multigrid')
       call multigrid_nml%get_value( 'chain_mesh_tags', chain_mesh_tags )
       multigrid_nml => null()
     end if
@@ -209,9 +197,9 @@ contains
       apply_partition_check = .true.
     end if
 
-    call init_mesh( configuration,                &
-                    mpi%get_comm_rank(),          &
-                    mpi%get_comm_size(),          &
+    call init_mesh( modeldb%configuration,                &
+                    modeldb%mpi%get_comm_rank(),  &
+                    modeldb%mpi%get_comm_size(),  &
                     base_mesh_names,              &
                     extrusion, stencil_depth,     &
                     apply_partition_check )
@@ -237,8 +225,7 @@ contains
     !-------------------------------------------------------------------------
     ! Initialise aspects of output
     !-------------------------------------------------------------------------
-    call init_io( xios_ctx, mpi%get_comm(), chi_inventory, panel_id_inventory, &
-                  model_clock, calendar )
+    call init_io( program_name, modeldb, chi_inventory, panel_id_inventory)
 
     !-------------------------------------------------------------------------
     ! Setup constants
@@ -249,7 +236,7 @@ contains
     ! matrix diagonal fields and the geopotential field and limited area masks.
     create_rdef_div_operators = .true.
     call create_runtime_constants( mesh_collection, chi_inventory,  &
-                                   panel_id_inventory, model_clock, &
+                                   panel_id_inventory, modeldb%clock, &
                                    create_rdef_div_operators )
 
 
@@ -260,12 +247,15 @@ contains
 
 
   !> @brief Finalises infrastructure used by the model
-  subroutine finalise_infrastructure()
+  !> @param[inout] modeldb The model database object
+  subroutine finalise_infrastructure(modeldb)
 
     implicit none
 
-    ! Finalise I/O
-    call final_io()
+    class(modeldb_type), intent(inout) :: modeldb
+
+    ! Finalise the IO and destroy the IO contexts
+    call final_io(modeldb)
 
   end subroutine finalise_infrastructure
 

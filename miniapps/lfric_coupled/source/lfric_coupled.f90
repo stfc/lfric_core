@@ -58,7 +58,9 @@ program lfric_coupled
   call modeldb%fields%add_empty_field_collection("diagnostic_fields",         &
                                                   table_len = 100)
 
-  call initialise( application_name, modeldb, modeldb%calendar )
+  call modeldb%io_contexts%initialise(application_name, 100)
+
+  call initialise( application_name, modeldb )
   do while (modeldb%clock%tick())
     call step( modeldb )
   end do

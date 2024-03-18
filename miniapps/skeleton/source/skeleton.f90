@@ -57,6 +57,8 @@ program skeleton
   ! Create the depository field collection and place it in modeldb
   call modeldb%fields%add_empty_field_collection("depository")
 
+  call modeldb%io_contexts%initialise(program_name, 100)
+
   call log_event( 'Initialising ' // program_name // ' ...', log_level_trace )
   call initialise( program_name, modeldb, modeldb%calendar )
 

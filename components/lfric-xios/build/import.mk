@@ -4,7 +4,7 @@
 # under which the code may be used.
 ##############################################################################
 export PROJECT_SOURCE = $(ROOT_DIR)/components/lfric-xios/source
-export IGNORE_DEPENDENCIES += xios mod_wait mod_oasis
+export IGNORE_DEPENDENCIES += xios icontext mod_wait mod_oasis
 export EXTERNAL_STATIC_LIBRARIES += xios
 export PRE_PROCESS_MACROS += USE_XIOS
 

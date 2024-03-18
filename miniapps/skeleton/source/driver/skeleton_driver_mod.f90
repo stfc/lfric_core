@@ -175,8 +175,7 @@ contains
     ! 3.0 Setup I/O system.
     !=======================================================================
     ! Initialise I/O context
-    call init_io( program_name, modeldb%mpi%get_comm(), chi_inventory, &
-                  panel_id_inventory, modeldb%clock, calendar )
+    call init_io( program_name, modeldb, chi_inventory, panel_id_inventory)
 
     !=======================================================================
     ! 4.0 Create and initialise prognostic fields
@@ -250,10 +249,7 @@ contains
     !-------------------------------------------------------------------------
     ! Driver layer finalise
     !-------------------------------------------------------------------------
-
-    ! Finalise IO
-    call final_io()
-
+    call final_io(modeldb)
     call final_fem()
 
   end subroutine finalise

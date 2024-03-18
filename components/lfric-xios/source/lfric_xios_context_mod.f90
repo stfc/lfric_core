@@ -14,10 +14,11 @@ module lfric_xios_context_mod
                                    l_def
   use field_mod,            only : field_type
   use file_mod,             only : file_type
-  use event_mod,            only : event_action, event_actor_type
+  use event_mod,            only : event_action
+  use event_actor_mod,      only : event_actor_type
   use io_context_mod,       only : io_context_type, callback_clock_arg
   use lfric_xios_file_mod,  only : lfric_xios_file_type
-  use log_mod,              only : log_event,       &
+  use log_mod,              only : log_event, log_scratch_space,      &
                                    log_level_error, &
                                    log_level_info
   use lfric_xios_setup_mod, only : init_xios_calendar,   &
@@ -27,6 +28,11 @@ module lfric_xios_context_mod
   use linked_list_mod,      only : linked_list_type, linked_list_item_type
   use model_clock_mod,      only : model_clock_type
   use timer_mod,            only : timer
+  !> TODO Remove icontext, see ticket #4313.
+  !> Use icontext is needed here as the revision of xios used by lfric_coupled
+  !> is old enough to not have xios_get_current_context forwarded through the
+  !> xios module.
+  use icontext,             only : xios_get_current_context
   use xios,                 only : xios_context,                  &
                                    xios_context_initialize,       &
                                    xios_close_context_definition, &
@@ -46,14 +52,16 @@ module lfric_xios_context_mod
   !> the model and the context.
   type, public, extends(io_context_type) :: lfric_xios_context_type
     private
-    character(:),                 allocatable :: id
+
     type(xios_context)                        :: handle
     type(linked_list_type)                    :: filelist
     logical                                   :: uses_timer = .false.
+    logical                                   :: xios_context_initialised = .false.
 
   contains
     private
-    procedure, public :: initialise
+    procedure, public :: initialise => initialise_lfric_xios_context
+    procedure, public :: initialise_xios_context
     procedure, public :: get_filelist
     procedure, public :: set_current
     procedure, public :: set_timer_flag
@@ -64,9 +72,20 @@ module lfric_xios_context_mod
 
 contains
 
-  !> @brief Set up an XIOS context object.
+  !> @brief Set up an LFRic-XIOS context object.
   !>
-  !> @param [in]     id                Unique identifying string.
+  !> @param [in] name Unique identifying string.
+  subroutine initialise_lfric_xios_context(this, name)
+    class(lfric_xios_context_type), intent(inout) :: this
+    character(*), intent(in) :: name
+
+    ! Initialise the parent
+    call this%initialise_io_context(name)
+
+  end subroutine initialise_lfric_xios_context
+
+  !> @brief Set up an XIOS context.
+  !>
   !> @param [in]     communicator      MPI communicator used by context.
   !> @param [in]     chi               Array of coordinate fields
   !> @param [in]     panel_id          Panel ID field
@@ -75,19 +94,18 @@ contains
   !> @param [in]     before_close      Routine to be called before context closes
   !> @param [in]     alt_coords        Array of coordinate fields for alternative meshes
   !> @param [in]     alt_panel_ids     Panel ID fields for alternative meshes
-  subroutine initialise( this, id, communicator,          &
-                         chi, panel_id,                   &
-                         model_clock, calendar,           &
-                         before_close,                    &
-                         alt_coords, alt_panel_ids )
+  subroutine initialise_xios_context( this, communicator,          &
+                                      chi, panel_id,                   &
+                                      model_clock, calendar,           &
+                                      before_close,                    &
+                                      alt_coords, alt_panel_ids )
 
     implicit none
 
     class(lfric_xios_context_type), intent(inout) :: this
-    character(*),                   intent(in)    :: id
     integer(i_def),                 intent(in)    :: communicator
-    class(field_type),              intent(in)    :: chi(:)
-    class(field_type),              intent(in)    :: panel_id
+    type(field_type),               intent(in)    :: chi(:)
+    type(field_type),               intent(in)    :: panel_id
     type(model_clock_type),         intent(inout) :: model_clock
     class(calendar_type),           intent(in)    :: calendar
     procedure(callback_clock_arg), pointer, &
@@ -99,9 +117,8 @@ contains
     type(lfric_xios_file_type),  pointer :: file => null()
 
     procedure(event_action), pointer :: context_advance => null()
-
-    call xios_context_initialize( id, communicator )
-    call xios_get_handle( id, this%handle )
+    call xios_context_initialize( this%get_context_name(), communicator )
+    call xios_get_handle( this%get_context_name(), this%handle )
     call xios_set_current_context( this%handle )
 
     ! Run XIOS setup routines
@@ -114,6 +131,7 @@ contains
     ! Close the context definition - no more I/O operations can be defined
     ! after this point
     call xios_close_context_definition()
+    this%xios_context_initialised = .true.
 
     ! Attach context advancement to the model's clock
     context_advance => advance
@@ -131,8 +149,9 @@ contains
         loop => loop%next
       end do
     end if
-
-  end subroutine initialise
+    write(log_scratch_space, "(A60)") "Initialising XIOS context: " // this%get_context_name()
+    call log_event(log_scratch_space, LOG_LEVEL_INFO)
+  end subroutine initialise_xios_context
 
   !> Finaliser for lfric_xios_context object.
   subroutine finalise( this )
@@ -144,40 +163,41 @@ contains
     type(linked_list_item_type), pointer :: loop => null()
     type(lfric_xios_file_type),  pointer :: file => null()
 
-    ! Perform final write
-    if (this%filelist%get_length() > 0) then
-      loop => this%filelist%get_head()
-      do while (associated(loop))
-        select type( list_item => loop%payload )
-          type is (lfric_xios_file_type)
-            file => list_item
-            if (file%mode_is_write()) call file%send_fields()
-        end select
-        loop => loop%next
-      end do
+    if (this%xios_context_initialised) then
+      ! Perform final write
+      if (this%filelist%get_length() > 0) then
+        loop => this%filelist%get_head()
+        do while (associated(loop))
+          select type( list_item => loop%payload )
+            type is (lfric_xios_file_type)
+              file => list_item
+              if (file%mode_is_write()) call file%send_fields()
+          end select
+          loop => loop%next
+        end do
+      end if
+
+      ! Finalise the XIOS context - all data will be written to disk and files
+      ! will be closed.
+      call xios_context_finalize()
+
+      ! We have closed the context on our end, but we need to make sure that XIOS
+      ! has closed the files for all servers before we process them.
+      call init_wait()
+
+      ! Close all files in list
+      if (this%filelist%get_length() > 0) then
+        loop => this%filelist%get_head()
+        do while (associated(loop))
+          select type( list_item => loop%payload )
+            type is (lfric_xios_file_type)
+              file => list_item
+              call file%file_close()
+          end select
+          loop => loop%next
+        end do
+      end if
     end if
-
-    ! Finalise the XIOS context - all data will be written to disk and files
-    ! will be closed.
-    call xios_context_finalize()
-
-    ! We have closed the context on our end, but we need to make sure that XIOS
-    ! has closed the files for all servers before we process them.
-    call init_wait()
-
-    ! Close all files in list
-    if (this%filelist%get_length() > 0) then
-      loop => this%filelist%get_head()
-      do while (associated(loop))
-        select type( list_item => loop%payload )
-          type is (lfric_xios_file_type)
-            file => list_item
-            call file%file_close()
-        end select
-        loop => loop%next
-      end do
-    end if
-
     nullify(loop)
     nullify(file)
 
@@ -187,6 +207,7 @@ contains
   !> expected by XIOS at the end and beginning of the current and subsequent
   !> timesteps.
   !>
+  !> @param[in] context     The IO context to be advanced
   !> @param[in] model_clock The model's clock
   subroutine advance(context, model_clock)
 
@@ -197,10 +218,16 @@ contains
 
     type(linked_list_item_type), pointer :: loop => null()
     type(lfric_xios_file_type),  pointer :: file => null()
+    type(xios_context)                   :: xios_context_handle
+
+    ! Get the handle of the current context (Not necessarily the one passed to this routine).
+    ! This is used to reset the context on return.
+    call xios_get_current_context(xios_context_handle)
 
     select type(context)
       type is (lfric_xios_context_type)
       ! Write all files that need to be written to
+      call context%set_current()
       if (context%filelist%get_length() > 0) then
         loop => context%filelist%get_head()
         do while (associated(loop))
@@ -237,6 +264,9 @@ contains
 
     nullify(loop)
     nullify(file)
+
+    ! Reset the xios context to what it was before this subroutine was called.
+    call xios_set_current_context(xios_context_handle)
 
   end subroutine advance
 
