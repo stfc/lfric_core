@@ -66,6 +66,7 @@ module inventory_by_mesh_mod
     procedure, public :: get_length
     procedure, public :: get_name
     procedure, public :: get_table_len
+    procedure, public :: is_initialised
     procedure, public :: clear
     ! Routines that need to discriminate between different types of object
     ! To support new objects, these need editing
@@ -260,6 +261,19 @@ function get_table_len(self) result(table_len)
   table_len = self%table_len
 
 end function get_table_len
+
+!> @brief Returns whether the inventory has been initialised
+!> @return Logical for whether the inventory is initialised
+function is_initialised(self) result(initialised)
+
+  implicit none
+
+  class(inventory_by_mesh_type), intent(in) :: self
+  logical(kind=l_def) :: initialised
+
+  initialised = allocated(self%paired_object_list)
+
+end function is_initialised
 
 !> DEPRECATED: Assignment operator between inventory_by_mesh_type pairs.
 !> Currently, this routine generates a (hopefully) useful message, then

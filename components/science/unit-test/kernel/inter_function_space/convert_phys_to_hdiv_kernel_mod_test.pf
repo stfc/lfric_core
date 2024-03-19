@@ -1,0 +1,239 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Tests the kernel to do pointwise conversion from physical components into
+!! W2 wind field
+module convert_phys_to_hdiv_kernel_mod_test
+
+  use constants_mod,                 only : i_def, r_def
+  use pFUnit_Mod
+
+  implicit none
+
+  private
+  public :: convert_phys_to_hdiv_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: convert_phys_to_hdiv_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type convert_phys_to_hdiv_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use base_mesh_config_mod,      only : geometry_planar,    &
+                                          topology_fully_periodic
+    use chi_transform_mod,         only : init_chi_transforms
+    use finite_element_config_mod, only : cellshape_quadrilateral, &
+                                          coord_system_xyz
+    use feign_config_mod,          only : feign_finite_element_config, &
+                                          feign_base_mesh_config
+
+    implicit none
+
+    class(convert_phys_to_hdiv_test_type), intent(inout) :: this
+
+    call feign_base_mesh_config( file_prefix='foo',                &
+                                 prime_mesh_name='unit_test',      &
+                                 geometry=geometry_planar,         &
+                                 prepartitioned=.false.,           &
+                                 topology=topology_fully_periodic, &
+                                 fplane=.false., f_lat_deg=0.0_r_def )
+
+    call feign_finite_element_config(           &
+             cellshape=cellshape_quadrilateral, &
+             coord_order=0_i_def,               &
+             coord_system=coord_system_xyz,     &
+             element_order=0_i_def,             &
+             rehabilitate=.true. )
+
+    call init_chi_transforms()
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+    use chi_transform_mod,        only: final_chi_transforms
+
+    implicit none
+
+    class(convert_phys_to_hdiv_test_type), intent(inout) :: this
+
+    call final_configuration()
+    call final_chi_transforms()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use convert_phys_to_hdiv_kernel_mod, only : convert_phys_to_hdiv_code
+
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only: get_w0_m3x3_q3x3x3_size, &
+                                                   get_w2_m3x3_q3x3x3_size, &
+                                                   get_w3_m3x3_q3x3x3_size
+
+    use get_unit_test_m3x3_dofmap_mod,       only: get_w0_m3x3_dofmap, &
+                                                   get_w2_m3x3_dofmap, &
+                                                   get_w3_m3x3_dofmap
+
+    use get_unit_test_w2nodal_basis_mod,     only: get_w0_w2nodal_basis, &
+                                                   get_w0_w2nodal_diff_basis, &
+                                                   get_w2_w2nodal_basis
+
+    use get_unit_test_3x3x3_chi_mod,         only: get_w0_3x3x3_field
+    use base_mesh_config_mod,                only: geometry_planar
+
+   implicit none
+
+    class(convert_phys_to_hdiv_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-3_r_def
+    real(r_def), parameter :: dx = 6000.0_r_def
+    real(r_def), parameter :: dy = 1000.0_r_def
+    real(r_def), parameter :: dz = 2000.0_r_def
+    real(r_def), parameter :: u_zonal = 5.0_r_def
+    real(r_def), parameter :: u_meridional = 3.0_r_def
+    real(r_def), parameter :: u_radial = 0.4_r_def
+
+    real(r_def) :: answer
+
+    integer(i_def) :: cell
+
+    integer(i_def) :: nlayers, k, nqp_h, nqp_v
+    integer(i_def) :: ndf_w0, ndf_w2, ndf_w3
+    integer(i_def) :: undf_w0, undf_w2, undf_w3
+
+    ! Dummy variable for passing into multi-getter routines where item is not needed
+    integer(i_def) :: unused
+
+    integer(i_def), allocatable :: map_w0(:,:)
+    integer(i_def), allocatable :: map_w2(:,:)
+    integer(i_def), allocatable :: map_w3(:,:)
+
+    real(r_def),    allocatable :: basis_w0(:,:,:)
+    real(r_def),    allocatable :: diff_basis_w0(:,:,:)
+    real(r_def),    allocatable :: basis_w2(:,:,:)
+
+    ! Test field data
+    real(r_def), allocatable :: chi_data(:,:)
+    real(r_def), allocatable :: u_hdiv_data(:)
+    real(r_def), allocatable :: u_lon_data(:)
+    real(r_def), allocatable :: u_lat_data(:)
+    real(r_def), allocatable :: u_up_data(:)
+    real(r_def), allocatable :: panel_id_data(:)
+
+    ! Get canned data for a 3-layer mesh
+    nlayers = 3
+
+    ! Get sizes
+    call get_w0_m3x3_q3x3x3_size( ndf_w0, undf_w0, unused, &
+                                  unused, unused,          &
+                                  nqp_h, nqp_v,            &
+                                  nlayers )
+
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, unused, &
+                                  unused, unused,          &
+                                  unused, unused,          &
+                                  nlayers )
+
+    call get_w3_m3x3_q3x3x3_size( ndf_w3, undf_w3, unused, &
+                                  unused, unused,          &
+                                  unused, unused,          &
+                                  1 )
+
+    ! Get dofmaps
+    call get_w0_m3x3_dofmap(map_w0)
+    call get_w2_m3x3_dofmap(map_w2)
+    call get_w3_m3x3_dofmap(map_w3, nlayers=1)
+
+    call get_w0_w2nodal_basis(basis_w0)
+    call get_w0_w2nodal_diff_basis(diff_basis_w0)
+    call get_w2_w2nodal_basis(basis_w2)
+
+    ! Create the data arrays
+    allocate(chi_data(undf_w0,3))
+    allocate(u_hdiv_data(undf_w2))
+    allocate(u_lon_data(undf_w2))
+    allocate(u_lat_data(undf_w2))
+    allocate(u_up_data(undf_w2))
+    allocate(panel_id_data(undf_w3))
+
+    call get_w0_3x3x3_field(chi_data(:,1), chi_data(:,2), chi_data(:,3), &
+                            dx, dy, dz, map_w0, nlayers)
+
+    cell = 1
+
+    ! Create the data
+    u_hdiv_data(:)   =  0.0_r_def
+    u_lon_data(:)    =  u_zonal
+    u_lat_data(:)    = -u_meridional
+    u_up_data(:)     =  u_radial
+    panel_id_data(:) =  1.0_r_def
+
+    call convert_phys_to_hdiv_code( nlayers,                                 &
+                                    u_hdiv_data,                             &
+                                    u_lon_data,                              &
+                                    u_lat_data,                              &
+                                    u_up_data,                               &
+                                    chi_data(:,1),                           &
+                                    chi_data(:,2),                           &
+                                    chi_data(:,3),                           &
+                                    panel_id_data,                           &
+                                    geometry_planar,                         &
+                                    ndf_w2, undf_w2,                         &
+                                    map_w2(:,cell), basis_w2,                &
+                                    ndf_w0, undf_w0,                         &
+                                    map_w0(:,cell), basis_w0, diff_basis_w0, &
+                                    ndf_w3, undf_w3,                         &
+                                    map_w3                                   &
+                                  )
+
+    answer = u_zonal*dy*dz
+
+    do k = 0,2
+      @assertEqual(answer, u_hdiv_data(map_w2(1,cell)+k), tol)
+      @assertEqual(answer, u_hdiv_data(map_w2(3,cell)+k), tol)
+    end do
+
+    answer = u_meridional*dx*dz
+
+    do k = 0,2
+      @assertEqual(answer, u_hdiv_data(map_w2(2,cell)+k), tol)
+      @assertEqual(answer, u_hdiv_data(map_w2(4,cell)+k), tol)
+    end do
+
+    answer = u_radial*dx*dy
+
+    do k = 0,2
+      @assertEqual(answer, u_hdiv_data(map_w2(5,cell)+k), tol)
+      @assertEqual(answer, u_hdiv_data(map_w2(6,cell)+k), tol)
+    end do
+
+    deallocate(map_w0)
+    deallocate(map_w2)
+    deallocate(map_w3)
+    deallocate(diff_basis_w0)
+    deallocate(basis_w0)
+    deallocate(basis_w2)
+    deallocate(chi_data)
+    deallocate(u_hdiv_data)
+    deallocate(u_lon_data)
+    deallocate(u_lat_data)
+    deallocate(u_up_data)
+    deallocate(panel_id_data)
+
+  end subroutine test_all
+
+end module convert_phys_to_hdiv_kernel_mod_test

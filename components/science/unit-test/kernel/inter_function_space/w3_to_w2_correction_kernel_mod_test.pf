@@ -1,0 +1,171 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the correction for averaging from W3 to W2
+!>
+module w3_to_w2_correction_kernel_mod_test
+
+  use constants_mod,                 only : i_def, r_def
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w2_m3x3_q3x3x3_size,     &
+                                                  get_w3_m3x3_q3x3x3_size
+  use get_unit_test_m3x3_dofmap_mod,       only : get_w2_m3x3_dofmap,          &
+                                                  get_w3_m3x3_dofmap,          &
+                                                  get_m3x3_stencil_dofmap_cross
+  use pFUnit_Mod
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: w3_to_w2_correction_test_type
+    private
+
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type w3_to_w2_correction_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(w3_to_w2_correction_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(w3_to_w2_correction_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use w3_to_w2_correction_kernel_mod, only : w3_to_w2_correction_code
+
+    implicit none
+
+    class(w3_to_w2_correction_test_type), intent(inout) :: this
+
+    integer(i_def) :: nlayers, ncells
+    integer(i_def) :: ndf_w2, undf_w2, ndf_w3, undf_w3
+    integer(i_def) :: dim_space, dim_space_diff
+    integer(i_def) :: nqp_h, nqp_v
+
+    integer(i_def), allocatable :: map_w2(:,:)
+    integer(i_def), allocatable :: map_w3(:,:)
+    integer(i_def), allocatable :: stencil_map_w3(:,:,:)
+
+    real(r_def), allocatable :: field_w2(:)
+    real(r_def), allocatable :: field_w3(:)
+    real(r_def), allocatable :: displacement(:)
+    real(r_def), allocatable :: panel_id(:)
+
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+
+    real(r_def)    :: answer
+    integer(i_def) :: cell
+
+    ! Variables for testing w3_to_w2_correction
+    ! Get sizes of everything
+    nlayers = 1
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+    call get_w3_m3x3_q3x3x3_size( ndf_w3, undf_w3, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  1 )
+
+    ! Setup maps
+    call get_w2_m3x3_dofmap(map_w2,nlayers)
+    call get_w3_m3x3_dofmap(map_w3,nlayers)
+    call get_m3x3_stencil_dofmap_cross(stencil_map_w3, map_w3)
+
+    ! Create the data
+    allocate(field_w2(undf_w2))
+    allocate(field_w3(undf_w3))
+    allocate(displacement(undf_w2))
+    allocate(panel_id(undf_w3))
+
+    ! Test is on grid with cells numbered like this:
+    !------------------
+    !  1  |  2  |  3  |
+    !------------------
+    !  4  +  5  |  6  |
+    !------------------
+    !  7  |  8  |  9  |
+    ! -----------------
+
+    ! We are testing the value at the point marked with the +
+
+    displacement(:) = 0.25_r_def
+    panel_id = 1.0_r_def
+
+    ! Force data to cross a panel boundary
+    panel_id(map_w3(1,1)) = 4.0_r_def
+    panel_id(map_w3(1,4)) = 4.0_r_def
+    panel_id(map_w3(1,7)) = 4.0_r_def
+
+    ! Only test the correction, so set initial field to be 0
+    field_w2(:) = 0.0_r_def
+
+    ! Initial field has linear gradient in the beta direction
+    field_w3(map_w3(1,1)) = 2.0_r_def
+    field_w3(map_w3(1,2)) = 2.0_r_def
+    field_w3(map_w3(1,3)) = 2.0_r_def
+    field_w3(map_w3(1,4)) = 4.0_r_def
+    field_w3(map_w3(1,5)) = 4.0_r_def
+    field_w3(map_w3(1,6)) = 4.0_r_def
+    field_w3(map_w3(1,7)) = 6.0_r_def
+    field_w3(map_w3(1,8)) = 6.0_r_def
+    field_w3(map_w3(1,9)) = 6.0_r_def
+
+    ! Call the kernel
+    do cell = 4, 5
+      call w3_to_w2_correction_code(                                   &
+                                     nlayers,                          &
+                                     field_w2,                         &
+                                     field_w3,                         &
+                                     5, stencil_map_w3(:,:,cell),      &
+                                     displacement,                     &
+                                     panel_id,                         &
+                                     5, stencil_map_w3(:,:,cell),      &
+                                     ndf_w2, undf_w2, map_w2(:,cell),  &
+                                     ndf_w3, undf_w3, map_w3(:,cell),  &
+                                     ndf_w2, undf_w2, map_w2(:,cell),  &
+                                     ndf_w3, undf_w3, map_w3(:,cell)   &
+                                    )
+    end do
+
+    ! Answer should be displacement * gradient
+    answer = -0.25_r_def * 2.0_r_def
+    ! Check W face of cell 5
+    @assertEqual(answer, field_w2(map_w2(1,5)), tol)
+
+    deallocate(map_w2)
+    deallocate(map_w3)
+    deallocate(stencil_map_w3)
+    deallocate(field_w2)
+    deallocate(field_w3)
+    deallocate(displacement)
+    deallocate(panel_id)
+
+  end subroutine test_all
+
+end module w3_to_w2_correction_kernel_mod_test

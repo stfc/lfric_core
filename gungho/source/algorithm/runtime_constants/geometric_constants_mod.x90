@@ -18,11 +18,13 @@ module geometric_constants_mod
   use constants_mod,                      only: i_def, r_def, l_def, str_def
   use extrusion_mod,                      only: TWOD, PRIME_EXTRUSION
   use field_mod,                          only: field_type
-  use fs_continuity_mod,                  only: W0, W1, W2, W3, Wtheta, Wchi
+  use fs_continuity_mod,                  only: W0, W1, W2, W2H, W3, Wtheta, Wchi
   use function_space_collection_mod,      only: function_space_collection
   use function_space_mod,                 only: function_space_type
+  use inventory_by_local_mesh_mod,        only: inventory_by_local_mesh_type
   use inventory_by_mesh_mod,              only: inventory_by_mesh_type
   use io_config_mod,                      only: subroutine_timers
+  use local_mesh_mod,                     only: local_mesh_type
   use log_mod,                            only: log_event, LOG_LEVEL_INFO, &
                                                 LOG_LEVEL_ERROR
   use mesh_collection_mod,                only: mesh_collection
@@ -75,6 +77,7 @@ module geometric_constants_mod
   type(inventory_by_mesh_type) :: lat_w3_inventory
   type(inventory_by_mesh_type) :: lat_w2_inventory
   type(inventory_by_mesh_type) :: long_w3_inventory
+  type(inventory_by_local_mesh_type) :: w3_to_w2_displacement_inventory
 
   ! Public functions to create and access the module contents
 
@@ -91,6 +94,7 @@ module geometric_constants_mod
   public :: get_longitude
   public :: get_chi_inventory
   public :: get_panel_id_inventory
+  public :: get_w3_to_w2_displacement
 
 contains
 
@@ -472,6 +476,57 @@ contains
 
   end function get_panel_id_inventory
 
+  !> @brief Returns the displacement when averaging from W3 to W2
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The displacement field used for correcting mappings from W3 to W2
+  function get_w3_to_w2_displacement(mesh_id) result(w3_to_w2_displacement)
+    use w3_to_w2_displacement_kernel_mod, only: w3_to_w2_displacement_kernel_type
+    implicit none
+    integer(kind=i_def),    intent(in) :: mesh_id
+    type(mesh_type),           pointer :: mesh => null()
+    type(local_mesh_type),     pointer :: local_mesh => null()
+    type(field_type),          pointer :: w3_to_w2_displacement
+    type(field_type)                   :: dummy_w3
+    logical(kind=l_def)                :: constant_exists
+    type(field_type),          pointer :: chi(:) => null()
+    type(field_type),          pointer :: panel_id => null()
+    type(function_space_type), pointer :: w2h_k0_fs => null()
+    type(function_space_type), pointer :: w3_k0_fs => null()
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. w3_to_w2_displacement_inventory%is_initialised()) then
+      call w3_to_w2_displacement_inventory%initialise(name="w3_to_w2_displacement", table_len=20)
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+    constant_exists = w3_to_w2_displacement_inventory%paired_object_exists(local_mesh%get_id())
+
+    if (constant_exists) then
+      ! Return existing constant
+      call w3_to_w2_displacement_inventory%get_field(local_mesh, w3_to_w2_displacement)
+    else
+      ! If this constant doesn't exist, create it
+      chi => get_coordinates(mesh_id)
+      panel_id => get_panel_id(mesh_id)
+      w2h_k0_fs => function_space_collection%get_fs(mesh, 0, W2H)
+      w3_k0_fs => function_space_collection%get_fs(mesh, 0, W3)
+
+      call w3_to_w2_displacement_inventory%add_field(w3_to_w2_displacement,    &
+                                                     w2h_k0_fs, local_mesh)
+
+      call dummy_w3%initialise( w3_k0_fs )
+      call invoke( setval_c(w3_to_w2_displacement, 0.0_r_def),                 &
+                   w3_to_w2_displacement_kernel_type(w3_to_w2_displacement,    &
+                                                     chi, panel_id, dummy_w3) )
+
+      nullify(w2h_k0_fs, w3_k0_fs, chi, panel_id)
+    end if
+
+    nullify(mesh, local_mesh)
+
+  end function get_w3_to_w2_displacement
+
   !> @brief Explicitly reclaim memory from module scope variables
   !
   subroutine final_geometric_constants()
@@ -490,6 +545,7 @@ contains
     call panel_id_inventory%clear()
     call chi_inventory%clear()
     call extended_chi_inventory%clear()
+    call w3_to_w2_displacement_inventory%clear()
 
   end subroutine final_geometric_constants
 

@@ -244,6 +244,7 @@ heldsuarez_wind_placement=0,
 lowest_level='gradient',
 sample_physics_scalars=.true.,
 sample_physics_winds=.true.,
+sample_physics_winds_correction=.false.
 /
 &planet
 cp=1005.0,
