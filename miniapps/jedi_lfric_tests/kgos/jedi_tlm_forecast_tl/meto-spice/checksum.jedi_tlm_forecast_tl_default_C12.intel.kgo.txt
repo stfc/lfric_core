@@ -1,1 +1,1 @@
-Inner product checksum theta = 4232A6319A8CE99B
+Inner product checksum theta =                0

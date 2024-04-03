@@ -51,9 +51,9 @@ program jedi_lfric_tests
 
   ! Create the depository, prognostics and diagnostics field collections
   call modeldb%fields%add_empty_field_collection("depository", table_len = 100)
-  call modeldb%fields%add_empty_field_collection("prognostic_fields",         &
+  call modeldb%fields%add_empty_field_collection("prognostic_fields", &
                                                   table_len = 100)
-  call modeldb%fields%add_empty_field_collection("diagnostic_fields",         &
+  call modeldb%fields%add_empty_field_collection("diagnostic_fields", &
                                                   table_len = 100)
 
   call modeldb%io_contexts%initialise(program_name, 100)

@@ -50,9 +50,9 @@ contains
     character(len=*),     optional, intent(in) :: alt_mesh_name
 
     ! Local
-    type(namelist_type),              pointer :: base_mesh_nml => null()
-    type(namelist_type),              pointer :: extrusion_nml => null()
-    type(namelist_type),              pointer :: planet_nml => null()
+    type(namelist_type),              pointer :: base_mesh_nml
+    type(namelist_type),              pointer :: extrusion_nml
+    type(namelist_type),              pointer :: planet_nml
     class(extrusion_type),        allocatable :: extrusion
     type(uniform_extrusion_type), allocatable :: extrusion_2d
 
@@ -113,7 +113,7 @@ contains
     !-------------------------------------------------------------------------
     ! 1.2 Create the required meshes
     !-------------------------------------------------------------------------
-    stencil_depth = 1
+    stencil_depth = 2
     apply_partition_check = .false.
     call init_mesh( configuration,           &
                     mpi_obj%get_comm_rank(), &

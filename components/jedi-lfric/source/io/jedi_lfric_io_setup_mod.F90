@@ -13,13 +13,15 @@ module jedi_lfric_io_setup_mod
   use empty_io_context_mod,      only: empty_io_context_type
   use field_mod,                 only: field_type
   use inventory_by_mesh_mod,     only: inventory_by_mesh_type
-  use io_config_mod,             only: use_xios_io, subroutine_timers
+  use io_config_mod,             only: subroutine_timers
   use log_mod,                   only: log_event, log_level_error
   use linked_list_mod,           only: linked_list_type
   use mesh_mod,                  only: mesh_type
   use mesh_collection_mod,       only: mesh_collection
   use model_clock_mod,           only: model_clock_type
   use mpi_mod,                   only: mpi_type
+  use namelist_collection_mod,   only: namelist_collection_type
+  use namelist_mod,              only: namelist_type
 
   use jedi_lfric_file_meta_mod,  only: jedi_lfric_file_meta_type
   use jedi_lfric_init_files_mod, only: jedi_lfric_init_files
@@ -39,14 +41,16 @@ contains
 
   !> @brief Initialise the XIOS context and IO
   !>
-  !> @param [in]    context_name The name of the context
-  !> @param [in]    mpi          The mpi communicator
-  !> @param [in]    file_meta    The file meta data
-  !> @param [in]    mesh_name    The name of the mesh
-  !> @param [inout] xios_context The LFRic context object
-  !> @param [inout] model_clock  The model clock
-  !> @param [in]    calendar     The model calendar
-  subroutine initialise_io( context_name, mpi, file_meta, mesh_name, xios_context, model_clock, calendar )
+  !> @param [in]    context_name  The name of the context
+  !> @param [in]    mpi           The mpi communicator
+  !> @param [in]    file_meta     The file meta data
+  !> @param [in]    mesh_name     The name of the mesh
+  !> @param [in]    configuration The LFRic namelist object
+  !> @param [in]    calendar      The model calendar
+  !> @param [inout] io_context  The LFRic context object
+  !> @param [inout] model_clock   The model clock
+  subroutine initialise_io( context_name, mpi, file_meta, mesh_name, &
+                            configuration, calendar, io_context, model_clock )
 
     implicit none
 
@@ -54,16 +58,21 @@ contains
     class(mpi_type),                        intent(in) :: mpi
     type(jedi_lfric_file_meta_type),        intent(in) :: file_meta(:)
     character(len=*),                       intent(in) :: mesh_name
-    class(io_context_type), allocatable, intent(inout) :: xios_context
-    type(model_clock_type),              intent(inout) :: model_clock
+    type(namelist_collection_type),         intent(in) :: configuration
     class(calendar_type),                   intent(in) :: calendar
+    class(io_context_type), allocatable, intent(inout) :: io_context
+    type(model_clock_type),              intent(inout) :: model_clock
 
     ! Local
     type(inventory_by_mesh_type) :: chi_inventory
     type(inventory_by_mesh_type) :: panel_id_inventory
-    type(mesh_type), pointer     :: mesh => null()
-    type(field_type), pointer    :: chi(:) => null()
-    type(field_type), pointer    :: panel_id => null()
+    type(mesh_type), pointer     :: mesh
+    type(field_type), pointer    :: chi(:)
+    type(field_type), pointer    :: panel_id
+    type(namelist_type), pointer :: io_nml
+    logical                      :: use_xios_io
+
+    nullify(mesh, chi, panel_id, io_nml)
 
     ! Create FEM specifics (function spaces and chi field)
     call init_fem( mesh_collection, chi_inventory, panel_id_inventory )
@@ -74,14 +83,17 @@ contains
     call panel_id_inventory%get_field( mesh, panel_id )
 
     ! Initialise I/O context and setup file to use
-    call init_io( context_name, mpi%get_comm(), file_meta, xios_context, chi, panel_id, &
-                  model_clock, calendar )
+    io_nml => configuration%get_namelist('io')
+    call io_nml%get_value( 'use_xios_io', use_xios_io )
+
+    call init_io( context_name, mpi%get_comm(), file_meta, use_xios_io, &
+                  calendar, io_context, chi, panel_id, model_clock )
 
     ! Do initial step
     if ( model_clock%is_initialisation() ) then
-      select type (xios_context)
+      select type (io_context)
       type is (lfric_xios_context_type)
-        call advance(xios_context, model_clock)
+        call advance(io_context, model_clock)
       end select
     end if
 
@@ -95,21 +107,26 @@ contains
 
   !> @brief  Initialises the model I/O and context
   !>
-  !> @param[in] context_name        A string identifier for the context
-  !> @param[in] communicator        The ID for the model MPI communicator
-  !> @param[in] chi_inventory       Contains the model's coordinate fields
-  !> @param[in] panel_id_inventory  Contains the model's panel ID fields
-  !> @param[in] model_clock         The model clock
-  !> @param[in] calendar            The model calendar
-  !> @param[in] before_close        Optional routine to be called before
-  !!                                context closes
-  subroutine init_io( context_name,          &
-                      communicator,          &
-                      file_meta,             &
-                      io_context,            &
-                      chi,                   &
-                      panel_id,              &
-                      model_clock, calendar, &
+  !> @param[in] context_name  A string identifier for the context
+  !> @param[in] communicator  The ID for the model MPI communicator
+  !> @param[in] file_meta     The file meta data
+  !> @param[in] use_xios_io   Is true when using xios
+  !> @param[in] calendar      The model calendar
+  !> @param[in] io_context    The LFRic context object
+  !> @param[in] chi           The model's coordinate fields
+  !> @param[in] panel_id      The model's panel ID fields
+  !> @param[in] model_clock   The model clock
+  !> @param[in] before_close  Optional routine to be called before
+  !>                          context closes
+  subroutine init_io( context_name,  &
+                      communicator,  &
+                      file_meta,     &
+                      use_xios_io,   &
+                      calendar,      &
+                      io_context,    &
+                      chi,           &
+                      panel_id,      &
+                      model_clock,   &
                       before_close )
 
     implicit none
@@ -117,11 +134,12 @@ contains
     character(*),                           intent(in) :: context_name
     integer(i_def),                         intent(in) :: communicator
     type(jedi_lfric_file_meta_type),        intent(in) :: file_meta(:)
+    logical,                                intent(in) :: use_xios_io
+    class(calendar_type),                   intent(in) :: calendar
     class(io_context_type), allocatable, intent(inout) :: io_context
     type(field_type),                       intent(in) :: chi(:)
     type(field_type),                       intent(in) :: panel_id
     type(model_clock_type),              intent(inout) :: model_clock
-    class(calendar_type),                   intent(in) :: calendar
     procedure(callback_clock_arg), optional            :: before_close
 
     ! Local

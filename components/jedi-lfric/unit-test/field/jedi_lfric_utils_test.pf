@@ -147,17 +147,17 @@ contains
       call add_real_field( io_collection, mesh,        &
                            variable_function_spaces(i), &
                            variable_names(i) )
-    enddo
+    end do
 
     ! There should be 3 fields in the collection
     collection_length = io_collection%get_length()
-    @assertEqual(collection_length, 3_i_def)
+    @assertEqual(3_i_def, collection_length)
 
     ! All fields should be present
     do i=1,nvars
       has_field = io_collection%field_exists(variable_names(i))
       @assertTrue( has_field )
-    enddo
+    end do
 
     ! 2. Test the getter method with the fields added in the previous step
     do i=1,nvars
@@ -168,7 +168,7 @@ contains
 
       field_name = field_ptr%get_name()
       @assertEqual( field_name, variable_names(i) )
-    enddo
+    end do
 
   end subroutine test_jedi_lfric_utils
 

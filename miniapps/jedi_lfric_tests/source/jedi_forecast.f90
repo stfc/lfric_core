@@ -51,7 +51,7 @@ program jedi_forecast
   type( jedi_state_config_type )    :: jedi_state_config
   type( jedi_geometry_config_type ) :: jedi_geometry_config
   type( jedi_duration_type )        :: forecast_length
-  type( jedi_duration_type )        :: time_step
+  type( jedi_duration_type )        :: model_time_step
 
   ! Local
   character(:), allocatable      :: filename
@@ -70,8 +70,8 @@ program jedi_forecast
   ! Infrastructure config
   call get_initial_filename( filename )
 
-  ! Run object - handles initialization and finalization of required infrastructure
-  ! Initialize external libraries such as XIOS
+  ! Run object - handles initialization and finalization of required
+  ! infrastructure. Initialize external libraries such as XIOS
   call jedi_run%initialise( program_name, model_communicator )
 
   ! Ensemble applications would split the communicator here
@@ -86,8 +86,8 @@ program jedi_forecast
   ! Geometry config
   call jedi_geometry_config%initialise( filename )
 
-  ! Model config - time step duration
-  call time_step%init( 'P0DT1H0M0S' )
+  ! Model config - model time step duration
+  call model_time_step%init( 'P0DT1H0M0S' )
 
   ! Forecast config - forcast duration
   call forecast_length%init( 'P0DT6H0M0S' )
@@ -99,7 +99,7 @@ program jedi_forecast
   call jedi_state%initialise( jedi_geometry, jedi_state_config )
 
   ! Create non-linear model
-  call jedi_model%initialise( time_step )
+  call jedi_model%initialise( model_time_step )
 
   ! Run non-linear model forecast
   call jedi_model%forecast( jedi_state, forecast_length, jedi_pp_empty )

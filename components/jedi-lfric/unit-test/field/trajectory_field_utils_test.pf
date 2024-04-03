@@ -283,8 +283,8 @@ contains
     do i=1,nvars
       call interp_field_collection%get_field(variable_names(i), field_ptr)
       field_proxy = field_ptr%get_proxy()
-      @assertEqual(field_proxy%data(1), expected_value(i))
-    enddo
+      @assertEqual(expected_value(i), field_proxy%data(1))
+    end do
 
     ! -- Apply equal weights
     t1_weight = 0.5
@@ -301,8 +301,8 @@ contains
     do i=1,nvars
       call interp_field_collection%get_field(variable_names(i), field_ptr)
       field_proxy = field_ptr%get_proxy()
-      @assertEqual(field_proxy%data(1), expected_value(i))
-    enddo
+      @assertEqual(expected_value(i), field_proxy%data(1))
+    end do
 
     ! -- Apply unequal weights
     t1_weight = 0.75
@@ -320,8 +320,8 @@ contains
     do i=1,nvars
       call interp_field_collection%get_field(variable_names(i), field_ptr)
       field_proxy = field_ptr%get_proxy()
-      @assertEqual(field_proxy%data(1), expected_value(i))
-    enddo
+      @assertEqual(expected_value(i), field_proxy%data(1))
+    end do
 
     ! -- Apply unequal weights
     t1_weight = 1.0
@@ -339,8 +339,8 @@ contains
     do i=1,nvars
       call interp_field_collection%get_field(variable_names(i), field_ptr)
       field_proxy = field_ptr%get_proxy()
-      @assertEqual(field_proxy%data(1), expected_value(i))
-    enddo
+      @assertEqual(expected_value(i), field_proxy%data(1))
+    end do
 
   end subroutine test_interpolate_fields_real
 
@@ -401,8 +401,8 @@ contains
     do i=1,nvars
       call interp_field_collection%get_field(variable_names(i), field_ptr)
       field_proxy = field_ptr%get_proxy()
-      @assertEqual(field_proxy%data(1), expected_value(i))
-    enddo
+      @assertEqual(expected_value(i), field_proxy%data(1))
+    end do
 
     ! -- Apply equal weights
     t1_weight = 0.5
@@ -419,8 +419,8 @@ contains
     do i=1,nvars
       call interp_field_collection%get_field(variable_names(i), field_ptr)
       field_proxy = field_ptr%get_proxy()
-      @assertEqual(field_proxy%data(1), expected_value(i))
-    enddo
+      @assertEqual(expected_value(i), field_proxy%data(1))
+    end do
 
     ! -- Apply unequal weights
     t1_weight = 0.75
@@ -438,8 +438,8 @@ contains
     do i=1,nvars
       call interp_field_collection%get_field(variable_names(i), field_ptr)
       field_proxy = field_ptr%get_proxy()
-      @assertEqual(field_proxy%data(1), expected_value(i))
-    enddo
+      @assertEqual(expected_value(i), field_proxy%data(1))
+    end do
 
     ! -- Apply unequal weights
     t1_weight = 0.25
@@ -457,8 +457,8 @@ contains
     do i=1,nvars
       call interp_field_collection%get_field(variable_names(i), field_ptr)
       field_proxy = field_ptr%get_proxy()
-      @assertEqual(field_proxy%data(1), expected_value(i))
-    enddo
+      @assertEqual(expected_value(i), field_proxy%data(1))
+    end do
 
   end subroutine test_interpolate_fields_int
 
@@ -515,8 +515,8 @@ contains
     do i=1,nvars_out
       call field_collection_out%get_field(variable_names_out(i), field_ptr)
       field_proxy = field_ptr%get_proxy()
-      @assertEqual(field_proxy%data(1), expected_value(i))
-    enddo
+      @assertEqual(expected_value(i), field_proxy%data(1))
+    end do
 
     ! Do the copy
     call copy_fields( field_collection_out, &
@@ -526,8 +526,8 @@ contains
     do i=1,nvars_out
       call field_collection_out%get_field(variable_names_out(i), field_ptr)
       field_proxy = field_ptr%get_proxy()
-      @assertEqual(field_proxy%data(1), expected_value(i))
-    enddo
+      @assertEqual(expected_value(i), field_proxy%data(1))
+    end do
 
   end subroutine test_copy_fields_real
 
@@ -586,8 +586,8 @@ contains
     do i=1,nvars_out
       call field_collection_out%get_field(variable_names_out(i), field_ptr)
       field_proxy = field_ptr%get_proxy()
-      @assertEqual(field_proxy%data(1), expected_value(i))
-    enddo
+      @assertEqual(expected_value(i), field_proxy%data(1))
+    end do
 
     ! Do the copy
     call copy_fields( field_collection_out, &
@@ -597,8 +597,8 @@ contains
     do i=1,nvars_out
       call field_collection_out%get_field(variable_names_out(i), field_ptr)
       field_proxy = field_ptr%get_proxy()
-      @assertEqual(field_proxy%data(1), expected_value(i))
-    enddo
+      @assertEqual(expected_value(i), field_proxy%data(1))
+    end do
 
   end subroutine test_copy_fields_int
 
@@ -645,8 +645,8 @@ contains
     do i=1,nvars
       call field_collection_out%get_field(variable_names(i), field_ptr)
       field_proxy = field_ptr%get_proxy()
-      @assertEqual(field_proxy%data(1), variable_initial_value(i))
-    enddo
+      @assertEqual(variable_initial_value(i), field_proxy%data(1))
+    end do
 
     ! Copy create with prefix_ls
     prefix_ls = "ls_"
@@ -659,8 +659,8 @@ contains
       name_concat = trim(prefix_ls)//variable_names(i)
       call field_collection_out%get_field(name_concat, field_ptr)
       field_proxy = field_ptr%get_proxy()
-      @assertEqual(field_proxy%data(1), variable_initial_value(i))
-    enddo
+      @assertEqual(variable_initial_value(i), field_proxy%data(1))
+    end do
 
   end subroutine test_copy_create_fields_real
 
@@ -709,8 +709,8 @@ contains
     do i=1,nvars
       call field_collection_out%get_field(variable_names(i), field_ptr)
       field_proxy = field_ptr%get_proxy()
-      @assertEqual(field_proxy%data(1), variable_initial_value(i))
-    enddo
+      @assertEqual(variable_initial_value(i), field_proxy%data(1))
+    end do
 
     ! Copy create with prefix_ls
     prefix_ls = "ls_"
@@ -723,8 +723,8 @@ contains
       name_concat = trim(prefix_ls)//variable_names(i)
       call field_collection_out%get_field(name_concat, field_ptr)
       field_proxy = field_ptr%get_proxy()
-      @assertEqual(field_proxy%data(1), variable_initial_value(i))
-    enddo
+      @assertEqual(variable_initial_value(i), field_proxy%data(1))
+    end do
 
   end subroutine test_copy_create_fields_int
 

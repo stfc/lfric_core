@@ -225,16 +225,17 @@ module trajectory_field_utils_mod
     nullify(interp_field_ptr, t1_field_ptr, t2_field_ptr)
     nullify(interp_field_ptr_int, field_ptr_int)
 
-    call iterator%initialise(interp_fields)
+    ! Iterate over the input fields
+    call iterator%initialise(t1_fields)
 
     do
       if ( .not. iterator%has_next() ) exit
         select type (listfield => iterator%next())
           type is (field_type)
 
-            interp_field_ptr => listfield
-            name=interp_field_ptr%get_name()
-            call t1_fields%get_field(name, t1_field_ptr)
+            t1_field_ptr => listfield
+            name=t1_field_ptr%get_name()
+            call interp_fields%get_field(name, interp_field_ptr)
             call t2_fields%get_field(name, t2_field_ptr)
 
             ! Compute the linear interpolation of the two fields
@@ -247,13 +248,14 @@ module trajectory_field_utils_mod
          type is (integer_field_type)
 
           ! Do nearest interpolation for integers
-          interp_field_ptr_int => listfield
-          name=interp_field_ptr_int%get_name()
+          field_ptr_int => listfield
+          name=field_ptr_int%get_name()
           if (t1_weight>t2_weight) then
             call t1_fields%get_field(name, field_ptr_int)
           else
             call t2_fields%get_field(name, field_ptr_int)
           endif
+          call interp_fields%get_field(name, interp_field_ptr_int)
 
           call invoke(int_setval_X(interp_field_ptr_int, field_ptr_int))
 

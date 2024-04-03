@@ -80,40 +80,39 @@ contains
     character( len=str_def ), allocatable :: variable_names_get(:)
     type( jedi_lfric_field_meta_type )    :: field_meta_data
     character( len=str_def )              :: test_variable_names(2)
-    !logeical all_variables_exists
 
     ! Test get_n_variables
     int_value = this%field_meta_data%get_n_variables()
     int_value_test = this%nvars
-    @assertEqual(int_value, int_value_test)
+    @assertEqual(int_value_test, int_value)
 
     ! Test get_variable_name
     do index=1,this%nvars
       variable_name = this%field_meta_data%get_variable_name(index)
       variable_name_test = this%variable_names(index)
-      @assertEqual(variable_name, variable_name_test)
-    enddo
+      @assertEqual(variable_name_test, variable_name)
+    end do
 
     ! Test get_variable_names
     call this%field_meta_data%get_variable_names(variable_names_get)
     do index=1,this%nvars
       variable_name_test = this%variable_names(index)
-      @assertEqual(variable_names_get(index), variable_name_test)
-    enddo
+      @assertEqual(variable_name_test, variable_names_get(index))
+    end do
 
     ! Test get_variable_function_space
     do index=1,this%nvars
       int_value = this%field_meta_data%get_variable_function_space(index)
       int_value_test = this%variable_function_spaces(index)
-      @assertEqual(int_value, int_value_test)
-    enddo
+      @assertEqual(int_value_test, int_value)
+    end do
 
     ! Test get_variable_is_2d
     do index=1,this%nvars
       logical_value = this%field_meta_data%get_variable_is_2d(index)
       logical_value_test = this%variable_is_2d(index)
       @assertTrue(logical_value.eqv.logical_value_test)
-    enddo
+    end do
 
     ! Test check_variables_exist
     ! All values do exist
@@ -131,14 +130,14 @@ contains
     ! Test get_n_variables with copied object
     int_value = field_meta_data%get_n_variables()
     int_value_test = this%nvars
-    @assertEqual(int_value, int_value_test)
+    @assertEqual(int_value_test, int_value)
 
     ! Test get_variable_is_2d with copied object
     do index=1,this%nvars
       logical_value = field_meta_data%get_variable_is_2d(index)
       logical_value_test = this%variable_is_2d(index)
       @assertTrue(logical_value.eqv.logical_value_test)
-    enddo
+    end do
 
     return
   end subroutine test_field_meta_data

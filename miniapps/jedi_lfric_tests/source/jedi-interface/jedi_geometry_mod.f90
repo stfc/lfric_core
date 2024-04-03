@@ -14,11 +14,13 @@ module jedi_geometry_mod
   use, intrinsic :: iso_fortran_env, only : real64
 
   use calendar_mod,                  only : calendar_type
-  use constants_mod,                 only : i_def, str_def, l_def
-  use driver_time_mod,               only : init_time
+  use constants_mod,                 only : i_def, str_def, l_def, &
+                                            r_second, i_timestep
   use extrusion_mod,                 only : extrusion_type, TWOD
   use io_context_mod,                only : io_context_type
   use jedi_geometry_config_mod,      only : jedi_geometry_config_type
+  use jedi_lfric_driver_time_mod,    only : jedi_lfric_init_time, &
+                                            jedi_lfric_final_time
   use jedi_lfric_mesh_interface_mod, only : set_target_mesh,           &
                                             is_mesh_cubesphere,        &
                                             get_domain_top,            &
@@ -35,6 +37,7 @@ module jedi_geometry_mod
   use mesh_collection_mod,           only : mesh_collection
   use model_clock_mod,               only : model_clock_type
   use mpi_mod,                       only : mpi_type
+  use namelist_collection_mod,       only : namelist_collection_type
 
   implicit none
 
@@ -45,27 +48,29 @@ type, public :: jedi_geometry_type
 
   !> The data map between external field data and LFRic fields
   integer( kind = i_def ), allocatable  :: horizontal_map(:)
-  !> the LFRic field dimensions
+  !> The LFRic field dimensions
   integer( kind = i_def )               :: n_layers
   integer( kind = i_def )               :: n_horizontal
   !> Comm and mesh_name
   integer( kind = i_def )               :: mpi_comm
   character( len=str_def )              :: mesh_name
-  !> XIOS clock and context
-  type( model_clock_type ), allocatable :: xios_clock
-  class( io_context_type ), allocatable :: xios_context
+  !> IO clock, context and calendar
+  type( model_clock_type ), allocatable :: io_clock
+  class( io_context_type ), allocatable :: io_context
+  class( calendar_type ),   allocatable :: calendar
 
 contains
 
   !> Field initialiser.
   procedure, public :: initialise
 
-  !> getters
+  !> Getters
   procedure, public  :: get_clock
   procedure, public  :: get_mpi_comm
   procedure, public  :: get_mesh_name
   procedure, public  :: get_mesh
   procedure, public  :: get_twod_mesh
+  procedure, public  :: get_io_context
   procedure, public  :: get_n_horizontal
   procedure, public  :: get_n_layers
   procedure, public  :: get_horizontal_map
@@ -91,7 +96,6 @@ subroutine initialise( self, mpi_comm, jedi_geometry_config )
   use driver_config_mod,         only: init_config
   use jedi_lfric_mesh_setup_mod, only: initialise_mesh
   use jedi_lfric_tests_mod,      only: jedi_lfric_tests_required_namelists
-  use namelist_collection_mod,   only: namelist_collection_type
 
   implicit none
 
@@ -121,7 +125,7 @@ subroutine initialise( self, mpi_comm, jedi_geometry_config )
   call initialise_mesh( self%mesh_name, configuration, mpi_obj )
 
   ! Setup the IO
-  call self%setup_io(jedi_geometry_config)
+  call self%setup_io(jedi_geometry_config, configuration)
 
   ! @todo: The geometry should read some fields: orog, height, ancils
 
@@ -198,17 +202,17 @@ subroutine get_horizontal_map(self, horizontal_map)
 
 end subroutine get_horizontal_map
 
-!> @brief    Get the XIOS clock
+!> @brief    Get the IO clock
 !>
-!> @return xios_clock A pointer to the XIOS clock
-function get_clock(self) result(xios_clock)
+!> @return io_clock A pointer to the IO clock
+function get_clock(self) result(io_clock)
 
   implicit none
 
     class( jedi_geometry_type ), target, intent(in) :: self
-    type( model_clock_type ), pointer               :: xios_clock
+    type( model_clock_type ), pointer               :: io_clock
 
-    xios_clock => self%xios_clock
+    io_clock => self%io_clock
 
 end function get_clock
 
@@ -270,30 +274,56 @@ function get_twod_mesh(self) result(twod_mesh)
 
 end function get_twod_mesh
 
+!> @brief    Get the IO context
+!>
+!> @return context_ptr Pointer to the current context object
+function get_io_context(self) result(context_ptr)
+
+   implicit none
+
+   class( jedi_geometry_type ), target, intent(in) :: self
+   class( io_context_type ), pointer :: context_ptr
+
+   context_ptr => self%io_context
+
+end function get_io_context
+
 !> @brief    Private method to setup the IO for the application
 !>
 !> @param [in] config  A configuration object containing the IO options
-subroutine setup_io(self, config)
+subroutine setup_io(self, config, configuration)
 
   implicit none
 
-  class( jedi_geometry_type ), intent(inout)    :: self
-  type( jedi_geometry_config_type ), intent(in) :: config
-  class( calendar_type ), allocatable    :: calendar
+  class( jedi_geometry_type ),       intent(inout) :: self
+  type( jedi_geometry_config_type ), intent(in)    :: config
+  type( namelist_collection_type ),  intent(in)    :: configuration
 
-  call init_time( self%xios_clock, calendar )
+  ! Local
+  real( kind=r_second )      :: time_step
+  integer( kind=i_timestep ) :: duration
+  character( len= str_def )  :: calender_start
+
+  ! Create IO clock and setup IO
+  call config%io_time_step%get_duration( duration )
+  time_step = real( duration, r_second )
+  call config%io_calender_start%to_string(calender_start)
+
+  call jedi_lfric_init_time( time_step, calender_start, &
+                             self%io_clock, self%calendar )
 
   call initialise_io( config%context_name,   &
                       self%get_mpi_comm(),   &
                       config%file_meta_data, &
                       self%get_mesh_name(),  &
-                      self%xios_context,     &
-                      self%xios_clock,       &
-                      calendar )
+                      configuration,         &
+                      self%calendar,         &
+                      self%io_context,       &
+                      self%io_clock )
 
   ! Tick out of initialisation state
-  if ( .not. self%xios_clock%tick() ) then
-    call log_event( 'The LFRic model_clock has stopped.', LOG_LEVEL_ERROR )
+  if ( .not. self%io_clock%tick() ) then
+    call log_event( 'The LFRic IO has stopped.', LOG_LEVEL_ERROR )
   end if
 
 end subroutine setup_io
@@ -307,8 +337,8 @@ subroutine jedi_geometry_destructor(self)
   type(jedi_geometry_type), intent(inout)    :: self
 
   if ( allocated(self % horizontal_map) ) deallocate(self % horizontal_map)
-  if ( allocated(self % xios_clock) )     deallocate(self % xios_clock)
-  if ( allocated(self % xios_context) )   deallocate(self % xios_context)
+  if ( allocated(self % io_context) ) deallocate(self % io_context)
+  call jedi_lfric_final_time( self%io_clock, self%calendar )
 
 end subroutine jedi_geometry_destructor
 

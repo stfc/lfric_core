@@ -80,8 +80,8 @@ program jedi_tlm_forecast_tl
   ! Infrastructure config
   call get_initial_filename( filename )
 
-  ! Run object - handles initialization and finalization of required infrastructure
-  ! Initialize external libraries such as XIOS
+  ! Run object - handles initialization and finalization of required
+  ! infrastructure. Initialize external libraries such as XIOS
   call jedi_run%initialise( program_name, model_communicator )
 
   ! Ensemble applications would split the communicator here
@@ -89,23 +89,23 @@ program jedi_tlm_forecast_tl
   ! Initialize LFRic infrastructure
   call jedi_run%initialise_infrastructure( filename, model_communicator )
 
-  ! Config for the jedi emulator objects
-  ! State config
+  ! Configuration for the jedi emulator objects
+  ! State configuration
   call jedi_state_config%initialise( use_pseudo_model = .true. )
 
-  ! Increment config
+  ! Increment configuration
   call jedi_increment_config%initialise()
 
-  ! Linear Model config
-  call jedi_linear_model_config%initialise()
+  ! Linear Model configuration
+  call jedi_linear_model_config%initialise( filename )
 
-  ! Model config
+  ! Model configuration
   call jedi_pseudo_model_config%initialise()
 
-  ! Geometry config
+  ! Geometry configuration
   call jedi_geometry_config%initialise( filename )
 
-  ! Forecast length
+  ! Forecast configuration - Set the forecast length to be 6 hrs
   call forecast_length%init( 'P0DT6H0M0S' )
 
   ! Create geometry
@@ -133,8 +133,9 @@ program jedi_tlm_forecast_tl
   call jedi_linear_model%forecastTL( jedi_increment, forecast_length )
 
   call log_event( 'Finalising ' // program_name // ' ...', LOG_LEVEL_ALWAYS )
+
   ! To provide KGO
-  depository => jedi_increment%model_data%get_field_collection("depository")
+  depository => jedi_linear_model%modeldb%fields%get_field_collection("depository")
   call output_checksum( program_name, depository )
 
 end program jedi_tlm_forecast_tl

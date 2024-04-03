@@ -105,7 +105,7 @@
                         env={"nrun":7})',
     'validate_rose_meta_graph("jedi_tlm_forecast_tl",appName="jedi_tlm_forecast_tl")',
     'run_application("jedi_tlm_forecast_tl", "default", resolutions=[("C12",)],
-                        env={"nrun":7})',
+                        env={"nrun":13})',
     'check_compilers("jedi_forecast", "default", "all", "fast-debug",
                         resolution=("C12",), publish=True )',
     'check_compilers("jedi_forecast", "default", "gnu", "full-debug",

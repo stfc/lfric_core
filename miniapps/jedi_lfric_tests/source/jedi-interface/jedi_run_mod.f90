@@ -64,7 +64,8 @@ subroutine initialise( self, program_name, out_communicator )
   ! It will be called outside the scope of the model interface.
   call create_comm( world_communicator )
 
-  ! Call to initialise external dependencies like XIOS that require the world comm
+  ! Call to initialise external dependencies like XIOS that require the world
+  ! comm
   call init_external_comm( program_name, world_communicator, out_communicator)
 
 end subroutine initialise
@@ -79,6 +80,7 @@ subroutine initialise_infrastructure( self, filename, model_communicator )
   use jedi_lfric_comm_mod,           only: init_internal_comm
   use driver_collections_mod,        only: init_collections
   use driver_config_mod,             only: init_config
+  use driver_log_mod,                only: init_logger
   use jedi_lfric_tests_mod,          only: jedi_lfric_tests_required_namelists
   use namelist_collection_mod,       only: namelist_collection_type
 
@@ -88,17 +90,21 @@ subroutine initialise_infrastructure( self, filename, model_communicator )
   character(len=*),               intent(in)    :: filename
   integer(i_def),                 intent(in)    :: model_communicator
 
+  ! Initialise the configuration
   call self%configuration%initialise( self%jedi_run_name, table_len=10 )
 
   ! Initialise the model communicator to setup global_mpi
   call init_internal_comm( model_communicator )
 
-  ! Initialise collections
-  call init_collections()
-
   ! Setup the config which is curently global
   call init_config( filename, jedi_lfric_tests_required_namelists, &
                     self%configuration )
+
+  ! Initialise the logger
+  call init_logger( model_communicator, self%jedi_run_name )
+
+  ! Initialise collections
+  call init_collections()
 
 end subroutine initialise_infrastructure
 
@@ -106,14 +112,11 @@ end subroutine initialise_infrastructure
 !>
 subroutine jedi_run_destructor(self)
 
-  use jedi_lfric_comm_mod,           only: final_external_comm, &
-                                           final_internal_comm
   use driver_collections_mod,        only: final_collections
   use driver_config_mod,             only: final_config
-  use mpi_mod,                       only: destroy_comm
+  use driver_log_mod,                only: final_logger
   use jedi_lfric_comm_mod,           only: final_external_comm, &
                                            final_internal_comm
-  use driver_config_mod,             only: final_config
   use mpi_mod,                       only: destroy_comm
 
   implicit none
@@ -122,6 +125,9 @@ subroutine jedi_run_destructor(self)
 
   ! Finalise collections
   call final_collections()
+
+  ! Finalise logger
+  call final_logger(self%jedi_run_name)
 
   ! Finalise the config
   call final_config()

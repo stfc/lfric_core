@@ -925,7 +925,6 @@ contains
   !> @brief Finalise the gungho application
   !>
   !> @param[in,out] modeldb       The working data set for the model run
-  !> @param[in,out] configuration The configuration for the model run
   !> @param[in]     program_name  An identifier given to the model run
   !>
   subroutine finalise_model( modeldb,       &

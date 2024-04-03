@@ -52,20 +52,20 @@ module linear_model_data_mod
 
   implicit none
 
-  public linear_create_ls,        &
-         linear_init_ls,          &
-         linear_init_pert
+  private
+  public :: linear_create_ls,          &
+            linear_create_ls_analytic, &
+            linear_init_ls,            &
+            linear_init_pert
 
 contains
 
   !> @brief   Create the fields in the ls fields field collection.
-  !> @details At present, this only includes the preparation for an
-  !!          analytical definition. But this could be extended to include
-  !!          the preparation for reading ls fields from a file,
-  !!          with a time axis.
+  !> @details The fields in the ls fields field collection are setup
+  !>          for use with a file update or analytical initialisation.
+  !>
   !> @param[inout] modeldb   The working data set for a model run
   !> @param[in]    mesh      The current 3d mesh
-  !> @param[in]    twod_mesh The current 2d mesh
   !>
   subroutine linear_create_ls( modeldb, mesh )
 
@@ -75,25 +75,134 @@ contains
 
     type( mesh_type ), pointer, intent(in) :: mesh
 
-    type( field_collection_type ), pointer :: depository => null()
-    type( field_collection_type ), pointer :: prognostics => null()
-    type( field_collection_type ), pointer :: ls_fields => null()
-    type( field_type ),            pointer :: ls_mr(:) => null()
-    type( field_type ),            pointer :: ls_moist_dyn(:) => null()
-    type( linked_list_type ),      pointer :: ls_times_list => null()
+    select case( ls_option )
 
-    type(field_collection_type), pointer :: moisture_fields => null()
-    type(field_array_type), pointer      :: ls_mr_array => null()
-    type(field_array_type), pointer      :: ls_moist_dyn_array => null()
+      case( ls_option_analytic )
+
+        call linear_create_ls_analytic( modeldb, mesh )
+
+      case( ls_option_file )
+
+        call linear_create_ls_file( modeldb, mesh )
+
+      case default
+
+        call log_event( "LS setup not available for requested ls_option ", &
+                        LOG_LEVEL_ERROR)
+
+    end select
+
+  end subroutine linear_create_ls
+
+  !> @brief   Create the fields in the ls fields field collection ready to be
+  !>          initialised.
+  !> @details The ls fields field collection is created ready to be updated
+  !>          in the analytical test case. This method is also used by jedi-lfric
+  !>
+  !> @param[inout] modeldb   The working data set for a model run
+  !> @param[in]    mesh      The current 3d mesh
+  !>
+  subroutine linear_create_ls_analytic( modeldb, mesh )
+
+    implicit none
+
+    type( modeldb_type ), target, intent(inout) :: modeldb
+
+    type( mesh_type ), pointer, intent(in) :: mesh
+
+    type( field_collection_type ), pointer :: depository
+    type( field_collection_type ), pointer :: prognostics
+    type( field_collection_type ), pointer :: ls_fields
+    type( field_type ),            pointer :: ls_mr(:)
+    type( field_type ),            pointer :: ls_moist_dyn(:)
+
+    type(field_collection_type), pointer :: moisture_fields
+    type(field_array_type),      pointer :: ls_mr_array
+    type(field_array_type),      pointer :: ls_moist_dyn_array
+
+    integer(i_def)            :: imr
+    character(str_def)        :: name
+    character(str_def)        :: moist_dyn_name
+    logical(l_def), parameter :: checkpoint_restart_flag = .true.
+
+    depository => modeldb%fields%get_field_collection("depository")
+    prognostics => modeldb%fields%get_field_collection("prognostic_fields")
+
+    ls_fields => modeldb%model_data%ls_fields
+
+    moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
+    call moisture_fields%get_field("ls_mr",ls_mr_array)
+    call moisture_fields%get_field("ls_moist_dyn", ls_moist_dyn_array)
+    ls_mr => ls_mr_array%bundle
+    ls_moist_dyn => ls_moist_dyn_array%bundle
+
+    write(log_scratch_space,'(A,A)') "Create ls fields: "// &
+                                     "Setting up ls field collection"
+    call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
+    call ls_fields%initialise(name='ls_fields', table_len=100)
+
+
+    call setup_field( ls_fields, depository, prognostics, "ls_rho", W3,       &
+                      mesh, checkpoint_restart_flag )
+    call setup_field( ls_fields, depository, prognostics, "ls_exner", W3,     &
+                      mesh, checkpoint_restart_flag )
+    call setup_field( ls_fields, depository, prognostics, "ls_theta", Wtheta, &
+                      mesh, checkpoint_restart_flag )
+    call setup_field( ls_fields, depository, prognostics, "ls_u", W2,         &
+                       mesh, checkpoint_restart_flag )
+
+    do imr = 1, nummr
+      name = trim('ls_' // adjustl(mr_names(imr)) )
+      call setup_field( ls_fields, depository, prognostics, name, Wtheta, &
+                        mesh, checkpoint_restart_flag, mr=ls_mr, imr=imr )
+    end do
+
+    do imr = 1, num_moist_factors
+      write(moist_dyn_name, "(A12, I1)") "ls_moist_dyn", imr
+      name = trim(moist_dyn_name)
+      call setup_field( ls_fields, depository, prognostics, name, Wtheta, &
+                        mesh, checkpoint_restart_flag, mr=ls_moist_dyn,   &
+                        imr=imr )
+    end do
+
+  end subroutine linear_create_ls_analytic
+
+  !> @brief   Create the fields in the ls fields field collection to be setup
+  !>          and updated by file.
+  !> @details The ls fields field collection is created and is setup ready
+  !>          for update via a file read with a time axis.
+  !>
+  !> @param[inout] modeldb   The working data set for a model run
+  !> @param[in]    mesh      The current 3d mesh
+  !>
+  subroutine linear_create_ls_file( modeldb, mesh )
+
+    implicit none
+
+    type( modeldb_type ), target, intent(inout) :: modeldb
+
+    type( mesh_type ), pointer, intent(in) :: mesh
+
+    type( field_collection_type ), pointer :: depository
+    type( field_collection_type ), pointer :: prognostics
+    type( field_collection_type ), pointer :: ls_fields
+    type( field_type ),            pointer :: ls_mr(:)
+    type( field_type ),            pointer :: ls_moist_dyn(:)
+    type( linked_list_type ),      pointer :: ls_times_list
+
+    type(field_collection_type), pointer :: moisture_fields
+    type(field_array_type),      pointer :: ls_mr_array
+    type(field_array_type),      pointer :: ls_moist_dyn_array
 
     type(gungho_time_axes_type), pointer :: model_axes
 
     integer(i_def)     :: imr
     character(str_def) :: name
     character(str_def) :: moist_dyn_name
-    logical(l_def)     :: checkpoint_restart_flag
 
     type(time_axis_type), save  :: ls_time_axis
+    logical(l_def),   parameter :: checkpoint_restart_flag = .false.
     logical(l_def),   parameter :: cyclic=.false.
     logical(l_def),   parameter :: interp_flag=.true.
     character(len=*), parameter :: axis_id="ls_axis"
@@ -114,114 +223,58 @@ contains
     ls_moist_dyn => ls_moist_dyn_array%bundle
 
     write(log_scratch_space,'(A,A)') "Create ls fields: "// &
-          "Setting up ls field collection"
+                                     "Setting up ls field collection"
     call log_event(log_scratch_space, LOG_LEVEL_INFO)
 
     call ls_fields%initialise(name='ls_fields', table_len=100)
 
-    select case( ls_option )
+    call ls_time_axis%initialise( "ls_time", file_id="ls", &
+                                   yearly=cyclic,          &
+                                   interp_flag = interp_flag )
 
-      case( ls_option_analytic )
+    call setup_field( ls_fields, depository, prognostics, "ls_rho", W3,       &
+                      mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
+    call setup_field( ls_fields, depository, prognostics, "ls_exner", W3,     &
+                      mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
+    call setup_field( ls_fields, depository, prognostics, "ls_theta", Wtheta, &
+                      mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
+    call setup_field( ls_fields, depository, prognostics, "ls_h_u", W2h,      &
+                      mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
+    call setup_field( ls_fields, depository, prognostics, "ls_v_u", Wtheta,   &
+                      mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
+    call setup_field( ls_fields, depository, prognostics, "ls_u", W2,         &
+                      mesh, checkpoint_restart_flag )
 
-        checkpoint_restart_flag = .true.
+    do imr = 1, nummr-2
 
-        call setup_field( &
-             ls_fields, depository, prognostics, "ls_rho", W3,       &
-             mesh, checkpoint_restart_flag )
-        call setup_field( &
-             ls_fields, depository, prognostics, "ls_exner", W3,     &
-             mesh, checkpoint_restart_flag )
-        call setup_field( &
-             ls_fields, depository, prognostics, "ls_theta", Wtheta, &
-             mesh, checkpoint_restart_flag )
-        call setup_field( &
-             ls_fields, depository, prognostics, "ls_u", W2,         &
-             mesh, checkpoint_restart_flag )
+      name = trim('ls_' // adjustl(mr_names(imr)) )
 
-        do imr = 1, nummr
-          name = trim('ls_' // adjustl(mr_names(imr)) )
-          call setup_field( &
-             ls_fields, depository, prognostics, name, Wtheta, &
-             mesh, checkpoint_restart_flag, mr=ls_mr, imr=imr )
-        enddo
+      call setup_field( ls_fields, depository, prognostics, name, Wtheta, &
+                        mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
+    enddo
 
-        do imr = 1, num_moist_factors
-          write(moist_dyn_name, "(A12, I1)") "ls_moist_dyn", imr
-          name = trim(moist_dyn_name)
-          call setup_field( &
-             ls_fields, depository, prognostics, name, Wtheta, &
-             mesh, checkpoint_restart_flag, mr=ls_moist_dyn, imr=imr )
-        end do
+    ! m_g and m_s
+    do imr = nummr-1, nummr
 
-      case( ls_option_file )
+      name = trim('ls_' // adjustl(mr_names(imr)) )
 
-        checkpoint_restart_flag = .false.
+      call setup_field( ls_fields, depository, prognostics, name, Wtheta, &
+                        mesh, checkpoint_restart_flag, mr=ls_mr, imr=imr )
+    end do
 
-        call ls_time_axis%initialise( "ls_time", file_id="ls",       &
-                                       yearly=cyclic,                &
-                                       interp_flag = interp_flag )
+    do imr = 1, num_moist_factors
 
-        call setup_field( &
-             ls_fields, depository, prognostics, "ls_rho", W3,       &
-             mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
-        call setup_field( &
-             ls_fields, depository, prognostics, "ls_exner", W3,     &
-             mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
-        call setup_field( &
-             ls_fields, depository, prognostics, "ls_theta", Wtheta, &
-             mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
-        call setup_field( &
-             ls_fields, depository, prognostics, "ls_h_u", W2h,      &
-             mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
-        call setup_field( &
-             ls_fields, depository, prognostics, "ls_v_u", Wtheta,   &
-             mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
+      write(moist_dyn_name, "(A12, I1)") "ls_moist_dyn", imr
+      name = trim(moist_dyn_name)
 
-        call setup_field( &
-             ls_fields, depository, prognostics, "ls_u", W2,   &
-             mesh, checkpoint_restart_flag )
+      call setup_field( ls_fields, depository, prognostics, name, Wtheta, &
+                        mesh, checkpoint_restart_flag,                    &
+                        mr=ls_moist_dyn, imr=imr )
+    end do
 
+    call ls_times_list%insert_item(ls_time_axis)
 
-        do imr = 1, nummr-2
-
-          name = trim('ls_' // adjustl(mr_names(imr)) )
-
-          call setup_field( &
-             ls_fields, depository, prognostics, name, Wtheta,         &
-             mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
-        enddo
-
-        ! m_g and m_s
-        do imr = nummr-1, nummr
-
-         name = trim('ls_' // adjustl(mr_names(imr)) )
-
-         call setup_field( &
-             ls_fields, depository, prognostics, name, Wtheta,         &
-             mesh, checkpoint_restart_flag, mr=ls_mr, imr=imr )
-        end do
-
-        do imr = 1, num_moist_factors
-
-          write(moist_dyn_name, "(A12, I1)") "ls_moist_dyn", imr
-          name = trim(moist_dyn_name)
-
-          call setup_field( &
-             ls_fields, depository, prognostics, name, Wtheta,         &
-             mesh, checkpoint_restart_flag,  &
-             mr=ls_moist_dyn, imr=imr )
-        end do
-
-        call ls_times_list%insert_item(ls_time_axis)
-
-      case default
-
-        call log_event( "LS setup not available for requested ls_option ", &
-                        LOG_LEVEL_ERROR)
-
-    end select
-
-  end subroutine linear_create_ls
+  end subroutine linear_create_ls_file
 
   !> @brief   Define the linearisation state values.
   !> @details At the present, these can only be defined from an analytical
@@ -229,7 +282,6 @@ contains
   !> @param[in]    mesh        The current 3d mesh
   !> @param[in]    twod_mesh   The current 2d mesh
   !> @param[inout] modeldb     The working data set for a model run
-  !> @param[in]    model_clock Time within the model.
   !>
   subroutine linear_init_ls( mesh, twod_mesh, modeldb )
 

@@ -232,10 +232,10 @@ subroutine get_linear_state( self, req_time, req_linear_state )
   else
     ! Do the interpolation using weights and indexes and put result into the output collection
     call interpolate_fields( req_linear_state,                        &
-                           self%linear_state_fields(time_index(1)), &
-                           self%linear_state_fields(time_index(2)), &
-                           time_weight(1),                          &
-                           time_weight(2) )
+                             self%linear_state_fields(time_index(1)), &
+                             self%linear_state_fields(time_index(2)), &
+                             time_weight(1),                          &
+                             time_weight(2) )
   endif
 
 end subroutine get_linear_state

@@ -216,7 +216,7 @@ contains
     ! model in add_linear_state method
     do ivar=1,nvars
       ls_variable_names(ivar) = "ls_"//trim(variable_names(ivar))
-    enddo
+    end do
 
     ! Create collection to update from the trajectory
     call this%create_real_collection( linear_state_collection,         &
@@ -234,8 +234,8 @@ contains
     do ivar=1,nvars
       call linear_state_collection%get_field(ls_variable_names(ivar), field_ptr)
       field_proxy = field_ptr%get_proxy()
-      @assertEqual(field_proxy%data(1), expected_value(ivar))
-    enddo
+      @assertEqual(expected_value(ivar), field_proxy%data(1))
+    end do
 
     ! 2. Start plus 0.5 time step
     call test_datetime%init( '2023-05-04T09:15:00Z' )
@@ -244,8 +244,8 @@ contains
     do ivar=1,nvars
       call linear_state_collection%get_field(ls_variable_names(ivar), field_ptr)
       field_proxy = field_ptr%get_proxy()
-      @assertEqual(field_proxy%data(1), expected_value(ivar))
-    enddo
+      @assertEqual(expected_value(ivar), field_proxy%data(1))
+    end do
 
     ! 3. Start plus 1 time step
     call test_datetime%init( '2023-05-04T09:30:00Z' )
@@ -254,8 +254,8 @@ contains
     do ivar=1,nvars
       call linear_state_collection%get_field(ls_variable_names(ivar), field_ptr)
       field_proxy = field_ptr%get_proxy()
-      @assertEqual(field_proxy%data(1), expected_value(ivar))
-    enddo
+      @assertEqual(expected_value(ivar), field_proxy%data(1))
+    end do
 
     ! 4. Start plus 1.5 time step
     call test_datetime%init( '2023-05-04T09:45:00Z' )
@@ -265,8 +265,8 @@ contains
     do ivar=1,nvars
       call linear_state_collection%get_field(ls_variable_names(ivar), field_ptr)
       field_proxy = field_ptr%get_proxy()
-      @assertEqual(field_proxy%data(1), expected_value(ivar))
-    enddo
+      @assertEqual(expected_value(ivar), field_proxy%data(1))
+    end do
 
     ! 5. Last datetime
     call test_datetime%init( '2023-05-04T10:00:00Z' )
@@ -275,8 +275,8 @@ contains
     do ivar=1,nvars
       call linear_state_collection%get_field(ls_variable_names(ivar), field_ptr)
       field_proxy = field_ptr%get_proxy()
-      @assertEqual(field_proxy%data(1), expected_value(ivar))
-    enddo
+      @assertEqual(expected_value(ivar), field_proxy%data(1))
+    end do
 
   end subroutine test_linear_state_trajectory
 

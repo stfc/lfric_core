@@ -6,22 +6,20 @@
 !
 !> @brief A module providing the JEDI Increment emulator class.
 !>
-!> @details This module holds a JEDI Increment emulator class that includes only
-!>          the functionality required by the LFRic-JEDI model interface on the
-!>          LFRic-API. This includes i) read/write to a defined set of fields,
-!>          ii) ability to interoperate between LFRic fields and JEDI fields
-!>          (Atlas fields here), and iii) storage of model_data instance to be
-!>          used for IO and model time stepping.
+!> @details This module holds a JEDI Increment emulator class that includes
+!>          only the functionality required by the LFRic-JEDI model interface
+!>          on JEDI-LFRIC. This includes i) read/write to a defined set of
+!>          fields and ii) ability to interoperate between LFRic fields and
+!>          JEDI fields (Atlas fields here).
 module jedi_increment_mod
 
   use, intrinsic :: iso_fortran_env, only : real64
   use atlas_field_emulator_mod,      only : atlas_field_emulator_type
   use atlas_field_interface_mod,     only : atlas_field_interface_type
-  use calendar_mod,                  only : calendar_type
+  use io_context_mod,                only : io_context_type
   use jedi_lfric_datetime_mod,       only : jedi_datetime_type
   use jedi_lfric_duration_mod,       only : jedi_duration_type
   use jedi_geometry_mod,             only : jedi_geometry_type
-  use driver_model_data_mod,         only : model_data_type
   use jedi_increment_config_mod,     only : jedi_increment_config_type
   use jedi_lfric_field_meta_mod,     only : jedi_lfric_field_meta_type
   use field_collection_mod,          only : field_collection_type
@@ -31,7 +29,6 @@ module jedi_increment_mod
                                             LOG_LEVEL_ERROR
   use constants_mod,                 only : i_def, l_def, str_def
   use model_clock_mod,               only : model_clock_type
-  use driver_time_mod,               only : init_time
 
   implicit none
 
@@ -45,17 +42,6 @@ type, public :: jedi_increment_type
 
   !> An object that stores the field meta-data associated with the fields
   type( jedi_lfric_field_meta_type )              :: field_meta_data
-
-  !> Interface field linking the Atlas emulator fields and LFRic fields in the
-  !> model data (to do field copies)
-  type( atlas_field_interface_type ), allocatable :: fields_to_model_data(:)
-
-  !> Model data that stores the fields to propagate
-  !> (will be subsumed into modelDB)
-  type( model_data_type ), public                 :: model_data
-
-  !> Model clock associated with the model_data (will be subsumed into modelDB)
-  type( model_clock_type ), allocatable, public   :: model_clock
 
   !> Field collection to perform IO
   type( field_collection_type ), public           :: io_collection
@@ -75,20 +61,14 @@ contains
   procedure :: increment_initialiser
 
   !> Setup the atlas_field_interface_type that enables copying between Atlas
-  !> field emulators and the LFRic fields in the model_data
-  procedure, private :: setup_interface_to_model_data
-
-  !> Setup the atlas_field_interface_type that enables copying between Atlas
   !> field emulators and the fields in a LFRic field collection
   procedure, private :: setup_interface_to_field_collection
 
-  !> Copy the data in the internal Atlas field emulators from the LFRic fields
-  !> stored in the a field_collection
-  procedure, public :: from_lfric_field_collection
+  !> Set the internal Atlas field emulators from a input field_collection
+  procedure, public :: set_from_field_collection
 
-  !> Copy the data in the internal Atlas field emulators to the LFRic fields
-  !> stored in the a field_collection
-  procedure, public :: to_lfric_field_collection
+  !> Get via the internal Atlas field emulators via a copy to a field_collection
+  procedure, public :: get_to_field_collection
 
   !> Return the curent time
   procedure, public :: valid_time
@@ -99,9 +79,6 @@ contains
   !> @todo Write model fields to file from the fields
   !> procedure, public :: write_file
 
-  !> Create the model_data
-  procedure, public :: create_model_data
-
   !> Zero the model fields
   procedure, public :: zero
 
@@ -111,13 +88,11 @@ contains
   !> Print field
   procedure, public :: print_field
 
-  !> Copy the data in the LFRic fields stored in the model_data to the internal
-  !> Atlas field emulators
-  procedure, public :: from_model_data
+  !> Set the internal Atlas field emulators from the model prognostics fields
+  procedure, public :: set_from_model_prognostics
 
-  !> Copy the data in the internal Atlas field emulators to the LFRic fields
-  !> stored in the model_data
-  procedure, public :: to_model_data
+  !> Get the model prognostics fields from the internal Atlas field emulators
+  procedure, public :: get_to_model_prognostics
 
   !> Finalizer
   final             :: jedi_increment_destructor
@@ -253,6 +228,11 @@ subroutine read_file( self, read_time, file_prefix )
 
   ! Local
   character( len=str_def ), allocatable :: variable_names(:)
+  class( io_context_type ),     pointer :: context_ptr
+
+  ! Ensure the JEDI-IO context is set to current
+  context_ptr => self%geometry%get_io_context()
+  call context_ptr%set_current()
 
   ! Set the clock to the desired read time
   call set_clock(self, read_time)
@@ -267,10 +247,12 @@ subroutine read_file( self, read_time, file_prefix )
   ! Read the increment into the io_collection
   call read_state( self%io_collection, prefix=file_prefix )
 
-  ! Copy model_data fields to the Atlas field emulators
+  ! Get the list of internal variables
   call self%field_meta_data%get_variable_names( variable_names )
 
-  call self%from_lfric_field_collection( variable_names, self%io_collection )
+  ! Set from the io_collection populated by the read to the Atlas field
+  ! emulators
+  call self%set_from_field_collection( variable_names, self%io_collection )
 
 end subroutine read_file
 
@@ -298,130 +280,102 @@ end subroutine zero
 ! Local methods to support LFRic-JEDI implementation
 !------------------------------------------------------------------------------
 
-!> @brief    Create the locally stored model_data for jedi_increment_type
+!> @brief    Set the Atlas field emulators from the model prognostics stored in
+!>           the model prognostics field_collection
 !>
-subroutine create_model_data( self )
+!> @param [inout] model_prognostics The model prognostic field collection
+!>
+subroutine set_from_model_prognostics( self, model_prognostics )
 
-  use jedi_lfric_fake_tlm_mod,       only : create_fake_tlm_model_data
+  use transform_winds_mod, only : wind_vector_to_scalar
 
   implicit none
 
-  class( jedi_increment_type ),       intent(inout) :: self
-
-  class( calendar_type ), allocatable    :: calendar
-
-  ! Create model data and then link to the Atlas fields
-  call create_fake_tlm_model_data( self%geometry%get_mesh(), self%model_data )
-  call init_time( self%model_clock, calendar )
-  call self%setup_interface_to_model_data()
-
-end subroutine create_model_data
-
-!> @brief    Setup fields_to_model_data variable that enables copying between
-!>           Atlas field emulators and the LFRic fields in the model_data
-!>
-subroutine setup_interface_to_model_data( self )
-
-  use jedi_lfric_utils_mod, only : get_model_field
-  use field_mod,            only : field_type
-
-  implicit none
-
-  class( jedi_increment_type ), intent(inout) :: self
+  class( jedi_increment_type ),  intent(inout) :: self
+  type( field_collection_type ), intent(inout) :: model_prognostics
 
   ! Local
-  integer(i_def)                         :: ivar
-  type(field_type),              pointer :: lfric_field_ptr
-  real(real64),                  pointer :: atlas_data_ptr(:,:)
-  integer(i_def),                pointer :: horizontal_map_ptr(:)
-  integer(i_def)                         :: n_variables
-  type( field_collection_type ), pointer :: depository
+  character( len=str_def ), allocatable :: variable_names(:)
 
-  nullify(depository)
-  depository => self%model_data%get_field_collection("depository")
-
-  n_variables = self%field_meta_data%get_n_variables()
-
-  ! Allocate space for the interface fields
-  if ( allocated( self%fields_to_model_data ) ) then
-    deallocate( self%fields_to_model_data )
-  endif
-  allocate( self%fields_to_model_data( n_variables ) )
-
-  ! Link the Atlas emulator fields with lfric fields
-  call self%geometry%get_horizontal_map(horizontal_map_ptr)
-  do ivar=1, n_variables
-
-    ! Get the required data
-    call get_model_field( self%field_meta_data%get_variable_name(ivar), &
-                          depository, lfric_field_ptr )
-
-    atlas_data_ptr => self%fields(ivar)%get_data()
-
-    call self%fields_to_model_data(ivar)%initialise( atlas_data_ptr,     &
-                                                     horizontal_map_ptr, &
-                                                     lfric_field_ptr )
-
-  end do
-
-end subroutine setup_interface_to_model_data
-
-!> @brief    Copy from model_data to the Atlas field emulators
-!>
-subroutine from_model_data( self )
-
-  implicit none
-
-  class( jedi_increment_type ), intent(inout) :: self
-
-  ! Local
-  integer(i_def) :: ivar
-
-  !> @todo Will need some sort of transform for winds and
-  !>       possibly other higher order elements.
+  !> @todo This is a placeholder for code to come
+  !>       as part of #3734
   !>
-  !>       call transform_winds(model_data)
+  !>       In this code:
+  !>       The cell-centered winds (W3/Wtheta) stored in the input prognostics
+  !>       field collection are updated by interpolation from the W2 wind
+  !>       field. This is performed in wind_vector_to_scalar via
+  !>       map_physics_winds and split_wind_alg. The updated cell centred winds
+  !>       are then updated via the copy: set_from_field_collection
 
-  ! copy to the Atlas emulator fields
-  do ivar = 1, size(self%fields_to_model_data)
-    call self%fields_to_model_data(ivar)%copy_from_lfric()
-  end do
+  call wind_vector_to_scalar( model_prognostics )
 
-end subroutine from_model_data
+  ! Get a list of variables to copy
+  call self%field_meta_data%get_variable_names( variable_names )
 
-!> @brief    Copy from the Atlas field emulators to the model_data
+  ! Set model_prognostics to the Atlas field emulators
+  call self%set_from_field_collection( variable_names, model_prognostics )
+
+end subroutine set_from_model_prognostics
+
+!> @brief   Get the model prognostics fields from the internal Atlas field
+!>          emulators
 !>
-subroutine to_model_data( self )
+!> @param [inout] model_prognostics The model prognostic field collection
+!>
+subroutine get_to_model_prognostics( self, model_prognostics )
+
+  use transform_winds_mod, only : wind_scalar_to_vector
 
   implicit none
 
-  class( jedi_increment_type ), intent(inout) :: self
+  class( jedi_increment_type ),  intent(inout) :: self
+  type( field_collection_type ), intent(inout) :: model_prognostics
 
   ! Local
-  integer(i_def) :: ivar
+  character( len=str_def ), allocatable :: variable_names(:)
 
-  ! Copy from the Atlas emulator fields
-  do ivar = 1, size(self%fields_to_model_data)
-    call self%fields_to_model_data(ivar)%copy_to_lfric()
-  end do
+  ! Get a list of variables to copy
+  call self%field_meta_data%get_variable_names( variable_names )
 
-end subroutine to_model_data
+  ! Get Atlas field emulators to the model_prognostics
+  call self%get_to_field_collection( variable_names, model_prognostics )
+
+  !> @todo This is a placeholder for code to come
+  !>       as part of #3734
+  !>
+  !>       In this code:
+  !>       The cell-centered winds stored in Atlas have been copied via
+  !>       get_to_field_collection to the cell centered (W3/Wtheta) model
+  !>       prognostic field collection. The following performs the
+  !>       interpolation of the winds from the cell centered (W3/Wtheta) to W2
+  !>       using the set_wind method.
+  !>
+  call wind_scalar_to_vector( model_prognostics )
+
+end subroutine get_to_model_prognostics
 
 !> @brief    Setup atlas_lfric_interface_fields that enables copying
 !>           between Atlas field emulators and the LFRic fields in
 !>           io_collection
 !>
-subroutine setup_interface_to_field_collection( self, atlas_lfric_interface_fields, variable_names, field_collection )
+!> @param [inout] atlas_lfric_interface_fields The atlas lfric interface bundle
+!> @param [in]    variable_names               The list of variables to setup
+!> @param [inout] field_collection             The fields to link to
+!>
+subroutine setup_interface_to_field_collection( self, &
+                                                atlas_lfric_interface_fields, &
+                                                variable_names, &
+                                                field_collection )
 
   use jedi_lfric_utils_mod, only : get_model_field
   use field_mod,            only : field_type
 
   implicit none
 
-  class( jedi_increment_type ), intent(inout)       :: self
+  class( jedi_increment_type ),       intent(inout) :: self
   type( atlas_field_interface_type ), intent(inout) :: atlas_lfric_interface_fields(:)
-  character( len=str_def ), intent(in)              :: variable_names(:)
-  type( field_collection_type ), intent(inout)      :: field_collection
+  character( len=str_def ),           intent(in)    :: variable_names(:)
+  type( field_collection_type ),      intent(inout) :: field_collection
 
   ! Local
   integer(i_def)            :: ivar
@@ -454,14 +408,19 @@ subroutine setup_interface_to_field_collection( self, atlas_lfric_interface_fiel
 
 end subroutine setup_interface_to_field_collection
 
-!> @brief    Copy from a field_collection to the Atlas field emulators
+
+!> @brief    Set the internal Atlas field emulators by copying the fields
+!>           stored in a field_collection
 !>
-subroutine from_lfric_field_collection( self, variable_names, field_collection )
+!> @param [in]    variable_names    The list of variables to copy
+!> @param [inout] field_collection  The fields to copy from
+!>
+subroutine set_from_field_collection( self, variable_names, field_collection )
 
   implicit none
 
-  class( jedi_increment_type ), intent(inout)  :: self
-  character( len=str_def ), intent(in)         :: variable_names(:)
+  class( jedi_increment_type ),  intent(inout) :: self
+  character( len=str_def ),      intent(in)    :: variable_names(:)
   type( field_collection_type ), intent(inout) :: field_collection
 
   ! Local
@@ -483,11 +442,15 @@ subroutine from_lfric_field_collection( self, variable_names, field_collection )
     call atlas_lfric_interface_fields(ivar)%copy_from_lfric()
   end do
 
-end subroutine from_lfric_field_collection
+end subroutine set_from_field_collection
 
-!> @brief    Copy to a field_collection from the Atlas field emulators
+!> @brief    Get a copy of the internal Atlas field emulators by copying into a
+!>           field_collection
 !>
-subroutine to_lfric_field_collection( self, variable_names, field_collection )
+!> @param [in]    variable_names    The list of variables to copy
+!> @param [inout] field_collection  The fields to copy to
+!>
+subroutine get_to_field_collection( self, variable_names, field_collection )
 
   implicit none
 
@@ -514,7 +477,7 @@ subroutine to_lfric_field_collection( self, variable_names, field_collection )
     call atlas_lfric_interface_fields(ivar)%copy_to_lfric()
   end do
 
-end subroutine to_lfric_field_collection
+end subroutine get_to_field_collection
 
 !> @brief    Update the inc_time by a single time-step
 !>
@@ -531,7 +494,7 @@ subroutine update_time( self, time_step )
 
 end subroutine update_time
 
-!> @brief    Set the LFRic clock to the time specified by the input datetime
+!> @brief    Set the IO clock to the time specified by the input datetime
 !>
 !> @param [in] new_datetime  The datetime to be used to update the LFRic clock
 subroutine set_clock( self, new_time )
@@ -543,12 +506,11 @@ subroutine set_clock( self, new_time )
 
   type( jedi_duration_type )        :: time_difference
   type( jedi_duration_type )        :: time_step
-  type( model_clock_type ), pointer :: xios_clock
-  logical( l_def )                  :: clock_stopped
+  type( model_clock_type ), pointer :: io_clock
+  logical( l_def )                  :: clock_running
 
-  xios_clock => self%geometry%get_clock()
-  call time_step%init( int( xios_clock%get_seconds_per_step(), &
-                            kind=i_def ) )
+  io_clock => self%geometry%get_clock()
+  call time_step%init( int( io_clock%get_seconds_per_step(), kind=i_def ) )
 
   time_difference = new_time - self%inc_time
 
@@ -562,22 +524,17 @@ subroutine set_clock( self, new_time )
     call log_event( log_scratch_space, LOG_LEVEL_ERROR )
   end if
 
-  ! Tick the clock to the required time but first check that the clock is
-  ! running in the case its not being ticked (i.e. new_time==self%inc_time).
-  ! clock_stopped=.not.clock%is_running() didnt work when I tried it - set to
-  ! false initially for now.
-
-  clock_stopped = .false.
-
+  ! Tick the clock to the required time.
+  clock_running = .true.
   do while ( new_time%is_ahead( self%inc_time ) )
-    clock_stopped = .not. xios_clock%tick()
+    clock_running = io_clock%tick()
     self%inc_time = self%inc_time + time_step
   end do
 
   ! Check the clock is still running
-  if ( clock_stopped ) then
+  if ( .not. clock_running ) then
     write ( log_scratch_space, '(A)' ) &
-      "State::set_clock::The LFRic clock has stopped."
+      "State::set_clock::The LFRic IO clock has stopped."
     call log_event( log_scratch_space, LOG_LEVEL_ERROR )
   end if
 
@@ -591,9 +548,10 @@ subroutine jedi_increment_destructor( self )
 
   type( jedi_increment_type ), intent(inout) :: self
 
-  self%geometry => null()
-  if ( allocated(self%fields ) ) deallocate(self%fields )
-  if ( allocated(self%model_clock ) ) deallocate(self%model_clock )
+  nullify(self%geometry)
+  if ( allocated(self%fields ) ) then
+    deallocate(self%fields )
+  end if
 
 end subroutine jedi_increment_destructor
 

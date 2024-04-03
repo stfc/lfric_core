@@ -67,8 +67,8 @@ program jedi_forecast_pseudo
   ! Infrastructure config
   call get_initial_filename( filename )
 
-  ! Run object - handles initialization and finalization of required infrastructure
-  ! Initialize external libraries such as XIOS
+  ! Run object - handles initialization and finalization of required
+  ! infrastructure. Initialize external libraries such as XIOS
   call jedi_run%initialise( program_name, model_communicator )
 
   ! Ensemble applications would split the communicator here
@@ -102,8 +102,10 @@ program jedi_forecast_pseudo
   call jedi_psuedo_model%forecast( jedi_state, forecast_length, jedi_pp_empty )
 
   ! Write a netCDF via XIOS at the last time step.
-  ! Passing state%datetime to state to be consistent with the implementation in JEDI.
-  call jedi_state%write_file( jedi_state%valid_time(), jedi_state_config%write_file_prefix )
+  ! Passing state%datetime to state to be consistent with the implementation
+  ! in JEDI.
+  call jedi_state%write_file( jedi_state%valid_time(), &
+                              jedi_state_config%write_file_prefix )
 
   call log_event( 'Finalising ' // program_name // ' ...', LOG_LEVEL_ALWAYS )
   ! To provide KGO

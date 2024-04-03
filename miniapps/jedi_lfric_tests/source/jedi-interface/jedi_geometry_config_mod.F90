@@ -17,6 +17,8 @@ module jedi_geometry_config_mod
   use constants_mod,               only : i_def, str_def
   use jedi_lfric_file_meta_mod,    only : jedi_lfric_file_meta_type
   use jedi_lfric_tests_config_mod, only : test_trajectory_path
+  use jedi_lfric_duration_mod,     only : jedi_duration_type
+  use jedi_lfric_datetime_mod,     only : jedi_datetime_type
 
   implicit none
 
@@ -30,6 +32,10 @@ type, public :: jedi_geometry_config_type
   character( len=str_def )        :: context_name
   !> The name of the namelist file that contains the configuration
   character(len=str_def)          :: filename
+  !> The io clock time-step
+  type( jedi_duration_type )      :: io_time_step
+  !> The io calender start date
+  type( jedi_datetime_type )      :: io_calender_start
 
 contains
 
@@ -65,6 +71,10 @@ subroutine initialise( self, filename )
 
   ! The name of the namelist file that contains the configuration
   self%filename=filename
+
+  ! Set the IO time-step
+  call self%io_time_step%init( 'P0DT1H0M0S' )
+  call self%io_calender_start%init( '2018-04-14T21:00:00' )
 
   ! The name of the context to use
   self%context_name="jedi_state"

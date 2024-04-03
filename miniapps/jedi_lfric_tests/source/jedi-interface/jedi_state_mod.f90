@@ -18,20 +18,21 @@ module jedi_state_mod
   use atlas_field_emulator_mod,      only : atlas_field_emulator_type
   use atlas_field_interface_mod,     only : atlas_field_interface_type
   use calendar_mod,                  only : calendar_type
+  use constants_mod,                 only : i_def, l_def, str_def
+  use driver_model_data_mod,         only : model_data_type
+  use driver_time_mod,               only : init_time, final_time
+  use field_collection_mod,          only : field_collection_type
+  use io_context_mod,                only : io_context_type
   use jedi_lfric_datetime_mod,       only : jedi_datetime_type
   use jedi_lfric_duration_mod,       only : jedi_duration_type
   use jedi_geometry_mod,             only : jedi_geometry_type
-  use driver_model_data_mod,         only : model_data_type
   use jedi_state_config_mod,         only : jedi_state_config_type
   use jedi_lfric_field_meta_mod,     only : jedi_lfric_field_meta_type
-  use field_collection_mod,          only : field_collection_type
   use log_mod,                       only : log_event,          &
                                             log_scratch_space,  &
                                             LOG_LEVEL_INFO,     &
                                             LOG_LEVEL_ERROR
-  use constants_mod,                 only : i_def, l_def, str_def
   use model_clock_mod,               only : model_clock_type
-  use driver_time_mod,               only : init_time
 
   implicit none
 
@@ -56,6 +57,9 @@ type, public :: jedi_state_type
 
   !> Model clock associated with the model_data (will be subsumed into modelDB)
   type( model_clock_type ), allocatable, public   :: model_clock
+
+  !> Model calendar associated with the model_data (will be subsumed into modelDB)
+  class( calendar_type ), allocatable             :: calendar
 
   !> Field collection to perform IO
   type( field_collection_type ), public           :: io_collection
@@ -88,13 +92,11 @@ contains
   !> Get Atlas field from the bundle using the fieldname
   procedure, private :: get_field_data
 
-  !> Copy the data in the internal Atlas field emulators from the LFRic fields
-  !> stored in the a field_collection
-  procedure, public :: from_lfric_field_collection
+  !> Set the internal Atlas field emulators from a input field_collection
+  procedure, public :: set_from_field_collection
 
-  !> Copy the data in the internal Atlas field emulators to the LFRic fields
-  !> stored in the a field_collection
-  procedure, public :: to_lfric_field_collection
+  !> Get via the internal Atlas field emulators via a copy to a field_collection
+  procedure, public :: get_to_field_collection
 
   !> Return the curent time
   procedure, public :: valid_time
@@ -162,7 +164,6 @@ subroutine state_initialiser_read( self, geometry, config )
 
 end subroutine state_initialiser_read
 
-
 !> @brief    Initialiser for jedi_state_type
 !>
 !> @param [in] geometry The geometry object required to construct the state
@@ -179,7 +180,6 @@ subroutine state_initialiser( self, geometry, config )
   type( jedi_state_config_type ),  intent(inout) :: config
 
   ! Local
-  class( calendar_type ), allocatable    :: calendar
   integer(i_def) :: n_horizontal
   integer(i_def) :: n_levels
   integer(i_def) :: n_layers
@@ -232,7 +232,7 @@ subroutine state_initialiser( self, geometry, config )
 
   ! If running the model, create model data and link to fields .
   if ( .not. config%use_pseudo_model ) then
-    call init_time( self%model_clock, calendar )
+    call init_time( self%model_clock, self%calendar )
     call self%create_model_data()
   end if
 
@@ -289,6 +289,11 @@ subroutine read_file( self, read_time, file_prefix )
   ! Local
   character( len=str_def ), allocatable :: variable_names(:)
   character( len=str_def )              :: current_datetime
+  class( io_context_type ),     pointer :: context_ptr
+
+  ! Ensure the JEDI-IO context is set to current
+  context_ptr => self%geometry%get_io_context()
+  call context_ptr%set_current()
 
   ! Set the clock to the desired read time
   call set_clock(self, read_time)
@@ -310,7 +315,7 @@ subroutine read_file( self, read_time, file_prefix )
   ! Copy model_data fields to the Atlas field emulators
   call self%field_meta_data%get_variable_names(variable_names)
 
-  call self%from_lfric_field_collection(variable_names, self%io_collection)
+  call self%set_from_field_collection(variable_names, self%io_collection)
 
 end subroutine read_file
 
@@ -332,6 +337,11 @@ subroutine write_file( self, write_time, file_prefix )
   ! Local
   character( len=str_def ), allocatable :: variable_names(:)
   character( len=str_def )              :: current_datetime
+  class( io_context_type ),     pointer :: context_ptr
+
+  ! Ensure the JEDI-IO context is set to current
+  context_ptr => self%geometry%get_io_context()
+  call context_ptr%set_current()
 
   ! Set the clock to the desired write time
   call set_clock( self, write_time )
@@ -348,7 +358,7 @@ subroutine write_file( self, write_time, file_prefix )
   ! Copy the Atlas field emulators to the io_collection fields
   call self%field_meta_data%get_variable_names(variable_names)
 
-  call self%to_lfric_field_collection(variable_names, self%io_collection)
+  call self%get_to_field_collection(variable_names, self%io_collection)
 
   ! Write the state into the io_collection
   call write_state( self%io_collection, prefix=file_prefix )
@@ -542,14 +552,14 @@ subroutine get_field_data( self, variable_name, atlas_data_ptr )
 
 end subroutine get_field_data
 
-!> @brief    Copy from a field_collection to the Atlas field emulators
-!>
+!> @brief    Set the internal Atlas field emulators by copying the fields
+!>           stored in a field_collection
 !>
 !> @param [in]    variable_names    The name of the fields to setup
 !> @param [inout] field_collection  The field collection to copy from
-subroutine from_lfric_field_collection( self, &
-                                        variable_names, &
-                                        field_collection )
+subroutine set_from_field_collection( self, &
+                                      variable_names, &
+                                      field_collection )
 
   implicit none
 
@@ -576,13 +586,14 @@ subroutine from_lfric_field_collection( self, &
     call interface_fields(ivar)%copy_from_lfric()
   end do
 
-end subroutine from_lfric_field_collection
+end subroutine set_from_field_collection
 
-!> @brief    Copy to a field_collection from the Atlas field emulators
+!> @brief    Get a copy of the internal Atlas field emulators by copying into a
+!>           field_collection
 !>
 !> @param [in]    variable_names    The name of the fields to setup
 !> @param [inout] field_collection  The field collection to copy to
-subroutine to_lfric_field_collection( self, variable_names, field_collection )
+subroutine get_to_field_collection( self, variable_names, field_collection )
 
   implicit none
 
@@ -609,7 +620,7 @@ subroutine to_lfric_field_collection( self, variable_names, field_collection )
     call interface_fields(ivar)%copy_to_lfric()
   end do
 
-end subroutine to_lfric_field_collection
+end subroutine get_to_field_collection
 
 !> @brief    Update the state time by a single time-step
 !>
@@ -626,7 +637,7 @@ subroutine update_time( self, time_step )
 
 end subroutine update_time
 
-!> @brief    Set the LFRic clock to the time specified by the input time
+!> @brief    Set the IO clock to the time specified by the input time
 !>
 !> @param [in] new_time  The time to be used to update the LFRic clock
 subroutine set_clock( self, new_time )
@@ -639,14 +650,13 @@ subroutine set_clock( self, new_time )
   ! Local
   type( jedi_duration_type )        :: time_difference
   type( jedi_duration_type )        :: time_step
-  type( model_clock_type ), pointer :: xios_clock => null()
-  logical( kind=l_def )             :: clock_stopped
+  type( model_clock_type ), pointer :: io_clock
+  logical( kind=l_def )             :: clock_running
 
-  nullify(xios_clock)
-  xios_clock => self%geometry%get_clock()
-  call time_step%init( int( xios_clock%get_seconds_per_step(), &
-                       kind=i_def ) )
+  nullify(io_clock)
+  io_clock => self%geometry%get_clock()
 
+  call time_step%init( int( io_clock%get_seconds_per_step(), kind=i_def ) )
   time_difference = new_time - self%state_time
 
   if ( time_difference == 0_i_def ) then
@@ -659,22 +669,17 @@ subroutine set_clock( self, new_time )
     call log_event( log_scratch_space, LOG_LEVEL_ERROR )
   end if
 
-  ! Tick the clock to the required time but first check that the clock is
-  ! running in the case its not being ticked (i.e. new_time==self%state_time).
-  ! clock_stopped=.not.clock%is_running() didnt work when I tried it - set to
-  ! false initially for now.
-
-  clock_stopped = .false.
-
+  ! Tick the clock to the required time.
+  clock_running = .true.
   do while ( new_time%is_ahead( self%state_time ) )
-    clock_stopped = .not. xios_clock%tick()
+    clock_running = io_clock%tick()
     self%state_time = self%state_time + time_step
   end do
 
   ! Check the clock is still running
-  if ( clock_stopped ) then
+  if ( .not. clock_running ) then
     write ( log_scratch_space, '(A)' ) &
-      "State::set_clock::The LFRic clock has stopped."
+      "State::set_clock::The LFRic IO clock has stopped."
     call log_event( log_scratch_space, LOG_LEVEL_ERROR )
   end if
 
@@ -689,8 +694,10 @@ subroutine jedi_state_destructor( self )
   type( jedi_state_type ), intent(inout) :: self
 
   self%geometry => null()
-  if ( allocated(self%fields ) )      deallocate(self%fields )
-  if ( allocated(self%model_clock ) ) deallocate(self%model_clock )
+  if ( allocated(self%fields ) ) deallocate(self%fields )
+  if ( allocated(self%model_clock ) ) then
+    call final_time( self%model_clock, self%calendar )
+  endif
 
 end subroutine jedi_state_destructor
 
