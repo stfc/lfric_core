@@ -1,3 +1,0 @@
-full-debug: debug
-fast-debug: safe
-production: high

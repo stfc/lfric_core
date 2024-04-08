@@ -3,7 +3,7 @@
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 ##############################################################################
-export PROJECT_SOURCE = $(ROOT_DIR)/components/lfric-xios/source
+export PROJECT_SOURCE = $(CORE_ROOT_DIR)/components/lfric-xios/source
 export IGNORE_DEPENDENCIES += xios icontext mod_wait mod_oasis
 export EXTERNAL_STATIC_LIBRARIES += xios
 export PRE_PROCESS_MACROS += USE_XIOS

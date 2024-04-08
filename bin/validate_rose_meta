@@ -22,7 +22,6 @@
 #
 # Note: Apps within a project which have names which are not the same as the
 #       main project app can be specified with a colon separator,
-#       i.e. gungho:mesh means check the mesh app in the gungho
 #       rose-stem suite.
 #
 # NOTE: This script is not intended to be a generic tool. Its purpose is to
@@ -34,52 +33,22 @@
 
 default_project_names=( infrastructure   \
                         lfric-xios       \
-                        jedi-lfric       \
                         driver           \
-                        gungho           \
-                        gungho_model     \
-                        lfric_atm        \
                         mesh_tools       \
                         linear           \
-                        linear_model     \
-                        adjoint          \
-                        adjoint_test     \
                         simple_diffusion \
                         skeleton         \
-                        jedi_lfric_tests \
-                        gravity_wave     \
-                        io_dev           \
-                        shallow_water    \
-                        solver_miniapp   \
-                        transport  )
+                        io_dev           )
 
 default_app_names=( \
     infrastructure:none               \
     lfric-xios:none                   \
-    jedi-lfric:none                   \
     driver:none                       \
-    gungho:none                       \
-    gungho_model:gungho_model         \
-    gungho_model:mesh                 \
-    lfric_atm:lfric_atm               \
     mesh_tools:mesh                   \
     linear:none                       \
-    linear_model:linear_model         \
-    adjoint:none                      \
-    adjoint_test:adjoint_test         \
     simple_diffusion:simple_diffusion \
     skeleton:skeleton                 \
-    jedi_lfric_tests:jedi_lfric_tests \
-    jedi_lfric_tests:jedi_forecast    \
-    jedi_lfric_tests:jedi_tlm_forecast_tl \
-    jedi_lfric_tests:jedi_forecast_pseudo \
-    gravity_wave:gravity_wave         \
-    io_dev:io_dev                     \
-    shallow_water:shallow_water       \
-    shallow_water:mesh                \
-    solver_miniapp:solver_miniapp     \
-    transport:transport               \
-    transport:mesh )
+    io_dev:io_dev                     )
 
 while getopts "?" OPTION; do
   case $OPTION in
@@ -113,48 +82,24 @@ fi
 project_folder_location=(                      \
   [infrastructure]=infrastructure              \
   [lfric-xios]=components/lfric-xios           \
-  [jedi-lfric]=components/jedi-lfric           \
   [driver]=components/driver                   \
-  [gungho]=gungho                              \
-  [gungho_model]=miniapps/gungho_model         \
-  [lfric_atm]=lfric_atm                        \
   [mesh_tools]=mesh_tools                      \
   [linear]=linear                              \
-  [linear_model]=miniapps/linear_model         \
-  [adjoint]=adjoint                            \
-  [adjoint_test]=miniapps/adjoint_test         \
   [simple_diffusion]=miniapps/simple_diffusion \
   [skeleton]=miniapps/skeleton                 \
-  [jedi_lfric_tests]=miniapps/jedi_lfric_tests \
-  [gravity_wave]=miniapps/gravity_wave         \
-  [io_dev]=miniapps/io_dev                     \
-  [shallow_water]=miniapps/shallow_water       \
-  [solver_miniapp]=miniapps/solver_miniapp     \
-  [transport]=miniapps/transport )
+  [io_dev]=miniapps/io_dev                     )
 
 
 declare -A project_primary_app
 project_primary_app=(                 \
   [infrastructure]=none               \
   [lfric-xios]=none                   \
-  [jedi-lfric]=none                   \
   [driver]=none                       \
-  [gungho]=none                       \
-  [gungho_model]=gungho_model         \
-  [lfric_atm]=lfric_atm               \
   [mesh_tools]=mesh                   \
   [linear]=none                       \
-  [linear_model]=linear_model         \
-  [adjoint]=none                      \
-  [adjoint_test]=adjoint_test         \
   [simple_diffusion]=simple_diffusion \
   [skeleton]=skeleton                 \
-  [jedi_lfric_tests]=jedi_lfric_tests \
-  [gravity_wave]=gravity_wave         \
-  [io_dev]=io_dev                     \
-  [shallow_water]=shallow_water       \
-  [solver_miniapp]=solver_miniapp     \
-  [transport]=transport )
+  [io_dev]=io_dev                     )
 
 ##########################################################################
 # Process the inputs, checking for duplicates.

@@ -19,16 +19,16 @@ PROFILE ?= fast-debug
 export PSYCLONE_TRANSFORMATION ?= minimum
 
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
-export ROOT_DIR    ?= ../..
+export CORE_ROOT_DIR    ?= ../..
 
-export INTERNAL_DEPENDENCIES = $(ROOT_DIR)/infrastructure \
-                               $(ROOT_DIR)/components/driver \
-                               $(ROOT_DIR)/components/science \
-                               $(ROOT_DIR)/components/inventory \
-                               $(ROOT_DIR)/components/lfric-xios
+export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
+                               $(CORE_ROOT_DIR)/components/driver \
+                               $(CORE_ROOT_DIR)/components/science \
+                               $(CORE_ROOT_DIR)/components/inventory \
+                               $(CORE_ROOT_DIR)/components/lfric-xios
 
 export SUITE_GROUP ?= developer
-export SUITE_GROUP_NAME ?= $(notdir $(realpath $(shell pwd)/$(ROOT_DIR)))-$(PROJECT_NAME)-.*
+export SUITE_GROUP_NAME ?= $(notdir $(realpath $(shell pwd)/$(CORE_ROOT_DIR)))-$(PROJECT_NAME)-.*
 
 META_VN             ?= HEAD
 export META_FILE_DIR = $(PROJECT_DIR)/rose-meta/lfric-$(PROJECT_NAME)/$(META_VN)
@@ -49,7 +49,7 @@ default: build unit-tests integration-tests
 documentation doc docs: document-uml document-latex document-api
 	$(Q)echo > /dev/null
 
-include $(ROOT_DIR)/infrastructure/build/lfric.mk
+include $(CORE_ROOT_DIR)/infrastructure/build/lfric.mk
 include $(INTERNAL_DEPENDENCIES:=/build/import.mk)
 -include $(PROJECT_DIR)/build/project.mk
 
@@ -67,7 +67,7 @@ launch-suite-gscan: ALWAYS
 ##############################################################################
 
 .PHONY: test-suite
-test-suite: SUITE_BASE_NAME = $(notdir $(realpath $(shell pwd)/$(ROOT_DIR)))-$(PROJECT_NAME)
+test-suite: SUITE_BASE_NAME = $(notdir $(realpath $(shell pwd)/$(CORE_ROOT_DIR)))-$(PROJECT_NAME)
 test-suite: SUITE_CONFIG = rose-stem
 test-suite: launch-suite-gscan launch-test-suite
 	$(Q)echo > /dev/null
@@ -164,8 +164,8 @@ build: ALWAYS
 # Unit tests
 #
 unit-tests/%: export ADDITIONAL_EXTRACTION            \
-                  = $(ROOT_DIR)/infrastructure/source \
-                    $(ROOT_DIR)/components/science/source/kernel
+                  = $(CORE_ROOT_DIR)/infrastructure/source \
+                    $(CORE_ROOT_DIR)/components/science/source/kernel
 unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
 unit-tests/%: export META_FILE_DIR = rose-meta/lfric-skeleton/HEAD
 unit-tests/%: export PROGRAMS = $(PROJECT_NAME)_unit_tests

@@ -32,13 +32,13 @@ PROJECT_NAME = driver
 PROFILE ?= fast-debug
 
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
-export ROOT_DIR    ?= ../..
+export CORE_ROOT_DIR    ?= ../..
 
-export INTERNAL_DEPENDENCIES = $(ROOT_DIR)/infrastructure \
-                               $(ROOT_DIR)/components/lfric-xios
+export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
+                               $(CORE_ROOT_DIR)/components/lfric-xios
 
 export SUITE_GROUP ?= developer
-export SUITE_GROUP_NAME ?= $(notdir $(realpath $(shell pwd)/$(ROOT_DIR)))-$(PROJECT_NAME)-.*
+export SUITE_GROUP_NAME ?= $(notdir $(realpath $(shell pwd)/$(CORE_ROOT_DIR)))-$(PROJECT_NAME)-.*
 
 META_VN       ?= HEAD
 META_FILE_DIR  = $(PROJECT_DIR)/rose-meta/lfric-$(PROJECT_NAME)/$(META_VN)
@@ -51,7 +51,7 @@ default: unit-tests
 documentation doc docs: document-uml document-api
 	$(Q)echo > /dev/null
 
-include $(ROOT_DIR)/infrastructure/build/lfric.mk
+include $(CORE_ROOT_DIR)/infrastructure/build/lfric.mk
 include $(INTERNAL_DEPENDENCIES:=/build/import.mk)
 
 ##############################################################################
@@ -76,9 +76,9 @@ document-api: api-documentation
 ##############################################################################
 # Unit tests
 #
-unit-tests/%: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source \
-                                             $(ROOT_DIR)/components/lfric-xios/source \
-                                             $(ROOT_DIR)/components/science/source
+unit-tests/%: export ADDITIONAL_EXTRACTION = $(CORE_ROOT_DIR)/infrastructure/source \
+                                             $(CORE_ROOT_DIR)/components/lfric-xios/source \
+                                             $(CORE_ROOT_DIR)/components/science/source
 unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
 unit-tests/%: export CXX_LINK = YES
 unit-tests/%: export FFLAGS += -DUNIT_TEST
@@ -103,7 +103,7 @@ launch-suite-gscan: ALWAYS
         fi
 
 .PHONY: test-suite
-test-suite: SUITE_BASE_NAME = $(notdir $(realpath $(shell pwd)/$(ROOT_DIR)))-$(PROJECT_NAME)
+test-suite: SUITE_BASE_NAME = $(notdir $(realpath $(shell pwd)/$(CORE_ROOT_DIR)))-$(PROJECT_NAME)
 test-suite: SUITE_CONFIG = rose-stem
 test-suite: launch-suite-gscan launch-test-suite
 	$(Q)echo > /dev/null

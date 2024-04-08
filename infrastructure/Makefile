@@ -33,10 +33,10 @@ PROJECT_NAME = infrastructure
 PROFILE ?= fast-debug
 
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
-export ROOT_DIR    ?= ..
+export CORE_ROOT_DIR    ?= ..
 
 export SUITE_GROUP ?= developer
-export SUITE_GROUP_NAME ?= $(notdir $(realpath $(shell pwd)/$(ROOT_DIR)))-$(PROJECT_NAME)-.*
+export SUITE_GROUP_NAME ?= $(notdir $(realpath $(shell pwd)/$(CORE_ROOT_DIR)))-$(PROJECT_NAME)-.*
 
 META_VN       ?= HEAD
 META_FILE_DIR  = $(PROJECT_DIR)/rose-meta/lfric-$(PROJECT_NAME)/$(META_VN)
@@ -63,7 +63,7 @@ launch-suite-gscan: ALWAYS
 ##############################################################################
 
 .PHONY: test-suite
-test-suite: SUITE_BASE_NAME = $(notdir $(realpath $(shell pwd)/$(ROOT_DIR)))-$(PROJECT_NAME)
+test-suite: SUITE_BASE_NAME = $(notdir $(realpath $(shell pwd)/$(CORE_ROOT_DIR)))-$(PROJECT_NAME)
 test-suite: SUITE_CONFIG = rose-stem
 test-suite: launch-suite-gscan launch-test-suite
 	$(Q)echo > /dev/null

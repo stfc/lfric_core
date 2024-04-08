@@ -199,13 +199,6 @@
                   TMP_SOURCE_DIR={{SOURCE_LFRIC}}/{{appPathFragment}}{{projectDir}}
                   TMP_TARGET_DIR=$SOURCE_ROOT/{{appPathFragment}}{{projectName}}
 
-                  # Mini-Apps currently use gungho's optimisations.
-                  # Though this will need to be revisited once we know
-                  # what should be done if the miniapp itself has
-                  # optimisations.
-                  mkdir -p `dirname $TMP_TARGET_DIR/optimisation`
-                  svn export --force {{SOURCE_LFRIC}}/miniapps/gungho_model/optimisation $TMP_TARGET_DIR/optimisation
-
                   unset TMP_SOURCE_DIR
                   unset TMP_TARGET_DIR
 

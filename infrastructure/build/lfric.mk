@@ -15,7 +15,9 @@
 #
 # Macros expected by the build system are as follows...
 #
-# ROOT_DIR: Absolute path to the project directory
+# APPS_ROOT_DIR: Absolute path to an lfric_apps directory (not expected for
+#                core only tasks)
+# CORE_ROOT_DIR: Absolute path to the project directory for lfric_core
 # OPTIMISATION_PATH: Where PSyclone optimisation scripts may be found.
 # WORKING_DIR: Path to scratch space in which intermediate files will be
 #              placed. This should be somewhere with good "many small
@@ -102,7 +104,7 @@ export PRE_PROCESS_MACROS += R_BL_PRECISION=$(R_BL_PRECISION)
 # The compile options file overrides compile options based on file-name pattern matching.
 # Use the miniapp-specific file if it exists. Otherwise use the infrastructure file.
 ifeq (,$(wildcard $(PROJECT_DIR)/build/compile_options.mk))
-  export COMPILE_OPTIONS := $(abspath $(ROOT_DIR)/infrastructure/build/compile_options.mk)
+  export COMPILE_OPTIONS := $(abspath $(CORE_ROOT_DIR)/infrastructure/build/compile_options.mk)
 else
   export COMPILE_OPTIONS := $(abspath $(PROJECT_DIR)/build/compile_options.mk)
 endif

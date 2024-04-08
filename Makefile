@@ -7,7 +7,6 @@
 #
 # Variables:
 #   OPERATE_ON - Sub-projects which will be affected by operations.
-#                default: infrastructure, mesh_tools and gungho
 #   TEST_SUITE_TARGETS - Platforms to target with test suite.
 #
 #############################################################################
@@ -15,33 +14,16 @@
 # Operate only on this list of sub-projects. May be overridden from the
 # terminal.
 #
-OPERATE_ON ?= lfric_atm                  \
-              miniapps/lfric_coupled     \
-              gungho                     \
-              infrastructure             \
+OPERATE_ON ?= infrastructure             \
               components/science         \
               components/driver          \
               components/lfric-xios      \
-              components/jedi-lfric      \
-              components/coupler-oasis   \
               components/inventory       \
               mesh_tools                 \
               linear                     \
-              adjoint                    \
-              miniapps/adjoint_test      \
-              miniapps/gungho_model      \
-              miniapps/linear_model      \
               miniapps/skeleton          \
-              miniapps/jedi_lfric_tests  \
-              miniapps/gravity_wave      \
               miniapps/simple_diffusion  \
-              miniapps/solver_miniapp    \
-              miniapps/shallow_water     \
-              miniapps/io_dev            \
-              miniapps/transport         \
-              um_physics                 \
-              socrates                   \
-              lfricinputs
+              miniapps/io_dev            
 
 export SUITE_GROUP ?= developer
 export SUITE_GROUP_NAME ?= $(notdir $(realpath $(shell pwd)))-.*

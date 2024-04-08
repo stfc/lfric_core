@@ -1,4 +1,0 @@
-# Files should only ever be removed or renamed in this file, never added.
-#
-source/field/jedi_lfric_utils_mod.x90
-source/mesh/jedi_lfric_mesh_interface_mod.f90

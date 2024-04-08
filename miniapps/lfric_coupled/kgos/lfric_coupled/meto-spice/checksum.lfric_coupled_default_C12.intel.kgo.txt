@@ -1,1 +1,0 @@
-Inner product checksum lfric_coupled_field_1 =                0

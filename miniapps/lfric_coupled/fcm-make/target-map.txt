@@ -1,8 +1,0 @@
-generic-x86: gfortran: meto-x86-gcc-ifort
-generic-x86: ifort:    meto-x86-gcc-ifort
-meto-spice:  gfortran: meto-x86-gcc-ifort
-meto-spice:  ifort:    meto-x86-gcc-ifort
-meto-xc40:   crayftn:  meto-xc40-cce
-meto-xc40:   ifort:    meto-xc40-intel
-meto-xcs:    ifort:    meto-xc40-intel
-meto-xcs:    crayftn:  meto-xc40-cce

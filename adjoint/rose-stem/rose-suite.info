@@ -1,4 +1,0 @@
-access-list=*
-owner=ssa
-project=adjoint
-title=Functional testing suite for the adjoint version of the Gung Ho dynamical core.

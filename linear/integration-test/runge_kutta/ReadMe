@@ -1,1 +1,0 @@
-The tl_test_configuration.nml matches the configuration from rose-app-runge-kutta.conf, in gungho. Except with the addition of ls_option='analytical'.

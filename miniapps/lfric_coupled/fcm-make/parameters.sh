@@ -1,1 +1,0 @@
-../../../lfric_atm/fcm-make/parameters.sh

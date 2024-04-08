@@ -1,6 +1,0 @@
-# Files should only ever be removed or renamed in this file, never added.
-#
-source/algorithm/coupler_diagnostics_mod.X90
-source/algorithm/coupler_update_prognostics_mod.X90
-source/coupler_external_field_mod.X90
-source/coupler_mod.F90

@@ -18,7 +18,7 @@ ALGORITHM_f_FILES := $(patsubst $(SOURCE_DIR)/%.x90, \
 
 DIRECTORIES := $(patsubst $(SOURCE_DIR)%,$(WORKING_DIR)%, \
                           $(shell find $(SOURCE_DIR) -type d -printf '%p/\n'))
-PSYCLONE_CONFIG_FILE ?= $(ROOT_DIR)/etc/psyclone.cfg
+PSYCLONE_CONFIG_FILE ?= $(CORE_ROOT_DIR)/etc/psyclone.cfg
 
 .PHONY: psyclone
 psyclone: $(ALGORITHM_F_FILES) $(ALGORITHM_f_FILES)

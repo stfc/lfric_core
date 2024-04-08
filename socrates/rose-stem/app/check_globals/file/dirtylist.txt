@@ -1,9 +1,0 @@
-# Files should only ever be removed or renamed in this file, never added.
-#
-source/algorithm/cosp_diags_mod.x90
-source/algorithm/gas_calc_all_mod.f90
-source/algorithm/illuminate_alg_mod.x90
-source/algorithm/radiation_diags_mod.x90
-source/algorithm/socrates_init_mod.f90
-source/interface_modules/rad_ccf.F90
-source/kernel/set_topography_kernel_mod.F90

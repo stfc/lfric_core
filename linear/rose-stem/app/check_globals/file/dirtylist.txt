@@ -1,8 +1,0 @@
-# Files should only ever be removed or renamed in this file, never added.
-#
-source/algorithm/tl_rk_alg_timestep_mod.x90
-source/algorithm/tl_si_timestep_alg_mod.x90
-source/algorithm/transport/common/tl_transport_runtime_collection_mod.F90
-source/driver/linear_driver_mod.f90
-source/driver/linear_model_data_mod.f90
-source/kernel/transport/mol/tl_poly1d_vert_w3_reconstruction_kernel_mod.F90

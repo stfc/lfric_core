@@ -3,7 +3,7 @@
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 ##############################################################################
-export PROJECT_SOURCE = $(ROOT_DIR)/components/driver/source
+export PROJECT_SOURCE = $(CORE_ROOT_DIR)/components/driver/source
 
 .PHONY: import-driver
 import-driver:
