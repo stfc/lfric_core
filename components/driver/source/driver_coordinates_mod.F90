@@ -14,7 +14,8 @@ module driver_coordinates_mod
                                        topology_fully_periodic, &
                                        topology_non_periodic
   use constants_mod,             only: r_def, i_def, l_def, &
-                                       radians_to_degrees
+                                       radians_to_degrees, &
+                                       i_halo_index
   use log_mod,                   only: log_event, LOG_LEVEL_ERROR
   use planet_config_mod,         only: scaled_radius
   use coord_transform_mod,       only: xyz2llr, llr2xyz, identify_panel, &
@@ -59,6 +60,7 @@ contains
     use field_mod,             only: field_type, field_proxy_type
     use reference_element_mod, only: reference_element_type
     use mesh_mod,              only: mesh_type
+    use local_mesh_mod,        only: local_mesh_type
 
     implicit none
 
@@ -89,6 +91,11 @@ contains
 
     integer(i_def) :: alloc_error
     integer(i_def) :: depth
+
+    integer(i_def), allocatable :: global_dof_id(:)
+    integer(i_def) :: panel_ncells
+    integer(i_def) :: i
+    type(local_mesh_type), pointer :: local_mesh
 
     ! Break encapsulation and get the proxy.
     chi_proxy(1) = chi(1)%get_proxy()
@@ -130,17 +137,25 @@ contains
       domain_min_y = domain%minimum_xy(axis=2)
     end if
 
+    allocate( global_dof_id( panel_id_proxy%vspace%get_ndof_glob() ) )
+    do i = 1,panel_id_proxy%vspace%get_ndof_glob()
+      global_dof_id(i) = mesh%get_gid_from_lid(i)
+    end do
+    local_mesh => mesh%get_local_mesh()
+    panel_ncells = local_mesh%get_ncells_global_mesh()/local_mesh%get_num_panels_global_mesh()
+
     if ( coord_system == coord_system_xyz ) then
 
       do cell = 1,chi_proxy(1)%vspace%get_ncell()
 
-        call mesh%get_column_coords(cell,column_coords)
-
-        call calc_panel_id( nlayers_pid, nverts,   &
+        call calc_panel_id( nlayers_pid,           &
                             ndf_pid, undf_pid,     &
                             map_pid(:,cell),       &
-                            column_coords(:,:,1),  &
-                            panel_id_proxy%data    )
+                            panel_id_proxy%data,   &
+                            global_dof_id,         &
+                            panel_ncells    )
+
+        call mesh%get_column_coords(cell,column_coords)
 
         call assign_coordinate_xyz( nlayers,             &
                                     ndf,                 &
@@ -166,13 +181,14 @@ contains
 
       do cell = 1,chi_proxy(1)%vspace%get_ncell()
 
-        call mesh%get_column_coords(cell,column_coords)
-
-        call calc_panel_id( nlayers_pid, nverts,   &
+        call calc_panel_id( nlayers_pid,           &
                             ndf_pid, undf_pid,     &
                             map_pid(:,cell),       &
-                            column_coords(:,:,1),  &
-                            panel_id_proxy%data    )
+                            panel_id_proxy%data,   &
+                            global_dof_id,         &
+                            panel_ncells   )
+
+        call mesh%get_column_coords(cell,column_coords)
 
         call assign_coordinate_lonlatz( nlayers,                 &
                                         ndf,                     &
@@ -195,13 +211,14 @@ contains
 
       do cell = 1,chi_proxy(1)%vspace%get_ncell()
 
-        call mesh%get_column_coords(cell,column_coords)
-
-        call calc_panel_id( nlayers_pid, nverts,   &
+        call calc_panel_id( nlayers_pid,           &
                             ndf_pid, undf_pid,     &
                             map_pid(:,cell),       &
-                            column_coords(:,:,1),  &
-                            panel_id_proxy%data    )
+                            panel_id_proxy%data,   &
+                            global_dof_id,         &
+                            panel_ncells    )
+
+        call mesh%get_column_coords(cell,column_coords)
 
         call assign_coordinate_alphabetaz( nlayers,                 &
                                            ndf,                     &
@@ -243,49 +260,39 @@ contains
   !!           For planar geometry the ID is just 1 everywhere.
   !>
   !> @param[in]   nlayers             Number of layers for the panel_id field
-  !> @param[in]   nverts              Number of reference element vertices
   !> @param[in]   ndf_pid             Number of DoFs per cell for the panel_id field
   !> @param[in]   undf_pid            Universal number of DoFs for the panel_id field
   !> @param[in]   map_pid             DoF map for the panel_id field
-  !> @param[in]   column_base_coords  Coordinates for vertices at base of column
   !> @param[out]  panel_id            Field (to be calculated) with the ID of cubed sphere panels
+  !> @param[in]   global_dof_id       Array of global id's
+  !> @param[in]   panel_ncells        Number of cells per cubed sphere panel
   subroutine calc_panel_id( nlayers,            &
-                            nverts,             &
                             ndf_pid,            &
                             undf_pid,           &
                             map_pid,            &
-                            column_base_coords, &
-                            panel_id            )
+                            panel_id,           &
+                            global_dof_id,      &
+                            panel_ncells )
 
     implicit none
 
-    integer(kind=i_def), intent(in)  :: nlayers, nverts, ndf_pid, undf_pid
+    integer(kind=i_def), intent(in)  :: nlayers, ndf_pid, undf_pid
     integer(kind=i_def), intent(in)  :: map_pid(ndf_pid)
-    real(kind=r_def),    intent(in)  :: column_base_coords(3,nverts,1)
     real(kind=r_def),    intent(out) :: panel_id(undf_pid)
+    integer(kind=i_def), intent(in)  :: global_dof_id(undf_pid)
+    integer(kind=i_def), intent(in)  :: panel_ncells
 
     ! Internal variables
-    integer(kind=i_def) :: vert, panel
-    real(kind=r_def)    :: interp_weight, x, y, z
+    integer(kind=i_def) :: vert, k
 
     if ( geometry == geometry_spherical .and. &
          topology == topology_fully_periodic ) then
-      ! Assume for now that any global spherical mesh is a cubed sphere
-      ! Find coordinates at centre of cell at bottom of column
-      x = 0.0_r_def
-      y = 0.0_r_def
-      z = 0.0_r_def
-      interp_weight = 1.0_r_def/nverts
-
-      do vert = 1,nverts
-        ! evaluate at cell centre
-        x = x + interp_weight*column_base_coords(1,vert,1)
-        y = y + interp_weight*column_base_coords(2,vert,1)
-        z = z + interp_weight*column_base_coords(3,vert,1)
+      ! The following code assumes that the mesh generator has ordered the global cell ids panel-by-panel.
+      ! If this is ever not the case, the code will produce an incorrect panel_id.
+      do k = 0, nlayers-1
+        vert = map_pid(1) + k
+        panel_id(vert) = real(1+int( (global_dof_id(vert)-1)/panel_ncells , i_def), r_def)
       end do
-
-      panel = identify_panel(x, y, z)
-      panel_id(map_pid(1):map_pid(1)+nlayers-1) = real(panel,r_def)
 
     else
       ! Set all panel_ids to 1
