@@ -4,7 +4,7 @@
 ! should have received as part of this distribution.
 !------------------------------------------------------------------------------
 
-!> @brief Abstract base class for iterative solver
+!> @brief Abstract base class for iterative solver.
 !>
 !> @detail This class can be used as a base class for iterative solvers
 !> which solve the system \f$Ax=b\f$. It contains a linear operator and a
@@ -33,7 +33,8 @@ module sci_iterative_solver_mod
 ! so not setting the default has no effect. See ticket #3326 for details
 !  private
 
-  !> @brief abstract solver type for the solver API
+  !> @brief Abstract solver type for the solver API.
+  !>
   type, public, abstract :: abstract_iterative_solver_type
      private
      !> Preconditioner
@@ -56,29 +57,32 @@ module sci_iterative_solver_mod
   end type abstract_iterative_solver_type
 
   abstract interface
-!> @brief solve linear system \f$Ax=b\f$ for \f$x\f$
-!> @detailled apply the iterative solver for a given right hand side
-!> \f$\b\f$
-!!
-!> @param [inout] x resulting solution \f$x\f$
-!> @param [in] b right hand side vector \f$b\f$
-     subroutine apply_interface(self, x, b)
-       import :: abstract_vector_type
-       import :: abstract_iterative_solver_type
-       class(abstract_iterative_solver_type), intent(inout) :: self
-       class(abstract_vector_type),           intent(inout) :: x
-       class(abstract_vector_type),           intent(inout) :: b
-     end subroutine apply_interface
+
+    !> @brief Solve linear system \f$Ax=b\f$ for \f$x\f$.
+    !>
+    !> @details Apply the iterative solver for a given right hand side
+    !> \f$b\f$.
+    !>
+    !> @param[inout] x  Resulting solution \f$x\f$
+    !> @param[in] b  Right hand side vector \f$b\f$
+    !>
+    subroutine apply_interface(self, x, b)
+      import :: abstract_vector_type
+      import :: abstract_iterative_solver_type
+      class(abstract_iterative_solver_type), intent(inout) :: self
+      class(abstract_vector_type),           intent(inout) :: x
+      class(abstract_vector_type),           intent(inout) :: b
+    end subroutine apply_interface
   end interface
 
-  !! ---------- End of the abstract type ------------ !!
-  !! --  Now what follows are the declarations and -- !!
-  !! --  interfaces for of the procedures of the   -- !!
-  !! --  extended types. Actual procedures are in  -- !!
-  !! --  submodules.                               -- !!
-  !! ------------------------------------------------ !!
+  ! ---------- End of the abstract type ------------ !
+  ! --  Now what follows are the declarations and -- !
+  ! --  interfaces for of the procedures of the   -- !
+  ! --  extended types. Actual procedures are in  -- !
+  ! --  submodules.                               -- !
+  ! ------------------------------------------------ !
 
-  !! ---  Conjugate Gradient type declaration and interfaces --- !!
+  ! ---  Conjugate Gradient type declaration and interfaces --- !
 
   type, public, extends(abstract_iterative_solver_type) :: conjugate_gradient_type
      private
@@ -116,7 +120,7 @@ module sci_iterative_solver_mod
      end subroutine
   end interface
 
-  !! --- BiCGStab type declarations and interfaces --- !!
+  ! --- BiCGStab type declarations and interfaces --- !
   type, public, extends(abstract_iterative_solver_type) :: BiCGstab_type
      private
    contains
@@ -153,7 +157,7 @@ module sci_iterative_solver_mod
   end interface
 
 
-  !! --- GMRES type declarations and interfaces --- !!
+  ! --- GMRES type declarations and interfaces --- !
   type, public, extends(abstract_iterative_solver_type) :: gmres_type
      private
      integer(kind=i_def) :: gcrk
@@ -191,7 +195,7 @@ module sci_iterative_solver_mod
      end subroutine gmres_solve
   end interface
 
-  !! --- FGMRES type declarations and interfaces --- !!
+  ! --- FGMRES type declarations and interfaces --- !
   type, public, extends(abstract_iterative_solver_type) :: fgmres_type
      private
      integer(kind=i_def) :: gcrk
@@ -229,7 +233,7 @@ module sci_iterative_solver_mod
      end subroutine fgmres_solve
   end interface
 
-  !! --- GCR type declarations and interfaces --- !!
+  ! --- GCR type declarations and interfaces --- !
   type, public, extends(abstract_iterative_solver_type) :: gcr_type
      private
      integer(kind=i_def) :: gcrk
@@ -267,7 +271,7 @@ module sci_iterative_solver_mod
      end subroutine gcr_solve
   end interface
 
-  !! --- BLOCK_GCR type declarations and interfaces --- !!
+  ! --- BLOCK_GCR type declarations and interfaces --- !
   ! BLOCK_GCR breaks the API and will be removed in ticket #???
   type, public, extends(abstract_iterative_solver_type) :: block_gcr_type
      private
@@ -308,7 +312,7 @@ module sci_iterative_solver_mod
   end interface
 
 
-  !! ---  Precondition only type declaration and interfaces --- !!
+  ! ---  Precondition only type declaration and interfaces --- !
 
   type, public, extends(abstract_iterative_solver_type) :: precondition_only_type
      private
@@ -343,7 +347,7 @@ module sci_iterative_solver_mod
      end subroutine
   end interface
 
-  !! ---  Jacobi type declaration and interfaces --- !!
+  ! ---  Jacobi type declaration and interfaces --- !
 
   type, public, extends(abstract_iterative_solver_type) :: jacobi_type
      private
@@ -384,7 +388,7 @@ module sci_iterative_solver_mod
      end subroutine
   end interface
 
-  !! ---  Chebyshev type declaration and interfaces --- !!
+  ! ---  Chebyshev type declaration and interfaces --- !
 
   type, public, extends(abstract_iterative_solver_type) :: chebyshev_type
      private
@@ -427,22 +431,26 @@ module sci_iterative_solver_mod
 
 end module sci_iterative_solver_mod
 
-!  Submodule with procedures for conjugate gradient !!
+!  Submodule with procedures for conjugate gradient !
 submodule(sci_iterative_solver_mod) conjugate_gradient_smod
 contains
-  !> constructs a <code>conjugate_gradient</code> solver
-  !! sets the values for the solver such as the residual (r_tol) and
-  !! points the linear operator and preconditioner at those passed in.
+
+  !> Constructs a <code>conjugate_gradient</code> solver.
+  !>
+  !> Sets the values for the solver such as the residual (<code>r_tol</code>)
+  !> and points the linear operator and preconditioner at those passed in.
+  !>
   !> @param[in] lin_op The linear operator the solver will use
   !> @param[in] prec The preconditioner the solver will use
   !> @param[in] r_tol real, the relative tolerance halting condition
   !> @param[in] a_tol real, the absolute tolerance halting condition
   !> @param[in] max_inter, integer the maximum number of iterations
   !> @param[in] monitor_convergence Monitor the convergence and error in the
-  !!                                solver
+  !>                                solver
   !> @param[in] fail_on_non_converged Exit with error if the solver does not
-  !!                                  converge
+  !>                                  converge
   !> @return the constructed conjugate gradient solver
+  !>
   module function cg_constructor(lin_op, prec, r_tol, a_tol, max_iter, &
                                  monitor_convergence, fail_on_non_converged) result(self)
     implicit none
@@ -466,11 +474,13 @@ contains
 
   end function
 
-  !> CG solve. Over-rides the abstract interface to do the actual solve.
-  !> @param[inout] b an abstract vector which will be an actual vector of unkown extended type
-  !! This the "RHS" or boundary conditions,
-  !> @param[inout] x an abstract vector which is the solution
-  !> @param[self] The solver which has pointers to the lin_op and preconditioner
+  !> CG solve.
+  !>
+  !> Over-rides the abstract interface to do the actual solve.
+  !>
+  !> @param[inout] b  "RHS" or boundary conditions.
+  !> @param[inout] x  Solution.
+  !>
   module subroutine cg_solve(self, x, b)
     implicit none
     class(conjugate_gradient_type), intent(inout) :: self
@@ -572,22 +582,25 @@ contains
 
 end submodule conjugate_gradient_smod
 
-! submodule for the bicgstab procedures -- !!
+! submodule for the bicgstab procedures -- !
 submodule(sci_iterative_solver_mod) bicgstab_smod
 contains
-  !> constructs a <code>bicgstab_type</code> solver
-  !! sets the values for the solver such as the residual (r_tol) and
-  !! points the linear operator and preconditioner at those passed in.
+
+  !> Constructs a <code>bicgstab_type</code> solver.
+  !>
+  !> sets the values for the solver such as the residual (r_tol) and
+  !> points the linear operator and preconditioner at those passed in.
+  !>
   !> @param[in] lin_op The linear operator the solver will use
   !> @param[in] prec The preconditioner the solver will use
   !> @param[in] r_tol real, the relative tolerance halting condition
   !> @param[in] a_tol real, the absolute tolerance halting condition
   !> @param[in] max_inter, integer the maximum number of iterations
   !> @param[in] monitor_convergence Monitor the convergence and error in the
-  !!                                solver
+  !>                                solver
   !> @param[in] fail_on_non_converged Exit with error if the solver does not
-  !!                                  converge
-  !> @return the constructed conjugate gradient solver
+  !>                                  converge
+  !>
   module function bicgstab_constructor( lin_op, prec, r_tol, a_tol, max_iter, &
                                         monitor_convergence, fail_on_non_converged) &
        result(self)
@@ -615,7 +628,7 @@ contains
 
   !> bicgstab solve. Over-rides the abstract interface to do the actual solve.
   !> @param[inout] b an abstract vector which will be an actual vector of unkown extended type
-  !! This the "RHS" or boundary conditions,
+  !> This the "RHS" or boundary conditions,
   !> @param[inout] x an abstract vector which is the solution
   !> @param[self] The solver which has pointers to the lin_op and preconditioner
   module subroutine bicgstab_solve(self, x, b)
@@ -759,8 +772,8 @@ end submodule bicgstab_smod
 submodule(sci_iterative_solver_mod) gmres_smod
 contains
   !> constructs a <code>gmres_type</code> solver
-  !! sets the values for the solver such as the residual (r_tol) and
-  !! points the linear operator and preconditioner at those passed in.
+  !> sets the values for the solver such as the residual (r_tol) and
+  !> points the linear operator and preconditioner at those passed in.
   !> @param[in] lin_op The linear operator the solver will use
   !> @param[in] prec The preconditioner the solver will use
   !> @param[in] gcrk integer, number of internal vectors to use known as the restart value
@@ -768,9 +781,9 @@ contains
   !> @param[in] a_tol real, the absolute tolerance halting condition
   !> @param[in] max_iter, integer the maximum number of iterations
   !> @param[in] monitor_convergence Monitor the convergence and error in the
-  !!                                solver
+  !>                                solver
   !> @param[in] fail_on_non_converged Exit with error if the solver does not
-  !!                                  converge
+  !>                                  converge
   !> @return the constructed GMRES solver
   module function gmres_constructor( lin_op, prec, gcrk, r_tol, a_tol, max_iter, &
                                      monitor_convergence, fail_on_non_converged) &
@@ -800,7 +813,7 @@ contains
   !> gmres_solve. Over-rides the abstract interface to do the actual solve.
   !> @detail The solver implements left-preconditioning, i.e. is solving M{-1}.A.x = M{-1}.b
   !> @param[inout] b an abstract vector which will be an actual vector of unkown extended type
-  !! This the "RHS" or boundary conditions,
+  !> This the "RHS" or boundary conditions,
   !> @param[inout] x an abstract vector which is the solution
   !> @param[self] The solver which has pointers to the lin_op and preconditioner
   module subroutine gmres_solve(self, x, b)
@@ -968,8 +981,8 @@ end submodule gmres_smod
 submodule(sci_iterative_solver_mod) fgmres_smod
 contains
   !> constructs a <code>fgmres_type</code> solver
-  !! sets the values for the solver such as the residual (r_tol) and
-  !! points the linear operator and preconditioner at those passed in.
+  !> sets the values for the solver such as the residual (r_tol) and
+  !> points the linear operator and preconditioner at those passed in.
   !> @param[in] lin_op The linear operator the solver will use
   !> @param[in] prec The preconditioner the solver will use
   !> @param[in] gcrk integer, number of internal vectors to use known as the restart value
@@ -977,9 +990,9 @@ contains
   !> @param[in] a_tol real, the absolute tolerance halting condition
   !> @param[in] max_iter, integer the maximum number of iterations
   !> @param[in] monitor_convergence Monitor the convergence and error in the
-  !!                                solver
+  !>                                solver
   !> @param[in] fail_on_non_converged Exit with error if the solver does not
-  !!                                  converge
+  !>                                  converge
   !> @return the constructed fGMRES solver
   module function fgmres_constructor( lin_op, prec, gcrk, r_tol, a_tol, max_iter, &
                                       monitor_convergence, fail_on_non_converged) &
@@ -1011,7 +1024,7 @@ contains
   !>         as 1)  A.M{-1}.y = b
   !>            2)  M{-1}y = x
   !> @param[inout] b an abstract vector which will be an actual vector of unkown extended type
-  !! This the "RHS" or boundary conditions,
+  !> This the "RHS" or boundary conditions,
   !> @param[inout] x an abstract vector which is the solution
   !> @param[self] The solver which has pointers to the lin_op and preconditioner
   module subroutine fgmres_solve(self, x, b)
@@ -1187,8 +1200,8 @@ end submodule fgmres_smod
 submodule(sci_iterative_solver_mod) gcr_smod
 contains
   !> constructs a <code>gcr_type</code> solver
-  !! sets the values for the solver such as the residual (r_tol) and
-  !! points the linear operator and preconditioner at those passed in.
+  !> sets the values for the solver such as the residual (r_tol) and
+  !> points the linear operator and preconditioner at those passed in.
   !> @param[in] lin_op The linear operator the solver will use
   !> @param[in] prec The preconditioner the solver will use
   !> @param[in] gcrk integer, number of internal vectors to use known as the restart value
@@ -1196,9 +1209,9 @@ contains
   !> @param[in] a_tol real, the absolute tolerance halting condition
   !> @param[in] max_iter, integer the maximum number of iterations
   !> @param[in] monitor_convergence Monitor the convergence and error in the
-  !!                                solver
+  !>                                solver
   !> @param[in] fail_on_non_converged Exit with error if the solver does not
-  !!                                  converge
+  !>                                  converge
   !> @return the constructed GCR solver
   module function gcr_constructor( lin_op, prec, gcrk, r_tol, a_tol, max_iter, &
                                    monitor_convergence, fail_on_non_converged) &
@@ -1229,7 +1242,7 @@ contains
   !>         as 1)  A.M{-1}.y = b
   !>            2)  M{-1}y = x
   !> @param[inout] b an abstract vector which will be an actual vector of unkown extended type
-  !! This the "RHS" or boundary conditions,
+  !> This the "RHS" or boundary conditions,
   !> @param[inout] x an abstract vector which is the solution
   !> @param[self] The solver which has pointers to the lin_op and preconditioner
   module subroutine gcr_solve(self, x, b)
@@ -1345,8 +1358,8 @@ end submodule gcr_smod
 submodule(sci_iterative_solver_mod) block_gcr_smod
 contains
   !> constructs a <code>block_gcr_type</code> solver
-  !! sets the values for the solver such as the residual (r_tol) and
-  !! points the linear operator and preconditioner at those passed in.
+  !> sets the values for the solver such as the residual (r_tol) and
+  !> points the linear operator and preconditioner at those passed in.
   !> @param[in] lin_op The linear operator the solver will use
   !> @param[in] prec The preconditioner the solver will use
   !> @param[in] gcrk integer, number of internal vectors to use known as the restart value
@@ -1354,9 +1367,9 @@ contains
   !> @param[in] a_tol real, the absolute tolerance halting condition
   !> @param[in] max_iter, integer the maximum number of iterations
   !> @param[in] monitor_convergence Monitor the convergence and error in the
-  !!                                solver
+  !>                                solver
   !> @param[in] fail_on_non_converged Exit with error if the solver does not
-  !!                                  converge
+  !>                                  converge
   !> @return the constructed GCR solver
   module function block_gcr_constructor( lin_op, prec, gcrk, r_tol, a_tol, max_iter, &
                                          monitor_convergence, fail_on_non_converged ) &
@@ -1389,7 +1402,7 @@ contains
   !>         as 1)  A.M{-1}.y = b
   !>            2)  M{-1}y = x
   !> @param[inout] b an abstract vector which will be an actual vector of unkown extended type
-  !! This the "RHS" or boundary conditions,
+  !> This the "RHS" or boundary conditions,
   !> @param[inout] x an abstract vector which is the solution
   !> @param[self] The solver which has pointers to the lin_op and preconditioner
   module subroutine block_gcr_solve(self, x, b)
@@ -1542,16 +1555,16 @@ contains
   end subroutine block_gcr_solve
 end submodule block_gcr_smod
 
-!  Submodule with procedures for Precondition only !!
+!  Submodule with procedures for Precondition only !
 submodule(sci_iterative_solver_mod) precondition_only_smod
 contains
   !> constructs a <code>precondition_only</code> solver
-  !! sets the values for the solver such as the residual (r_tol) and
-  !! points the linear operator and preconditioner at those passed in.
+  !> sets the values for the solver such as the residual (r_tol) and
+  !> points the linear operator and preconditioner at those passed in.
   !> @param[in] lin_op The linear operator the solver will use
   !> @param[in] prec The preconditioner the solver will use
   !> @param[in] monitor_convergence Monitor the convergence and error in the
-  !!                                solver
+  !>                                solver
   !> @return the constructed conjugate gradient solver
   module function precondition_only_constructor(lin_op, prec, monitor_convergence) result(self)
     implicit none
@@ -1572,7 +1585,7 @@ contains
 
   !> Precondition only solve. Over-rides the abstract interface to do the actual solve.
   !> @param[inout] b an abstract vector which will be an actual vector of unkown extended type
-  !! This the "RHS" or boundary conditions,
+  !> This the "RHS" or boundary conditions,
   !> @param[inout] x an abstract vector which is the solution
   !> @param[self] The solver which has pointers to the lin_op and preconditioner
   module subroutine precondition_only_solve(self, x, b)
@@ -1611,21 +1624,21 @@ contains
 
 end submodule precondition_only_smod
 
-!  Submodule with procedures for Jacobi solver !!
+!  Submodule with procedures for Jacobi solver !
 submodule(sci_iterative_solver_mod) jacobi_smod
 contains
   !> Constructs a <code>Jacobi</code> solver
-  !! sets the values for the solver such as the residual (r_tol) and
-  !! points the linear operator and preconditioner at those passed in.
+  !> sets the values for the solver such as the residual (r_tol) and
+  !> points the linear operator and preconditioner at those passed in.
   !> @param[in] lin_op The linear operator the solver will use
   !> @param[in] prec The preconditioner the solver will use
   !> @param[in] r_tol real, the relative tolerance halting condition
   !> @param[in] a_tol real, the absolute tolerance halting condition
   !> @param[in] max_inter, integer the maximum number of iterations
   !> @param[in] monitor_convergence Monitor the convergence and error in the
-  !!                                solver
+  !>                                solver
   !> @param[in] fail_on_non_converged Exit with error if the solver does not
-  !!                                  converge
+  !>                                  converge
   !> @param[in] rho_relax, overrelaxation factor
   !> @return the constructed jacobi solver
   module function jacobi_constructor(lin_op, prec, r_tol, a_tol, max_iter,       &
@@ -1655,7 +1668,7 @@ contains
 
   !> Jacobi solve. Over-rides the abstract interface to do the actual solve.
   !> @param[inout] b an abstract vector which will be an actual vector of unkown extended type
-  !! This the "RHS" or boundary conditions,
+  !> This the "RHS" or boundary conditions,
   !> @param[inout] x an abstract vector which is the solution
   !> @param[self] The solver which has pointers to the lin_op and preconditioner
   module subroutine jacobi_solve(self, x, b)
@@ -1735,17 +1748,17 @@ end submodule jacobi_smod
 submodule(sci_iterative_solver_mod) chebyshev_smod
 contains
   !> constructs a <code>chebyshev</code> solver
-  !! sets the values for the solver such as the residual (r_tol) and
-  !! points the linear operator and preconditioner at those passed in.
+  !> sets the values for the solver such as the residual (r_tol) and
+  !> points the linear operator and preconditioner at those passed in.
   !> @param[in] lin_op The linear operator the solver will use
   !> @param[in] prec The preconditioner the solver will use
   !> @param[in] r_tol real, the relative tolerance halting condition
   !> @param[in] a_tol real, the absolute tolerance halting condition
   !> @param[in] max_inter, integer the maximum number of iterations
   !> @param[in] monitor_convergence Monitor the convergence and error in the
-  !!                                solver
+  !>                                solver
   !> @param[in] fail_on_non_converged Exit with error if the solver does not
-  !!                                  converge
+  !>                                  converge
   !> @param[in] lmin Lower bound on the eigenvalues of the matrix
   !> @param[in] lmax Upper bound on the eigenvalues of the matrix
   !> @return the constructed chebyshev solver
@@ -1778,7 +1791,7 @@ contains
 
   !> chebyshev solve. Over-rides the abstract interface to do the actual solve.
   !> @param[inout] b an abstract vector which will be an actual vector of unkown extended type
-  !! This the "RHS" or boundary conditions,
+  !> This the "RHS" or boundary conditions,
   !> @param[inout] x an abstract vector which is the solution
   !> @param[self] The solver which has pointers to the lin_op and preconditioner
   module subroutine chebyshev_solve(self, x, b)
@@ -1856,4 +1869,3 @@ contains
   end subroutine chebyshev_solve
 
 end submodule chebyshev_smod
-

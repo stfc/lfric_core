@@ -14,16 +14,26 @@ module project_output_mod
   public :: project_output
 
 contains
-!> @brief An procedure to project a field from one function space to another
-!>        for output
-!> @details This procedure uses the galerkin projection and a precomputed
-!>          mass matrix to project a field
-!> @param[in] field the input field
-!> @param[inout] projected_field The output field
-!> @param[in] d dimension of the output field
-!> @param[in] output_fs the desired output function space
-!> @param[in] mesh  Mesh object the model runs on.
-  subroutine project_output(field, projected_field, d, output_fs, mesh)
+
+  !> @brief An procedure to project a field from one function space to another
+  !>        for output
+  !>
+  !> @details This procedure uses the galerkin projection and a precomputed
+  !>          mass matrix to project a field
+  !>
+  !> @param[in]    field            To be projected.
+  !> @param[inout] projected_field  Receives projection.
+  !> @param[in]    chi              Field entity co-ordinates.
+  !> @param[in]    panel_id         Cell orientation map.
+  !> @param[in]    mesh             Operating on this mesh.
+  !> @param[in]    output_fs        Desired output function space.
+  !>
+  !> @todo Is it necessary to pass mesh all the way down here given that it is
+  !>       always available from the fields we have? See lfric_apps:#118
+  !>
+  subroutine project_output( field, projected_field, &
+                             chi, panel_id, mesh,    &
+                             output_fs )
 
     use constants_mod,             only: r_def, str_max_filename, i_def
     use field_mod,                 only: field_type
@@ -40,40 +50,46 @@ contains
     implicit none
 
     ! Input field to project from
-    type( field_type ), intent(in)                 :: field
+    type(field_type),         intent(in)    :: field
     ! Output field to project to
-    type( field_type ), intent(inout)              :: projected_field(:)
-    ! Output field dimension
-    integer(i_def),     intent(in)                 :: d
+    type(field_type),         intent(inout) :: projected_field(:)
+    ! Co-ordinate system
+    type(field_type),         intent(in)    :: chi(:)
+    type(field_type),         intent(in)    :: panel_id
+    type(mesh_type), pointer, intent(in)    :: mesh
     ! Output function space
-    integer(i_def),     intent(in)                 :: output_fs
-    ! Mesh
-    type(mesh_type),    intent(in), pointer        :: mesh
-
+    integer(i_def),           intent(in)    :: output_fs
 
     type( quadrature_xyoz_type )          :: qr
     type( quadrature_rule_gaussian_type ) :: quadrature_rule
-    integer(i_def)                        :: dir, fs_handle
+    integer(i_def)                        :: idx, fs_handle
     procedure(write_interface), pointer   :: tmp_write_ptr => null()
 
 
-    qr = quadrature_xyoz_type(element_order+3, quadrature_rule)
+    qr = quadrature_xyoz_type( element_order + 3, quadrature_rule )
 
     ! Determine the input function space
     fs_handle = field%which_function_space()
 
     ! Create the output field
-    do dir = 1,d
-      call projected_field(dir)%initialise( vector_space = &
-              function_space_collection%get_fs(mesh, element_order, output_fs ) )
-      call field%get_write_behaviour(tmp_write_ptr)
-      ! set the write field behaviour based upon what is set in the original field
-      call projected_field(dir)%set_write_behaviour(tmp_write_ptr)
+    call field%get_write_behaviour( tmp_write_ptr )
+    do idx = 1, size(projected_field)
+      call projected_field(idx)%initialise( &
+        vector_space = function_space_collection%get_fs( &
+          mesh, element_order, output_fs &
+        ) &
+      )
+      !
+      ! set the write field behaviour based upon what is set in the original
+      ! field
+      !
+      call projected_field(idx)%set_write_behaviour(tmp_write_ptr)
     end do
 
-
     ! do the projection
-    call galerkin_projection_algorithm(projected_field, field, mesh, d, qr)
+    call galerkin_projection_algorithm(               &
+      projected_field, field, chi, panel_id, mesh, qr &
+    )
 
   end subroutine project_output
 
