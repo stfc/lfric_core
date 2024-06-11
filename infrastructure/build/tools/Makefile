@@ -22,8 +22,8 @@ test: pytest
 pytest: mypy
 	pytest $(VERBOSE_ARG) $(DEBUG_ARG)
 
-STYLED_FILES = configurator
-STYLED_APPS = GenerateFeigns GenerateLoader GenerateNamelist
+STYLED_FILES = configurator templaterator
+STYLED_APPS = GenerateFeigns GenerateLoader GenerateNamelist Templaterator
 
 # We pass the applications to mypy separately as they fight with each other to
 # declare a __main__. This means the package modules get extra tested.
@@ -36,7 +36,11 @@ mypy/%:
 	mypy $(VERBOSE_ARG) $(STYLED_FILES) $*
 
 .PHONY: style
-style: pylint
+style: flake8
+
+.PHONY: flake8
+flake8: pylint
+	flake8 $(VERBOSE_ARG) $(STYLED_FILES)
 
 # We pass the applications to pylint separately as they fight with each other
 # to declare a __main__. This means the package modules get extra tested.

@@ -111,6 +111,7 @@ document-api: api-documentation
 # Unit tests
 #
 unit-tests/%: export BIN_DIR      ?= $(PROJECT_DIR)/test
+unit-tests/%: export PRE_PROCESS_INCLUDE_DIRS = unit-test/include
 unit-tests/%: export PROGRAMS      = infrastructure_unit_tests
 unit-tests/%: export PROJECT       = infrastructure
 unit-tests/%: export SOURCE_DIR    = source

@@ -14,8 +14,10 @@
 #
 # The following variables may be specified to modify behaviour:
 #
-# PRE_PROCESS_MACROS: A list of macro definitions in the form NAME[=MACRO]
-#                     to be passed to the preprocessor.
+# PRE_PROCESS_INCLUDE_DIRS: Space separated list of directories to search for
+#                           inclusions.
+# PRE_PROCESS_MACROS: Space separated list of macro definitions in the form
+#                     NAME[=MACRO] to be passed to the preprocessor.
 #
 ##############################################################################
 
@@ -41,6 +43,7 @@ dependencies.mk: $(TOUCH_FILES)
 	                                         $(DEPRULE_FLAGS) $@
 
 IGNORE_ARGUMENTS = $(addprefix -ignore ,$(IGNORE_DEPENDENCIES))
+INCLUDE_ARGUMENTS = $(addprefix -include , $(PRE_PROCESS_INCLUDE_DIRS))
 MACRO_ARGUMENTS = $(addprefix -macro ,$(PRE_PROCESS_MACROS))
 
 %.t: %.f90
@@ -52,7 +55,8 @@ MACRO_ARGUMENTS = $(addprefix -macro ,$(PRE_PROCESS_MACROS))
 %.t: %.F90
 	$(call MESSAGE,Analysing,$<)
 	$(Q)$(LFRIC_BUILD)/tools/DependencyAnalyser \
-	    $(IGNORE_ARGUMENTS) $(MACRO_ARGUMENTS) $(VERBOSE_ARG) $(DATABASE) $<
+	    $(IGNORE_ARGUMENTS) $(INCLUDE_ARGUMENTS) $(MACRO_ARGUMENTS) \
+	    $(VERBOSE_ARG) $(DATABASE) $<
 	$(Q)touch $@
 
 include $(LFRIC_BUILD)/lfric.mk

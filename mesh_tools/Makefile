@@ -137,8 +137,9 @@ build: ALWAYS
 ##############################################################################
 # Unit tests
 #
-unit-tests/%: export ADDITIONAL_EXTRACTION = $(CORE_ROOT_DIR)/infrastructure/source $(CORE_ROOT_DIR)/components/science
 unit-tests/%: export BIN_DIR       ?= $(PROJECT_DIR)/test
+unit-tests/%: export IMPORT_PARTS   = $(CORE_ROOT_DIR)/infrastructure \
+                                      $(CORE_ROOT_DIR)/components/science
 unit-tests/%: export META_FILE_DIR  = rose-meta/lfric-mesh_tools/HEAD
 unit-tests/%: export PROGRAMS       = mesh_tools_unit_tests
 unit-tests/%: export PROJECT        = mesh_tools

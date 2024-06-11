@@ -77,11 +77,11 @@ document-api: api-documentation
 ##############################################################################
 # Unit tests
 #
-unit-tests/%: export ADDITIONAL_EXTRACTION = $(CORE_ROOT_DIR)/infrastructure/source \
-                                             $(CORE_ROOT_DIR)/components/science/source
 unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
 unit-tests/%: export CXX_LINK = YES
 unit-tests/%: export FFLAGS += -DUNIT_TEST
+unit-tests/%: export IMPORT_PARTS = $(CORE_ROOT_DIR)/infrastructure \
+                                    $(CORE_ROOT_DIR)/components/science
 unit-tests/%: export META_FILE_DIR = rose-meta/lfric-xios/HEAD
 unit-tests/%: export PROGRAMS = lfric_xios_unit_tests
 unit-tests/%: export PROJECT = lfric_xios

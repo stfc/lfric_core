@@ -1,15 +1,19 @@
-!-----------------------------------------------------------------------------
-! (C) Crown copyright 2024 Met Office. All rights reserved.
-! The file LICENCE, distributed with this code, contains details of the terms
-! under which the code may be used.
-!-----------------------------------------------------------------------------
+! Preprocessor is used to template test code.
 
-!> Test the field representation
-!>
-!-------------------------------------------------------------------------------
-module field_int32_mod_test
+#define TMPL_PASTE(a) a
+#define TMPL_MODULE_NAME TMPL_PASTE(TMPL_PASTE(field_)TMPL_KIND)_mod_test
+#define TMPL_TEST_FIELD_PROC TMPL_PASTE(test_field_)TMPL_KIND
+#define TMPL_TEST_FIELD_PROXY_PROC TMPL_PASTE(TMPL_PASTE(test_field_)TMPL_KIND)_proxy
+#define TMPL_TEST_EMPTY_FIELD_PROC TMPL_PASTE(test_empty_field_)TMPL_KIND
+#define TMPL_TEST_CLASS TMPL_PASTE(TMPL_PASTE(field_)TMPL_KIND)_test_type
+#define TMPL_FIELD_MOD TMPL_PASTE(TMPL_PASTE(field_)TMPL_KIND)_mod
+#define TMPL_FIELD_TYPE TMPL_PASTE(TMPL_PASTE(field_)TMPL_KIND)_type
+#define TMPL_FIELD_PROXY_TYPE TMPL_PASTE(TMPL_PASTE(field_)TMPL_KIND)_proxy_type
+#define TMPL_LITERAL(v) TMPL_PASTE(TMPL_PASTE(v)_)TMPL_KIND
 
-  use, intrinsic :: iso_fortran_env,  only : int32
+module TMPL_MODULE_NAME
+
+  use, intrinsic :: iso_fortran_env,  only : TMPL_KIND
   use constants_mod,                  only : i_def, str_def, imdi
   use halo_comms_mod,                 only : initialise_halo_comms, &
                                              finalise_halo_comms
@@ -30,12 +34,12 @@ module field_int32_mod_test
   implicit none
 
   private
-  public :: test_field_int32, &
-            test_field_int32_proxy, &
-            test_empty_field_int32
+  public :: TMPL_TEST_FIELD_PROC, &
+            TMPL_TEST_FIELD_PROXY_PROC, &
+            TMPL_TEST_EMPTY_FIELD_PROC
 
   @TestCase
-  type, extends(MPITestCase), public :: field_int32_test_type
+  type, extends(MPITestCase), public :: TMPL_TEST_CLASS
     private
     type(function_space_type), pointer :: w2_fs => null()
     type(function_space_type), pointer :: w3_fs => null()
@@ -45,10 +49,7 @@ module field_int32_mod_test
     procedure setUp
     procedure tearDown
     procedure get_local_mesh_ptr
-    procedure test_field_int32
-    procedure test_field_int32_proxy
-    procedure test_empty_field_int32
-  end type field_int32_test_type
+  end type TMPL_TEST_CLASS
 
   integer(i_def), parameter :: element_order = 0
 
@@ -59,7 +60,7 @@ contains
 
     implicit none
 
-    class(field_int32_test_type), intent(inout) :: this
+    class(TMPL_TEST_CLASS), intent(inout) :: this
 
     type(local_mesh_type), pointer :: unit_test_local_mesh_ptr
     type(mesh_type) :: unit_test_mesh
@@ -99,7 +100,7 @@ contains
 
     implicit none
 
-    class(field_int32_test_type), intent(inout) :: this
+    class(TMPL_TEST_CLASS), intent(inout) :: this
 
     call function_space_collection%clear()
     call mesh_collection%clear()
@@ -115,27 +116,32 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   function get_local_mesh_ptr(this) result(unit_test_local_mesh_ptr)
+
     implicit none
-    class(field_int32_test_type), intent(inout), target :: this
+
+    class(TMPL_TEST_CLASS), intent(inout), target :: this
+
     type(local_mesh_type), pointer :: unit_test_local_mesh_ptr
+
     unit_test_local_mesh_ptr => this%unit_test_local_mesh
+
   end function get_local_mesh_ptr
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   @Test( npes=[1] )
-  subroutine test_field_int32( this )
+  subroutine TMPL_TEST_FIELD_PROC( context )
 
-    use field_int32_mod, only: field_int32_type, field_int32_proxy_type
+    use TMPL_FIELD_MOD, only: TMPL_FIELD_TYPE, TMPL_FIELD_PROXY_TYPE
 
     implicit none
 
-    class(field_int32_test_type), intent(inout) :: this
+    class(TMPL_TEST_CLASS), intent(inout) :: context
 
-    type(field_int32_type)          :: f1
-    type(field_int32_type)          :: f2
-    type(field_int32_proxy_type)    :: f1_p
-    type(field_int32_proxy_type)    :: f2_p
+    type(TMPL_FIELD_TYPE)          :: f1
+    type(TMPL_FIELD_TYPE)          :: f2
+    type(TMPL_FIELD_PROXY_TYPE)    :: f1_p
+    type(TMPL_FIELD_PROXY_TYPE)    :: f2_p
 
     character(str_def) :: name
     integer(i_def)     :: halo_depth
@@ -148,7 +154,7 @@ contains
     integer(i_def) :: order
 
     ! Make a field with a function space
-    call f1%initialise( vector_space = this%w2_fs, name='f1', halo_depth=3 )
+    call f1%initialise( vector_space = context%w2_fs, name='f1', halo_depth=3 )
 
     ! Get  and check the the name of the field
     name = f1%get_name()
@@ -169,7 +175,7 @@ contains
 
     ! Check the get function space returns W2 by comparing undf
     fs => f1%get_function_space()
-    @assertEqual( fs%get_undf(), this%w2_fs%get_undf() )
+    @assertEqual( fs%get_undf(), context%w2_fs%get_undf() )
 
     ! Check the order the field thinks it is
     order=f1%get_element_order()
@@ -177,7 +183,7 @@ contains
 
     ! Check what the field thinks the mesh_id is
     mesh => f1%get_mesh()
-    @assertTrue( associated(this%mesh, mesh) )
+    @assertTrue( associated(context%mesh, mesh) )
 
     ! Copy field operator tests follow...
     call f1%copy_field_serial(f2)
@@ -191,47 +197,45 @@ contains
     name = f2%get_name()
     @assertEqual( 'f2', trim(name) )
 
-  end subroutine test_field_int32
+  end subroutine TMPL_TEST_FIELD_PROC
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @Test( npes=[1] )
-  subroutine test_field_int32_proxy( this )
+  subroutine TMPL_TEST_FIELD_PROXY_PROC( context )
 
-    use field_int32_mod, only: field_int32_type, field_int32_proxy_type
+    use TMPL_FIELD_MOD, only: TMPL_FIELD_TYPE, TMPL_FIELD_PROXY_TYPE
 
     implicit none
 
-    class(field_int32_test_type), intent(inout) :: this
+    class(TMPL_TEST_CLASS), intent(inout) :: context
 
-    type(field_int32_type)       :: f1
-    type(field_int32_type)       :: f2
-    type(field_int32_type)       :: f3
-    type(field_int32_proxy_type) :: f1_p
-    type(field_int32_proxy_type) :: f2_p
-    type(field_int32_proxy_type) :: f3_p
-    integer(i_def)               :: i
-    integer(i_def)               :: halo_depth
+    type(TMPL_FIELD_TYPE)       :: f1
+    type(TMPL_FIELD_TYPE)       :: f2
+    type(TMPL_FIELD_PROXY_TYPE) :: f1_p
+    type(TMPL_FIELD_PROXY_TYPE) :: f2_p
+    integer(i_def)                :: i
+    integer(i_def)                :: halo_depth
     type(halo_routing_type), pointer :: halo_routing
-    integer(i_def)               :: order
-    integer(int32)               :: test_sum, test_min, test_max
-    logical                      :: dirty
+    integer(i_def)                :: order
+    TMPL_TYPE(TMPL_KIND)                  :: test_sum, test_min, test_max
+    logical                       :: dirty
 
     ! Make a field with a function space
-    call f1%initialise( vector_space = this%w2_fs, name='f1', halo_depth=3 )
+    call f1%initialise( vector_space = context%w2_fs, name='f1', halo_depth=3 )
 
     ! get the proxy
     f1_p = f1%get_proxy()
 
     !Initialise field data
     do i=1,f1_p%vspace%get_undf()
-      f1_p%data(i)=int(i,kind=int32)
+      f1_p%data(i)=real(i, kind=TMPL_KIND)
     end do
 
     ! Make a second field, identical to the first
-    call f2%initialise( vector_space = this%w2_fs )
+    call f2%initialise( vector_space = context%w2_fs )
     f2_p = f2%get_proxy()
     do i=1,f2_p%vspace%get_undf()
-      f2_p%data(i)=int(i,kind=int32)
+      f2_p%data(i)=real(i, kind=TMPL_KIND)
     end do
 
     ! Perform a halo swap on the second field
@@ -240,17 +244,17 @@ contains
     call f2_p%halo_exchange_finish(1)
 
     ! For serial case, the halo swapped field should be the same as the original
-    @assertEqual( f1_p%data  , f2_p%data, 1.0e-2_int32 )
+    @assertEqual( f1_p%data  , f2_p%data, TMPL_LITERAL(1.0e-2) )
 
     ! Test the global reductions
     test_sum=f1_p%get_sum()
-    @assertEqual( 4095_int32  , test_sum, 1.0e-2_int32 )
+    @assertEqual( 4095.0  , test_sum, TMPL_LITERAL(1.0e-2) )
 
     test_min=f1_p%get_min()
-    @assertEqual( 1_int32  , test_min, 1.0e-2_int32 )
+    @assertEqual( 1.0  , test_min, TMPL_LITERAL(1.0e-2) )
 
     test_max=f1_p%get_max()
-    @assertEqual( 90_int32  , test_max, 1.0e-2_int32)
+    @assertEqual( 90.0  , test_max, TMPL_LITERAL(1.0e-2) )
 
     halo_depth=f1_p%get_field_proxy_halo_depth()
     @assertEqual ( 3, halo_depth )
@@ -274,25 +278,25 @@ contains
     dirty=f1_p%is_dirty(1)
     @assertFalse ( dirty )
 
-  end subroutine test_field_int32_proxy
+  end subroutine TMPL_TEST_FIELD_PROXY_PROC
 
   @Test( npes=[1] )
-  subroutine test_empty_field_int32( this )
+  subroutine TMPL_TEST_EMPTY_FIELD_PROC( context )
 
-    use field_int32_mod, only: field_int32_type, field_int32_proxy_type
+    use TMPL_FIELD_MOD, only: TMPL_FIELD_TYPE, TMPL_FIELD_PROXY_TYPE
 
     implicit none
 
-    class(field_int32_test_type), intent(inout) :: this
+    class(TMPL_TEST_CLASS), intent(inout) :: context
 
-    type(field_int32_type)       :: f1
-    type(field_int32_proxy_type) :: f1_p
+    type(TMPL_FIELD_TYPE)       :: f1
+    type(TMPL_FIELD_PROXY_TYPE) :: f1_p
     integer(i_def)                :: i
 
-    integer(int32), target :: empty_data(1)
+    TMPL_TYPE(TMPL_KIND), target :: empty_data(1)
 
     ! Make a field, but provide override data
-    call f1%initialise( vector_space = this%w2_fs, name = 'f1', override_data = empty_data )
+    call f1%initialise( vector_space = context%w2_fs, name = 'f1', override_data = empty_data )
 
     ! get the proxy
     f1_p = f1%get_proxy()
@@ -301,7 +305,7 @@ contains
     @assertTrue( associated( f1_p%data, empty_data ) )
 
     ! Re-initialise as a normal field
-    call f1%initialise( vector_space = this%w2_fs, name = 'f1' )
+    call f1%initialise( vector_space = context%w2_fs, name = 'f1' )
 
     ! get the proxy
     f1_p = f1%get_proxy()
@@ -310,7 +314,8 @@ contains
     @assertFalse( associated( f1_p%data, empty_data ) )
 
     ! Re-initialise again with the override data
-    call f1%initialise( vector_space = this%w2_fs, name = 'f1', override_data = empty_data )
+    call f1%initialise( vector_space = context%w2_fs, &
+                        name = 'f1', override_data = empty_data )
 
     ! get the proxy
     f1_p = f1%get_proxy()
@@ -318,6 +323,6 @@ contains
     ! Check that the proxy returns the empty_data array once again
     @assertTrue( associated( f1_p%data, empty_data ) )
 
-  end subroutine test_empty_field_int32
+  end subroutine TMPL_TEST_EMPTY_FIELD_PROC
 
-end module field_int32_mod_test
+end module TMPL_MODULE_NAME

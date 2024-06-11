@@ -1,11 +1,10 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 ##############################################################################
 # Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 # For further details please refer to the file LICENCE.original which you
 # should have received as part of this distribution.
 ##############################################################################
-'''
+"""
 Examine a file and determine any dependencies it has. Both Fortran source and
 namelist description files are supporetd.
 
@@ -13,7 +12,7 @@ This snippet consists of a dependency list built up from the modules a
 file "use"s.
 
 This snippet may then be "include"ed into other make files.
-'''
+"""
 
 import argparse
 import logging
@@ -40,6 +39,9 @@ if __name__ == '__main__':
                         default=[],
                         help='A 3rd party module name to be ignored. '
                              + 'This may appear multiple times.')
+    parser.add_argument('-include', metavar='DIRECTORY', action='append',
+                        type=Path, default=[],
+                        help="Preprocessor include directory.")
     parser.add_argument('-macro', metavar='NAME[=MACRO]', action='append',
                         default=[],
                         help='Macro definitions to be passed to preprocessor.')
@@ -72,8 +74,11 @@ if __name__ == '__main__':
     namelistStore = database.FileDependencies(backend)
     namelistAnalyser = analyser.NamelistDescriptionAnalyser(namelistStore)
     fortranStore = database.FortranDependencies(backend)
-    fortranAnalyser = analyser.FortranAnalyser(args.ignore, fortranStore)
+    fortranAnalyser = analyser.FortranAnalyser(args.ignore,
+                                               fortranStore,
+                                               macroDictionary,
+                                               args.include)
     if args.source.endswith('.nld'):
         namelistAnalyser.analyse(args.source)
     else:
-        fortranAnalyser.analyse(Path(args.source), macroDictionary)
+        fortranAnalyser.analyse(Path(args.source))

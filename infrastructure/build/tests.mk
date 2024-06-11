@@ -44,21 +44,16 @@ $(UNIT_TEST_EXE): do-unit-test/generate \
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/pfunit.mk \
 	            SOURCE_DIR=$(TEST_DIR) WORKING_DIR=$(WORKING_DIR)
 	$Q$(MAKE) $(QUIET_ARG) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/analyse.mk
-	$Q$(MAKE) $(QUIET_ARG) \
-                    -C $(WORKING_DIR) -f $(LFRIC_BUILD)/compile.mk \
-                    PRE_PROCESS_MACROS="$(PRE_PROCESS_MACROS) $(UNIT_TEST_PRE_PROCESS_MACROS)"
+	$Q$(MAKE) $(QUIET_ARG) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/compile.mk \
+	          PRE_PROCESS_MACROS="$(PRE_PROCESS_MACROS) $(UNIT_TEST_PRE_PROCESS_MACROS)"
 
-# Ensure all extraction is performed before PSyclone otherwise kernel files may
-# not have arrived when they are needed.
-#
 do-unit-test/generate: do-unit-test/get-source \
                        $(if $(META_FILE_DIR), configuration)
-	$Q$(MAKE) -f $(LFRIC_BUILD)/lfric.mk           \
-	          $(addsuffix /psyclone, $(SOURCE_DIR) \
-	                                 $(ADDITIONAL_EXTRACTION))
 
-do-unit-test/get-source: $(addsuffix /extract, $(SOURCE_DIR) \
-                                               $(ADDITIONAL_EXTRACTION))
+do-unit-test/get-source: $(addsuffix /import, $(IMPORT_PARTS)) \
+                         $(addsuffix /extract, $(ADDITIONAL_EXTRACTION))
+	$Q$(MAKE) -f $(LFRIC_BUILD)/lfric.mk \
+	          $(addsuffix /import, $(PROJECT_DIR))
 
 ###############################################################################
 # Integration tests
@@ -91,22 +86,20 @@ do-integration-tests/rerun/%:
 
 do-integration-tests/build: do-integration-tests/generate \
                            $(addsuffix /extract, $(TEST_DIR))
+	$Qmkdir -p $(WORKING_DIR)
+	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/lfric.mk \
+	          $(addsuffix /psyclone, $(TEST_DIR))
 	$Q$(MAKE) $(QUIET_ARG) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/analyse.mk
 	$Q$(MAKE) $(QUIET_ARG) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/compile.mk
 	$Qrsync -a $(TEST_DIR)/ $(TEST_RUN_DIR)
 
-# Extraction is performed before psyclone to ensure kernel files have arrived
-# before they are needed.
-#
 do-integration-tests/generate: do-integration-test/get-source \
                                $(if $(META_FILE_DIR), configuration)
-	$Q$(MAKE) -f $(LFRIC_BUILD)/lfric.mk           \
-	          $(addsuffix /psyclone, $(SOURCE_DIR) \
-	                                 $(TEST_DIR)   \
-	                                 $(ADDITIONAL_EXTRACTION))
 
-do-integration-test/get-source: $(addsuffix /extract, $(SOURCE_DIR) \
-                                                      $(ADDITIONAL_EXTRACTION))
+do-integration-test/get-source: $(addsuffix /import, $(IMPORT_PARTS)) \
+                                $(addsuffix /extract, $(ADDITIONAL_EXTRACTION))
+	$Q$(MAKE) -f $(LFRIC_BUILD)/lfric.mk \
+	          $(addsuffix /import, $(PROJECT_DIR))
 
 ###############################################################################
 # Utilities

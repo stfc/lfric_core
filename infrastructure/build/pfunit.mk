@@ -8,11 +8,12 @@
 # descriptions in SOURCE_DIR.
 #
 PF_FILES = $(shell find $(SOURCE_DIR) -name '*.pf' -print | sed "s|$(SOURCE_DIR)||")
+PPF_FILES = $(shell find $(SOURCE_DIR) -name '*.PF' -print | sed "s|$(SOURCE_DIR)||")
 
 .PHONY: prepare-pfunit
 prepare-pfunit: $(patsubst %.pf,$(WORKING_DIR)/%.F90,$(PF_FILES)) \
-        $(WORKING_DIR)/$(PROJECT)_unit_tests.F90
-	$(Q)echo >/dev/null
+                $(patsubst %.PF,$(WORKING_DIR)/%.F90,$(PPF_FILES)) \
+                $(WORKING_DIR)/$(PROJECT)_unit_tests.F90
 
 include $(LFRIC_BUILD)/lfric.mk
 
@@ -27,9 +28,22 @@ $(WORKING_DIR)/testSuites.inc:
 	$(call MESSAGE,Collating, $@)
 	$(Q)mkdir -p $(dir $@)
 	$(Q)echo ! Tests to run >$@
-	$(Q)for test in $(basename $(notdir $(shell find $(SOURCE_DIR) -name '*.pf'))); do echo ADD_TEST_SUITE\($${test}_suite\) >> $@; done
+	$Qfor test in $(basename $(notdir $(shell find $(SOURCE_DIR) -iname '*.pf'))); \
+	      do echo ADD_TEST_SUITE\($${test}_suite\) >> $@; done
 
 $(WORKING_DIR)/%.F90: $(SOURCE_DIR)/%.pf
 	$(call MESSAGE,Generating unit test,$@)
 	$(Q)mkdir -p $(dir $@)
 	$(Q)$(PFUNIT)/bin/pFUnitParser.py $< $@ $(VERBOSE_REDIRECT)
+
+$(WORKING_DIR)/%.F90: $(WORKING_DIR)/%.pf
+	$(call MESSAGE, Generating unit test, $@)
+	$Qmkdir -p $(dir $@)
+	$Q$(PFUNIT)/bin/pFUnitParser.py $< $@ $(VERBOSE_REDIRECT)
+
+$(WORKING_DIR)/%.pf: $(SOURCE_DIR)/%.PF
+	$(call MESSAGE, Preprocessing unit test, $<)
+	$Qmkdir -p $(dir $@)
+	$Q$(FPP) $(addprefix -I, $(PRE_PROCESS_INCLUDE_DIRS)) \
+	         $(addprefix -D, $(PRE_PROCESS_MACROS)) \
+	         <$< >$@

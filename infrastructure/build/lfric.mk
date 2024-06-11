@@ -264,13 +264,25 @@ configuration:
 
 
 ##############################################################################
-# Extract parts of other projects.
+# Extract parts of other projects. No source generation.
 #
 .PHONY: %/extract
 %/extract:
 	$(Q)$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
 	            SOURCE_DIR=$* WORKING_DIR=$(WORKING_DIR)
 
+##############################################################################
+# Import another project including generated source.
+#
+.PHONY: %/import
+%/import: $$*/build/import.mk  # If there are special import instructions.
+	$Q$(MAKE) $(QUIET_ARG) -f $<
+
+%/import: $$**/source  # In the absense of special instructions.
+	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
+	          SOURCE_DIR=$<
+	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone.mk \
+	          SOURCE_DIR=$<
 
 ##############################################################################
 # Invoke PSyclone to generate PSy layer.

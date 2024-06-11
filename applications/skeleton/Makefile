@@ -163,10 +163,12 @@ build: ALWAYS
 ##############################################################################
 # Unit tests
 #
-unit-tests/%: export ADDITIONAL_EXTRACTION            \
-                  = $(CORE_ROOT_DIR)/infrastructure/source \
-                    $(CORE_ROOT_DIR)/components/science/source/kernel
 unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
+unit-tests/%: export IMPORT_PARTS = $(CORE_ROOT_DIR)/infrastructure \
+                                    $(CORE_ROOT_DIR)/components/driver \
+                                    $(CORE_ROOT_DIR)/components/inventory \
+                                    $(CORE_ROOT_DIR)/components/science \
+                                    $(CORE_ROOT_DIR)/components/lfric-xios
 unit-tests/%: export META_FILE_DIR = rose-meta/lfric-skeleton/HEAD
 unit-tests/%: export PROGRAMS = $(PROJECT_NAME)_unit_tests
 unit-tests/%: export PROJECT = $(PROJECT_NAME)

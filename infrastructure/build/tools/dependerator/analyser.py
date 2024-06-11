@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 ##############################################################################
 # Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 # For further details please refer to the file LICENCE.original which you
@@ -27,6 +26,10 @@ from pathlib import Path
 import re
 import subprocess
 from time import time
+from typing import Dict, List, Optional
+
+from dependerator.database import FileDependencies, FortranDependencies
+
 
 ###############################################################################
 # Interface for analysers
@@ -39,8 +42,8 @@ class Analyser(metaclass=ABCMeta):
     #   sourceFilename - The name of the object to scan.
     #
     @abstractmethod
-    def analyse(self, sourceFilename):
-        pass
+    def analyse(self, sourceFilename: Path):
+        raise NotImplementedError()
 
 
 ###############################################################################
@@ -50,9 +53,9 @@ class NamelistDescriptionAnalyser(Analyser):
     ###########################################################################
     # Constructor
     # Arguments:
-    #   database - FileDependencies object to hold details.
+    #   database - Backing store for details.
     #
-    def __init__(self, database):
+    def __init__(self, database: FileDependencies):
         self._database = database
 
     ###########################################################################
@@ -92,12 +95,20 @@ class FortranAnalyser(Analyser):
     # Constructor
     #
     # Arguments:
-    #   ignoreModules - A list of module names to ignore.
-    #   database      - FortranDatabase object to hold details.
+    #   ignoreModules - Module names to ignore.
+    #   database      - Backing store to hold details.
+    #   preprocess_macros - Macro name is the key. Value may be None for
+    #                            empty macros.
+    #   preprocess_include_paths - Directories where inclusions will be saught.
     #
-    def __init__(self, ignoreModules, database):
+    def __init__(self, ignoreModules: List[str],
+                 database: FortranDependencies,
+                 preprocess_macros: Optional[Dict[str, Optional[str]]] = None,
+                 preprocess_include_paths: Optional[List[Path]] = None):
         self._ignoreModules = [str.lower(mod) for mod in ignoreModules]
         self._database = database
+        self.__preprocess_macros = preprocess_macros or {}
+        self.__preprocess_include_paths = preprocess_include_paths or []
 
         # The intrinsic Fortran modules
         self._ignoreModules.extend(['iso_c_binding', 'iso_fortran_env',
@@ -153,10 +164,8 @@ class FortranAnalyser(Analyser):
     #
     # Arguments:
     #   sourceFilename(str) - The name of the object to scan.
-    #   preprocessMacros(dict) - Macro name is the key. Value may be None for
-    #                            empty macros.
     #
-    def analyse(self, sourceFilename: Path, preprocessMacros=None):
+    def analyse(self, sourceFilename: Path):
         logger = logging.getLogger(__name__)
         # Perform any necessary preprocessing
         #
@@ -164,13 +173,14 @@ class FortranAnalyser(Analyser):
             logging.getLogger(__name__).info('  Preprocessing '
                                              + str(sourceFilename))
             preprocessCommand = self._fpp
-            if preprocessMacros:
-                for name, macro in preprocessMacros.items():
-                    if macro:
-                        preprocessCommand.append('-D{}={}'.format(name, macro))
-                    else:
-                        preprocessCommand.append('-D{}'.format(name))
-            preprocessCommand.append(sourceFilename)
+            for path in self.__preprocess_include_paths:
+                preprocessCommand.append('-I' + str(path))
+            for name, macro in self.__preprocess_macros.items():
+                if macro:
+                    preprocessCommand.append(f'-D{name}={macro}')
+                else:
+                    preprocessCommand.append('-D' + name)
+            preprocessCommand.append(str(sourceFilename))
 
             start_time = time()
             preprocessor = subprocess.Popen(preprocessCommand,
@@ -182,12 +192,13 @@ class FortranAnalyser(Analyser):
             logging.getLogger(__name__).debug(
                 message.format(time() - start_time))
             if preprocessor.returncode:
+                logger.error(errors)
                 raise subprocess.CalledProcessError(preprocessor.returncode,
                                                     " ".join(
                                                         preprocessCommand))
         elif sourceFilename.suffix == '.f90':
             start_time = time()
-            with open(sourceFilename, 'rt') as sourceFile:
+            with sourceFilename.open('rt') as sourceFile:
                 processed_source = sourceFile.read()
             message = 'Time to read Fortran source: {0}'
             logging.getLogger(__name__).debug(
@@ -211,13 +222,13 @@ class FortranAnalyser(Analyser):
             else:
                 dependencies.append(prerequisite_unit)
                 self._database.addCompileDependency(program_unit,
-                                                          prerequisite_unit)
+                                                    prerequisite_unit)
                 if reverseLink:
                     self._database.addLinkDependency(prerequisite_unit,
-                                                           program_unit)
+                                                     program_unit)
                 else:
                     self._database.addLinkDependency(program_unit,
-                                                           prerequisite_unit)
+                                                     prerequisite_unit)
 
         # Read lines from the file, concatenate at continuation markers and
         # split comments off.
@@ -371,7 +382,6 @@ class FortranAnalyser(Analyser):
             match = self._subroutinePattern.match(code)
             if match and len(scope_stack) == 0:
                 # Only if this subroutine is a program unit.
-                is_module = match.group(1)
                 program_unit = match.group(2).lower()
                 logger.info('    Contains subroutine ' + program_unit)
                 modules.append(program_unit)
@@ -382,7 +392,6 @@ class FortranAnalyser(Analyser):
             match = self._functionPattern.match(code)
             if match and len(scope_stack) == 0:
                 # Only if this function is a program unit.
-                is_module = match.group(1)
                 program_unit = match.group(2).lower()
                 logger.info('    Contains function ' + program_unit)
                 modules.append(program_unit)
@@ -445,9 +454,8 @@ class FortranAnalyser(Analyser):
                 pFUnitDriver = True
 
                 start_time = time()
-                includeFilename = os.path.join(os.path.dirname(sourceFilename),
-                                               'testSuites.inc')
-                with open(includeFilename, 'rt') as includeFile:
+                includeFilename = sourceFilename.parent / 'testSuites.inc'
+                with includeFilename.open('rt') as includeFile:
                     for line in includeFile:
                         match = self._suitePattern.match(line)
                         if match is not None:
@@ -467,7 +475,6 @@ class FortranAnalyser(Analyser):
 
             for match in self._dependsPattern.finditer(comment):
                 name = match.group(1).lower()
-                extension = match.group(2)
                 if name is not None:
                     logger.info(
                         '    %s depends on call to %s ' % (program_unit, name))

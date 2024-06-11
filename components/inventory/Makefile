@@ -74,11 +74,10 @@ document-api: api-documentation
 ##############################################################################
 # Unit tests
 #
-unit-tests/%: export ADDITIONAL_EXTRACTION = $(CORE_ROOT_DIR)/infrastructure/source \
-                                             $(CORE_ROOT_DIR)/gungho/unit-test/support
 unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
 unit-tests/%: export CXX_LINK = TRUE
 unit-tests/%: export EXTERNAL_STATIC_LIBRARIES += pfunit
+unit-tests/%: export IMPORT_PARTS = $(CORE_ROOT_DIR)/infrastructure
 unit-tests/%: export META_FILE_DIR = rose-meta/lfric-inventory/HEAD
 unit-tests/%: export PROGRAMS = inventory_unit_tests
 unit-tests/%: export PROJECT = inventory
