@@ -14,3 +14,4 @@ LFRic Data Model
 
    lfric_datamodel
    data_structures
+   modeldb
