@@ -166,6 +166,7 @@ abstract interface
   !>                                     for domain orientation (degrees).
   !> @param[out]  null_island            [Longitude, Latitude] of null
   !>                                     island for domain orientation (degrees).
+  !> @param[out]  equatorial_latitude    Latitude of equator of mesh (degrees).
   !> @param[out]  node_coordinates       Node coordinates.
   !> @param[out]  face_coordinates       Face coordinates.
   !> @param[out]  coord_units_x          Units of x coordinates.
@@ -218,7 +219,7 @@ abstract interface
   subroutine read_mesh_interface( self,                                   &
                        ! Common mesh related variables
                        mesh_name, geometry, coord_sys,                    &
-                       north_pole, null_island,                           &
+                       north_pole, null_island, equatorial_latitude,      &
                        node_coordinates, face_coordinates,                &
                        coord_units_x, coord_units_y,                      &
                        void_cell,                                         &
@@ -255,6 +256,7 @@ abstract interface
     character(str_def), intent(out) :: coord_sys
     real(r_def),        intent(out) :: north_pole(2)
     real(r_def),        intent(out) :: null_island(2)
+    real(r_def),        intent(out) :: equatorial_latitude
     real(r_def),        intent(out) :: node_coordinates(:,:)
     real(r_def),        intent(out) :: face_coordinates(:,:)
     character(str_def), intent(out) :: coord_units_x
@@ -318,6 +320,7 @@ abstract interface
   !>                                      used for domain orientation (degrees).
   !> @param[in]  null_island              [Longitude, Latitude] of null
   !>                                      island used for domain orientation (degrees).
+  !> @param[in]  equatorial_latitude      Latitude of equator of mesh.
   !> @param[in]  num_nodes                Number of nodes.
   !> @param[in]  num_edges                Number of edges.
   !> @param[in]  num_faces                Number of faces.
@@ -370,7 +373,7 @@ abstract interface
 
                        ! Common mesh type variables.
                        mesh_name, geometry, coord_sys,                    &
-                       north_pole, null_island,                           &
+                       north_pole, null_island, equatorial_latitude,      &
                        num_nodes, num_edges, num_faces,                   &
                        node_coordinates, face_coordinates,                &
                        coord_units_x, coord_units_y, void_cell,           &
@@ -408,6 +411,7 @@ abstract interface
     character(str_def), intent(in) :: coord_sys
     real(r_def),        intent(in) :: north_pole(2)
     real(r_def),        intent(in) :: null_island(2)
+    real(r_def),        intent(in) :: equatorial_latitude
 
     integer(i_def),     intent(in) :: num_nodes
     integer(i_def),     intent(in) :: num_edges

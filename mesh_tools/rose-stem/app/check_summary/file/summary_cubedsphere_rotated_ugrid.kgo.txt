@@ -15,6 +15,7 @@
   Maps to:             "physics"
   North pole [lon,lat]: [   -180.00,     45.00]
   Null Island [lon,lat]: [      0.00,     45.00]
+  Latitude of Equator:       0.00
 "physics":
   Geometry:            spherical
   Topology:            periodic
@@ -32,3 +33,4 @@
   Maps to:             "dynamics"
   North pole [lon,lat]: [   -180.00,     45.00]
   Null Island [lon,lat]: [      0.00,     45.00]
+  Latitude of Equator:       0.00

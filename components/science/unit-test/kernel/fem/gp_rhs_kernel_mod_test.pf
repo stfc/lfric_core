@@ -45,6 +45,7 @@ contains
     use finite_element_config_mod, only : cellshape_quadrilateral, &
                                           coord_system_xyz
     use feign_config_mod,          only : feign_finite_element_config
+    use sci_chi_transform_mod,     only : init_chi_transforms
 
     implicit none
 
@@ -63,6 +64,8 @@ contains
              element_order=0_i_def,             &
              rehabilitate=.true. )
 
+    call init_chi_transforms()
+
     qr = quadrature_xyoz_type(3, quadrature_rule)
 
     qr_proxy = qr%get_quadrature_proxy()
@@ -79,6 +82,7 @@ contains
   subroutine tearDown( this )
 
     use configuration_mod,        only: final_configuration
+    use sci_chi_transform_mod,    only: final_chi_transforms
 
     implicit none
 
@@ -87,6 +91,7 @@ contains
     deallocate( this%basis, this%basis_f, this%diff_basis )
 
     call final_configuration()
+    call final_chi_transforms()
 
   end subroutine tearDown
 

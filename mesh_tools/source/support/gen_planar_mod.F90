@@ -96,6 +96,7 @@ module gen_planar_mod
     real(r_def)        :: domain_extents(2,4)
     real(r_def)        :: north_pole(2)  = TRUE_NORTH_POLE_LL
     real(r_def)        :: null_island(2) = TRUE_NULL_ISLAND_LL
+    real(r_def)        :: equatorial_latitude = TRUE_NULL_ISLAND_LL(2)
 
     character(str_longlong) :: constructor_inputs
 
@@ -2064,6 +2065,9 @@ end function get_number_of_panels
 !>                                            used for domain orientation (degrees).
 !> @param[out, optional]  null_island         [Longitude, Latitude] of null island
 !>                                            used for domain orientation (degrees).
+!> @param[out, optional]  equatorial_latitude Latitude of the equator of the mesh
+!>                                            implying a stretching towards one
+!>                                            of the poles (degrees)
 !-----------------------------------------------------------------------------
 subroutine get_metadata( self,               &
                          mesh_name,          &
@@ -2081,7 +2085,8 @@ subroutine get_metadata( self,               &
                          maps_edge_cells_x,  &
                          maps_edge_cells_y,  &
                          north_pole,         &
-                         null_island )
+                         null_island,        &
+                         equatorial_latitude )
   implicit none
 
   class(gen_planar_type),        intent(in)  :: self
@@ -2105,6 +2110,7 @@ subroutine get_metadata( self,               &
 
   real(r_def), optional, intent(out) :: north_pole(2)
   real(r_def), optional, intent(out) :: null_island(2)
+  real(r_def), optional, intent(out) :: equatorial_latitude
 
   real(r_def) :: factor
 
@@ -2137,6 +2143,7 @@ subroutine get_metadata( self,               &
 
   if (present(north_pole))  north_pole(:)  = factor * self%north_pole(:)
   if (present(null_island)) null_island(:) = factor * self%null_island(:)
+  if (present(equatorial_latitude)) equatorial_latitude = factor * self%equatorial_latitude
 
   return
 end subroutine get_metadata

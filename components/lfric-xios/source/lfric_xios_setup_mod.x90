@@ -19,9 +19,7 @@ module lfric_xios_setup_mod
   use extrusion_mod,                 only: TWOD
   use field_mod,                     only: field_type, field_proxy_type
   use field_parent_mod,              only: field_parent_type
-  use finite_element_config_mod,     only: element_order, &
-                                           coord_system,  &
-                                           coord_system_xyz
+  use finite_element_config_mod,     only: element_order
   use function_space_mod,            only: function_space_type, BASIS
   use function_space_collection_mod, only: function_space_collection
   use fs_continuity_mod,             only: W0, W1, W2, W3, Wtheta, W2H, W2V, &
@@ -984,7 +982,6 @@ contains
 
     ! Apply scaling factor for XYZ coordinates
     if ( mesh%is_geometry_planar()        .and. &
-         coord_system == coord_system_xyz .and. &
          file_convention == file_convention_ugrid ) then
       lat_data = lat_data * xyz_scaling_factor
       lon_data = lon_data * xyz_scaling_factor

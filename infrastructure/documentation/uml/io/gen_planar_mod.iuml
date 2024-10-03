@@ -20,6 +20,7 @@ class gen_planar_mod::gen_planar_type {
   -domain_centre: real[2]
   -north_pole:    real[2]
   -null_island:   real[2]
+  -equatorial_latitude: real
 
   -constructor_inputs: string
 

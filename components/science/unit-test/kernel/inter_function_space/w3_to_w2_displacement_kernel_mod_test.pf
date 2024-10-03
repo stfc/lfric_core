@@ -33,22 +33,32 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
+    use base_mesh_config_mod,      only : geometry_spherical, &
+                                          topology_fully_periodic
     use sci_chi_transform_mod,     only : init_chi_transforms
     use finite_element_config_mod, only : cellshape_quadrilateral, &
-                                          coord_system_alphabetaz
+                                          coord_system_native
     use feign_config_mod,          only : feign_finite_element_config, &
-                                          feign_planet_config
+                                          feign_planet_config,         &
+                                          feign_base_mesh_config
 
     implicit none
 
     class(w3_to_w2_displacement_kernel_test_type), intent(inout) :: this
+
+    call feign_base_mesh_config( file_prefix='foo',                &
+                                 prime_mesh_name='unit_test',      &
+                                 geometry=geometry_spherical,      &
+                                 prepartitioned=.false.,           &
+                                 topology=topology_fully_periodic, &
+                                 fplane=.false., f_lat_deg=0.0_r_def )
 
     call feign_finite_element_config(              &
              cellshape=cellshape_quadrilateral,    &
              element_order=0_i_def,                &
              rehabilitate=.true.,                  &
              coord_order = 0_i_def,                &
-             coord_system=coord_system_alphabetaz )
+             coord_system=coord_system_native )
 
     call feign_planet_config( radius=radius, scaling_factor=scaling )
     call init_chi_transforms()

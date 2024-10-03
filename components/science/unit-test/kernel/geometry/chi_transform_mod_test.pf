@@ -55,6 +55,8 @@ module chi_transform_mod_test
   integer(i_def), parameter :: LLH     = 2
   integer(i_def), parameter :: XYZ     = 3
   integer(i_def), parameter :: R2XYZ   = 4
+  integer(i_def), parameter :: LLH_rot = 5
+  integer(i_def), parameter :: ABH_stretch_rot = 6
 
   real(r_def), parameter :: planet_radius = 14_r_def
   real(r_def), parameter :: scaling       = 1.0_r_def
@@ -96,6 +98,10 @@ contains
       write( source_string, '(A)') 'LLH'
     case ( ABH )
       write( source_string, '(A)') 'ABH'
+    case ( LLH_rot )
+      write( source_string, '(A)') 'LLH rot'
+    case ( ABH_stretch_rot )
+      write( source_string, '(A)') 'ABH stretch+rot'
     end select
 
     select case ( this%target_coord_system )
@@ -117,13 +123,15 @@ contains
 
     implicit none
 
-    type(chi_parameters_type) :: chi_parameters(12)
+    type(chi_parameters_type) :: chi_parameters(15)
 
-    integer(i_def) :: panel_id
+    integer(i_def) :: panel_id, pid_rot
     real(r_def)    :: radius, height
     real(r_def)    :: alpha, beta
+    real(r_def)    :: alpha_sr, beta_sr
     real(r_def)    :: X, Y, Z
     real(r_def)    :: lon, lat
+    real(r_def)    :: lon_rot, lat_rot
     real(r_def)    :: varrho
 
     ! Consider a particular point on the sphere
@@ -150,41 +158,61 @@ contains
     lon = 2.0_r_def * PI / 3.0_r_def
     lat = -atan(sqrt(3.0_r_def) * (2.0_r_def - sqrt(3.0_r_def)) / 2.0_r_def)
 
+    ! Rotated lon, lat coordinates -- computed offline
+    ! Rotate north pole to (90, 0)
+    lon_rot = -2.0053150793200873_r_def
+    lat_rot = 1.0039712567034795_r_def
+
+    ! Stretched and rotated alpha, beta coordinates -- computed offline
+    ! Rotate north pole to (-90, 0) and stretch factor of 1/sqrt(3)
+    pid_rot = 6
+    alpha_sr = 0.14467932028782213_r_def
+    beta_sr = 0.30419085098985305_r_def
+
     ! The arguments below are the parameters defined in chi_parameters_type
 
-    chi_parameters =  [ chi_parameters_type(ABH, ABH, panel_id,   &
-                                            alpha, beta, height,  &
-                                            alpha, beta, radius), &
-                        chi_parameters_type(ABH, LLH, panel_id,   &
-                                            alpha, beta, height,  &
-                                            lon, lat, radius),    &
-                        chi_parameters_type(ABH, XYZ, panel_id,   &
-                                            alpha, beta, height,  &
-                                            X, Y, Z),             &
-                        chi_parameters_type(LLH, ABH, panel_id,   &
-                                            lon, lat, height,     &
-                                            alpha, beta, radius), &
-                        chi_parameters_type(LLH, LLH, panel_id,   &
-                                            lon, lat, height,     &
-                                            lon, lat, radius),    &
-                        chi_parameters_type(LLH, XYZ, panel_id,   &
-                                            lon, lat, height,     &
-                                            X, Y, Z),             &
-                        chi_parameters_type(XYZ, ABH, panel_id,   &
-                                            X, Y, Z,              &
-                                            alpha, beta, radius), &
-                        chi_parameters_type(XYZ, LLH, panel_id,   &
-                                            X, Y, Z,              &
-                                            lon, lat, radius),    &
-                        chi_parameters_type(XYZ, XYZ, panel_id,   &
-                                            X, Y, Z, X, Y, Z),    &
-                        chi_parameters_type(ABH, R2XYZ, panel_id, &
-                                            alpha, beta, radius,  &
-                                            X, Y, Z),             &
-                        chi_parameters_type(LLH, R2XYZ, panel_id, &
-                                            lon, lat, radius,     &
-                                            X, Y, Z),             &
-                        chi_parameters_type(XYZ, R2XYZ, panel_id, &
+    chi_parameters =  [ chi_parameters_type(ABH, ABH, panel_id,             &
+                                            alpha, beta, height,            &
+                                            alpha, beta, radius),           &
+                        chi_parameters_type(ABH, LLH, panel_id,             &
+                                            alpha, beta, height,            &
+                                            lon, lat, radius),              &
+                        chi_parameters_type(ABH, XYZ, panel_id,             &
+                                            alpha, beta, height,            &
+                                            X, Y, Z),                       &
+                        chi_parameters_type(ABH_stretch_rot, LLH, pid_rot,  &
+                                            alpha_sr, beta_sr, height,      &
+                                            lon, lat, radius),              &
+                        chi_parameters_type(ABH_stretch_rot, XYZ, pid_rot,  &
+                                            alpha_sr, beta_sr, height,      &
+                                            X, Y, Z),                       &
+                        chi_parameters_type(LLH, LLH, panel_id,             &
+                                            lon, lat, height,               &
+                                            lon, lat, radius),              &
+                        chi_parameters_type(LLH, XYZ, panel_id,             &
+                                            lon, lat, height,               &
+                                            X, Y, Z),                       &
+                        chi_parameters_type(LLH_rot, LLH, panel_id,         &
+                                            lon_rot, lat_rot, height,       &
+                                            lon, lat, radius),              &
+                        chi_parameters_type(LLH_rot, XYZ, panel_id,         &
+                                            lon_rot, lat_rot, height,       &
+                                            X, Y, Z),                       &
+                        chi_parameters_type(XYZ, ABH, panel_id,             &
+                                            X, Y, Z,                        &
+                                            alpha, beta, radius),           &
+                        chi_parameters_type(XYZ, LLH, panel_id,             &
+                                            X, Y, Z,                        &
+                                            lon, lat, radius),              &
+                        chi_parameters_type(XYZ, XYZ, panel_id,             &
+                                            X, Y, Z, X, Y, Z),              &
+                        chi_parameters_type(ABH, R2XYZ, panel_id,           &
+                                            alpha, beta, radius,            &
+                                            X, Y, Z),                       &
+                        chi_parameters_type(LLH, R2XYZ, panel_id,           &
+                                            lon, lat, radius,               &
+                                            X, Y, Z),                       &
+                        chi_parameters_type(XYZ, R2XYZ, panel_id,           &
                                             X, Y, Z, X, Y, Z)  ]
 
   end function get_chi_parameters
@@ -193,27 +221,43 @@ contains
   subroutine setUp( this )
 
     use sci_chi_transform_mod,     only : init_chi_transforms
+    use base_mesh_config_mod,      only : geometry_spherical,      &
+                                          geometry_planar,         &
+                                          topology_fully_periodic, &
+                                          topology_non_periodic
     use finite_element_config_mod, only : cellshape_quadrilateral, &
-                                          coord_system_alphabetaz, &
-                                          coord_system_lonlatz,   &
+                                          coord_system_native,   &
                                           coord_system_xyz
     use feign_config_mod,          only : feign_finite_element_config, &
-                                          feign_planet_config
+                                          feign_planet_config,         &
+                                          feign_base_mesh_config
 
     implicit none
 
     class(chi_transform_mod_test_type), intent(inout) :: this
 
-    integer(i_def) :: coord_system
+    integer(i_def) :: coord_system, topology
+    real(r_def)    :: north_pole(2), equatorial_latitude
+
 
     select case ( this%source_coord_system )
     case ( XYZ )
       coord_system = coord_system_xyz
-    case ( LLH )
-      coord_system = coord_system_lonlatz
-    case ( ABH )
-      coord_system = coord_system_alphabetaz
+      topology = topology_fully_periodic
+    case ( LLH, LLH_rot )
+      coord_system = coord_system_native
+      topology = topology_non_periodic
+    case ( ABH, ABH_stretch_rot )
+      coord_system = coord_system_native
+      topology = topology_fully_periodic
     end select
+
+    call feign_base_mesh_config( file_prefix='foo',                &
+                                 prime_mesh_name='unit_test',      &
+                                 geometry=geometry_spherical,      &
+                                 prepartitioned=.false.,           &
+                                 topology=topology,                &
+                                 fplane=.false., f_lat_deg=0.0_r_def )
 
     call feign_finite_element_config(           &
              cellshape=cellshape_quadrilateral, &
@@ -224,7 +268,19 @@ contains
 
     call feign_planet_config( radius=planet_radius, scaling_factor=scaling )
 
-    call init_chi_transforms()
+    if ( this%source_coord_system == LLH_rot ) then
+      north_pole(1) = PI/2.0_r_def
+      north_pole(2) = 0.0_r_def
+      call init_chi_transforms(north_pole_arg=north_pole)
+    else if ( this%source_coord_system == ABH_stretch_rot ) then
+      north_pole(1) = -PI/2.0_r_def
+      north_pole(2) = 0.0_r_def
+      equatorial_latitude = PI/6.0_r_def
+      call init_chi_transforms(north_pole_arg=north_pole, equator_lat_arg=equatorial_latitude)
+    else
+      ! Non-rotated or stretched case
+      call init_chi_transforms()
+    end if
 
   end subroutine setUp
 

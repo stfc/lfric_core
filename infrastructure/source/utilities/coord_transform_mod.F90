@@ -12,7 +12,7 @@
 !------------------------------------------------------------------------------
 module coord_transform_mod
 
-use constants_mod,        only : r_def, i_def, PI, EPS
+use constants_mod,        only : r_def, r_single, r_double, i_def, PI, EPS
 
 implicit none
 
@@ -42,6 +42,23 @@ public :: xyz2alphabetar_vector
 public :: PANEL_ROT_MATRIX
 public :: INVERSE_PANEL_ROT_MATRIX
 public :: rebase_longitude_range
+public :: mesh_rotation_matrix
+public :: schmidt_transform_xyz
+public :: inverse_schmidt_transform_xyz
+public :: schmidt_transform_lat
+
+interface xyz2ll
+  module procedure xyz2ll_r_single, xyz2ll_r_double
+end interface
+interface xyz2llr
+  module procedure xyz2llr_r_single, xyz2llr_r_double
+end interface
+interface alphabetar2xyz
+  module procedure alphabetar2xyz_r_single, alphabetar2xyz_r_double
+end interface
+interface schmidt_transform_lat
+  module procedure schmidt_transform_lat_r_single, schmidt_transform_lat_r_double
+end interface
 
 ! A list of matrices, one for each panel i of cubed sphere, which rotates
 ! a point (X,Y,Z) from panel 1 to the respective point for i-th panel
@@ -147,36 +164,41 @@ end subroutine llr2xyz
 !!  @param[out]  longitude  -PI   <=  Longitude < PI   (radians).
 !!  @param[out]  latitude   -PI/2 <= Latitude  <= PI/2 (radians).
 !------------------------------------------------------------------------------
-subroutine xyz2ll(x, y, z, longitude, latitude)
+subroutine xyz2ll_r_single(x, y, z, longitude, latitude)
 
   implicit none
 
   ! Arguments
-  real(r_def), intent(in)  :: x, y, z
-  real(r_def), intent(out) :: longitude, latitude
+  real(r_single), intent(in)  :: x, y, z
+  real(r_single), intent(out) :: longitude, latitude
 
   ! Internal variables
-  real(r_def) :: tan_longitude
-  real(r_def) :: tan_latitude
-  real(r_def) :: radius
+  real(r_def)    :: pi_rdef
+  real(r_single) :: tan_longitude
+  real(r_single) :: tan_latitude
+  real(r_single) :: radius
+
+  ! Fussy compilers don't allow type conversion on parameters, so create
+  ! intermediate variable to do this
+  pi_rdef = PI
 
   ! Calculate longitude in range
   ! -180 degrees <= longitude < 180 degrees
-  if (x == 0.0_r_def) then
-    if (y >= 0.0_r_def) then
-      longitude =  0.5_r_def*PI
+  if (x == 0.0_r_single) then
+    if (y >= 0.0_r_single) then
+      longitude =  0.5_r_single*real(pi_rdef, r_single)
     else
-      longitude = -0.5_r_def*PI
+      longitude = -0.5_r_single*real(pi_rdef, r_single)
     end if
   else
     tan_longitude  = y/x
     longitude = atan(tan_longitude)
 
-    if (x < 0.0_r_def) then
-      if (y > 0.0_r_def) then
-        longitude = longitude + PI
+    if (x < 0.0_r_single) then
+      if (y > 0.0_r_single) then
+        longitude = longitude + real(pi_rdef, r_single)
       else
-        longitude = longitude - PI
+        longitude = longitude - real(pi_rdef, r_single)
       end if
     end if
   end if
@@ -185,21 +207,80 @@ subroutine xyz2ll(x, y, z, longitude, latitude)
   ! -90 degrees  <= longitude <= +90 degrees
   radius = sqrt(x*x+y*y)
   if (radius <= EPS) then
-    if (z > 0.0_r_def) then
-      latitude = 0.5_r_def*PI
+    if (z > 0.0_r_single) then
+      latitude = 0.5_r_single*real(pi_rdef, r_single)
     else
-      latitude = -0.5_r_def*PI
+      latitude = -0.5_r_single*real(pi_rdef, r_single)
     end if
     ! Ensure consisent value for longitude is
     ! output for Latitudes of -90 and 90.
-    longitude = 0.0_r_def
+    longitude = 0.0_r_single
   else
     tan_latitude = z/radius
     latitude = atan(tan_latitude)
   end if
 
   return
-end subroutine xyz2ll
+end subroutine xyz2ll_r_single
+
+subroutine xyz2ll_r_double(x, y, z, longitude, latitude)
+
+  implicit none
+
+  ! Arguments
+  real(r_double), intent(in)  :: x, y, z
+  real(r_double), intent(out) :: longitude, latitude
+
+  ! Internal variables
+  real(r_def)    :: pi_rdef
+  real(r_double) :: tan_longitude
+  real(r_double) :: tan_latitude
+  real(r_double) :: radius
+
+  ! Fussy compilers don't allow type conversion on parameters, so create
+  ! intermediate variable to do this
+  pi_rdef = PI
+
+  ! Calculate longitude in range
+  ! -180 degrees <= longitude < 180 degrees
+  if (x == 0.0_r_double) then
+    if (y >= 0.0_r_double) then
+      longitude =  0.5_r_single*real(pi_rdef, r_double)
+    else
+      longitude = -0.5_r_single*real(pi_rdef, r_double)
+    end if
+  else
+    tan_longitude  = y/x
+    longitude = atan(tan_longitude)
+
+    if (x < 0.0_r_double) then
+      if (y > 0.0_r_double) then
+        longitude = longitude + real(pi_rdef, r_double)
+      else
+        longitude = longitude - real(pi_rdef, r_double)
+      end if
+    end if
+  end if
+
+  ! Calculate latitude in range
+  ! -90 degrees  <= longitude <= +90 degrees
+  radius = sqrt(x*x+y*y)
+  if (radius <= EPS) then
+    if (z > 0.0_r_double) then
+      latitude = 0.5_r_double*real(pi_rdef, r_double)
+    else
+      latitude = -0.5_r_double*real(pi_rdef, r_double)
+    end if
+    ! Ensure consisent value for longitude is
+    ! output for Latitudes of -90 and 90.
+    longitude = 0.0_r_double
+  else
+    tan_latitude = z/radius
+    latitude = atan(tan_latitude)
+  end if
+
+  return
+end subroutine xyz2ll_r_double
 
 !------------------------------------------------------------------------------
 !>  @brief  Converts Cartesian coordinates to longitude, latitude and radius
@@ -210,27 +291,31 @@ end subroutine xyz2ll
 !!  @param[out]  latitude   -PI/2 <= Latitude  <= PI/2 (radians).
 !!  @param[out]  radius     Radius of the sphere(m).
 !------------------------------------------------------------------------------
-subroutine xyz2llr( x, y, z, &
-                    longitude, latitude, radius )
+subroutine xyz2llr_r_single( x, y, z, &
+                             longitude, latitude, radius )
 
   implicit none
 
-  real(r_def), intent(in)  :: x, y, z
-  real(r_def), intent(out) :: longitude, latitude, radius
+  real(r_single), intent(in)  :: x, y, z
+  real(r_single), intent(out) :: longitude, latitude, radius
 
   ! Local variables
-  real(r_def) :: tan_longitude, tan_latitude
-  real(r_def), parameter :: tol = 10.0e-8_r_def
+  real(r_def)    :: pi_rdef
+  real(r_single) :: tan_longitude, tan_latitude
+  real(r_single), parameter :: tol = 10.0e-8_r_single
 
+  ! Fussy compilers don't allow type conversion on parameters, so create
+  ! intermediate variable to do this
+  pi_rdef = PI
 
   ! Calculate longitude in range
   ! -180 < longitude <= 180
-  if (x == 0.0_r_def) then
+  if (x == 0.0_r_single) then
 
-    if (y >= 0.0_r_def) then
-      longitude =  0.5_r_def*PI
+    if (y >= 0.0_r_single) then
+      longitude =  0.5_r_single*real(pi_rdef, r_single)
     else
-      longitude = -0.5_r_def*PI
+      longitude = -0.5_r_single*real(pi_rdef, r_single)
     end if
 
   else
@@ -238,11 +323,11 @@ subroutine xyz2llr( x, y, z, &
     tan_longitude = y/x
     longitude = atan(tan_longitude)
 
-    if (x < 0.0_r_def) then
-      if (y >= 0.0_r_def) then
-        longitude = longitude + PI
+    if (x < 0.0_r_single) then
+      if (y >= 0.0_r_single) then
+        longitude = longitude + real(pi_rdef, r_single)
       else
-        longitude = longitude - PI
+        longitude = longitude - real(pi_rdef, r_single)
       end if
     end if
 
@@ -253,14 +338,14 @@ subroutine xyz2llr( x, y, z, &
   ! -90 <= longitude <= +90
   radius = sqrt(x*x + y*y)
   if ( abs(radius) < tol ) then
-    if (z > 0.0_r_def ) then
-      latitude =  0.5_r_def*PI
+    if (z > 0.0_r_single ) then
+      latitude =  0.5_r_single*real(pi_rdef, r_single)
     else
-      latitude = -0.5_r_def*PI
+      latitude = -0.5_r_single*real(pi_rdef, r_single)
     end if
     ! Ensure consisent value for longitude is
     ! output for Latitudes of -90/90.
-    longitude = 0.0_r_def
+    longitude = 0.0_r_single
   else
     tan_latitude = z/radius
     latitude = atan(tan_latitude)
@@ -269,8 +354,72 @@ subroutine xyz2llr( x, y, z, &
   ! Radius
   radius = sqrt(x*x + y*y + z*z)
 
-end subroutine xyz2llr
+end subroutine xyz2llr_r_single
 
+subroutine xyz2llr_r_double( x, y, z, &
+                             longitude, latitude, radius )
+
+  implicit none
+
+  real(r_double), intent(in)  :: x, y, z
+  real(r_double), intent(out) :: longitude, latitude, radius
+
+  ! Local variables
+  real(r_def)    :: pi_rdef
+  real(r_double) :: tan_longitude, tan_latitude
+  real(r_double), parameter :: tol = 10.0e-8_r_double
+
+  ! Fussy compilers don't allow type conversion on parameters, so create
+  ! intermediate variable to do this
+  pi_rdef = PI
+
+  ! Calculate longitude in range
+  ! -180 < longitude <= 180
+  if (x == 0.0_r_double) then
+
+    if (y >= 0.0_r_double) then
+      longitude =  0.5_r_double*real(pi_rdef, r_double)
+    else
+      longitude = -0.5_r_double*real(pi_rdef, r_double)
+    end if
+
+  else
+
+    tan_longitude = y/x
+    longitude = atan(tan_longitude)
+
+    if (x < 0.0_r_double) then
+      if (y >= 0.0_r_double) then
+        longitude = longitude + real(pi_rdef, r_double)
+      else
+        longitude = longitude - real(pi_rdef, r_double)
+      end if
+    end if
+
+  end if
+
+
+  ! Calculate latitude in range
+  ! -90 <= longitude <= +90
+  radius = sqrt(x*x + y*y)
+  if ( abs(radius) < tol ) then
+    if (z > 0.0_r_double ) then
+      latitude =  0.5_r_double*real(pi_rdef, r_double)
+    else
+      latitude = -0.5_r_double*real(pi_rdef, r_double)
+    end if
+    ! Ensure consisent value for longitude is
+    ! output for Latitudes of -90/90.
+    longitude = 0.0_r_double
+  else
+    tan_latitude = z/radius
+    latitude = atan(tan_latitude)
+  end if
+
+  ! Radius
+  radius = sqrt(x*x + y*y + z*z)
+
+end subroutine xyz2llr_r_double
 
 !-------------------------------------------------------------------------------
 !>  @brief  Calculates the area of a spherical triangle.
@@ -715,31 +864,59 @@ end subroutine xyz2alphabetarpanel
 !! @param[out] global_y Geocentric Cartesian y coordinate
 !! @param[out] global_z Geocentric Cartesian z coordinate
 !-----------------------------------------------------------------------------
-subroutine alphabetar2xyz(alpha, beta, radius, panel_id, &
-                          global_x, global_y, global_z)
+subroutine alphabetar2xyz_r_single(alpha, beta, radius, panel_id, &
+                                   global_x, global_y, global_z)
 
   implicit none
 
-  integer(kind=i_def), intent(in) :: panel_id
-  real(kind=r_def),    intent(in) :: alpha, beta, radius
-  real(kind=r_def),   intent(out) :: global_x, global_y, global_z
+  integer(kind=i_def), intent(in)  :: panel_id
+  real(kind=r_single), intent(in)  :: alpha, beta, radius
+  real(kind=r_single), intent(out) :: global_x, global_y, global_z
 
   ! Internal arguments
-  real(kind=r_def)                :: panel_rho
-  real(kind=r_def), dimension(3)  :: panel_1_xyz(3), global_xyz(3)
+  real(kind=r_single)                :: panel_rho
+  real(kind=r_single), dimension(3)  :: panel_1_xyz(3), global_xyz(3)
 
   ! First calculate X, Y, Z for the first panel from alpha, beta and radius
-  panel_rho = sqrt(1.0_r_def + (tan(alpha))**2 + (tan(beta))**2)
-  panel_1_xyz = radius / panel_rho * (/ 1.0_r_def, tan(alpha), tan(beta) /)
+  panel_rho = sqrt(1.0_r_single + (tan(alpha))**2 + (tan(beta))**2)
+  panel_1_xyz = radius / panel_rho * (/ 1.0_r_single, tan(alpha), tan(beta) /)
 
   ! Rotate to the global X, Y, Z from the panel_id
-  global_xyz(:) = matmul(PANEL_ROT_MATRIX(:,:,panel_id), panel_1_xyz(:))
+  global_xyz(:) = matmul(real(PANEL_ROT_MATRIX(:,:,panel_id), r_single),       &
+                         panel_1_xyz(:))
 
   global_x = global_xyz(1)
   global_y = global_xyz(2)
   global_z = global_xyz(3)
 
-end subroutine alphabetar2xyz
+end subroutine alphabetar2xyz_r_single
+
+subroutine alphabetar2xyz_r_double(alpha, beta, radius, panel_id, &
+                                   global_x, global_y, global_z)
+
+  implicit none
+
+  integer(kind=i_def), intent(in)  :: panel_id
+  real(kind=r_double), intent(in)  :: alpha, beta, radius
+  real(kind=r_double), intent(out) :: global_x, global_y, global_z
+
+  ! Internal arguments
+  real(kind=r_double)                :: panel_rho
+  real(kind=r_double), dimension(3)  :: panel_1_xyz(3), global_xyz(3)
+
+  ! First calculate X, Y, Z for the first panel from alpha, beta and radius
+  panel_rho = sqrt(1.0_r_double + (tan(alpha))**2 + (tan(beta))**2)
+  panel_1_xyz = radius / panel_rho * (/ 1.0_r_double, tan(alpha), tan(beta) /)
+
+  ! Rotate to the global X, Y, Z from the panel_id
+  global_xyz(:) = matmul(real(PANEL_ROT_MATRIX(:,:,panel_id), r_double),       &
+                         panel_1_xyz(:))
+
+  global_x = global_xyz(1)
+  global_y = global_xyz(2)
+  global_z = global_xyz(3)
+
+end subroutine alphabetar2xyz_r_double
 
 !-----------------------------------------------------------------------------
 !> @brief Convert from (alpha,beta,r) coords to polar (long,lat,r) coords
@@ -900,5 +1077,192 @@ function rebase_longitude_range(longitude, lon_min) result(rebased_longitude)
   return
 
 end function rebase_longitude_range
+
+
+!-----------------------------------------------------------------------------
+!> @brief Compute rotation matrix for rotating from native to physical coords
+!> @details Returns the 3x3 matrix for performing a mesh rotation of Cartesian
+!!          coordinates. This matrix can then be applied to rotate from native
+!!          Cartesian to physical Cartesian coordinates. Its inverse performs
+!!          the rotation back from physics to native coordinates.
+!!
+!> @param[in] north_pole         The (longitude,latitude) pair of coordinates
+!!                               describing the target North Pole, in degrees.
+!> @return    rotation_matrix    A 3x3 matrix for rotating from native to
+!!                               physical Cartesian coordinates.
+!-----------------------------------------------------------------------------
+function mesh_rotation_matrix(north_pole) result (rotation_matrix)
+
+  implicit none
+
+  real(kind=r_def),    intent(in) :: north_pole(2)
+
+  real(kind=r_def) :: lon_N, lat_N
+  real(kind=r_def) :: rotation_matrix(3,3)
+  real(kind=r_def) :: rot_about_pole(3,3)
+  real(kind=r_def) :: rot_pole(3,3)
+
+  lon_N = north_pole(1)
+  lat_N = north_pole(2)
+
+  rot_about_pole(:,:) = 0.0_r_def
+
+  ! TODO: this condition is here to exactly match the calculation in mesh_tools,
+  ! but it means that rotations don't behave as expected when given a north pole
+  ! as lon_N = 0 doesn't lead to the identity matrix
+  ! This may need rethinking!
+  if (abs(lon_N) > 0.0001_r_def) then
+    ! Normal rotation matrix about North pole, treating lon_N + PI as the angle
+    rot_about_pole(1,1) = -cos(lon_N)
+    rot_about_pole(1,2) = sin(lon_N)
+    rot_about_pole(2,1) = -sin(lon_N)
+    rot_about_pole(2,2) = -cos(lon_N)
+    rot_about_pole(3,3) = 1.0_r_def
+  else
+    ! mesh_tools does no rotation here, so use the identity matrix
+    rot_about_pole(1,1) = 1.0_r_def
+    rot_about_pole(2,2) = 1.0_r_def
+    rot_about_pole(3,3) = 1.0_r_def
+  end if
+
+  rot_pole(1,1) = sin(lat_N) + (1.0_r_def - sin(lat_N))*(sin(lon_N))**2
+  rot_pole(1,2) = -sin(lon_N)*cos(lon_N)*(1.0_r_def - sin(lat_N))
+  rot_pole(1,3) = cos(lon_N)*cos(lat_N)
+  rot_pole(2,1) = -sin(lon_N)*cos(lon_N)*(1.0_r_def - sin(lat_N))
+  rot_pole(2,2) = sin(lat_N) + (1.0_r_def - sin(lat_N))*(cos(lon_N))**2
+  rot_pole(2,3) = sin(lon_N)*cos(lat_N)
+  rot_pole(3,1) = -cos(lon_N)*cos(lat_N)
+  rot_pole(3,2) = -sin(lon_N)*cos(lat_N)
+  rot_pole(3,3) = sin(lat_N)
+
+  rotation_matrix = matmul(rot_pole, rot_about_pole)
+
+end function mesh_rotation_matrix
+
+
+!-----------------------------------------------------------------------------
+!> @brief Perform the Schmidt transform from native to physical Cartesian coords
+!> @details The Schmidt transform, depending on the stretching factor s,
+!!          describes the stretching of points towards the pole by changing the
+!!          latitude through
+!!          sin(lat') = [1 - s^2 + (1 + s^2)*sin(lat)]
+!!                      / [1 + s^2 + (1 - s^2)*sin(lat)]
+!!          This kernel performs that calculation but on Cartesian coordinates.
+!> @param[in]  native_xyz    Native geocentric Cartesian coordinates
+!> @param[in]  stretch       Stretching factor
+!> @returns    physical_xyz  Physical geocentric Cartesian coordinates
+!-----------------------------------------------------------------------------
+function schmidt_transform_xyz(native_xyz, stretch) result(physical_xyz)
+
+  implicit none
+
+  real(kind=r_def), intent(in)  :: stretch
+  real(kind=r_def), intent(in)  :: native_xyz(3)
+
+  real(kind=r_def)              :: physical_xyz(3)
+  real(kind=r_def)              :: radius, psi
+  real(kind=r_def),   parameter :: one = 1.0_r_def
+
+  ! Compute useful intermediate variables
+  radius = sqrt(native_xyz(1)**2 + native_xyz(2)**2 + native_xyz(3)**2)
+  physical_xyz(3) = radius                                                     &
+    * (one - stretch**2 + (one + stretch**2)*native_xyz(3)/radius)             &
+    / (one + stretch**2 + (one - stretch**2)*native_xyz(3)/radius)
+  ! Include EPS in radius to avoid divide by zero errors at poles
+  psi = sqrt(                                                                  &
+    ((radius + EPS)**2 - physical_xyz(3)**2 + EPS)                             &
+    / ((radius + EPS)**2 - native_xyz(3)**2 + EPS)                             &
+  )
+
+  physical_xyz(1) = native_xyz(1) * psi
+  physical_xyz(2) = native_xyz(2) * psi
+
+end function schmidt_transform_xyz
+
+
+!-----------------------------------------------------------------------------
+!> @brief The inverse Schmidt transform from physical to native Cartesian coords
+!> @details The inverse Schmidt transform, depending on the stretching factor s,
+!!          describes the unstretching of points towards the pole by changing
+!!          the latitude through
+!!          sin(lat) = [(1 + s^2)*sin(lat') - (1 - s^2)]
+!!                      / [1 + s^2 -(1 - s^2)*sin(lat')]
+!!          This kernel performs the inverse of that computation, converting
+!!          from physical Cartesian coordinates to the mesh's native Cartesian
+!!          coordinates.
+!> @param[in]  physical_xyz  Physical geocentric Cartesian coordinates
+!> @param[in]  stretch       Stretching factor
+!> @returns    native_xyz    Native geocentric Cartesian coordinates
+!-----------------------------------------------------------------------------
+function inverse_schmidt_transform_xyz(physical_xyz, stretch) result(native_xyz)
+
+  implicit none
+
+  real(kind=r_def), intent(in)  :: stretch
+  real(kind=r_def), intent(in)  :: physical_xyz(3)
+
+  real(kind=r_def)              :: native_xyz(3)
+  real(kind=r_def)              :: radius, psi
+  real(kind=r_def),   parameter :: one = 1.0_r_def
+
+  ! Compute useful intermediate variables
+  radius = sqrt(physical_xyz(1)**2 + physical_xyz(2)**2 + physical_xyz(3)**2)
+  native_xyz(3) = radius                                                       &
+    * ((one + stretch**2)*physical_xyz(3)/radius - (one - stretch**2))         &
+    / (one + stretch**2 - (one - stretch**2)*physical_xyz(3)/radius)
+  ! Include EPS in radius to avoid divide by zero errors at poles
+  psi = sqrt(                                                                  &
+    ((radius + EPS)**2 - physical_xyz(3)**2 + EPS)                             &
+    / ((radius + EPS)**2 - native_xyz(3)**2 + EPS)                             &
+  )
+
+  native_xyz(1) = physical_xyz(1) / psi
+  native_xyz(2) = physical_xyz(2) / psi
+
+end function inverse_schmidt_transform_xyz
+
+
+!-----------------------------------------------------------------------------
+!> @brief Perform the Schmidt transform on a latitudinal coordinate
+!> @details Converts the latitudinal coordinate through
+!!          sin(lat') = [1 - s^2 + (1 + s^2)*sin(lat)]
+!!                      / [1 + s^2 + (1 - s^2)*sin(lat)]
+!> @param[in]  native_lat    Native latitudinal coordinates
+!> @param[in]  stretch       Stretching factor
+!> @returns    physical_lat  Physical latitudinal coordinates
+!-----------------------------------------------------------------------------
+function schmidt_transform_lat_r_single(native_lat, stretch) result(physical_lat)
+
+  implicit none
+
+  real(kind=r_single), intent(in)  :: stretch
+  real(kind=r_single), intent(in)  :: native_lat
+
+  real(kind=r_single)              :: physical_lat
+  real(kind=r_single),   parameter :: one = 1.0_r_single
+
+  physical_lat = asin(                                                         &
+    (one - stretch**2 + (one + stretch**2)*sin(native_lat))                    &
+    / (one + stretch**2 + (one - stretch**2)*sin(native_lat))                  &
+  )
+
+end function schmidt_transform_lat_r_single
+
+function schmidt_transform_lat_r_double(native_lat, stretch) result(physical_lat)
+
+  implicit none
+
+  real(kind=r_double), intent(in)  :: stretch
+  real(kind=r_double), intent(in)  :: native_lat
+
+  real(kind=r_double)              :: physical_lat
+  real(kind=r_double),   parameter :: one = 1.0_r_double
+
+  physical_lat = asin(                                                         &
+    (one - stretch**2 + (one + stretch**2)*sin(native_lat))                    &
+    / (one + stretch**2 + (one - stretch**2)*sin(native_lat))                  &
+  )
+
+end function schmidt_transform_lat_r_double
 
 end module coord_transform_mod

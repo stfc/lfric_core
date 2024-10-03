@@ -153,7 +153,7 @@ program cubedsphere_mesh_generator
 
   integer(i_def), allocatable :: edge_cells(:)
   integer(i_def) :: smooth_passes
-  real(r_def)    :: stretch_factor
+  real(r_def)    :: equatorial_latitude
 
   !===================================================================
   ! 1.0 Set the logging level for the run, should really be able
@@ -214,7 +214,7 @@ program cubedsphere_mesh_generator
     nml_obj => configuration%get_namelist('cubedsphere_mesh')
     call nml_obj%get_value( 'edge_cells',     edge_cells )
     call nml_obj%get_value( 'smooth_passes',  smooth_passes )
-    call nml_obj%get_value( 'stretch_factor', stretch_factor )
+    call nml_obj%get_value( 'equatorial_latitude', equatorial_latitude )
   end if
 
   ! The number of mesh maps in the namelist array is unbounded
@@ -535,11 +535,9 @@ program cubedsphere_mesh_generator
     call log_event( log_scratch_space, LOG_LEVEL_WARNING )
   end if
 
-  if (stretch_factor >= 0.0_r_def) then
-    write( log_scratch_space,'(A,F4.2)' ) &
-      '  Stretch factor:   ', stretch_factor
-    call log_event( log_scratch_space, log_level )
-  end if
+  write( log_scratch_space,'(A,F16.2)' ) &
+      '  Equatorial latitude:   ', equatorial_latitude
+  call log_event( log_scratch_space, log_level )
 
   ! 6.1 Generate objects which know how to generate each requested
   !     unique mesh.
@@ -655,7 +653,7 @@ program cubedsphere_mesh_generator
                                      rotate_mesh=rotate_mesh,            &
                                      target_north_pole=set_north_pole,   &
                                      target_null_island=set_null_island, &
-                                     stretch_factor=stretch_factor )
+                                     equatorial_latitude=equatorial_latitude )
 
     else if (n_meshes > 1) then
 
@@ -688,7 +686,7 @@ program cubedsphere_mesh_generator
                         target_null_island=set_null_island,  &
                         target_mesh_names=target_mesh_names, &
                         target_edge_cells=target_edge_cells, &
-                        stretch_factor=stretch_factor )
+                        equatorial_latitude=equatorial_latitude )
 
     else
       write( log_scratch_space,'(A,I0,A)' ) &

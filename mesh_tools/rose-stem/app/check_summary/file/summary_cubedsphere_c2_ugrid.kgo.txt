@@ -14,3 +14,4 @@
   Max. faces per node: 4
   North pole [lon,lat]: [      0.00,     90.00]
   Null Island [lon,lat]: [      0.00,      0.00]
+  Latitude of Equator:       0.00

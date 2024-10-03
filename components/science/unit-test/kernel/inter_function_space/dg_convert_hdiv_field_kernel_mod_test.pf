@@ -18,25 +18,38 @@ module dg_convert_hdiv_field_kernel_mod_test
   use get_unit_test_wthetanodal_basis_mod, only : get_w2_wthetanodal_basis
   use get_unit_test_3x3x3_chi_mod,         only : get_w0_3x3x3_field
   use pFUnit_Mod
+
   implicit none
+
   private
   public :: dg_convert_hdiv_field_kernel_test_type, test_all
+
   @TestCase
   type, extends(TestCase) :: dg_convert_hdiv_field_kernel_test_type
+
     private
+
   contains
+
     procedure setUp
     procedure tearDown
     procedure test_all
   end type dg_convert_hdiv_field_kernel_test_type
+
 contains
+
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
+
     use finite_element_config_mod, only : cellshape_quadrilateral, &
                                           coord_system_xyz
     use feign_config_mod,          only : feign_finite_element_config
+    use sci_chi_transform_mod,     only : init_chi_transforms
+
     implicit none
+
     class(dg_convert_hdiv_field_kernel_test_type), intent(inout) :: this
+
     call feign_finite_element_config(           &
              cellshape=cellshape_quadrilateral, &
              coord_order=0_i_def,               &
@@ -44,25 +57,41 @@ contains
              element_order=0_i_def,             &
              rehabilitate=.true. )
 
+    call init_chi_transforms()
+
   end subroutine setUp
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
   subroutine tearDown( this )
+
     use configuration_mod,        only: final_configuration
+    use sci_chi_transform_mod,    only: final_chi_transforms
+
     implicit none
+
     class(dg_convert_hdiv_field_kernel_test_type), intent(inout) :: this
+
     call final_configuration()
+    call final_chi_transforms()
+
   end subroutine tearDown
+
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @Test
   subroutine test_all( this )
+
     use, intrinsic :: iso_fortran_env, only: real64
     use sci_dg_convert_hdiv_field_kernel_mod, only: dg_convert_hdiv_field_code
+
     implicit none
+
     class(dg_convert_hdiv_field_kernel_test_type), intent(inout) :: this
+
     real(r_def), parameter :: tol = 1.0e-10_r_def    ! r_def 64bit
     real(r_def), parameter :: dx = 6000.0_r_def, &
                               dy = 1000.0_r_def, &
                               dz = 2000.0_r_def
+
     real(kind=r_def) :: answer, use_tol
     integer(i_def) :: nlayers, ncells, ncell_3d, cell, icell
     integer(i_def) :: ndf_w0, undf_w0, ndf_w2, undf_w2, ndf_pid, undf_pid, &
@@ -80,7 +109,9 @@ contains
     real(r_def), allocatable :: chi1(:), chi2(:), chi3(:), panel_id(:)
     real(r_def), allocatable :: phys1(:), phys2(:), phys3(:)
     real(r_def), allocatable :: comp(:)
+
     nlayers = 3
+
     call get_w0_m3x3_q3x3x3_size( ndf_w0, undf_w0, ncells, &
                                   dim_space, dim_space_diff, &
                                   nqp_h, nqp_v, &
@@ -102,27 +133,35 @@ contains
     call get_w0_w2nodal_diff_basis(diff_basis_w0)
     call get_w0_w2nodal_basis(basis_w0)
     call get_w2_wthetanodal_basis(basis_w2)
+
     ! Compute coordinates
     allocate(chi1(undf_w0))
     allocate(chi2(undf_w0))
     allocate(chi3(undf_w0))
     allocate(panel_id(undf_pid))
+
     call get_w0_3x3x3_field(chi1, chi2, chi3, dx, dy, dz, &
                             map_w0, nlayers)
+
     panel_id(:) = 1.0_r_def
+
     ! Create the data
     cell = 5
+
     allocate(phys1(undf_wth))
     allocate(phys2(undf_wth))
     allocate(phys3(undf_wth))
     allocate(comp(undf_w2))
+
     phys1(:) = 0.0_r_def
     phys2(:) = 0.0_r_def
     phys3(:) = 0.0_r_def
+
     comp(:) = 0.0_r_def
     comp(map_w2(1, cell)) = 1.0_r_def*dy*dz
     comp(map_w2(2, cell)) = 3.0_r_def*dx*dz
     comp(map_w2(6, cell)) = -6.0_r_def*dx*dy
+
     call dg_convert_hdiv_field_code(nlayers,                            &
                                     phys1,                              &
                                     phys2,                              &
@@ -139,22 +178,28 @@ contains
                                     basis_w0, diff_basis_w0,            &
                                     ndf_pid, undf_pid, map_pid          &
                                     )
+
     if ( r_def == real64 ) then
       use_tol = tol
     else
       use_tol = 10.0_r_def*spacing( 6.0_r_def ) ! max mod answer
     endif
+
     answer = 0.5_r_def
     @assertEqual(answer, phys1(map_wth(1, cell)), use_tol)
     @assertEqual(answer, phys1(map_wth(2, cell)), use_tol)
+
     answer = -1.5_r_def
     @assertEqual(answer, phys2(map_wth(1, cell)), use_tol)
     @assertEqual(answer, phys2(map_wth(2, cell)), use_tol)
+
     answer = 0.0_r_def
     @assertEqual(answer, phys3(map_wth(1, cell)), use_tol)
+
     ! *2 as values is computed for cells both above and below the dof
     answer = -6.0_r_def * 2.0_r_def
     @assertEqual(answer, phys3(map_wth(2, cell)), use_tol)
+
     deallocate(map_w0)
     deallocate(map_w2)
     deallocate(map_pid)
@@ -169,5 +214,7 @@ contains
     deallocate(phys2)
     deallocate(phys3)
     deallocate(comp)
+
   end subroutine test_all
+
 end module dg_convert_hdiv_field_kernel_mod_test

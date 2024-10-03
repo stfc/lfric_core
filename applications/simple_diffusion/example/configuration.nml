@@ -19,7 +19,7 @@ cellshape='quadrilateral',
 element_order=0,
 rehabilitate=.true.,
 coord_order=1
-coord_system='alphabetaz'
+coord_system='native'
 /
 
 &io

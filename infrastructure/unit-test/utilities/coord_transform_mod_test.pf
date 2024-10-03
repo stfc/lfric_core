@@ -319,4 +319,158 @@ contains
 
   end subroutine test_rebase_longitude_range
 
+  !> Test the computation of the rotation matrix
+  @test
+  subroutine test_mesh_rotation_matrix()
+    use coord_transform_mod, only: mesh_rotation_matrix
+    implicit none
+
+    real(kind=r_def)    :: target_north_pole(2)
+    real(kind=r_def)    :: computed_matrix(3,3)
+    real(kind=r_def)    :: true_matrix(3,3)
+    real(kind=r_def)    :: tol
+
+    tol = 1.0e-8_r_def
+
+    ! Rotate North pole to equator ---------------------------------------------
+    target_north_pole(1) = 0.0_r_def
+    target_north_pole(2) = 0.0_r_def
+
+    true_matrix(:,:) = 0.0_r_def
+    true_matrix(1,3) = 1.0_r_def
+    true_matrix(2,2) = 1.0_r_def
+    true_matrix(3,1) = -1.0_r_def
+
+    computed_matrix = mesh_rotation_matrix(target_north_pole)
+
+    @assertEqual(computed_matrix, true_matrix, tol)
+
+  end subroutine test_mesh_rotation_matrix
+
+
+  !> Test the Cartesian Schmidt transform
+  @test
+  subroutine test_schmidt_transform_xyz()
+    use coord_transform_mod, only: schmidt_transform_xyz
+    implicit none
+
+    real(kind=r_def) :: stretch, tol, radius
+    real(kind=r_def) :: native_xyz(3), physical_xyz(3), true_physical_xyz(3)
+
+    tol = 1.0e-8_r_def
+    radius = 190.19_r_def    ! Arbitrary radius
+    stretch = 1.0_r_def/sqrt(3.0_r_def)
+
+    ! Check that North pole stays the same -------------------------------------
+    native_xyz(1) = 0.0_r_def
+    native_xyz(2) = 0.0_r_def
+    native_xyz(3) = radius
+    true_physical_xyz(1) = 0.0_r_def
+    true_physical_xyz(2) = 0.0_r_def
+    true_physical_xyz(3) = radius
+
+    physical_xyz = schmidt_transform_xyz(native_xyz, stretch)
+
+    @assertEqual(physical_xyz, true_physical_xyz, tol)
+
+    ! Check that South pole stays the same -------------------------------------
+    native_xyz(1) = 0.0_r_def
+    native_xyz(2) = 0.0_r_def
+    native_xyz(3) = -radius
+    true_physical_xyz(1) = 0.0_r_def
+    true_physical_xyz(2) = 0.0_r_def
+    true_physical_xyz(3) = -radius
+
+    physical_xyz = schmidt_transform_xyz(native_xyz, stretch)
+
+    @assertEqual(physical_xyz, true_physical_xyz, tol)
+
+    ! Check that equator moves appropriately -----------------------------------
+    native_xyz(1) = radius
+    native_xyz(2) = 0.0_r_def
+    native_xyz(3) = 0.0_r_def
+    true_physical_xyz(1) = sqrt(3.0_r_def)*radius*0.5_r_def
+    true_physical_xyz(2) = 0.0_r_def
+    true_physical_xyz(3) = radius*0.5_r_def
+
+    physical_xyz = schmidt_transform_xyz(native_xyz, stretch)
+
+    @assertEqual(physical_xyz, true_physical_xyz, tol)
+
+  end subroutine test_schmidt_transform_xyz
+
+
+  !> Test the inverse Cartesian Schmidt transform
+  @test
+  subroutine test_inverse_schmidt_transform_xyz()
+    use coord_transform_mod, only: inverse_schmidt_transform_xyz
+    implicit none
+
+    real(kind=r_def) :: stretch, tol, radius
+    real(kind=r_def) :: native_xyz(3), physical_xyz(3), true_native_xyz(3)
+
+    tol = 1.0e-8_r_def
+    radius = 6131.19_r_def    ! Arbitrary radius
+    stretch = 1.0_r_def/sqrt(3.0_r_def)
+
+    ! Check that North pole stays the same -------------------------------------
+    physical_xyz(1) = 0.0_r_def
+    physical_xyz(2) = 0.0_r_def
+    physical_xyz(3) = radius
+    true_native_xyz(1) = 0.0_r_def
+    true_native_xyz(2) = 0.0_r_def
+    true_native_xyz(3) = radius
+
+    native_xyz = inverse_schmidt_transform_xyz(physical_xyz, stretch)
+
+    @assertEqual(native_xyz, true_native_xyz, tol)
+
+    ! Check that South pole stays the same -------------------------------------
+    physical_xyz(1) = 0.0_r_def
+    physical_xyz(2) = 0.0_r_def
+    physical_xyz(3) = -radius
+    true_native_xyz(1) = 0.0_r_def
+    true_native_xyz(2) = 0.0_r_def
+    true_native_xyz(3) = -radius
+
+    native_xyz = inverse_schmidt_transform_xyz(physical_xyz, stretch)
+
+    @assertEqual(native_xyz, true_native_xyz, tol)
+
+    ! Check that equator moves appropriately -----------------------------------
+    physical_xyz(1) = sqrt(3.0_r_def)*radius*0.5_r_def
+    physical_xyz(2) = 0.0_r_def
+    physical_xyz(3) = radius*0.5_r_def
+    true_native_xyz(1) = radius
+    true_native_xyz(2) = 0.0_r_def
+    true_native_xyz(3) = 0.0_r_def
+
+    native_xyz = inverse_schmidt_transform_xyz(physical_xyz, stretch)
+
+    @assertEqual(native_xyz, true_native_xyz, tol)
+
+  end subroutine test_inverse_schmidt_transform_xyz
+
+  !> Test the latitude Schmidt transform
+  @test
+  subroutine test_schmidt_transform_lat()
+    use coord_transform_mod, only: schmidt_transform_lat
+    implicit none
+
+    real(kind=r_def) :: stretch, tol
+    real(kind=r_def) :: native_lat, physical_lat, true_physical_lat
+
+    tol = 1.0e-8_r_def
+    stretch = 1.0_r_def/sqrt(3.0_r_def)
+
+    ! Check that equator moves appropriately -----------------------------------
+    native_lat = 0.0_r_def
+    true_physical_lat = PI/6.0_r_def
+
+    physical_lat = schmidt_transform_lat(native_lat, stretch)
+
+    @assertEqual(physical_lat, true_physical_lat, tol)
+
+  end subroutine test_schmidt_transform_lat
+
 end module coord_transform_mod_test

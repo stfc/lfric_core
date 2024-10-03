@@ -5,7 +5,7 @@
 !-----------------------------------------------------------------------------
 !> @mainpage Summarise UGRID
 !>
-!> @brief   Utility to summarise of each mesh contained if NetCDF file which
+!> @brief   Utility to summarise of each mesh contained in NetCDF file which
 !>          conforms to UGRID format convention.
 !> @details Usage:
 !>
@@ -49,6 +49,7 @@ program summarise_ugrid
 
   real(r_def)    :: north_pole(2)
   real(r_def)    :: null_island(2)
+  real(r_def)    :: equatorial_latitude
 
   character(str_def) :: fmt_str
   character(str_def) :: tmp_str
@@ -98,17 +99,18 @@ program summarise_ugrid
 
 
       ! Extract data on the current mesh in the ugrid file object
-      call infile%get_metadata(                                &
-                      mesh_name          = mesh_name,          &
-                      geometry           = geometry,           &
-                      topology           = topology,           &
-                      coord_sys          = coord_sys,          &
-                      constructor_inputs = constructor_inputs, &
-                      nmaps              = nmaps,              &
-                      target_mesh_names  = target_mesh_names,  &
-                      periodic_xy        = periodic_xy,        &
-                      north_pole         = north_pole,         &
-                      null_island        = null_island )
+      call infile%get_metadata(                                 &
+                      mesh_name           = mesh_name,          &
+                      geometry            = geometry,           &
+                      topology            = topology,           &
+                      coord_sys           = coord_sys,          &
+                      constructor_inputs  = constructor_inputs, &
+                      nmaps               = nmaps,              &
+                      target_mesh_names   = target_mesh_names,  &
+                      periodic_xy         = periodic_xy,        &
+                      north_pole          = north_pole,         &
+                      null_island         = null_island,        &
+                      equatorial_latitude = equatorial_latitude )
 
     if (n_meshes > 1) then
       call infile%get_metadata(                                &
@@ -215,6 +217,14 @@ program summarise_ugrid
          '  Null Island [lon,lat]: '//trim(tmp_str)
       call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
 
+    end if
+
+    if ( trim(geometry)  == 'spherical' .and. &
+         trim(topology) == 'periodic' ) then
+
+      write( log_scratch_space, '(A,F10.2)' ) &
+         '  Latitude of Equator: ', equatorial_latitude
+      call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
     end if
 
   end do

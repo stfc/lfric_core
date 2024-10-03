@@ -15,6 +15,7 @@
   Maps to:             "C3"
   North pole [lon,lat]: [      0.00,     90.00]
   Null Island [lon,lat]: [      0.00,      0.00]
+  Latitude of Equator:       0.00
 "C3":
   Geometry:            spherical
   Topology:            periodic
@@ -32,3 +33,4 @@
   Maps to:             "C6"
   North pole [lon,lat]: [      0.00,     90.00]
   Null Island [lon,lat]: [      0.00,      0.00]
+  Latitude of Equator:       0.00

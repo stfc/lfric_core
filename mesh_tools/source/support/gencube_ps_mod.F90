@@ -96,7 +96,7 @@ module gencube_ps_mod
     character(str_longlong) :: constructor_inputs
 
     integer(i_def)     :: nsmooth
-    real(r_def)        :: stretch_factor = 1.0_r_def
+    real(r_def)        :: equatorial_latitude = 0.0_r_def
     logical(l_def)     :: rotate_mesh    = .false.
 
     ! Connectivity and coordinates
@@ -160,9 +160,11 @@ contains
 !>                               Names of meshes to map to.
 !> @param[in, optional] target_edge_cells
 !>                               Number of cells per panel edge of the meshes to map to.
-!> @param[in, optional] stretch_factor
-!>                               Attracts points to the North (< 1) or South (> 1) to give
-!>                               a variable resolution mesh
+!> @param[in, optional]  equatorial_latitude
+!>                               Latitude in degrees of the equator of the mesh,
+!>                               implying a stretching towards one of the poles.
+!>                               This is currently implemented through the
+!>                               Schmidt stretching transform.
 !>
 !> @return    self               Instance of gencube_ps_type
 !-------------------------------------------------------------------------------
@@ -170,7 +172,7 @@ contains
                                   rotate_mesh, target_north_pole,              &
                                   target_null_island,                          &
                                   target_mesh_names, target_edge_cells,        &
-                                  stretch_factor )                             &
+                                  equatorial_latitude )                        &
                                   result( self )
 
   implicit none
@@ -183,7 +185,7 @@ contains
   logical,            optional, intent(in) :: rotate_mesh
   real(r_def),        optional, intent(in) :: target_north_pole(2)
   real(r_def),        optional, intent(in) :: target_null_island(2)
-  real(r_def),        optional, intent(in) :: stretch_factor
+  real(r_def),        optional, intent(in) :: equatorial_latitude
 
   character(str_def), optional, intent(in) :: target_mesh_names(:)
   integer(i_def),     optional, intent(in) :: target_edge_cells(:)
@@ -217,16 +219,20 @@ contains
       'edge_cells=',    self%edge_cells,  ';' // &
       'smooth_passes=', self%nsmooth
 
-  ! Only attempt to stretch if stretch factor given
-  if ( present(stretch_factor) ) then
+  ! Only attempt to stretch if equatorial lattiude given
+  if ( present(equatorial_latitude) ) then
 
-    self%stretch_factor = stretch_factor
-
-    if ( (self%stretch_factor < 0.0_r_def) ) then
-      call log_event( 'Invalid stretch factor. must be >= 0.0.', &
+    if ( (equatorial_latitude <= -90.0_r_def &
+          .or. equatorial_latitude >= 90.0_r_def) ) then
+      call log_event( 'Invalid equatorial latitude. Must be between -90 and 90', &
                       LOG_LEVEL_ERROR )
     end if
 
+    self%equatorial_latitude = degrees_to_radians * equatorial_latitude
+
+  else
+    ! Default value is zero
+    self%equatorial_latitude = 0.0_r_def
   end if
 
   self%rotate_mesh = .false.
@@ -1106,9 +1112,9 @@ end subroutine calc_coords
 
 !-------------------------------------------------------------------------------
 !> @brief   Apply the Schmidt transform to the generation of the cubedsphere.
-!> @details Attracts points to the north (<1) or south (>1) pole according
-!>          to the value in self%stretch_factor. This gives a variable
-!>          resolution mesh. Negative values are invalid.
+!> @details Attracts points to the north or south pole according
+!>          to the value in self%equatorial_latitude. This gives a variable
+!>          resolution mesh.
 !>          (PRIVATE ROUTINE)
 !>
 !> @param[in,out] gen_cube  Generator strategy for a cubed-sphere
@@ -1121,16 +1127,21 @@ subroutine stretch_mesh(gen_cube)
 
   real(r_def) :: stretching ! Holding variable for stretch function
   real(r_def) :: lat
+  real(r_def) :: stretch_factor
 
   integer(i_def) :: nverts, vert
 
   nverts = size(gen_cube%vert_coords, dim=2)
 
-  ! Apply Schmidt stretching transformation
-  if ( gen_cube%stretch_factor > 0.0_r_def ) then
+  ! Find stretch factor from equatorial latitude
+  stretch_factor = sqrt( (1.0_r_def - sin(gen_cube%equatorial_latitude)) &
+                         / (1.0_r_def + sin(gen_cube%equatorial_latitude)) )
 
-    stretching = (1.0_r_def - gen_cube%stretch_factor**2) &
-                /(1.0_r_def + gen_cube%stretch_factor**2)
+  ! Apply Schmidt stretching transformation
+  if ( stretch_factor > 0.0_r_def ) then
+
+    stretching = (1.0_r_def - stretch_factor**2) &
+                /(1.0_r_def + stretch_factor**2)
 
     do vert = 1,nverts
 
@@ -1309,7 +1320,7 @@ subroutine generate(self)
   ! any rotations are done.
   if (self%nsmooth > 0_i_def) call smooth(self)
 
-  if (self%stretch_factor /= 1.0_r_def) call stretch_mesh(self)
+  if (self%equatorial_latitude /= 0.0_r_def) call stretch_mesh(self)
 
   if (self%rotate_mesh) call rotate_mesh_coords(self%vert_coords, &
                                                 self%north_pole)
@@ -1810,6 +1821,8 @@ end function get_number_of_panels
 !>                                           used for domain orientation (degrees)
 !> @param[out]  null_island        Optional, [Longitude, Latitude] of null
 !>                                           island used for domain orientation (degrees)
+!> @param[out]  equatorial_latitude Optional, latitude of equator following
+!>                                  stretching torwards pole (degrees)
 !-----------------------------------------------------------------------------
 subroutine get_metadata( self,               &
                          mesh_name,          &
@@ -1827,7 +1840,8 @@ subroutine get_metadata( self,               &
                          maps_edge_cells_x,  &
                          maps_edge_cells_y,  &
                          north_pole,         &
-                         null_island )
+                         null_island,        &
+                         equatorial_latitude )
 
   implicit none
 
@@ -1852,6 +1866,7 @@ subroutine get_metadata( self,               &
 
   real(r_def),    optional, intent(out) :: north_pole(2)
   real(r_def),    optional, intent(out) :: null_island(2)
+  real(r_def),    optional, intent(out) :: equatorial_latitude
 
   if (present(mesh_name))    mesh_name      = trim(self%mesh_name)
   if (present(geometry))     geometry       = key_from_geometry(self%geometry)
@@ -1866,6 +1881,8 @@ subroutine get_metadata( self,               &
 
   if (present(north_pole))     north_pole(:)  = radians_to_degrees * self%north_pole(:)
   if (present(null_island))    null_island(:) = radians_to_degrees * self%null_island(:)
+  if (present(equatorial_latitude)) &
+                          equatorial_latitude = radians_to_degrees * self%equatorial_latitude
 
   if (present(constructor_inputs)) constructor_inputs = trim(self%constructor_inputs)
 

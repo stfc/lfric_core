@@ -92,6 +92,7 @@ contains
     real(r_def)    :: domain_extents(2,4)
     real(r_def)    :: north_pole(2)
     real(r_def)    :: null_island(2)
+    real(r_def)    :: equatorial_latitude
 
     character(str_def), allocatable :: target_global_mesh_names(:)
 
@@ -111,33 +112,34 @@ contains
     filename = 'data/mesh_BiP8x8-750x250.nc'
     call ugrid_mesh_data%read_from_file(trim(filename), mesh_name_in)
 
-    call ugrid_mesh_data%get_data(          &
-                             mesh_name_out, &
-                             geometry,      &
-                             topology,      &
-                             coord_sys,     &
-                             npanels,       &
-                             nnode,         &
-                             nedge,         &
-                             nface,         &
-                             nnodes_per_face,    &
-                             nnodes_per_edge,    &
-                             nedges_per_face,    &
-                             max_faces_per_node, &
-                             periodic_xy,        &
-                             ntarget_meshes,     &
+    call ugrid_mesh_data%get_data(                     &
+                             mesh_name_out,            &
+                             geometry,                 &
+                             topology,                 &
+                             coord_sys,                &
+                             npanels,                  &
+                             nnode,                    &
+                             nedge,                    &
+                             nface,                    &
+                             nnodes_per_face,          &
+                             nnodes_per_edge,          &
+                             nedges_per_face,          &
+                             max_faces_per_node,       &
+                             periodic_xy,              &
+                             ntarget_meshes,           &
                              target_global_mesh_names, &
-                             node_coords,        &
-                             face_coords,        &
-                             coord_units_xy,     &
-                             north_pole,         &
-                             null_island,        &
-                             constructor_inputs, &
-                             rim_depth,          &
-                             domain_extents,     &
-                             void_cell,          &
-                             face_next_2d,       &
-                             node_on_face_2d,    &
+                             node_coords,              &
+                             face_coords,              &
+                             coord_units_xy,           &
+                             north_pole,               &
+                             null_island,              &
+                             equatorial_latitude,      &
+                             constructor_inputs,       &
+                             rim_depth,                &
+                             domain_extents,           &
+                             void_cell,                &
+                             face_next_2d,             &
+                             node_on_face_2d,          &
                              edge_on_face_2d )
 
     @assertEqual(mesh_name_in, mesh_name_out)
@@ -235,6 +237,7 @@ contains
     real(r_def) :: domain_extents(2,4)
     real(r_def) :: north_pole(2)
     real(r_def) :: null_island(2)
+    real(r_def) :: equatorial_latitude
 
     character(str_def), allocatable :: target_global_mesh_names(:)
     real(r_def),        allocatable :: node_coords(:,:)
@@ -459,33 +462,34 @@ contains
     filename = 'data/dev_LAM_locals_20-24.nc'
     call ugrid_mesh_data%read_from_file(trim(filename), mesh_name_in)
 
-    call ugrid_mesh_data%get_data(               &
-                             mesh_name_out,      &
-                             geometry,           &
-                             topology,           &
-                             coord_sys,          &
-                             npanels,            &
-                             nnode,              &
-                             nedge,              &
-                             nface,              &
-                             nnodes_per_face,    &
-                             nnodes_per_edge,    &
-                             nedges_per_face,    &
-                             max_faces_per_node, &
-                             periodic_xy,        &
-                             ntarget_meshes,     &
+    call ugrid_mesh_data%get_data(                     &
+                             mesh_name_out,            &
+                             geometry,                 &
+                             topology,                 &
+                             coord_sys,                &
+                             npanels,                  &
+                             nnode,                    &
+                             nedge,                    &
+                             nface,                    &
+                             nnodes_per_face,          &
+                             nnodes_per_edge,          &
+                             nedges_per_face,          &
+                             max_faces_per_node,       &
+                             periodic_xy,              &
+                             ntarget_meshes,           &
                              target_global_mesh_names, &
-                             node_coords,        &
-                             face_coords,        &
-                             coord_units_xy,     &
-                             north_pole,         &
-                             null_island,        &
-                             constructor_inputs, &
-                             rim_depth,          &
-                             domain_extents,     &
-                             void_cell,          &
-                             face_on_face,       &
-                             node_on_face,       &
+                             node_coords,              &
+                             face_coords,              &
+                             coord_units_xy,           &
+                             north_pole,               &
+                             null_island,              &
+                             equatorial_latitude,      &
+                             constructor_inputs,       &
+                             rim_depth,                &
+                             domain_extents,           &
+                             void_cell,                &
+                             face_on_face,             &
+                             node_on_face,             &
                              edge_on_face )
 
     @assertTrue( [.false.,.false.] .eqv. periodic_xy )

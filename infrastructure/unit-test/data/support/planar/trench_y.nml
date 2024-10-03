@@ -17,7 +17,7 @@
 !  *  "dynamics" mesh (source) object mapping to "physics"  (target)
 !  *  "physics"  mesh (source) object mapping to "dynamics" (target)
 !
-! Notes: 
+! Notes:
 !  *  Only the first "n_meshes" listed in mesh_names will be
 !     output in the mesh file.
 !  *  All spherical co-ordinates are given the order
@@ -25,14 +25,14 @@
 !     respectively
 !===================================================================
 &mesh
-  mesh_filename  = 'mesh_trench_y.nc'
-  geometry       = 'planar'
-  topology       = 'channel'
-  n_meshes       = 1
-  mesh_names     = 'unit_test'
-  partition_mesh = .false.
-  coord_sys      = 'xyz'
-  rotate_mesh    = .false.
+  mesh_file_prefix = 'mesh_trench_y'
+  geometry         = 'planar'
+  topology         = 'channel'
+  n_meshes         = 1
+  mesh_names       = 'unit_test'
+  partition_mesh   = .false.
+  coord_sys        = 'xyz'
+  rotate_mesh      = .false.
 /
 
 !==================================================================
@@ -43,7 +43,7 @@
 ! variables <edge_cells_x>/<edge_cells_y> and correspond to the
 ! order of mesh topologies given by <mesh_names>.
 !
-! All lised meshes will occupy the same domain and periodicity.
+! All listed meshes will occupy the same domain and periodicity.
 !
 ! Note: When requesting a integrid mesh map, for a given pair of
 !       of source/target meshes, one meshes edge cell value must

@@ -86,6 +86,8 @@ module ugrid_mesh_data_mod
     real(r_def)    :: null_island(2) = rmdi
     ! Real world lon-lat location of north pole.
     real(r_def)    :: north_pole(2)  = rmdi
+    ! Latitude of equator following stretching.
+    real(r_def)    :: equatorial_latitude = rmdi
     ! Domain extents (Global mesh).
     real(r_def)    :: domain_extents(2,4) = rmdi
     !> ID value to mark null cell-cell connectivity,
@@ -223,6 +225,7 @@ contains
   !> @param[out] coord_units_xy   Units for co-ordinates along x/y axes.
   !> @param[out] north_pole       Real world lon-lat location of mesh North Pole.
   !> @param[out] null_island      Real world lon-lat location of mesh Null Island.
+  !> @param[out] equatorial_latitude Latitude of the equator of the mesh.
   !> @param[out] constructor_inputs  Configuration arguments for global mesh object constructor.
   !> @param[out] rim_depth        Global LBC mesh rim depth (in cells).
   !> @param[out] domain_extents   Principal coordinates that
@@ -255,6 +258,7 @@ contains
                        coord_units_xy, &
                        north_pole, &
                        null_island, &
+                       equatorial_latitude, &
                        constructor_inputs, &
                        rim_depth, &
                        domain_extents, &
@@ -299,6 +303,7 @@ contains
     integer(i_def), intent(out) :: void_cell
     real(r_def),    intent(out) :: north_pole(2)
     real(r_def),    intent(out) :: null_island(2)
+    real(r_def),    intent(out) :: equatorial_latitude
 
     character(str_def),      intent(out) :: coord_units_xy(2)
     character(str_longlong), intent(out) :: constructor_inputs
@@ -358,6 +363,7 @@ contains
     domain_extents(:,:) = self%domain_extents(:,:)
     north_pole(:)       = self%north_pole(:)
     null_island(:)      = self%null_island(:)
+    equatorial_latitude = self%equatorial_latitude
 
     if ( present(node_on_edge_2d) ) then
       if ( allocated(node_on_edge_2d) ) deallocate(node_on_edge_2d)
@@ -561,22 +567,23 @@ contains
               num_nodes_per_edge     = self%num_nodes_per_edge, &
               max_num_faces_per_node = self%max_num_faces_per_node )
 
-    call ugrid_2d%get_metadata                              &
-            ( mesh_name          = self%global_mesh_name,   &
-              geometry           = self%geometry,           &
-              topology           = self%topology,           &
-              coord_sys          = self%coord_sys,          &
-              periodic_xy        = self%periodic_xy,        &
-              max_stencil_depth  = self%max_stencil_depth,  &
-              constructor_inputs = self%constructor_inputs, &
-              north_pole         = self%north_pole,         &
-              null_island        = self%null_island,        &
-              npanels            = self%npanels,            &
-              domain_extents     = self%domain_extents,     &
-              void_cell          = self%void_cell,          &
-              rim_depth          = self%rim_depth,          &
-              nmaps              = self%ntarget_meshes,     &
-              target_mesh_names  = self%target_global_mesh_names )
+    call ugrid_2d%get_metadata                                &
+            ( mesh_name           = self%global_mesh_name,    &
+              geometry            = self%geometry,            &
+              topology            = self%topology,            &
+              coord_sys           = self%coord_sys,           &
+              periodic_xy         = self%periodic_xy,         &
+              max_stencil_depth   = self%max_stencil_depth,   &
+              constructor_inputs  = self%constructor_inputs,  &
+              north_pole          = self%north_pole,          &
+              null_island         = self%null_island,         &
+              equatorial_latitude = self%equatorial_latitude, &
+              npanels             = self%npanels,             &
+              domain_extents      = self%domain_extents,      &
+              void_cell           = self%void_cell,           &
+              rim_depth           = self%rim_depth,           &
+              nmaps               = self%ntarget_meshes,      &
+              target_mesh_names   = self%target_global_mesh_names )
 
     allocate( self%node_coords(2, self%nnode) )
     call ugrid_2d%get_node_coords(self%node_coords)

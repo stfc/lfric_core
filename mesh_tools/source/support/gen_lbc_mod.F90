@@ -265,6 +265,7 @@ module gen_lbc_mod
     real(r_def)    :: null_island(2) = [rmdi,rmdi] ! [Longitude, Latitude] of
                                                    ! null island used
                                                    ! for domain orientation (degrees)
+    real(r_def)    :: equatorial_latitude = rmdi
 
   contains
 
@@ -362,14 +363,15 @@ function gen_lbc_constructor( lam_strategy, rim_depth ) result( self )
                                 max_num_faces_per_node =                  &
                                              self%max_num_faces_per_node )
 
-  call lam_strategy%get_metadata                                    &
-                        ( mesh_name    = self%target_mesh_names(1), &
-                          edge_cells_x = self%outer_cells_x,        &
-                          edge_cells_y = self%outer_cells_y,        &
-                          north_pole   = self%north_pole,           &
-                          null_island  = self%null_island,          &
-                          geometry     = geometry_key,              &
-                          coord_sys    = coord_sys_key)
+  call lam_strategy%get_metadata                                           &
+                        ( mesh_name           = self%target_mesh_names(1), &
+                          edge_cells_x        = self%outer_cells_x,        &
+                          edge_cells_y        = self%outer_cells_y,        &
+                          north_pole          = self%north_pole,           &
+                          null_island         = self%null_island,          &
+                          equatorial_latitude = self%equatorial_latitude,  &
+                          geometry            = geometry_key,              &
+                          coord_sys           = coord_sys_key)
 
   mesh_parent    = trim(self%target_mesh_names(1))
   self%mesh_name = trim(mesh_parent)//'-lbc'
@@ -773,6 +775,8 @@ end function get_number_of_panels
 !>                                           used for domain orientation (degrees)
 !> @param[out] null_island         Optional, [Longitude, Latitude] of null
 !>                                           island used for domain orientation (degrees)
+!> @param[out]  equatorial_latitude Optional, latitude of equator following
+!>                                  stretching torwards pole (degrees)
 !-----------------------------------------------------------------------------
 subroutine get_metadata( self,               &
                          mesh_name,          &
@@ -790,7 +794,8 @@ subroutine get_metadata( self,               &
                          maps_edge_cells_x,  &
                          maps_edge_cells_y,  &
                          north_pole,         &
-                         null_island )
+                         null_island,        &
+                         equatorial_latitude )
   implicit none
 
   class(gen_lbc_type), intent(in) :: self
@@ -816,6 +821,7 @@ subroutine get_metadata( self,               &
 
   real(r_def),        optional, intent(out) :: north_pole(2)
   real(r_def),        optional, intent(out) :: null_island(2)
+  real(r_def),        optional, intent(out) :: equatorial_latitude
 
   if (present(mesh_name))    mesh_name      = self%mesh_name
   if (present(geometry))     geometry       = key_from_geometry(self%geometry)
@@ -851,6 +857,7 @@ subroutine get_metadata( self,               &
   ! These are inherited from LAM so should be in degrees for cf-compliance
   if (present(north_pole))  north_pole(:)  = self%north_pole(:)
   if (present(null_island)) null_island(:) = self%null_island(:)
+  if (present(equatorial_latitude)) equatorial_latitude = self%equatorial_latitude
 
   return
 end subroutine get_metadata

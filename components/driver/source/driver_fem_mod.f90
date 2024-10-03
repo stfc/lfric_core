@@ -18,9 +18,7 @@ module driver_fem_mod
   use base_mesh_config_mod,           only: geometry, geometry_planar
   use extrusion_mod,                  only: TWOD, PRIME_EXTRUSION
   use finite_element_config_mod,      only: element_order,    &
-                                            coord_order,      &
-                                            coord_system,     &
-                                            coord_system_xyz
+                                            coord_order
   use field_mod,                      only: field_type
   use fs_continuity_mod,              only: W0, W2, W3, Wtheta, Wchi, W2v, W2h
   use function_space_mod,             only: function_space_type
@@ -80,7 +78,7 @@ contains
     ! ======================================================================== !
 
     ! Initialise coordinate transformations
-    call init_chi_transforms()
+    call init_chi_transforms(mesh_collection)
 
     ! To loop through mesh collection, get all mesh names
     ! Then get mesh from collection using these names
@@ -113,12 +111,6 @@ contains
           call log_event( "FEM specifics: Computing Wchi coordinate fields", LOG_LEVEL_INFO )
         end if
         fs => function_space_collection%get_fs(mesh, coord_order, chi_space)
-
-        ! Check that the geometry is compatible with the coordinate system
-        if ( (geometry == geometry_planar) .and. &
-            (coord_system /= coord_system_xyz) ) then
-            call log_event( "Error: For planar geometry must use coord_system = xyz", LOG_LEVEL_ERROR )
-        end if
 
         do coord = 1, size(chi)
           call chi(coord)%initialise(vector_space = fs, halo_depth = twod_mesh%get_halo_depth() )

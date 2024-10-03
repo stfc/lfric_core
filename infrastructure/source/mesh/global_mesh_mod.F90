@@ -80,6 +80,10 @@ module global_mesh_mod
   ! only valid for spherical geometry on lon-lat cordinate-system.
     real(r_def) :: null_island(2) = rmdi
 
+  ! Latitude of equator of mesh following stretching
+  ! only valid for spherical geometry and periodic topology
+    real(r_def) :: equatorial_latitude = rmdi
+
   ! Periodic in x/y-axes
     logical(l_def) :: periodic_xy(2) = [.false.,.false.]
 
@@ -215,6 +219,7 @@ module global_mesh_mod
     procedure, public :: get_domain_extents
     procedure, public :: get_north_pole
     procedure, public :: get_null_island
+    procedure, public :: get_equatorial_latitude
     procedure, public :: get_vert_on_edge
     procedure, public :: get_coord_units
     procedure, public :: get_constructor_inputs
@@ -290,6 +295,7 @@ contains
                                    self%coord_units_xy, &
                                    self%north_pole, &
                                    self%null_island, &
+                                   self%equatorial_latitude, &
                                    self%constructor_inputs, &
                                    self%rim_depth, &
                                    self%domain_extents, &
@@ -351,6 +357,7 @@ contains
         self%cell_coords(:,:)    = degrees_to_radians * self%cell_coords(:,:)
         self%north_pole(:)       = degrees_to_radians * self%north_pole(:)
         self%null_island(:)      = degrees_to_radians * self%null_island(:)
+        self%equatorial_latitude = degrees_to_radians * self%equatorial_latitude
         self%domain_extents(:,:) = degrees_to_radians * self%domain_extents(:,:)
 
         self%coord_units_xy(:) = 'radians'
@@ -953,7 +960,7 @@ contains
   !>          geometries with lon-lat coordinate system.
   !> @return  real(2), units (radians).
   !>
-  function get_north_pole( self) result( north_pole )
+  function get_north_pole( self ) result( north_pole )
 
     implicit none
 
@@ -973,7 +980,7 @@ contains
   !>          geometries with lon-lat coordinate system.
   !> @return  null_island  [lon,lat] real-world coordinates in radians.
   !>
-  function get_null_island( self) result( null_island )
+  function get_null_island( self ) result( null_island )
 
     implicit none
 
@@ -984,6 +991,24 @@ contains
 
   end function get_null_island
 
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief   Returns the latitude of the equator of the mesh.
+  !> @details A mesh may have been transformed before being written to file.
+  !!          This returns the latitde of the equator used for this mesh.
+  !!          Only valid for cubed-sphere meshes.
+  !> @return  equatorial_latitude   Latitude of equator of mesh
+  !>
+  function get_equatorial_latitude( self ) result( equatorial_latitude )
+
+    implicit none
+
+    class(global_mesh_type), intent(in) :: self
+    real(r_def) :: equatorial_latitude
+
+    equatorial_latitude = self%equatorial_latitude
+
+  end function get_equatorial_latitude
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief  Returns ID of a cell in this mesh.

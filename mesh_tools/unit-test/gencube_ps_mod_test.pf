@@ -485,6 +485,8 @@ contains
   @test
   subroutine test_stretched_grid()
 
+    use constants_mod, only: radians_to_degrees
+
     implicit none
 
     type(gencube_ps_type)  :: csgen_stretch
@@ -505,15 +507,17 @@ contains
 
     real(r_def) :: coords(2, 6*edge_cells*edge_cells+2)
     real(r_def) :: face_coords(2, 6*edge_cells*edge_cells)
-    real(r_def) :: stretch_factor
+    real(r_def) :: equatorial_latitude, stretch_factor
     real(r_def) :: domain_extents(2,4)
 
     ! Testing a stretched mesh with 0.5 stretch factor.
     stretch_factor = 0.5_r_def
+    equatorial_latitude = radians_to_degrees * asin( (1.0_r_def - stretch_factor**2) &
+                                                    / (1.0_r_def + stretch_factor**2) )
 
     csgen_stretch = gencube_ps_type( mesh_name, edge_cells, nsmooth, &
                     coord_sys=coord_sys_ll,                          &
-                    stretch_factor=stretch_factor )
+                    equatorial_latitude=equatorial_latitude )
 
     ! Generate the mesh and connectivity
     call csgen_stretch%generate()
@@ -542,10 +546,12 @@ contains
 
     ! Testing mesh with 2.0 stretch factor. Same as 0.5 stretch factor.
     stretch_factor = 2.0_r_def
+    equatorial_latitude = radians_to_degrees * asin( (1.0_r_def - stretch_factor**2) &
+                                                    / (1.0_r_def + stretch_factor**2) )
 
     csgen_stretch = gencube_ps_type( mesh_name, edge_cells, nsmooth, &
                                      coord_sys=coord_sys_ll,         &
-                                     stretch_factor=stretch_factor )
+                                     equatorial_latitude=equatorial_latitude )
 
     ! Generate the mesh and connectivity
     call csgen_stretch%generate()

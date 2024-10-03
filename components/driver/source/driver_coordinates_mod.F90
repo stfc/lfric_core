@@ -15,15 +15,16 @@ module driver_coordinates_mod
                                        topology_non_periodic
   use constants_mod,             only: r_def, i_def, l_def, &
                                        radians_to_degrees, &
-                                       i_halo_index
+                                       i_halo_index, EPS
   use log_mod,                   only: log_event, LOG_LEVEL_ERROR
   use planet_config_mod,         only: scaled_radius
   use coord_transform_mod,       only: xyz2llr, llr2xyz, identify_panel, &
-                                       xyz2alphabetar, alphabetar2xyz
+                                       xyz2alphabetar, alphabetar2xyz,   &
+                                       schmidt_transform_xyz,            &
+                                       inverse_schmidt_transform_xyz
   use finite_element_config_mod, only: coord_system,            &
-                                       coord_system_xyz,        &
-                                       coord_system_alphabetaz, &
-                                       coord_system_lonlatz
+                                       coord_system_xyz
+
   implicit none
 
   private
@@ -61,6 +62,9 @@ contains
     use reference_element_mod, only: reference_element_type
     use mesh_mod,              only: mesh_type
     use local_mesh_mod,        only: local_mesh_type
+    use sci_chi_transform_mod, only: get_inverse_mesh_rotation_matrix, &
+                                     get_to_rotate,                    &
+                                     get_stretch_factor
 
     implicit none
 
@@ -96,6 +100,10 @@ contains
     integer(i_def) :: panel_ncells
     integer(i_def) :: i
     type(local_mesh_type), pointer :: local_mesh
+
+    logical(l_def)   :: to_rotate
+    real(kind=r_def) :: inverse_rot_matrix(3,3)
+    real(kind=r_def) :: stretch_factor
 
     ! Break encapsulation and get the proxy.
     chi_proxy(1) = chi(1)%get_proxy()
@@ -144,7 +152,23 @@ contains
     local_mesh => mesh%get_local_mesh()
     panel_ncells = local_mesh%get_ncells_global_mesh()/local_mesh%get_num_panels_global_mesh()
 
-    if ( coord_system == coord_system_xyz ) then
+    ! Get *inverse* rotation matrix and stretching factor here
+    stretch_factor = get_stretch_factor()
+    inverse_rot_matrix = get_inverse_mesh_rotation_matrix()
+    to_rotate = get_to_rotate()
+
+    ! Throw an error if stretching factor is not 1 and not on cubed-sphere
+    if ( abs(stretch_factor - 1.0_r_def) > EPS .and. .not.                     &
+         (geometry == geometry_spherical .and.                                 &
+          topology == topology_fully_periodic) ) then
+      call log_event(                                                          &
+        'driver_coordinates: Cannot determine coordinates if Schmidt ' //      &
+        'stretching factor is not 1 and mesh is not cubed-sphere',             &
+        LOG_LEVEL_ERROR                                                        &
+      )
+    end if
+
+    if ( coord_system == coord_system_xyz .or. geometry == geometry_planar ) then
 
       do cell = 1,chi_proxy(1)%vspace%get_ncell()
 
@@ -177,7 +201,7 @@ contains
                                     map_pid(:,cell)      )
       end do
 
-    else if ( coord_system == coord_system_lonlatz ) then
+    else if ( geometry == geometry_spherical .and. topology /= topology_fully_periodic ) then
 
       do cell = 1,chi_proxy(1)%vspace%get_ncell()
 
@@ -201,13 +225,15 @@ contains
                                         column_coords,           &
                                         dof_coords,              &
                                         vertex_coords,           &
+                                        to_rotate,               &
+                                        inverse_rot_matrix,      &
                                         panel_id_proxy%data,     &
                                         ndf_pid,                 &
                                         undf_pid,                &
                                         map_pid(:,cell)          )
       end do
 
-    else if ( coord_system == coord_system_alphabetaz ) then
+    else if ( geometry == geometry_spherical .and. topology == topology_fully_periodic ) then
 
       do cell = 1,chi_proxy(1)%vspace%get_ncell()
 
@@ -231,6 +257,9 @@ contains
                                            column_coords,           &
                                            dof_coords,              &
                                            vertex_coords,           &
+                                           to_rotate,               &
+                                           inverse_rot_matrix,      &
+                                           stretch_factor,          &
                                            panel_id_proxy%data,     &
                                            ndf_pid,                 &
                                            undf_pid,                &
@@ -421,36 +450,43 @@ contains
 
   !> @brief Determines and assigns the (alpha,beta,height) coordinates for a single column.
   !>
-  !> @param[in]   nlayers        The number of layers in the mesh
-  !> @param[in]   ndf            Number of DoFs per cell for chi field space
-  !> @param[in]   nverts         Number of vertices per cell
-  !> @param[in]   undf           Number of universal DoFs for chi field space
-  !> @param[in]   map            DoF map for chi field
-  !> @param[out]  chi_1          1st coordinate field
-  !> @param[out]  chi_2          2nd coordinate field
-  !> @param[out]  chi_3          3rd coordinate field
-  !> @param[in]   column_coords  Coordinates at mesh vertices
-  !> @param[in]   chi_hat_node   Reference cell coordinates at the chi space DoFs
-  !> @param[in]   chi_hat_vert   Reference cell coordinates at the cell vertices
-  !> @param[in]   panel_id       Field giving IDs of mesh panels
-  !> @param[in]   ndf_pid        Number of DoFs per cell for panel_id space
-  !> @param[in]   undf_pid       Number of universal DoFs for panel_id space
-  !> @param[in]   map_pid        DoF map for panel_id space
-  subroutine assign_coordinate_alphabetaz( nlayers,       &
-                                           ndf,           &
-                                           nverts,        &
-                                           undf,          &
-                                           map,           &
-                                           chi_1,         &
-                                           chi_2,         &
-                                           chi_3,         &
-                                           column_coords, &
-                                           chi_hat_node,  &
-                                           chi_hat_vert,  &
-                                           panel_id,      &
-                                           ndf_pid,       &
-                                           undf_pid,      &
-                                           map_pid        )
+  !> @param[in]   nlayers            The number of layers in the mesh
+  !> @param[in]   ndf                Number of DoFs per cell for chi field space
+  !> @param[in]   nverts             Number of vertices per cell
+  !> @param[in]   undf               Num of universal DoFs for chi field space
+  !> @param[in]   map                DoF map for chi field
+  !> @param[out]  chi_1              1st coordinate field
+  !> @param[out]  chi_2              2nd coordinate field
+  !> @param[out]  chi_3              3rd coordinate field
+  !> @param[in]   column_coords      Coordinates at mesh vertices
+  !> @param[in]   chi_hat_node       Reference cell coords at the chi space DoFs
+  !> @param[in]   chi_hat_vert       Reference cell coords at the cell vertices
+  !> @param[in]   to_rotate          Whether mesh has been rotated
+  !> @param[in]   inverse_rot_matrix Rotation matrix to apply to obtain native
+  !!                                 Cartesian coordinates from physical ones
+  !> @param[in]   stretch_factor     Stretch factor for Schmidt transform
+  !> @param[in]   panel_id           Field giving IDs of mesh panels
+  !> @param[in]   ndf_pid            Number of DoFs per cell for panel_id space
+  !> @param[in]   undf_pid           Number of universal DoFs for panel_id space
+  !> @param[in]   map_pid            DoF map for panel_id space
+  subroutine assign_coordinate_alphabetaz( nlayers,            &
+                                           ndf,                &
+                                           nverts,             &
+                                           undf,               &
+                                           map,                &
+                                           chi_1,              &
+                                           chi_2,              &
+                                           chi_3,              &
+                                           column_coords,      &
+                                           chi_hat_node,       &
+                                           chi_hat_vert,       &
+                                           to_rotate,          &
+                                           inverse_rot_matrix, &
+                                           stretch_factor,     &
+                                           panel_id,           &
+                                           ndf_pid,            &
+                                           undf_pid,           &
+                                           map_pid             )
 
     implicit none
 
@@ -460,6 +496,9 @@ contains
     real(kind=r_def),    intent(out) :: chi_1(undf), chi_2(undf), chi_3(undf)
     real(kind=r_def),    intent(in)  :: column_coords(3,nverts,nlayers)
     real(kind=r_def),    intent(in)  :: chi_hat_node(3,ndf), chi_hat_vert(nverts,3)
+    logical(kind=l_def), intent(in)  :: to_rotate
+    real(kind=r_def),    intent(in)  :: inverse_rot_matrix(3,3)
+    real(kind=r_def),    intent(in)  :: stretch_factor
     integer(kind=i_def), intent(in)  :: ndf_pid, undf_pid
     integer(kind=i_def), intent(in)  :: map_pid(ndf_pid)
     real(kind=r_def),    intent(in)  :: panel_id(undf_pid)
@@ -470,7 +509,7 @@ contains
     real(kind=r_def)    :: alpha, beta, radius
 
     real(kind=r_def) :: interp_weight
-    real(kind=r_def) :: v_x, v_y, v_z, v_a, v_b, v_r
+    real(kind=r_def) :: v_xyz(3), v_a, v_b, v_r
     real(kind=r_def) :: vertex_local_coords(3,nverts)
 
     panel = int(panel_id(map_pid(1)))
@@ -490,11 +529,19 @@ contains
                 (1.0_r_def - abs(chi_hat_vert(vert,1) - chi_hat_node(1,df))) &
                 *(1.0_r_def - abs(chi_hat_vert(vert,2) - chi_hat_node(2,df))) &
                 *(1.0_r_def - abs(chi_hat_vert(vert,3) - chi_hat_node(3,df)))
-          v_x = vertex_local_coords(1,vert)
-          v_y = vertex_local_coords(2,vert)
-          v_z = vertex_local_coords(3,vert)
+          v_xyz(:) = vertex_local_coords(:,vert)
 
-          call xyz2alphabetar(v_x,v_y,v_z,panel,v_a,v_b,v_r)
+          ! Un-rotate coordinates
+          if (to_rotate) then
+            v_xyz = matmul(inverse_rot_matrix, v_xyz)
+          end if
+
+          ! Unstretch coordinates
+          if (abs(stretch_factor - 1.0_r_def) > EPS) then
+            v_xyz = inverse_schmidt_transform_xyz(v_xyz, stretch_factor)
+          end if
+
+          call xyz2alphabetar(v_xyz(1),v_xyz(2),v_xyz(3),panel,v_a,v_b,v_r)
           alpha = alpha + interp_weight*v_a
           beta = beta + interp_weight*v_b
           radius = radius + interp_weight*v_r
@@ -502,6 +549,7 @@ contains
 
         chi_1(dfk) = alpha
         chi_2(dfk) = beta
+
         chi_3(dfk) = radius - scaled_radius
 
       end do
@@ -512,36 +560,41 @@ contains
 
   !> @brief Determines and assigns the (lon,lat,h) coordinates for a single column.
   !>
-  !> @param[in]   nlayers        The number of layers in the mesh
-  !> @param[in]   ndf            Number of DoFs per cell for chi field space
-  !> @param[in]   nverts         Number of vertices per cell
-  !> @param[in]   undf           Number of universal DoFs for chi field space
-  !> @param[in]   map            DoF map for chi field
-  !> @param[out]  chi_1          1st coordinate field
-  !> @param[out]  chi_2          2nd coordinate field
-  !> @param[out]  chi_3          3rd coordinate field
-  !> @param[in]   column_coords  Coordinates at mesh vertices
-  !> @param[in]   chi_hat_node   Reference cell coordinates at the chi space DoFs
-  !> @param[in]   chi_hat_vert   Reference cell coordinates at the cell vertices
-  !> @param[in]   panel_id       Field giving IDs of mesh panels
-  !> @param[in]   ndf_pid        Number of DoFs per cell for panel_id space
-  !> @param[in]   undf_pid       Number of universal DoFs for panel_id space
-  !> @param[in]   map_pid        DoF map for panel_id space
-  subroutine assign_coordinate_lonlatz( nlayers,       &
-                                        ndf,           &
-                                        nverts,        &
-                                        undf,          &
-                                        map,           &
-                                        chi_1,         &
-                                        chi_2,         &
-                                        chi_3,         &
-                                        column_coords, &
-                                        chi_hat_node,  &
-                                        chi_hat_vert,  &
-                                        panel_id,      &
-                                        ndf_pid,       &
-                                        undf_pid,      &
-                                        map_pid        )
+  !> @param[in]   nlayers            The number of layers in the mesh
+  !> @param[in]   ndf                Number of DoFs per cell for chi field space
+  !> @param[in]   nverts             Number of vertices per cell
+  !> @param[in]   undf               Num of universal DoFs for chi field space
+  !> @param[in]   map                DoF map for chi field
+  !> @param[out]  chi_1              1st coordinate field
+  !> @param[out]  chi_2              2nd coordinate field
+  !> @param[out]  chi_3              3rd coordinate field
+  !> @param[in]   column_coords      Coordinates at mesh vertices
+  !> @param[in]   chi_hat_node       Reference cell coords at the chi space DoFs
+  !> @param[in]   chi_hat_vert       Reference cell coords at the cell vertices
+  !> @param[in]   to_rotate          Whether mesh has been rotated
+  !> @param[in]   inverse_rot_matrix Rotation matrix to apply to obtain native
+  !!                                 Cartesian coordinates from physical ones
+  !> @param[in]   panel_id           Field giving IDs of mesh panels
+  !> @param[in]   ndf_pid            Number of DoFs per cell for panel_id space
+  !> @param[in]   undf_pid           Number of universal DoFs for panel_id space
+  !> @param[in]   map_pid            DoF map for panel_id space
+  subroutine assign_coordinate_lonlatz( nlayers,            &
+                                        ndf,                &
+                                        nverts,             &
+                                        undf,               &
+                                        map,                &
+                                        chi_1,              &
+                                        chi_2,              &
+                                        chi_3,              &
+                                        column_coords,      &
+                                        chi_hat_node,       &
+                                        chi_hat_vert,       &
+                                        to_rotate,          &
+                                        inverse_rot_matrix, &
+                                        panel_id,           &
+                                        ndf_pid,            &
+                                        undf_pid,           &
+                                        map_pid             )
 
     implicit none
 
@@ -551,6 +604,8 @@ contains
     real(kind=r_def),    intent(out) :: chi_1(undf), chi_2(undf), chi_3(undf)
     real(kind=r_def),    intent(in)  :: column_coords(3,nverts,nlayers)
     real(kind=r_def),    intent(in)  :: chi_hat_node(3,ndf), chi_hat_vert(nverts,3)
+    logical(kind=l_def), intent(in)  :: to_rotate
+    real(kind=r_def),    intent(in)  :: inverse_rot_matrix(3,3)
     integer(kind=i_def), intent(in)  :: ndf_pid, undf_pid
     integer(kind=i_def), intent(in)  :: map_pid(ndf_pid)
     real(kind=r_def),    intent(in)  :: panel_id(undf_pid)
@@ -560,7 +615,7 @@ contains
     real(kind=r_def)    :: longitude, latitude, radius
 
     real(kind=r_def) :: interp_weight
-    real(kind=r_def) :: v_x, v_y, v_z, v_lon, v_lat, v_r
+    real(kind=r_def) :: v_xyz(3), v_lon, v_lat, v_r
     real(kind=r_def) :: vertex_local_coords(3,nverts)
 
     ! Compute the representation of the coordinate field
@@ -578,11 +633,14 @@ contains
                  (1.0_r_def - abs(chi_hat_vert(vert,1) - chi_hat_node(1,df))) &
                 *(1.0_r_def - abs(chi_hat_vert(vert,2) - chi_hat_node(2,df))) &
                 *(1.0_r_def - abs(chi_hat_vert(vert,3) - chi_hat_node(3,df)))
-          v_x = vertex_local_coords(1,vert)
-          v_y = vertex_local_coords(2,vert)
-          v_z = vertex_local_coords(3,vert)
+          v_xyz(:) = vertex_local_coords(:,vert)
 
-          call xyz2llr(v_x,v_y,v_z,v_lon,v_lat,v_r)
+          ! Un-rotate coordinates
+          if (to_rotate) then
+            v_xyz = matmul(inverse_rot_matrix, v_xyz)
+          end if
+
+          call xyz2llr(v_xyz(1),v_xyz(2),v_xyz(3),v_lon,v_lat,v_r)
           longitude = longitude + interp_weight*v_lon
           latitude = latitude + interp_weight*v_lat
           radius = radius + interp_weight*v_r

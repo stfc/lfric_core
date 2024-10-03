@@ -50,6 +50,7 @@ class gen_lbc_mod::gen_lbc_type {
 
   -north_pole:  real[2]
   -null_island: real[2]
+  -equatorial_latitude: real
 
   +<<create>>gen_lbc_constructor( <<in>> lam_strategy:gen_planar_type, <<in>> rim_depth: integer ): gen_lbc_type
 

@@ -25,15 +25,15 @@
 !     respectively
 !===================================================================
 &mesh
-  mesh_filename  = 'LAM_locals.nc'
-  n_meshes       = 2
-  mesh_names     = 'SQ20','SQ10'
-  partition_mesh = .true.
-  rotate_mesh    = .false.
-  mesh_maps      = 'SQ20:SQ10'
-  geometry       = 'spherical'
-  topology       = 'non_periodic'
-  coord_sys      = 'll'
+  mesh_file_prefix = 'LAM_locals'
+  n_meshes         = 2
+  mesh_names       = 'SQ20','SQ10'
+  partition_mesh   = .true.
+  rotate_mesh      = .false.
+  mesh_maps        = 'SQ20:SQ10'
+  geometry         = 'spherical'
+  topology         = 'non_periodic'
+  coord_sys        = 'll'
 /
 
 !==================================================================

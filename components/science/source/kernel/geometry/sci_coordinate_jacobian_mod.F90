@@ -10,13 +10,26 @@
 !> per panel for certain meshes such as cubed sphere.
 module sci_coordinate_jacobian_mod
 
-  use constants_mod,             only: i_def, r_double, r_single
-  use finite_element_config_mod, only: coord_system,            &
-                                       coord_system_xyz,        &
-                                       coord_system_alphabetaz, &
-                                       coord_system_lonlatz
-  use coord_transform_mod,       only: PANEL_ROT_MATRIX
+  use base_mesh_config_mod,      only: geometry,                 &
+                                       geometry_planar,          &
+                                       topology,                 &
+                                       topology_fully_periodic
+  use constants_mod,             only: l_def, i_def, r_double, r_single
+  use finite_element_config_mod, only: coord_system,             &
+                                       coord_system_xyz,         &
+                                       coord_system_native
+  use coord_transform_mod,       only: PANEL_ROT_MATRIX, &
+                                       alphabetar2xyz,   &
+                                       xyz2llr,          &
+                                       xyz2ll,           &
+                                       llr2xyz,          &
+                                       schmidt_transform_lat
+
   use planet_config_mod,         only: scaled_radius
+  use sci_chi_transform_mod,     only: get_mesh_rotation_matrix, &
+                                       get_to_stretch,           &
+                                       get_to_rotate,            &
+                                       get_stretch_factor
 
   implicit none
 
@@ -26,6 +39,8 @@ module sci_coordinate_jacobian_mod
   public :: coordinate_jacobian_inverse
   public :: pointwise_coordinate_jacobian
   public :: pointwise_coordinate_jacobian_inverse
+  ! Public for unit-testing
+  public :: jacobian_stretched
 
   interface coordinate_jacobian
     module procedure &
@@ -65,6 +80,18 @@ module sci_coordinate_jacobian_mod
     module procedure &
          jacobian_llr2XYZ_r_single, &
          jacobian_llr2XYZ_r_double
+  end interface
+
+  interface jacobian_XYZ2llr
+    module procedure &
+         jacobian_XYZ2llr_r_single, &
+         jacobian_XYZ2llr_r_double
+  end interface
+
+  interface jacobian_stretched
+    module procedure &
+         jacobian_stretched_r_single, &
+         jacobian_stretched_r_double
   end interface
 
 contains
@@ -119,10 +146,19 @@ contains
     real(kind=r_single) :: alpha, beta
     real(kind=r_single) :: longitude, latitude
     real(kind=r_single) :: radius
+    real(kind=r_single) :: rotation_matrix(3,3)
+    real(kind=r_single) :: jac_S(3,3)
+    real(kind=r_single) :: stretch_factor
+    real(kind=r_single) :: native_x, native_y, native_z
+    real(kind=r_single) :: native_lon, native_lat
+
+    logical(kind=l_def) :: to_rotate
+    logical(kind=l_def) :: to_stretch
 
     integer(kind=i_def) :: df, dir
     integer(kind=i_def) :: i, j
 
+    ! Jacobian from reference element to native coords -------------------------
     jac_ref2sph(:,:,:,:) = 0.0_r_single
     do j = 1,ngp_v
       do i = 1,ngp_h
@@ -139,10 +175,19 @@ contains
       end do
     end do
 
-    if (coord_system == coord_system_xyz) then
+    ! Jacobian from native to (native) Cartesian coordinates -------------------
+    if (coord_system == coord_system_xyz .or. geometry == geometry_planar) then
+      ! Using (X,Y,Z) coordinates or on a plane
       jac = jac_ref2sph
 
-    else if (coord_system == coord_system_alphabetaz) then
+    else if (topology == topology_fully_periodic) then
+      ! Native coordinates for a cubed-sphere mesh
+      to_rotate = get_to_rotate()
+      to_stretch = get_to_stretch()
+      if (to_rotate) then
+        rotation_matrix = real(get_mesh_rotation_matrix(), r_single)
+      end if
+
       do j = 1,ngp_v
         do i = 1,ngp_h
           alpha  = 0.0_r_single
@@ -155,10 +200,33 @@ contains
           end do
           jac_sph2XYZ = jacobian_abr2XYZ(alpha, beta, radius, panel_id)
           jac(:,:,i,j) = matmul(jac_sph2XYZ, jac_ref2sph(:,:,i,j))
+
+          ! Apply stretching ---------------------------------------------------
+          if (to_stretch) then
+            ! Convert chi to spherical polar (un-stretched) coordinates
+            call alphabetar2xyz(alpha, beta, radius, panel_id,                 &
+                                native_x, native_y, native_z)
+            call xyz2ll(native_x, native_y, native_z,                          &
+                        native_lon, native_lat)
+            stretch_factor = real(get_stretch_factor(), r_single)
+            jac_S = jacobian_stretched(native_lon, native_lat, radius, stretch_factor)
+            jac(:,:,i,j) = matmul(jac_S, jac(:,:,i,j))
+          end if
+
+          ! Apply rotation -----------------------------------------------------
+          if (to_rotate) then
+            jac(:,:,i,j) = matmul(rotation_matrix, jac(:,:,i,j))
+          end if
         end do
       end do
 
-    else if (coord_system == coord_system_lonlatz) then
+    else
+      ! Native coordinates for a limited area domain on the sphere
+      to_rotate = get_to_rotate()
+      if (to_rotate) then
+        rotation_matrix = real(get_mesh_rotation_matrix(), r_single)
+      end if
+
       do j = 1,ngp_v
         do i = 1,ngp_h
           longitude = 0.0_r_single
@@ -171,10 +239,16 @@ contains
           end do
           jac_sph2XYZ = jacobian_llr2XYZ(longitude, latitude, radius)
           jac(:,:,i,j) = matmul(jac_sph2XYZ, jac_ref2sph(:,:,i,j))
+
+          ! Apply rotation -----------------------------------------------------
+          if (to_rotate) then
+            jac(:,:,i,j) = matmul(rotation_matrix, jac(:,:,i,j))
+          end if
         end do
       end do
     end if
 
+    ! Compute determinant ------------------------------------------------------
     do j = 1,ngp_v
       do i = 1,ngp_h
         dj(i,j) = jac(1,1,i,j)*(jac(2,2,i,j)*jac(3,3,i,j)        &
@@ -214,10 +288,19 @@ contains
     real(kind=r_double) :: alpha, beta
     real(kind=r_double) :: longitude, latitude
     real(kind=r_double) :: radius
+    real(kind=r_double) :: rotation_matrix(3,3)
+    real(kind=r_double) :: jac_S(3,3)
+    real(kind=r_double) :: stretch_factor
+    real(kind=r_double) :: native_x, native_y, native_z
+    real(kind=r_double) :: native_lon, native_lat
+
+    logical(kind=l_def) :: to_rotate
+    logical(kind=l_def) :: to_stretch
 
     integer(kind=i_def) :: df, dir
     integer(kind=i_def) :: i, j
 
+    ! Jacobian from reference element to native coords -------------------------
     jac_ref2sph(:,:,:,:) = 0.0_r_double
     do j = 1,ngp_v
       do i = 1,ngp_h
@@ -234,10 +317,19 @@ contains
       end do
     end do
 
-    if (coord_system == coord_system_xyz) then
+    ! Jacobian from native to (native) Cartesian coordinates -------------------
+    if (coord_system == coord_system_xyz .or. geometry == geometry_planar) then
+      ! Using (X,Y,Z) coordinates or on a plane
       jac = jac_ref2sph
 
-    else if (coord_system == coord_system_alphabetaz) then
+    else if (topology == topology_fully_periodic) then
+      ! Native coordinates for a cubed-sphere mesh
+      to_rotate = get_to_rotate()
+      to_stretch = get_to_stretch()
+      if (to_rotate) then
+        rotation_matrix = real(get_mesh_rotation_matrix(), r_double)
+      end if
+
       do j = 1,ngp_v
         do i = 1,ngp_h
           alpha  = 0.0_r_double
@@ -250,10 +342,33 @@ contains
           end do
           jac_sph2XYZ = jacobian_abr2XYZ(alpha, beta, radius, panel_id)
           jac(:,:,i,j) = matmul(jac_sph2XYZ, jac_ref2sph(:,:,i,j))
+
+          ! Apply stretching ---------------------------------------------------
+          if (to_stretch) then
+            ! Convert chi to spherical polar (un-stretched) coordinates
+            call alphabetar2xyz(alpha, beta, radius, panel_id,                 &
+                                native_x, native_y, native_z)
+            call xyz2ll(native_x, native_y, native_z,                         &
+                         native_lon, native_lat)
+            stretch_factor = real(get_stretch_factor(), r_double)
+            jac_S = jacobian_stretched(native_lon, native_lat, radius, stretch_factor)
+            jac(:,:,i,j) = matmul(jac_S, jac(:,:,i,j))
+          end if
+
+          ! Apply rotation -----------------------------------------------------
+          if (to_rotate) then
+            jac(:,:,i,j) = matmul(rotation_matrix, jac(:,:,i,j))
+          end if
         end do
       end do
 
-    else if (coord_system == coord_system_lonlatz) then
+    else
+      ! Native coordinates for a limited area domain on the sphere
+      to_rotate = get_to_rotate()
+      if (to_rotate) then
+        rotation_matrix = real(get_mesh_rotation_matrix(), r_double)
+      end if
+
       do j = 1,ngp_v
         do i = 1,ngp_h
           longitude = 0.0_r_double
@@ -266,11 +381,17 @@ contains
           end do
           jac_sph2XYZ = jacobian_llr2XYZ(longitude, latitude, radius)
           jac(:,:,i,j) = matmul(jac_sph2XYZ, jac_ref2sph(:,:,i,j))
+
+          ! Apply rotation -----------------------------------------------------
+          if (to_rotate) then
+            jac(:,:,i,j) = matmul(rotation_matrix, jac(:,:,i,j))
+          end if
         end do
       end do
 
     end if
 
+    ! Compute determinant ------------------------------------------------------
     do j = 1,ngp_v
       do i = 1,ngp_h
         dj(i,j) = jac(1,1,i,j)*(jac(2,2,i,j)*jac(3,3,i,j)        &
@@ -329,6 +450,14 @@ contains
     real(kind=r_single) :: alpha, beta
     real(kind=r_single) :: longitude, latitude
     real(kind=r_single) :: radius
+    real(kind=r_single) :: rotation_matrix(3,3)
+    real(kind=r_single) :: jac_S(3,3)
+    real(kind=r_single) :: stretch_factor
+    real(kind=r_single) :: native_x, native_y, native_z
+    real(kind=r_single) :: native_lon, native_lat
+
+    logical(kind=l_def) :: to_rotate
+    logical(kind=l_def) :: to_stretch
 
     integer(kind=i_def) :: df, dir
     integer(kind=i_def) :: i
@@ -344,10 +473,18 @@ contains
       end do
     end do
 
-    if (coord_system == coord_system_xyz) then
+    if (coord_system == coord_system_xyz .or. geometry == geometry_planar) then
+      ! Using (X,Y,Z) coordinates or on a plane
       jac = jac_ref2sph
 
-    else if (coord_system == coord_system_alphabetaz) then
+    else if (topology == topology_fully_periodic) then
+      ! Native coordinates for a cubed-sphere mesh
+      to_rotate = get_to_rotate()
+      to_stretch = get_to_stretch()
+      if (to_rotate) then
+        rotation_matrix = real(get_mesh_rotation_matrix(), r_single)
+      end if
+
       do i = 1,neval_points
         alpha  = 0.0_r_single
         beta   = 0.0_r_single
@@ -359,9 +496,32 @@ contains
         end do
         jac_sph2XYZ = jacobian_abr2XYZ(alpha, beta, radius, panel_id)
         jac(:,:,i) = matmul(jac_sph2XYZ, jac_ref2sph(:,:,i))
+
+        ! Apply stretching -----------------------------------------------------
+        if (to_stretch) then
+          ! Convert chi to spherical polar (un-stretched) coordinates
+          call alphabetar2xyz(alpha, beta, radius, panel_id,                   &
+                              native_x, native_y, native_z)
+          call xyz2ll(native_x, native_y, native_z,                            &
+                      native_lon, native_lat)
+          stretch_factor = real(get_stretch_factor(), r_single)
+          jac_S = jacobian_stretched(native_lon, native_lat, radius, stretch_factor)
+          jac(:,:,i) = matmul(jac_S, jac(:,:,i))
+        end if
+
+        ! Apply rotation -------------------------------------------------------
+        if (to_rotate) then
+          jac(:,:,i) = matmul(rotation_matrix, jac(:,:,i))
+        end if
       end do
 
-    else if (coord_system == coord_system_lonlatz) then
+    else
+      ! Native coordinates for a limited area domain on the sphere
+      to_rotate = get_to_rotate()
+      if (to_rotate) then
+        rotation_matrix = real(get_mesh_rotation_matrix(), r_single)
+      end if
+
       do i = 1,neval_points
         longitude = 0.0_r_single
         latitude  = 0.0_r_single
@@ -373,10 +533,16 @@ contains
         end do
         jac_sph2XYZ = jacobian_llr2XYZ(longitude, latitude, radius)
         jac(:,:,i) = matmul(jac_sph2XYZ, jac_ref2sph(:,:,i))
+
+        ! Apply rotation -------------------------------------------------------
+        if (to_rotate) then
+          jac(:,:,i) = matmul(rotation_matrix, jac(:,:,i))
+        end if
       end do
 
     end if
 
+    ! Compute determinant ------------------------------------------------------
     do i = 1,neval_points
       dj(i) = jac(1,1,i)*(jac(2,2,i)*jac(3,3,i)        &
                         - jac(2,3,i)*jac(3,2,i))       &
@@ -414,10 +580,19 @@ contains
     real(kind=r_double) :: alpha, beta
     real(kind=r_double) :: longitude, latitude
     real(kind=r_double) :: radius
+    real(kind=r_double) :: rotation_matrix(3,3)
+    real(kind=r_double) :: jac_S(3,3)
+    real(kind=r_double) :: stretch_factor
+    real(kind=r_double) :: native_x, native_y, native_z
+    real(kind=r_double) :: native_lon, native_lat
+
+    logical(kind=l_def) :: to_rotate
+    logical(kind=l_def) :: to_stretch
 
     integer(kind=i_def) :: df, dir
     integer(kind=i_def) :: i
 
+    ! Jacobian from reference element to native coords -------------------------
     jac_ref2sph(:,:,:) = 0.0_r_double
     do i = 1,neval_points
       do df = 1,ndf
@@ -429,10 +604,19 @@ contains
       end do
     end do
 
-    if (coord_system == coord_system_xyz) then
+    ! Jacobian from native to (native) Cartesian coordinates -------------------
+    if (coord_system == coord_system_xyz .or. geometry == geometry_planar) then
+      ! Using (X,Y,Z) coordinates or on a plane
       jac = jac_ref2sph
 
-    else if (coord_system == coord_system_alphabetaz) then
+    else if (topology == topology_fully_periodic) then
+      ! Native coordinates for a cubed-sphere mesh
+      to_rotate = get_to_rotate()
+      to_stretch = get_to_stretch()
+      if (to_rotate) then
+        rotation_matrix = real(get_mesh_rotation_matrix(), r_double)
+      end if
+
       do i = 1,neval_points
         alpha  = 0.0_r_double
         beta   = 0.0_r_double
@@ -444,9 +628,32 @@ contains
         end do
         jac_sph2XYZ = jacobian_abr2XYZ(alpha, beta, radius, panel_id)
         jac(:,:,i) = matmul(jac_sph2XYZ, jac_ref2sph(:,:,i))
+
+        ! Apply stretching -----------------------------------------------------
+        if (to_stretch) then
+          ! Convert chi to spherical polar (un-stretched) coordinates
+          call alphabetar2xyz(alpha, beta, radius, panel_id,                   &
+                              native_x, native_y, native_z)
+          call xyz2ll(native_x, native_y, native_z,                           &
+                      native_lon, native_lat)
+          stretch_factor = real(get_stretch_factor(), r_double)
+          jac_S = jacobian_stretched(native_lon, native_lat, radius, stretch_factor)
+          jac(:,:,i) = matmul(jac_S, jac(:,:,i))
+        end if
+
+        ! Apply rotation -------------------------------------------------------
+        if (to_rotate) then
+          jac(:,:,i) = matmul(rotation_matrix, jac(:,:,i))
+        end if
       end do
 
-    else if (coord_system == coord_system_lonlatz) then
+    else
+      ! Native coordinates for a limited area domain on the sphere
+      to_rotate = get_to_rotate()
+      if (to_rotate) then
+        rotation_matrix = real(get_mesh_rotation_matrix(), r_double)
+      end if
+
       do i = 1,neval_points
         longitude = 0.0_r_double
         latitude  = 0.0_r_double
@@ -458,10 +665,16 @@ contains
         end do
         jac_sph2XYZ = jacobian_llr2XYZ(longitude, latitude, radius)
         jac(:,:,i) = matmul(jac_sph2XYZ, jac_ref2sph(:,:,i))
+
+        ! Apply rotation -------------------------------------------------------
+        if (to_rotate) then
+          jac(:,:,i) = matmul(rotation_matrix, jac(:,:,i))
+        end if
       end do
 
     end if
 
+    ! Compute determinant ------------------------------------------------------
     do i = 1,neval_points
       dj(i) = jac(1,1,i)*(jac(2,2,i)*jac(3,3,i)        &
                         - jac(2,3,i)*jac(3,2,i))       &
@@ -650,9 +863,18 @@ contains
     real(kind=r_single) :: alpha, beta
     real(kind=r_single) :: longitude, latitude
     real(kind=r_single) :: radius
+    real(kind=r_single) :: rotation_matrix(3,3)
+    real(kind=r_single) :: jac_S(3,3)
+    real(kind=r_single) :: stretch_factor
+    real(kind=r_single) :: native_x, native_y, native_z
+    real(kind=r_single) :: native_lon, native_lat
+
+    logical(kind=l_def) :: to_rotate
+    logical(kind=l_def) :: to_stretch
 
     integer(kind=i_def) :: df, dir
 
+    ! Jacobian from reference element to native coords -------------------------
     jac_ref2sph(:,:) = 0.0_r_single
     do df = 1,ndf
       do dir = 1,3
@@ -662,10 +884,13 @@ contains
       end do
     end do
 
-    if (coord_system == coord_system_xyz) then
+    ! Jacobian from native to (native) Cartesian coordinates -------------------
+    if (coord_system == coord_system_xyz .or. geometry == geometry_planar) then
+      ! Using (X,Y,Z) coordinates or on a plane
       jac = jac_ref2sph
 
-    else if (coord_system == coord_system_alphabetaz) then
+    else if (topology == topology_fully_periodic) then
+      ! Native coordinates for a cubed-sphere mesh
       alpha  = 0.0_r_single
       beta   = 0.0_r_single
       radius = real(scaled_radius, kind=r_single)
@@ -677,7 +902,28 @@ contains
       jac_sph2XYZ = jacobian_abr2XYZ(alpha, beta, radius, panel_id)
       jac = matmul(jac_sph2XYZ, jac_ref2sph)
 
-    else if (coord_system == coord_system_lonlatz) then
+      ! Apply stretching by Schmidt transform ----------------------------------
+      to_stretch = get_to_stretch()
+      if (to_stretch) then
+        ! Convert chi to spherical polar (un-stretched) coordinates
+        call alphabetar2xyz(alpha, beta, radius, panel_id,                     &
+                            native_x, native_y, native_z)
+        call xyz2ll(native_x, native_y, native_z,                              &
+                    native_lon, native_lat)
+        stretch_factor = real(get_stretch_factor(), r_single)
+        jac_S = jacobian_stretched(native_lon, native_lat, radius, stretch_factor)
+        jac = matmul(jac_S, jac)
+      end if
+
+      ! Apply rotation ---------------------------------------------------------
+      to_rotate = get_to_rotate()
+      if (to_rotate) then
+        rotation_matrix = real(get_mesh_rotation_matrix(), r_single)
+        jac = matmul(rotation_matrix, jac)
+      end if
+
+    else
+      ! Native coordinates for a limited area domain on the sphere
       longitude = 0.0_r_single
       latitude  = 0.0_r_single
       radius    = real(scaled_radius, kind=r_single)
@@ -689,8 +935,16 @@ contains
       jac_sph2XYZ = jacobian_llr2XYZ(longitude, latitude, radius)
       jac = matmul(jac_sph2XYZ, jac_ref2sph)
 
+      ! Apply rotation ---------------------------------------------------------
+      to_rotate = get_to_rotate()
+      if (to_rotate) then
+        rotation_matrix = real(get_mesh_rotation_matrix(), r_single)
+        jac = matmul(rotation_matrix, jac)
+      end if
+
     end if
 
+    ! Compute determinant ------------------------------------------------------
     dj = jac(1,1)*(jac(2,2)*jac(3,3)        &
                  - jac(2,3)*jac(3,2))       &
        - jac(1,2)*(jac(2,1)*jac(3,3)        &
@@ -721,9 +975,18 @@ contains
     real(kind=r_double) :: alpha, beta
     real(kind=r_double) :: longitude, latitude
     real(kind=r_double) :: radius
+    real(kind=r_double) :: rotation_matrix(3,3)
+    real(kind=r_double) :: jac_S(3,3)
+    real(kind=r_double) :: stretch_factor
+    real(kind=r_double) :: native_x, native_y, native_z
+    real(kind=r_double) :: native_lon, native_lat
+
+    logical(kind=l_def) :: to_rotate
+    logical(kind=l_def) :: to_stretch
 
     integer(kind=i_def) :: df, dir
 
+    ! Jacobian from reference element to native coords -------------------------
     jac_ref2sph(:,:) = 0.0_r_double
     do df = 1,ndf
       do dir = 1,3
@@ -733,10 +996,13 @@ contains
       end do
     end do
 
-    if (coord_system == coord_system_xyz) then
+    ! Jacobian from native to (native) Cartesian coordinates -------------------
+    if (coord_system == coord_system_xyz .or. geometry == geometry_planar) then
+      ! Using (X,Y,Z) coordinates or on a plane
       jac = jac_ref2sph
 
-    else if (coord_system == coord_system_alphabetaz) then
+    else if (topology == topology_fully_periodic) then
+      ! Native coordinates for a cubed-sphere mesh
       alpha  = 0.0_r_double
       beta   = 0.0_r_double
       radius = real(scaled_radius, kind=r_double)
@@ -748,7 +1014,28 @@ contains
       jac_sph2XYZ = jacobian_abr2XYZ(alpha, beta, radius, panel_id)
       jac = matmul(jac_sph2XYZ, jac_ref2sph)
 
-    else if (coord_system == coord_system_lonlatz) then
+      ! Apply stretching by Schmidt transform ----------------------------------
+      to_stretch = get_to_stretch()
+      if (to_stretch) then
+        ! Convert chi to spherical polar (un-stretched) coordinates
+        call alphabetar2xyz(alpha, beta, radius, panel_id,                     &
+                            native_x, native_y, native_z)
+        call xyz2ll(native_x, native_y, native_z,                              &
+                    native_lon, native_lat)
+        stretch_factor = real(get_stretch_factor(), r_double)
+        jac_S = jacobian_stretched(native_lon, native_lat, radius, stretch_factor)
+        jac = matmul(jac_S, jac)
+      end if
+
+      ! Apply rotation ---------------------------------------------------------
+      to_rotate = get_to_rotate()
+      if (to_rotate) then
+        rotation_matrix = real(get_mesh_rotation_matrix(), r_double)
+        jac = matmul(rotation_matrix, jac)
+      end if
+
+    else
+      ! Native coordinates for a limited area domain on the sphere
       longitude = 0.0_r_double
       latitude  = 0.0_r_double
       radius    = real(scaled_radius, kind=r_double)
@@ -760,8 +1047,16 @@ contains
       jac_sph2XYZ = jacobian_llr2XYZ(longitude, latitude, radius)
       jac = matmul(jac_sph2XYZ, jac_ref2sph)
 
+      ! Apply rotation ---------------------------------------------------------
+      to_rotate = get_to_rotate()
+      if (to_rotate) then
+        rotation_matrix = real(get_mesh_rotation_matrix(), r_double)
+        jac = matmul(rotation_matrix, jac)
+      end if
+
     end if
 
+    ! Compute determinant ------------------------------------------------------
     dj = jac(1,1)*(jac(2,2)*jac(3,3)        &
                  - jac(2,3)*jac(3,2))       &
        - jac(1,2)*(jac(2,1)*jac(3,3)        &
@@ -992,5 +1287,168 @@ contains
     jac_llr2XYZ(3,3) = sin_lat
 
   end function jacobian_llr2XYZ_r_double
+
+  ! -------------------------------------------------------------------------- !
+  ! Jacobian for transforming from (X,Y,Z) to (lon,lat,r)
+  ! -------------------------------------------------------------------------- !
+  !> @brief Compute the pointwise Jacobian for transforming from global
+  !!        Cartesian (X,Y,Z) coordinates to spherical polar (lon,lat,r)
+  !!        coordinates, given the values of the spherical polar coordinates
+  !> @param[in] longitude    The longitude coordinate
+  !> @param[in] latitude     The latitude coordinate
+  !> @param[in] radius       The radius coordinate
+  !> @return    jac_llr2XYZ  3x3 matrix for the Jacobian of the transformation
+  function jacobian_XYZ2llr_r_single(longitude, latitude, radius) &
+                                                      result(jac_XYZ2llr)
+    implicit none
+
+    real(kind=r_single), intent(in) :: longitude
+    real(kind=r_single), intent(in) :: latitude
+    real(kind=r_single), intent(in) :: radius
+
+    real(kind=r_single)             :: jac_XYZ2llr(3,3)
+    real(kind=r_single)             :: sin_lon, sin_lat, cos_lon, cos_lat
+    real(kind=r_single)             :: safe_cos_lat
+    real(kind=r_single),  parameter :: tiny = 1.0e-7_r_single
+
+    sin_lat = sin(latitude)
+    sin_lon = sin(longitude)
+    cos_lat = cos(latitude)
+    cos_lon = cos(longitude)
+
+    ! To avoid divide by zero errors at poles, add tiny number to cos(lat)
+    safe_cos_lat = cos_lat + sign(tiny, cos_lat)
+
+    jac_XYZ2llr(1,1) = -sin_lon / (radius * safe_cos_lat)
+    jac_XYZ2llr(1,2) = cos_lon / (radius * safe_cos_lat)
+    jac_XYZ2llr(1,3) = 0.0_r_single
+    jac_XYZ2llr(2,1) = - cos_lon * sin_lat / radius
+    jac_XYZ2llr(2,2) = - sin_lon * sin_lat / radius
+    jac_XYZ2llr(2,3) = cos_lat / radius
+    jac_XYZ2llr(3,1) = cos_lon * cos_lat
+    jac_XYZ2llr(3,2) = sin_lon * cos_lat
+    jac_XYZ2llr(3,3) = sin_lat
+
+  end function jacobian_XYZ2llr_r_single
+
+  function jacobian_XYZ2llr_r_double(longitude, latitude, radius) &
+                                                      result(jac_XYZ2llr)
+    implicit none
+
+    real(kind=r_double), intent(in) :: longitude
+    real(kind=r_double), intent(in) :: latitude
+    real(kind=r_double), intent(in) :: radius
+
+    real(kind=r_double)             :: jac_XYZ2llr(3,3)
+    real(kind=r_double)             :: sin_lon, sin_lat, cos_lon, cos_lat
+    real(kind=r_double)             :: safe_cos_lat
+    real(kind=r_double),  parameter :: tiny = 1.0e-15_r_double
+
+    sin_lat = sin(latitude)
+    sin_lon = sin(longitude)
+    cos_lat = cos(latitude)
+    cos_lon = cos(longitude)
+
+    ! To avoid divide by zero errors at poles, add tiny number to cos(lat)
+    safe_cos_lat = cos_lat + sign(tiny, cos_lat)
+
+    jac_XYZ2llr(1,1) = -sin_lon / (radius * safe_cos_lat)
+    jac_XYZ2llr(1,2) = cos_lon / (radius * safe_cos_lat)
+    jac_XYZ2llr(1,3) = 0.0_r_single
+    jac_XYZ2llr(2,1) = - cos_lon * sin_lat / radius
+    jac_XYZ2llr(2,2) = - sin_lon * sin_lat / radius
+    jac_XYZ2llr(2,3) = cos_lat / radius
+    jac_XYZ2llr(3,1) = cos_lon * cos_lat
+    jac_XYZ2llr(3,2) = sin_lon * cos_lat
+    jac_XYZ2llr(3,3) = sin_lat
+
+  end function jacobian_XYZ2llr_r_double
+
+  ! -------------------------------------------------------------------------- !
+  ! Jacobian for Schmidt transform
+  ! -------------------------------------------------------------------------- !
+  !> @brief Compute the pointwise Jacobian for performing Schmidt transform.
+  !> @param[in] longitude  Longitudinal coordinate in native (stretched) system
+  !> @param[in] latitude   Latitudinal coordinate in native (stretched) system
+  !> @param[in] radius     The radial coordinate
+  !> @param[in] stretch    The stretching factor
+  !> @return    jac_stretched  3x3 matrix for the Jacobian of the transformation
+  function jacobian_stretched_r_single(longitude, latitude, radius, stretch) result(jac_stretched)
+
+    implicit none
+
+    real(kind=r_single), intent(in) :: longitude, latitude
+    real(kind=r_single), intent(in) :: radius, stretch
+
+    real(kind=r_single) :: jac_llr2XYZ(3,3)
+    real(kind=r_single) :: jac_XYZ2llr(3,3)
+
+    real(kind=r_single), parameter :: one = 1.0_r_single
+
+    real(kind=r_single) :: lat_stretched, psi
+    real(kind=r_single) :: jac_stretched(3,3)
+
+    ! Compute stretched variables
+    lat_stretched = schmidt_transform_lat(latitude, stretch)
+    psi = 2.0_r_single*stretch / (one + stretch**2 + (one - stretch**2)*sin(latitude))
+
+    ! Get Jacobian for transformation from (X,Y,Z) to (lon,lat,r) coords
+    ! Stretching Jacobian is:
+    ! ( 1  0  0 )
+    ! ( 0 psi 0 )
+    ! ( 0  0  1 )
+    ! So don't need to multiply out the whole matrix
+    jac_XYZ2llr = jacobian_XYZ2llr(longitude, latitude, radius)
+    jac_XYZ2llr(2,1) = psi*jac_XYZ2llr(2,1)
+    jac_XYZ2llr(2,2) = psi*jac_XYZ2llr(2,2)
+    jac_XYZ2llr(2,3) = psi*jac_XYZ2llr(2,3)
+
+    ! Get Jacobian for transformation from (lon,lat,r) to (X,Y,Z) coords on
+    ! the stretched mesh
+    jac_llr2XYZ = jacobian_llr2XYZ(longitude, lat_stretched, radius)
+
+    ! The resulting Jacobian is the product of the previous two Jacobians
+    jac_stretched = matmul(jac_llr2XYZ, jac_XYZ2llr)
+
+  end function jacobian_stretched_r_single
+
+  function jacobian_stretched_r_double(longitude, latitude, radius, stretch) result(jac_stretched)
+
+    implicit none
+
+    real(kind=r_double), intent(in) :: longitude, latitude
+    real(kind=r_double), intent(in) :: radius, stretch
+
+    real(kind=r_double) :: jac_llr2XYZ(3,3)
+    real(kind=r_double) :: jac_XYZ2llr(3,3)
+
+    real(kind=r_double), parameter :: one = 1.0_r_double
+
+    real(kind=r_double) :: lat_stretched, psi
+    real(kind=r_double) :: jac_stretched(3,3)
+
+    ! Compute stretched variables
+    lat_stretched = schmidt_transform_lat(latitude, stretch)
+    psi = 2.0_r_double*stretch / (one + stretch**2 + (one - stretch**2)*sin(latitude))
+
+    ! Get Jacobian for transformation from (X,Y,Z) to (lon,lat,r) coords
+    ! Stretching Jacobian is:
+    ! ( 1  0  0 )
+    ! ( 0 psi 0 )
+    ! ( 0  0  1 )
+    ! So don't need to multiply out the whole matrix
+    jac_XYZ2llr = jacobian_XYZ2llr(longitude, latitude, radius)
+    jac_XYZ2llr(2,1) = psi*jac_XYZ2llr(2,1)
+    jac_XYZ2llr(2,2) = psi*jac_XYZ2llr(2,2)
+    jac_XYZ2llr(2,3) = psi*jac_XYZ2llr(2,3)
+
+    ! Get Jacobian for transformation from (lon,lat,r) to (X,Y,Z) coords on
+    ! the stretched mesh
+    jac_llr2XYZ = jacobian_llr2XYZ(longitude, lat_stretched, radius)
+
+    ! The resulting Jacobian is the product of the previous two Jacobians
+    jac_stretched = matmul(jac_llr2XYZ, jac_XYZ2llr)
+
+  end function jacobian_stretched_r_double
 
 end module sci_coordinate_jacobian_mod

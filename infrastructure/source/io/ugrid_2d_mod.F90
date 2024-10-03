@@ -121,10 +121,11 @@ type, public :: ugrid_2d_type
   type(local_mesh_map_collection_type),  pointer :: target_local_mesh_maps => null()
 
   ! Information about the domain orientation
-  real(r_def)    :: north_pole(2)   !< [Longitude, Latitude] of northt pole used
-                                    !< for the domain orientation (degrees)
-  real(r_def)    :: null_island(2)  !< [Longitude, Latitude] of null island
-                                    !< used for the domain orientation (degrees)
+  real(r_def) :: north_pole(2)        !< [Longitude, Latitude] of north pole used
+                                      !< for the domain orientation (degrees)
+  real(r_def) :: null_island(2)       !< [Longitude, Latitude] of null island
+                                      !< used for the domain orientation (degrees)
+  real(r_def) :: equatorial_latitude  !< Latitude of equator of mesh (degrees)
 
   ! File handler
   class(ugrid_file_type), allocatable :: file_handler
@@ -396,20 +397,21 @@ subroutine set_by_generator(self, generator_strategy)
 
   call generator_strategy%generate()
 
-  call generator_strategy%get_metadata                &
-      ( mesh_name          = self%mesh_name,          &
-        geometry           = self%geometry,           &
-        topology           = self%topology,           &
-        coord_sys          = self%coord_sys,          &
-        periodic_xy        = self%periodic_xy,        &
-        edge_cells_x       = self%edge_cells_xy(1),   &
-        edge_cells_y       = self%edge_cells_xy(2),   &
-        constructor_inputs = self%constructor_inputs, &
-        north_pole         = self%north_pole,         &
-        null_island        = self%null_island,        &
-        rim_depth          = self%rim_depth,          &
-        nmaps              = self%nmaps,              &
-        void_cell          = self%void_cell )
+  call generator_strategy%get_metadata                  &
+      ( mesh_name           = self%mesh_name,           &
+        geometry            = self%geometry,            &
+        topology            = self%topology,            &
+        coord_sys           = self%coord_sys,           &
+        periodic_xy         = self%periodic_xy,         &
+        edge_cells_x        = self%edge_cells_xy(1),    &
+        edge_cells_y        = self%edge_cells_xy(2),    &
+        constructor_inputs  = self%constructor_inputs,  &
+        north_pole          = self%north_pole,          &
+        null_island         = self%null_island,         &
+        equatorial_latitude = self%equatorial_latitude, &
+        rim_depth           = self%rim_depth,           &
+        nmaps               = self%nmaps,               &
+        void_cell           = self%void_cell )
 
   self%npanels = generator_strategy%get_number_of_panels()
 
@@ -496,26 +498,26 @@ subroutine set_from_file_read(self, mesh_name, filename)
 
   call allocate_arrays_for_file(self)
 
-  call self%file_handler%read_mesh(                              &
-       self%mesh_name, self%geometry, self%coord_sys,            &
-       self%north_pole, self%null_island,                        &
-       self%node_coordinates, self%face_coordinates,             &
-       self%coord_units_xy(1), self%coord_units_xy(2),           &
-       self%void_cell,                                           &
-       self%face_node_connectivity, self%face_edge_connectivity, &
-       self%face_face_connectivity, self%edge_node_connectivity, &
-       self%topology, self%periodic_xy, self%domain_extents,     &
-       self%npanels, self%rim_depth, self%constructor_inputs,    &
+  call self%file_handler%read_mesh(                                 &
+       self%mesh_name, self%geometry, self%coord_sys,               &
+       self%north_pole, self%null_island, self%equatorial_latitude, &
+       self%node_coordinates, self%face_coordinates,                &
+       self%coord_units_xy(1), self%coord_units_xy(2),              &
+       self%void_cell,                                              &
+       self%face_node_connectivity, self%face_edge_connectivity,    &
+       self%face_face_connectivity, self%edge_node_connectivity,    &
+       self%topology, self%periodic_xy, self%domain_extents,        &
+       self%npanels, self%rim_depth, self%constructor_inputs,       &
 
-       self%partition_of, self%num_faces_global,                 &
-       self%max_stencil_depth,                                   &
-       self%inner_depth, self%num_inner, self%last_inner_cell,   &
-       self%halo_depth,  self%num_halo,  self%last_halo_cell,    &
-       self%num_edge,  self%last_edge_cell,                      &
-       self%num_ghost, self%last_ghost_cell,                     &
-       self%node_cell_owner, self%edge_cell_owner,               &
-       self%cell_gid, self%node_on_cell_gid,                     &
-       self%edge_on_cell_gid,                                    &
+       self%partition_of, self%num_faces_global,                    &
+       self%max_stencil_depth,                                      &
+       self%inner_depth, self%num_inner, self%last_inner_cell,      &
+       self%halo_depth,  self%num_halo,  self%last_halo_cell,       &
+       self%num_edge,  self%last_edge_cell,                         &
+       self%num_ghost, self%last_ghost_cell,                        &
+       self%node_cell_owner, self%edge_cell_owner,                  &
+       self%cell_gid, self%node_on_cell_gid,                        &
+       self%edge_on_cell_gid,                                       &
 
        self%nmaps, self%target_mesh_names )
 
@@ -554,6 +556,7 @@ subroutine write_to_file(self, filename)
        coord_sys              = self%coord_sys,              &
        north_pole             = self%north_pole,             &
        null_island            = self%null_island,            &
+       equatorial_latitude    = self%equatorial_latitude,    &
        num_nodes              = self%num_nodes,              &
        num_edges              = self%num_edges,              &
        num_faces              = self%num_faces,              &
@@ -635,6 +638,7 @@ subroutine append_to_file(self, filename)
        coord_sys              = self%coord_sys,              &
        north_pole             = self%north_pole,             &
        null_island            = self%null_island,            &
+       equatorial_latitude    = self%equatorial_latitude,    &
        num_nodes              = self%num_nodes,              &
        num_edges              = self%num_edges,              &
        num_faces              = self%num_faces,              &
@@ -725,6 +729,7 @@ end subroutine append_to_file
 !>                                used for domain orientation (degrees).
 !> @param[out] null_island        Optional, [Longitude, Latitude] of null
 !>                                island used for domain orientation (degrees).
+!> @param[out] equatorial_latitude Optional, latitude of equator of mesh.
 !-------------------------------------------------------------------------------
 subroutine get_metadata( self, mesh_name,               &
                          geometry, topology, coord_sys, &
@@ -738,7 +743,8 @@ subroutine get_metadata( self, mesh_name,               &
                          num_ghost, last_ghost_cell,    &
                          constructor_inputs, nmaps,     &
                          target_mesh_names,             &
-                         north_pole, null_island )
+                         north_pole, null_island,       &
+                         equatorial_latitude )
 
   implicit none
 
@@ -765,6 +771,7 @@ subroutine get_metadata( self, mesh_name,               &
 
   real(r_def),    optional, intent(out) :: north_pole(2)
   real(r_def),    optional, intent(out) :: null_island(2)
+  real(r_def),    optional, intent(out) :: equatorial_latitude
   integer(i_def), optional, intent(out) :: inner_depth
   integer(i_def), optional, intent(out) :: halo_depth
   integer(i_def), optional, intent(out) :: num_edge
@@ -775,19 +782,20 @@ subroutine get_metadata( self, mesh_name,               &
   real(r_def),    optional, intent(out) :: domain_extents(2,4)
   integer(i_def), optional, intent(out) :: rim_depth
 
-  if (present(constructor_inputs)) constructor_inputs = self%constructor_inputs
-  if (present(domain_extents))     domain_extents     = self%domain_extents
-  if (present(rim_depth))          rim_depth          = self%rim_depth
-  if (present(partition_of))       partition_of       = self%partition_of
-  if (present(inner_depth))        inner_depth        = self%inner_depth
-  if (present(halo_depth))         halo_depth         = self%halo_depth
-  if (present(num_edge))           num_edge           = self%num_edge
-  if (present(last_edge_cell))     last_edge_cell     = self%last_edge_cell
-  if (present(num_ghost))          num_ghost          = self%num_ghost
-  if (present(last_ghost_cell))    last_ghost_cell    = self%last_ghost_cell
-  if (present(north_pole))         north_pole         = self%north_pole
-  if (present(null_island))        null_island        = self%null_island
-  if (present(ncells_global))      ncells_global      = self%num_global_cells
+  if (present(constructor_inputs))  constructor_inputs  = self%constructor_inputs
+  if (present(domain_extents))      domain_extents      = self%domain_extents
+  if (present(rim_depth))           rim_depth           = self%rim_depth
+  if (present(partition_of))        partition_of        = self%partition_of
+  if (present(inner_depth))         inner_depth         = self%inner_depth
+  if (present(halo_depth))          halo_depth          = self%halo_depth
+  if (present(num_edge))            num_edge            = self%num_edge
+  if (present(last_edge_cell))      last_edge_cell      = self%last_edge_cell
+  if (present(num_ghost))           num_ghost           = self%num_ghost
+  if (present(last_ghost_cell))     last_ghost_cell     = self%last_ghost_cell
+  if (present(north_pole))          north_pole          = self%north_pole
+  if (present(null_island))         null_island         = self%null_island
+  if (present(equatorial_latitude)) equatorial_latitude = self%equatorial_latitude
+  if (present(ncells_global))       ncells_global       = self%num_global_cells
 
   if (present(mesh_name))          mesh_name          = self%mesh_name
   if (present(geometry))           geometry           = self%geometry
@@ -804,8 +812,6 @@ subroutine get_metadata( self, mesh_name,               &
   if (self%nmaps > 0 .and. present(target_mesh_names)) then
     target_mesh_names = self%target_mesh_names
   end if
-  if (present(north_pole))         north_pole(:)      = self%north_pole(:)
-  if (present(null_island))        null_island(:)     = self%null_island(:)
 
 end subroutine get_metadata
 
@@ -1193,16 +1199,18 @@ end subroutine set_dimensions
 !-------------------------------------------------------------------------------
 !> @brief     Assign coordinate related variables in the ugrid_2d file.
 !>
-!> @param[in] node_coords  Optional: Mesh node coords.
-!> @param[in] face_coords  Optional: Face centre coords.
-!> @param[in] north_pole   Optional: Real world North pole  [lon,lat] coords
-!> @param[in] null_island  Optional: Real world Null island [lon,lat] coords
-!> @param[in] coord_sys    Optional: Coordinate system used by mesh
-!> @param[in] units_xy     Optional: Units in x/y-axes
+!> @param[in] node_coords         Optional: Mesh node coords.
+!> @param[in] face_coords         Optional: Face centre coords.
+!> @param[in] north_pole          Optional: Real world North pole  [lon,lat] coords
+!> @param[in] null_island         Optional: Real world Null island [lon,lat] coords
+!> @param[in] equatorial_latitude Optional: latitude of equator of mesh
+!> @param[in] coord_sys           Optional: Coordinate system used by mesh
+!> @param[in] units_xy            Optional: Units in x/y-axes
 !-------------------------------------------------------------------------------
 subroutine set_coords( self,                     &
                        node_coords, face_coords, &
                        north_pole, null_island,  &
+                       equatorial_latitude,      &
                        coord_sys, units_xy )
 
   implicit none
@@ -1213,6 +1221,7 @@ subroutine set_coords( self,                     &
   real(r_def), optional, intent(in) :: face_coords(:,:)
   real(r_def), optional, intent(in) :: north_pole(:)
   real(r_def), optional, intent(in) :: null_island(:)
+  real(r_def), optional, intent(in) :: equatorial_latitude
 
   character(str_def), optional, intent(in) :: coord_sys
   character(str_def), optional, intent(in) :: units_xy(2)
@@ -1231,10 +1240,11 @@ subroutine set_coords( self,                     &
     allocate( self%face_coordinates, source=face_coords )
   end if
 
-  if (present(north_pole))  self%north_pole    = north_pole
-  if (present(null_island)) self%null_island   = null_island
-  if (present(coord_sys))   self%coord_sys     = coord_sys
-  if (present(units_xy))    self%coord_units_xy(:) = units_xy(:)
+  if (present(north_pole))          self%north_pole          = north_pole
+  if (present(null_island))         self%null_island         = null_island
+  if (present(equatorial_latitude)) self%equatorial_latitude = equatorial_latitude
+  if (present(coord_sys))           self%coord_sys           = coord_sys
+  if (present(units_xy))            self%coord_units_xy(:)   = units_xy(:)
 
 end subroutine set_coords
 

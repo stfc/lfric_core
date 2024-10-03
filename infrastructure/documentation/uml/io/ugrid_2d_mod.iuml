@@ -11,6 +11,7 @@ class ugrid_2d_mod::ugrid_2d_type {
   -npanels: integer
   -north_pole: real[2]
   -null_island: real[2]
+  -equatorial_latitude: real
   -periodic_xy: logical[2]
   -constructor_inputs: string
   -coord_units_xy: string[2]
@@ -30,7 +31,7 @@ class ugrid_2d_mod::ugrid_2d_type {
   -partition_of: string
 
   -inner_depth: integer
-  -halo_depth: integer 
+  -halo_depth: integer
   -num_edge: integer
   -last_edge_cell: integer
   -num_ghost: integer
@@ -80,7 +81,7 @@ class ugrid_2d_mod::ugrid_2d_type {
   +write_to_file( <<in>> filename: string )
   +append_to_file( <<in>> filename: string )
 
-  +get_metadata(\n\t <<out,optional>> mesh_name: string,\n\t <<out,optional>> geometry: string,\n\t <<out,optional>> topology: string,\n\t <<out,optional>> coord_sys: string,\n\t <<out,optional>> npanels: integer,\n\t <<out,optional>> periodic_x: logical,\n\t <<out,optional>> periodic_y: logical,\n\t <<out,optional>> max_stencil_depth: integer,\n\t <<out,optional>> edge_cells_x: integer,\n\t <<out,optional>> edge_cells_y: integer,\n\t <<out,optional>> ncells_global: integer,\n\t <<out,optional>> domain_size: real[2],\n\t <<out,optional>> rim_depth: integer,\n\t <<out,optional>> inner_depth: integer,\n\t <<out,optional>> halo_depth: integer,\n\t <<out,optional>> partition_of: string,\n\t <<out,optional>> num_edge: integer,\n\t <<out,optional>> last_edge_cell: integer,\n\t <<out,optional>> num_ghost: integer,\n\t <<out,optional>> last_ghost_cell: integer,\n\t <<out,optional>> constructor_inputs: string,\n\t <<out,optional>> nmaps: integer,\n\t <<out,optional,allocatable>> target_mesh_names: string[:],\n\t <<out,optional>> north_pole: real[2],\n\t <<out,optional>> null_island: real[2] )
+  +get_metadata(\n\t <<out,optional>> mesh_name: string,\n\t <<out,optional>> geometry: string,\n\t <<out,optional>> topology: string,\n\t <<out,optional>> coord_sys: string,\n\t <<out,optional>> npanels: integer,\n\t <<out,optional>> periodic_x: logical,\n\t <<out,optional>> periodic_y: logical,\n\t <<out,optional>> max_stencil_depth: integer,\n\t <<out,optional>> edge_cells_x: integer,\n\t <<out,optional>> edge_cells_y: integer,\n\t <<out,optional>> ncells_global: integer,\n\t <<out,optional>> domain_size: real[2],\n\t <<out,optional>> rim_depth: integer,\n\t <<out,optional>> inner_depth: integer,\n\t <<out,optional>> halo_depth: integer,\n\t <<out,optional>> partition_of: string,\n\t <<out,optional>> num_edge: integer,\n\t <<out,optional>> last_edge_cell: integer,\n\t <<out,optional>> num_ghost: integer,\n\t <<out,optional>> last_ghost_cell: integer,\n\t <<out,optional>> constructor_inputs: string,\n\t <<out,optional>> nmaps: integer,\n\t <<out,optional,allocatable>> target_mesh_names: string[:],\n\t <<out,optional>> north_pole: real[2],\n\t <<out,optional>> null_island: real[2],\n\t <<out,optional>> equatorial_latitude: real )
 
   +get_coord_units( <<out>> coords_units_xy: string[2] )
   +get_node_coords( <<out>> node_coords: real[::] )

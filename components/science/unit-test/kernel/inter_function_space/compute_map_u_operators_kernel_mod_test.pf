@@ -32,10 +32,10 @@ contains
   subroutine setUp( this )
 
     use base_mesh_config_mod,      only : geometry_spherical, &
-                                          topology_fully_periodic
+                                          topology_non_periodic
     use sci_chi_transform_mod,     only : init_chi_transforms
     use finite_element_config_mod, only : cellshape_quadrilateral, &
-                                          coord_system_lonlatz
+                                          coord_system_native
     use feign_config_mod,          only : feign_finite_element_config, &
                                           feign_base_mesh_config,      &
                                           feign_planet_config
@@ -48,7 +48,7 @@ contains
                                  prime_mesh_name='unit_test',      &
                                  geometry=geometry_spherical,      &
                                  prepartitioned=.false.,           &
-                                 topology=topology_fully_periodic, &
+                                 topology=topology_non_periodic, &
                                  fplane=.false., f_lat_deg=0.0_r_def )
 
     call feign_finite_element_config(           &
@@ -56,7 +56,7 @@ contains
              element_order=0_i_def,             &
              rehabilitate=.true.,               &
              coord_order = 0_i_def,             &
-             coord_system=coord_system_lonlatz )
+             coord_system=coord_system_native )
 
     call feign_planet_config( radius=radius, &
                               scaling_factor=scaling )

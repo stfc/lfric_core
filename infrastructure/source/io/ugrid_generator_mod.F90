@@ -118,6 +118,7 @@ abstract interface
   !>                                            used in for domain orientation (degrees).
   !> @param[out]  null_island         Optional: [Longitude, Latitude] of null
   !>                                            island used for domain orientation (degrees).
+  !> @param[out]  equatorial_latitude Optional: latitude of equator of mesh (degrees)
   !-----------------------------------------------------------------------------
   subroutine get_metadata_interface ( self, mesh_name,                       &
                                       geometry, topology, coord_sys,         &
@@ -126,7 +127,7 @@ abstract interface
                                       constructor_inputs, nmaps, rim_depth,  &
                                       void_cell, target_mesh_names,          &
                                       maps_edge_cells_x, maps_edge_cells_y,  &
-                                      north_pole, null_island  )
+                                      north_pole, null_island, equatorial_latitude  )
 
     import :: ugrid_generator_type, i_def, str_def, str_longlong, l_def, r_def
 
@@ -157,6 +158,7 @@ abstract interface
     integer(i_def), optional, intent(out) :: void_cell
     real(r_def),    optional, intent(out) :: north_pole(2)
     real(r_def),    optional, intent(out) :: null_island(2)
+    real(r_def),    optional, intent(out) :: equatorial_latitude
 
   end subroutine get_metadata_interface
 

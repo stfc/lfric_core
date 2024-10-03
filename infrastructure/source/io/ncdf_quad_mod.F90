@@ -103,6 +103,8 @@ type, extends(ugrid_file_type), public :: ncdf_quad_type
   real(r_def) :: null_island(2) = [rmdi, rmdi]   !< [Longitude,Latitude] of
                                                  !< null island for domain
                                                  !< orientation (degrees)
+  real(r_def) :: equatorial_latitude = rmdi      !< Latitude of equator (degrees)
+
   ! Dimension values
   integer(i_def) :: nmesh_nodes   = imdi  !< Number of nodes
   integer(i_def) :: nmesh_edges   = imdi  !< Number of edges
@@ -1025,6 +1027,16 @@ subroutine assign_attributes(self)
     call check_err(ierr, routine, cmess)
   end if
 
+  ! Only present for periodic, spherical domains
+  if ( trim(self%geometry)  == 'spherical' .and. &
+       trim(self%topology)  == 'periodic' ) then
+    attname = 'equatorial_latitude'
+    cmess   = 'Adding global attribute "'//trim(attname)//'"'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), &
+                         self%equatorial_latitude )
+    call check_err(ierr, routine, cmess)
+  end if
+
   ! For a local mesh, add information
   ! about the partition and the global mesh it is a part of
   if (self%mesh_extents == LOCAL_MESH_FLAG) then
@@ -1939,6 +1951,7 @@ end subroutine get_dimensions
 !>                                      for domain orientation (degrees)
 !> @param[out]  null_island             [Longitude, Latitude] of null
 !>                                      island for domain orientation (degrees)
+!> @param[out]  equatorial_latitude     Latitude of equator of mesh (degrees)
 !> @param[out]  node_coordinates        Coordinates of each node.
 !> @param[out]  face_coordinates        Coordinates of each face.
 !> @param[out]  coord_units_x           Units of x coordinates.
@@ -1993,7 +2006,7 @@ subroutine read_mesh( self,                                              &
 
                       ! Common mesh related variables.
                       mesh_name, geometry, coord_sys,                    &
-                      north_pole, null_island,                           &
+                      north_pole, null_island, equatorial_latitude,      &
                       node_coordinates, face_coordinates,                &
                       coord_units_x, coord_units_y, void_cell,           &
                       face_node_connectivity, face_edge_connectivity,    &
@@ -2025,6 +2038,7 @@ subroutine read_mesh( self,                                              &
   character(str_def),  intent(out) :: coord_sys
   real(r_def),         intent(out) :: north_pole(2)
   real(r_def),         intent(out) :: null_island(2)
+  real(r_def),         intent(out) :: equatorial_latitude
   real(r_def),         intent(out) :: node_coordinates(:,:)
   real(r_def),         intent(out) :: face_coordinates(:,:)
   character(str_def),  intent(out) :: coord_units_x
@@ -2088,6 +2102,7 @@ subroutine read_mesh( self,                                              &
 
   real(r_ncdf), allocatable :: north_pole_ncdf(:)
   real(r_ncdf), allocatable :: null_island_ncdf(:)
+  real(r_ncdf)              :: equatorial_latitude_ncdf
 
   character(str_def) :: lchar_px
   character(str_def) :: lchar_py
@@ -2277,6 +2292,22 @@ subroutine read_mesh( self,                                              &
       allocate(null_island_ncdf(arr_len))
       ierr = nf90_get_att(self%ncid, self%mesh_id, trim(attname), null_island_ncdf)
       null_island(1:2) = real(null_island_ncdf(1:2), kind=r_def)
+    end if
+
+  end if
+
+
+  ! Only present for spherical periodic domains,
+  if ( trim(topology) == 'periodic' .and. &
+       trim(geometry)  == 'spherical' ) then
+
+    attname = 'equatorial_latitude'
+    cmess = 'Getting latitude of equator of mesh "'//trim(mesh_name)//'"'
+    ierr  = nf90_inquire_attribute(self%ncid, self%mesh_id, trim(attname), len=arr_len)
+    call check_err(ierr, routine, cmess, log_level=log_level_warning)
+    if (ierr == NF90_NOERR) then
+      ierr = nf90_get_att(self%ncid, self%mesh_id, trim(attname), equatorial_latitude_ncdf)
+      equatorial_latitude = real(equatorial_latitude_ncdf, kind=r_def)
     end if
 
   end if
@@ -2651,6 +2682,7 @@ end subroutine read_map
 !>                                     for domain orientation.
 !> @param[in] null_island              [Longitude, Latitude] of null
 !>                                     island for domain orientation.
+!> @param[in] equatorial_latitude      Latitude of equator of mesh.
 !> @param[in] num_nodes                The number of nodes on the mesh.
 !> @param[in] num_edges                The number of edges on the mesh.
 !> @param[in] num_faces                The number of faces on the mesh.
@@ -2702,7 +2734,7 @@ subroutine write_mesh( self,                                              &
 
                        ! Common mesh type variables.
                        mesh_name, geometry, coord_sys,                    &
-                       north_pole, null_island,                           &
+                       north_pole, null_island, equatorial_latitude,      &
                        num_nodes, num_edges, num_faces,                   &
                        node_coordinates, face_coordinates,                &
                        coord_units_x, coord_units_y, void_cell,           &
@@ -2737,6 +2769,7 @@ subroutine write_mesh( self,                                              &
   character(str_def),  intent(in) :: coord_sys
   real(r_def),         intent(in) :: north_pole(2)
   real(r_def),         intent(in) :: null_island(2)
+  real(r_def),         intent(in) :: equatorial_latitude
   integer(i_def),      intent(in) :: num_nodes
   integer(i_def),      intent(in) :: num_edges
   integer(i_def),      intent(in) :: num_faces
@@ -2845,13 +2878,14 @@ subroutine write_mesh( self,                                              &
     self%mesh_extents = GLOBAL_MESH_FLAG
   end if
 
-  self%mesh_name      = mesh_name
-  self%north_pole(:)  = north_pole(:)
-  self%null_island(:) = null_island(:)
-  self%periodic_xy(:) = periodic_xy(:)
-  self%coord_units_x  = coord_units_x
-  self%coord_units_y  = coord_units_y
-  self%void_cell      = void_cell
+  self%mesh_name           = mesh_name
+  self%north_pole(:)       = north_pole(:)
+  self%null_island(:)      = null_island(:)
+  self%equatorial_latitude = equatorial_latitude
+  self%periodic_xy(:)      = periodic_xy(:)
+  self%coord_units_x       = coord_units_x
+  self%coord_units_y       = coord_units_y
+  self%void_cell           = void_cell
 
   self%constructor_inputs = constructor_inputs
 
@@ -3184,6 +3218,7 @@ end function is_mesh_present
 !>                                     for domain orientation
 !> @param[in] null_island              [Longitude, Latitude] of null
 !>                                     island for domain orientation
+!> @param[in] equatorial_latitude      Latitude of equator of mesh.
 !> @param[in] num_nodes                The number of nodes on the mesh.
 !> @param[in] num_edges                The number of edges on the mesh.
 !> @param[in] num_faces                The number of faces on the mesh.
@@ -3235,7 +3270,7 @@ subroutine append_mesh( self,                                              &
 
                         ! Common mesh type variables.
                         mesh_name, geometry, coord_sys,                    &
-                        north_pole, null_island,                           &
+                        north_pole, null_island, equatorial_latitude,      &
                         num_nodes, num_edges, num_faces,                   &
                         node_coordinates, face_coordinates,                &
                         coord_units_x, coord_units_y, void_cell,           &
@@ -3270,6 +3305,7 @@ subroutine append_mesh( self,                                              &
   character(str_def),  intent(in) :: coord_sys
   real(r_def),         intent(in) :: north_pole(2)
   real(r_def),         intent(in) :: null_island(2)
+  real(r_def),         intent(in) :: equatorial_latitude
 
   integer(i_def),      intent(in) :: num_nodes
   integer(i_def),      intent(in) :: num_edges
@@ -3343,6 +3379,7 @@ subroutine append_mesh( self,                                              &
        coord_sys              = coord_sys,              &
        north_pole             = north_pole,             &
        null_island            = null_island,            &
+       equatorial_latitude    = equatorial_latitude,    &
        num_nodes              = num_nodes,              &
        num_edges              = num_edges,              &
        num_faces              = num_faces,              &

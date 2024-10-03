@@ -17,7 +17,7 @@
 !  *  "dynamics" mesh (source) object mapping to "physics"  (target)
 !  *  "physics"  mesh (source) object mapping to "dynamics" (target)
 !
-! Notes: 
+! Notes:
 !  *  Only the first "n_meshes" listed in mesh_names will be
 !     output in the mesh file.
 !  *  All spherical co-ordinates are given the order
@@ -25,14 +25,14 @@
 !     respectively
 !===================================================================
 &mesh
-  mesh_filename  = 'mesh_BiP8x8-750x250.nc'
-  geometry       = 'planar'
-  topology       = 'periodic'
-  n_meshes       = 1
-  mesh_names     = 'unit_test'
-  partition_mesh = .false.
-  coord_sys      = 'xyz'
-  rotate_mesh    = .false.
+  mesh_file_prefix = 'mesh_BiP8x8-750x250'
+  geometry         = 'planar'
+  topology         = 'periodic'
+  n_meshes         = 1
+  mesh_names       = 'unit_test'
+  partition_mesh   = .false.
+  coord_sys        = 'xyz'
+  rotate_mesh      = .false.
 /
 
 &planar_mesh

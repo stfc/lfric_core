@@ -49,6 +49,7 @@ contains
     use finite_element_config_mod, only : cellshape_quadrilateral, &
                                           coord_system_xyz
     use feign_config_mod,          only : feign_finite_element_config
+    use sci_chi_transform_mod,     only : init_chi_transforms
 
     implicit none
 
@@ -61,18 +62,22 @@ contains
              element_order=1_i_def,                             &
              rehabilitate=.true. )
 
+    call init_chi_transforms()
+
   end subroutine setUp
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
     use configuration_mod,        only: final_configuration
+    use sci_chi_transform_mod,    only: final_chi_transforms
 
     implicit none
 
     class(compute_broken_div_operator_test_type), intent(inout) :: this
 
     call final_configuration()
+    call final_chi_transforms()
 
   end subroutine tearDown
 

@@ -66,6 +66,8 @@ module local_mesh_mod
     real(r_def)        :: north_pole(2)  = rmdi
   ! Null island location [lon,lat] for ll/spherical mesh.
     real(r_def)        :: null_island(2) = rmdi
+  ! Latitude of equator for cubed-sphere mesh.
+    real(r_def)        :: equatorial_latitude = rmdi
   ! Number of vertices on each cell.
     integer(i_def)     :: nverts_per_cell
   ! Number of vertices on each edge.
@@ -221,6 +223,9 @@ module local_mesh_mod
     procedure, public :: get_all_gid
     procedure, public :: as_ugrid_2d
     procedure, public :: get_void_cell
+    procedure, public :: get_north_pole
+    procedure, public :: get_null_island
+    procedure, public :: get_equatorial_latitude
 
     procedure, public :: get_global_domain_extents
 
@@ -313,10 +318,11 @@ contains
       self%coord_sys = lon_lat_coords
     end if
 
-    self%domain_extents = global_mesh%get_domain_extents()
-    self%north_pole     = global_mesh%get_north_pole()
-    self%null_island    = global_mesh%get_null_island()
-    self%void_cell      = global_mesh%get_void_cell()
+    self%domain_extents      = global_mesh%get_domain_extents()
+    self%north_pole          = global_mesh%get_north_pole()
+    self%null_island         = global_mesh%get_null_island()
+    self%equatorial_latitude = global_mesh%get_equatorial_latitude()
+    self%void_cell           = global_mesh%get_void_cell()
 
     ! Extract the info that makes up a local mesh from the
     ! global mesh and partition.
@@ -1124,33 +1130,34 @@ contains
     call self%set_id( local_mesh_id_counter )
 
     ! Get ugrid data which describes the mesh.
-    call ugrid_mesh_data%get_data(    &
-             self%mesh_name,          &
-             geometry_str,            &
-             topology_str,            &
-             coord_sys_str,           &
-             self%npanels,            &
-             self%n_unique_vertices,  &
-             self%n_unique_edges,     &
-             nfaces,                  &
-             self%nverts_per_cell,    &
-             self%nverts_per_edge,    &
-             self%nedges_per_cell,    &
-             max_face_per_node,       &
-             periodic_xy,             &
-             self%ntarget_meshes,     &
-             self%target_mesh_names,  &
-             self%vert_coords,        &
-             self%cell_coords,        &
-             self%coord_units_xy,     &
-             self%north_pole,         &
-             self%null_island,        &
-             self%constructor_inputs, &
-             self%rim_depth,          &
-             self%domain_extents,     &
-             self%void_cell,          &
-             self%cell_next,          &
-             self%vert_on_cell,       &
+    call ugrid_mesh_data%get_data(     &
+             self%mesh_name,           &
+             geometry_str,             &
+             topology_str,             &
+             coord_sys_str,            &
+             self%npanels,             &
+             self%n_unique_vertices,   &
+             self%n_unique_edges,      &
+             nfaces,                   &
+             self%nverts_per_cell,     &
+             self%nverts_per_edge,     &
+             self%nedges_per_cell,     &
+             max_face_per_node,        &
+             periodic_xy,              &
+             self%ntarget_meshes,      &
+             self%target_mesh_names,   &
+             self%vert_coords,         &
+             self%cell_coords,         &
+             self%coord_units_xy,      &
+             self%north_pole,          &
+             self%null_island,         &
+             self%equatorial_latitude, &
+             self%constructor_inputs,  &
+             self%rim_depth,           &
+             self%domain_extents,      &
+             self%void_cell,           &
+             self%cell_next,           &
+             self%vert_on_cell,        &
              self%edge_on_cell )
 
 
@@ -1174,7 +1181,7 @@ contains
         self%domain_extents(:,:) = degrees_to_radians * self%domain_extents(:,:)
         self%north_pole(:)       = degrees_to_radians * self%north_pole(:)
         self%null_island(:)      = degrees_to_radians * self%null_island(:)
-        self%null_island(:)      = degrees_to_radians * self%null_island(:)
+        self%equatorial_latitude = degrees_to_radians * self%equatorial_latitude
 
         self%coord_units_xy = 'radians'
       end if
@@ -1502,6 +1509,64 @@ contains
     mesh_name = self%mesh_name
 
   end function get_mesh_name
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief   Returns the north pole location of mesh.
+  !> @details A mesh may have been transformed before being written to file.
+  !>          This returns the location of the north pole (in real world lon-lat)
+  !>          referenced by co-ordinates in this mesh. Only valid for spherical
+  !>          geometries with lon-lat coordinate system.
+  !> @return  real(2), units (radians).
+  !>
+  function get_north_pole( self ) result( north_pole )
+
+    implicit none
+
+    class(local_mesh_type), intent(in) :: self
+    real(r_def) :: north_pole(2)
+
+    north_pole = self%north_pole
+
+  end function get_north_pole
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief   Returns the null island location of mesh.
+  !> @details A mesh may have been transformed before being written to file.
+  !>          This returns the location of the null island (in real world lon-lat)
+  !>          referenced by co-ordinates in this mesh. Only valid for spherical
+  !>          geometries with lon-lat coordinate system.
+  !> @return  null_island  [lon,lat] real-world coordinates in radians.
+  !>
+  function get_null_island( self ) result( null_island )
+
+    implicit none
+
+    class(local_mesh_type), intent(in) :: self
+    real(r_def) :: null_island(2)
+
+    null_island = self%null_island
+
+  end function get_null_island
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief   Returns the latitude of the equator of the mesh.
+  !> @details A mesh may have been transformed before being written to file.
+  !!          This returns the latitde of the equator used for this mesh.
+  !!          Only valid for cubed-sphere meshes.
+  !> @return  equatorial_latitude   Latitude of equator of mesh
+  !>
+  function get_equatorial_latitude( self ) result( equatorial_latitude )
+
+    implicit none
+
+    class(local_mesh_type), intent(in) :: self
+    real(r_def) :: equatorial_latitude
+
+    equatorial_latitude = self%equatorial_latitude
+
+  end function get_equatorial_latitude
 
 
   !---------------------------------------------------------------------------
@@ -2446,11 +2511,13 @@ contains
       units_xy(:) = self%coord_units_xy(:)
     end if
 
-    call ugrid_2d%set_coords( node_coords = factor * self%vert_coords, &
-                              north_pole  = factor * self%north_pole,  &
-                              null_island = factor * self%null_island, &
-                              coord_sys   = coord_sys,                 &
-                              units_xy    = units_xy )
+    call ugrid_2d%set_coords( node_coords         = factor * self%vert_coords, &
+                              north_pole          = factor * self%north_pole,  &
+                              null_island         = factor * self%null_island, &
+                              equatorial_latitude =                            &
+                                            factor * self%equatorial_latitude, &
+                              coord_sys           = coord_sys,                 &
+                              units_xy            = units_xy )
 
     call ugrid_2d%set_connectivity( nodes_on_faces=self%vert_on_cell, &
                                     edges_on_faces=self%edge_on_cell, &
