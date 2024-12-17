@@ -20,7 +20,9 @@ module mpi_mod_test
   implicit none
 
   private
-  public test_real64, test_real32, test_int
+  public test_real64, test_bcast_real64, &
+         test_real32, test_bcast_real32, &
+         test_int, test_bcast_int
 
   @TestCase
   type, extends(MPITestCase), public :: mpi_mod_test_type
@@ -29,8 +31,11 @@ module mpi_mod_test
     procedure setUp
     procedure tearDown
     procedure test_real64
+    procedure test_bcast_real64
     procedure test_real32
+    procedure test_bcast_real32
     procedure test_int
+    procedure test_bcast_int
   end type mpi_mod_test_type
 
 contains
@@ -58,7 +63,7 @@ contains
 
   end subroutine tearDown
 
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! TEST REAL64 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! TEST REAL64 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @Test( npes = [1, 4] )
   subroutine test_real64( this )
 
@@ -72,7 +77,6 @@ contains
     real(r_test)   :: l_local(3)
     real(r_test)   :: l_sum, l_max, l_min
     real(r_test)   :: g_sum, g_max, g_min
-    real(r_test)   :: r_buffer(1)
     real(r_test)   :: s, answer
     integer(i_def) :: i, mpi_datatype
     integer(i_def) :: rank_number, total_ranks
@@ -103,7 +107,7 @@ contains
        if(l_local(i) > l_max) l_max = l_local(i)
     end do
     call global_mpi%global_max( l_max, g_max )
-    answer = 3.0_r_test * num_processes
+    answer = 3.0_r_test * real(num_processes, r_test)
     @assertEqual(  answer, g_max, 1.0e-2_r_test )
 
     ! Test real global minimum routine
@@ -115,15 +119,6 @@ contains
     answer = 1.0_r_test
     @assertEqual( answer, g_min, 1.0e-2_r_test )
 
-    ! Test real broadcast routine
-    r_buffer(1) = 11.0_r_test*(proc_num+1)
-    call global_mpi%broadcast( r_buffer, 1, 0 )
-    @assertEqual( 11.0_r_test, r_buffer(1) )
-
-    ! Test the mpi data type routines - double and single
-    mpi_datatype = get_mpi_datatype( real_type, r_double )
-    @assertEqual( MPI_DOUBLE_PRECISION, mpi_datatype )
-
     ! Test the routines for getting total number of ranks and local rank number
     total_ranks = global_mpi%get_comm_size()
     @assertEqual( num_processes, total_ranks )
@@ -131,7 +126,46 @@ contains
     rank_number=global_mpi%get_comm_rank()
     @assertTrue( rank_number <= total_ranks)
 
+    ! Test the mpi data type routines - double and single
+    mpi_datatype = get_mpi_datatype( real_type, r_double )
+    @assertEqual( MPI_DOUBLE_PRECISION, mpi_datatype )
+
   end subroutine test_real64
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! TEST BROADCASTS AT REAL64 !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test( npes = [1, 4] )
+  subroutine test_bcast_real64( this )
+
+    implicit none
+
+    class(mpi_mod_test_type), intent(inout) :: this
+
+    integer, parameter  :: r_test = real64
+    real(r_test)   :: r_buffer_1d(1)
+    real(r_test)   :: r_buffer_2d(1,1)
+    real(r_test)   :: r_buffer_3d(1,1,1)
+
+    integer(i_def) :: num_processes
+    integer(i_def) :: proc_num
+
+    num_processes = this%context%getNumProcesses()
+    proc_num      = this%getProcessRank()
+
+    ! Test real broadcast routine
+    ! 1d data
+    r_buffer_1d(1) = 11.0_r_test*real(proc_num+1, r_test)
+    call global_mpi%broadcast( r_buffer_1d, 1, 0 )
+    @assertEqual( 11.0_r_test, r_buffer_1d(1) )
+    ! 2d data
+    r_buffer_2d(1,1) = 13.0_r_test*real(proc_num+1, r_test)
+    call global_mpi%broadcast( r_buffer_2d, 1, 0 )
+    @assertEqual( 13.0_r_test, r_buffer_2d(1,1) )
+    ! 3d data
+    r_buffer_3d(1,1,1) = 17.0_r_test*real(proc_num+1,r_test)
+    call global_mpi%broadcast( r_buffer_3d, 1, 0 )
+    @assertEqual( 17.0_r_test, r_buffer_3d(1,1,1) )
+
+  end subroutine test_bcast_real64
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! TEST REAL32 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @Test( npes = [1, 4] )
@@ -148,7 +182,6 @@ contains
     real(r_test)   :: l_sum, l_max, l_min
     real(r_test)   :: g_sum, g_max, g_min
     real(r_test)   :: s, answer
-    real(r_test)   :: r_buffer(1)
     integer(i_def) :: i, mpi_datatype
     integer(i_def) :: rank_number, total_ranks
     integer(i_def) :: num_processes
@@ -156,7 +189,7 @@ contains
 
     num_processes = this%context%getNumProcesses()
     proc_num      = this%getProcessRank()
-    l_local(:)    = l_array(:)*(proc_num+1)
+    l_local(:)    = l_array(:)*real(proc_num+1, r_test)
 
     ! Test real global sum routine
     l_sum = 0.0_r_test
@@ -167,7 +200,7 @@ contains
     ! Calculate weights
     s = 0.0_r_test
     do i = 1, num_processes
-       s = s + i
+       s = s + real(i, r_test)
     end do
     answer = 60.0_r_test * s
     @assertEqual(  answer, g_sum, 1.0e-2_r_test )
@@ -178,7 +211,7 @@ contains
        if(l_local(i) > l_max) l_max = l_local(i)
     end do
     call global_mpi%global_max( l_max, g_max )
-    answer = 30.0_r_test * num_processes
+    answer = 30.0_r_test * real(num_processes, r_test)
     @assertEqual(  answer, g_max, 1.0e-2_r_test )
 
     ! Test real global minimum routine
@@ -189,11 +222,6 @@ contains
     call global_mpi%global_min( l_min, g_min )
     answer = 10.0_r_test
     @assertEqual( answer, g_min, 1.0e-2_r_test )
-
-    ! Test real broadcast routine
-    r_buffer(1) = 13.0_r_test*(proc_num+1)
-    call global_mpi%broadcast( r_buffer, 1, 0 )
-    @assertEqual( 13.0_r_test, r_buffer(1) )
 
     ! Test the mpi data type routines - double and single
     mpi_datatype = get_mpi_datatype( real_type, r_single )
@@ -207,6 +235,42 @@ contains
     @assertTrue( rank_number <= total_ranks)
 
   end subroutine test_real32
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! TEST BROADCASTS AT REAL32 !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test( npes = [1, 4] )
+  subroutine test_bcast_real32( this )
+
+    implicit none
+
+    class(mpi_mod_test_type), intent(inout) :: this
+
+    integer, parameter  :: r_test = real32
+    real(r_test)   :: r_buffer_1d(1)
+    real(r_test)   :: r_buffer_2d(1,1)
+    real(r_test)   :: r_buffer_3d(1,1,1)
+
+    integer(i_def) :: num_processes
+    integer(i_def) :: proc_num
+
+    num_processes = this%context%getNumProcesses()
+    proc_num      = this%getProcessRank()
+
+    ! Test real broadcast routine
+    ! 1d data
+    r_buffer_1d(1) = 11.0_r_test*real(proc_num+1,r_test)
+    call global_mpi%broadcast( r_buffer_1d, 1, 0 )
+    @assertEqual( 11.0_r_test, r_buffer_1d(1) )
+    ! 2d data
+    r_buffer_2d(1,1) = 13.0_r_test*real(proc_num+1,r_test)
+    call global_mpi%broadcast( r_buffer_2d, 1, 0 )
+    @assertEqual( 13.0_r_test, r_buffer_2d(1,1) )
+    ! 3d data
+    r_buffer_3d(1,1,1) = 17.0_r_test*real(proc_num+1,r_test)
+    call global_mpi%broadcast( r_buffer_3d, 1, 0 )
+    @assertEqual( 17.0_r_test, r_buffer_3d(1,1,1) )
+
+  end subroutine test_bcast_real32
 
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! TEST INTEGERS !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -223,10 +287,12 @@ contains
     integer(i_test) :: l_local_i(3)
     integer(i_test) :: l_sum_i, l_max_i, l_min_i
     integer(i_test) :: g_sum_i, g_max_i, g_min_i
-    integer(i_test) :: i_buffer(1)
+    integer(i_test) :: i_buffer_1d(1)
+    integer(i_test) :: i_buffer_2d(1,1)
+    integer(i_test) :: i_buffer_3d(1,1,1)
     integer(i_test), allocatable :: i_buffer_ans(:)
     integer(i_test) :: w, answer
-    character(len=2)  :: str_buffer(1)
+    character(len=3)  :: str_buffer(1)
     integer(i_def) :: i, mpi_datatype
     integer(i_def) :: rank_number, total_ranks
     integer(i_def) :: num_processes
@@ -271,21 +337,34 @@ contains
     @assertEqual( answer, g_min_i )
 
     ! Test integer gather routine
-    i_buffer(1) = 700_i_test * (proc_num + 1_i_test)
-    call global_mpi%all_gather(i_buffer, i_buffer_ans, 1)
+    i_buffer_1d(1) = 700_i_test * (proc_num + 1_i_test)
+    call global_mpi%all_gather(i_buffer_1d, i_buffer_ans, 1)
     do i = 1,num_processes
       @assertEqual( i * 700_i_test, i_buffer_ans(i) )
     end do
 
     ! Test integer broadcast routine
-    i_buffer(1) = 900_i_test*(proc_num+1)
-    call global_mpi%broadcast( i_buffer, 1, 0 )
-    @assertEqual( 900_i_test, i_buffer(1) )
+    ! 1d data
+    i_buffer_1d(1) = 900_i_test*(proc_num+1)
+    call global_mpi%broadcast( i_buffer_1d, 1, 0 )
+    @assertEqual( 900_i_test, i_buffer_1d(1) )
+    ! 2d data
+    i_buffer_2d(1,1) = 907_i_test*(proc_num+1)
+    call global_mpi%broadcast( i_buffer_2d, 1, 0 )
+    @assertEqual( 907_i_test, i_buffer_2d(1,1) )
+    ! 3d data
+    i_buffer_3d(1,1,1) = 19.0_i_test*(proc_num+1)
+    call global_mpi%broadcast( i_buffer_3d, 1, 0 )
+    @assertEqual( 19.0_i_test, i_buffer_3d(1,1,1) )
 
     ! Test character string broadcast routine
-    str_buffer(1) = 'Hi'
+    if(proc_num == 0) then
+     str_buffer(1) = 'Hi '
+    else
+     str_buffer(1) = 'Bye'
+    end if
     call global_mpi%broadcast( str_buffer, len(str_buffer(1))*size(str_buffer), 0 )
-    @assertEqual( 'Hi', str_buffer(1) )
+    @assertEqual( 'Hi ', str_buffer(1) )
 
     ! Test the mpi data type routines - integer
     mpi_datatype = get_mpi_datatype( integer_type, i_test )
@@ -301,5 +380,38 @@ contains
     deallocate(i_buffer_ans)
 
   end subroutine test_int
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! TEST BROADCAST OF INTEGERS !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test( npes = [1, 4] )
+  subroutine test_bcast_int( this )
+
+    implicit none
+
+    class(mpi_mod_test_type), intent(inout) :: this
+
+    integer, parameter  :: i_test = int32
+    integer(i_test) :: i_buffer_1d(1)
+    integer(i_test) :: i_buffer_2d(1,1)
+    integer(i_test) :: i_buffer_3d(1,1,1)
+    integer(i_def) :: num_processes
+    integer(i_def) :: proc_num
+
+    num_processes = this%context%getNumProcesses()
+    proc_num      = this%getProcessRank()
+    ! Test integer broadcast routine
+    ! 1d data
+    i_buffer_1d(1) = 900_i_test*int(proc_num+1, i_test)
+    call global_mpi%broadcast( i_buffer_1d, 1, 0 )
+    @assertEqual( 900_i_test, i_buffer_1d(1) )
+    ! 2d data
+    i_buffer_2d(1,1) = 907_i_test*int(proc_num+1, i_test)
+    call global_mpi%broadcast( i_buffer_2d, 1, 0 )
+    @assertEqual( 907_i_test, i_buffer_2d(1,1) )
+    ! 3d data
+    i_buffer_3d(1,1,1) = 19.0_i_test*int(proc_num+1, i_test)
+    call global_mpi%broadcast( i_buffer_3d, 1, 0 )
+    @assertEqual( 19.0_i_test, i_buffer_3d(1,1,1) )
+
+  end subroutine test_bcast_int
 
 end module mpi_mod_test

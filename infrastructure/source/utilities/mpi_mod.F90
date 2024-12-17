@@ -10,9 +10,9 @@
 !>
 module mpi_mod
 
-  use constants_mod, only : i_def, i_halo_index,                        &
-                            l_def, r_double, r_single, str_def,         &
-                            real_type, integer_type, logical_type
+  use, intrinsic :: iso_fortran_env, only : int32, real32, real64
+
+  use constants_mod, only : str_def, real_type, integer_type, logical_type
 #ifdef NO_MPI
   ! No "use mpi" in non-mpi build
 #else
@@ -31,9 +31,9 @@ module mpi_mod
     private
 
     !> The mpi communicator
-    integer(i_def) :: comm=-999, comm_size=-999, comm_rank=-999
+    integer :: comm=-999, comm_size=-999, comm_rank=-999
     !> Flag marks whether an MPI communicator has been stored
-    logical(l_def) :: comm_set = .false.
+    logical :: comm_set = .false.
 
   contains
 
@@ -41,35 +41,51 @@ module mpi_mod
     procedure, public :: finalise
     procedure, public :: get_comm
     procedure, public :: is_comm_set
-    procedure, public :: global_sum_i_def
-    procedure, public :: global_sum_r_double
-    procedure, public :: global_sum_r_single
-    generic :: global_sum => global_sum_i_def,    &
-                             global_sum_r_double, &
-                             global_sum_r_single
-    procedure, public :: global_min_i_def
-    procedure, public :: global_min_r_double
-    procedure, public :: global_min_r_single
-    generic :: global_min => global_min_i_def,    &
-                             global_min_r_double, &
-                             global_min_r_single
-    procedure, public :: global_max_i_def
-    procedure, public :: global_max_r_double
-    procedure, public :: global_max_r_single
-    generic :: global_max => global_max_i_def,    &
-                             global_max_r_double, &
-                             global_max_r_single
+    procedure, public :: global_sum_int32
+    procedure, public :: global_sum_real64
+    procedure, public :: global_sum_real32
+    generic :: global_sum => global_sum_int32,  &
+                             global_sum_real64, &
+                             global_sum_real32
+    procedure, public :: global_min_int32
+    procedure, public :: global_min_real64
+    procedure, public :: global_min_real32
+    generic :: global_min => global_min_int32,  &
+                             global_min_real64, &
+                             global_min_real32
+    procedure, public :: global_max_int32
+    procedure, public :: global_max_real64
+    procedure, public :: global_max_real32
+    generic :: global_max => global_max_int32,  &
+                             global_max_real64, &
+                             global_max_real32
     procedure, public :: all_gather
-    procedure, public :: broadcast_l_def
-    procedure, public :: broadcast_i_def
-    procedure, public :: broadcast_r_double
-    procedure, public :: broadcast_r_single
-    procedure, public :: broadcast_str
-    generic :: broadcast => broadcast_l_def,    &
-                            broadcast_i_def,    &
-                            broadcast_r_double, &
-                            broadcast_r_single, &
-                            broadcast_str
+    procedure, public :: broadcast_logical_1d
+    procedure, public :: broadcast_int32_1d
+    procedure, public :: broadcast_real64_1d
+    procedure, public :: broadcast_real32_1d
+    procedure, public :: broadcast_str_1d
+    procedure, public :: broadcast_logical_2d
+    procedure, public :: broadcast_int32_2d
+    procedure, public :: broadcast_real64_2d
+    procedure, public :: broadcast_real32_2d
+    procedure, public :: broadcast_logical_3d
+    procedure, public :: broadcast_int32_3d
+    procedure, public :: broadcast_real64_3d
+    procedure, public :: broadcast_real32_3d
+    generic :: broadcast => broadcast_logical_1d, &
+                            broadcast_int32_1d,   &
+                            broadcast_real64_1d,  &
+                            broadcast_real32_1d,  &
+                            broadcast_str_1d,     &
+                            broadcast_logical_2d, &
+                            broadcast_int32_2d,   &
+                            broadcast_real64_2d,  &
+                            broadcast_real32_2d,  &
+                            broadcast_logical_3d, &
+                            broadcast_int32_3d,   &
+                            broadcast_real64_3d,  &
+                            broadcast_real32_3d
     procedure, public :: get_comm_size
     procedure, public :: get_comm_rank
 
@@ -89,8 +105,8 @@ contains
   !>
   subroutine create_comm(out_comm)
     implicit none
-    integer(i_def), intent(out) :: out_comm
-    integer(i_def) :: ierr
+    integer, intent(out) :: out_comm
+    integer :: ierr
 
 #ifdef NO_MPI
     ! Don't initialise mpi in non-mpi build.
@@ -109,7 +125,7 @@ contains
   !>
   subroutine destroy_comm()
     implicit none
-    integer(i_def) :: ierr
+    integer :: ierr
 
 #ifdef NO_MPI
     ! Don't finalise mpi in non-mpi build
@@ -133,9 +149,9 @@ contains
     use, intrinsic :: iso_fortran_env, only : real128, real64, real32, &
                                               int64, int32, int16, int8
     implicit none
-    integer(i_def), intent(in) :: fortran_type
-    integer(i_def), intent(in) :: fortran_kind
-    integer(i_def)             :: mpi_datatype
+    integer, intent(in) :: fortran_type
+    integer, intent(in) :: fortran_kind
+    integer             :: mpi_datatype
 
 #ifdef NO_MPI
     ! In a non-mpi build the mpi datatype is meaningless - just return zero
@@ -187,8 +203,8 @@ contains
   subroutine initialise(self, in_comm)
     implicit none
     class(mpi_type), intent(inout) :: self
-    integer(i_def), intent(in)     :: in_comm
-    integer(i_def) :: ierr
+    integer,         intent(in)    :: in_comm
+    integer :: ierr
 
     self%comm = in_comm
 #ifdef NO_MPI
@@ -221,7 +237,7 @@ contains
   function get_comm(self) result(communicator)
     implicit none
     class(mpi_type), intent(in) :: self
-    integer(i_def) :: communicator
+    integer :: communicator
     communicator = self%comm
   end function get_comm
 
@@ -231,7 +247,7 @@ contains
   function is_comm_set(self) result(comm_state)
     implicit none
     class(mpi_type), intent(inout) :: self
-    logical(l_def) :: comm_state
+    logical :: comm_state
     comm_state = self%comm_set
   end function is_comm_set
 
@@ -240,13 +256,13 @@ contains
   !> @param l_sum The sum of the reals on the local partition
   !> @param g_sum The calculated global sum
   !>
-  subroutine global_sum_r_double(self, l_sum, g_sum)
+  subroutine global_sum_real64(self, l_sum, g_sum)
     implicit none
     class(mpi_type), intent(inout) :: self
-    real(r_double), intent(in)     :: l_sum
-    real(r_double), intent(out)    :: g_sum
+    real(real64), intent(in)       :: l_sum
+    real(real64), intent(out)      :: g_sum
 
-    integer(i_def) :: err
+    integer :: err
 
 #ifdef NO_MPI
     ! Global sum and local sum are the same thing in a non-mpi build
@@ -255,7 +271,7 @@ contains
 #else
     if(self%comm_set)then
       ! Generate global sum
-      call mpi_allreduce( l_sum, g_sum, 1, get_mpi_datatype( real_type, r_double ), &
+      call mpi_allreduce( l_sum, g_sum, 1, get_mpi_datatype( real_type, real64 ), &
                           mpi_sum, self%comm, err )
       if (err /= mpi_success) &
         call log_event('Call to real global_sum failed with an MPI error.', &
@@ -267,7 +283,7 @@ contains
     end if
 #endif
 
-  end subroutine global_sum_r_double
+  end subroutine global_sum_real64
 
 
   !> Calculates the global sum of a collection of real32 local sums
@@ -275,13 +291,13 @@ contains
   !> @param l_sum The sum of the reals on the local partition
   !> @param g_sum The calculated global sum
   !>
-  subroutine global_sum_r_single(self, l_sum, g_sum)
+  subroutine global_sum_real32(self, l_sum, g_sum)
     implicit none
     class(mpi_type), intent(inout) :: self
-    real(r_single), intent(in)     :: l_sum
-    real(r_single), intent(out)    :: g_sum
+    real(real32), intent(in)       :: l_sum
+    real(real32), intent(out)      :: g_sum
 
-    integer(i_def) :: err
+    integer :: err
 
 #ifdef NO_MPI
     ! Global sum and local sum are the same thing in a non-mpi build
@@ -290,7 +306,7 @@ contains
 #else
     if(self%comm_set)then
       ! Generate global sum
-      call mpi_allreduce( l_sum, g_sum, 1, get_mpi_datatype( real_type, r_single), &
+      call mpi_allreduce( l_sum, g_sum, 1, get_mpi_datatype( real_type, real32), &
                           mpi_sum, self%comm, err )
       if (err /= mpi_success) &
         call log_event('Call to real global_sum failed with an MPI error.', &
@@ -302,7 +318,7 @@ contains
     end if
 #endif
 
-  end subroutine global_sum_r_single
+  end subroutine global_sum_real32
 
 
   !> Calculates the global sum of a collection of integer local sums
@@ -310,13 +326,13 @@ contains
   !> @param l_sum The sum of the integers on the local partition
   !> @param g_sum The calculated global sum
   !>
-  subroutine global_sum_i_def(self, l_sum, g_sum)
+  subroutine global_sum_int32(self, l_sum, g_sum)
     implicit none
     class(mpi_type), intent(inout) :: self
-    integer(i_def), intent(in)     :: l_sum
-    integer(i_def), intent(out)    :: g_sum
+    integer(int32), intent(in)     :: l_sum
+    integer(int32), intent(out)    :: g_sum
 
-    integer(i_def):: err
+    integer :: err
 
 #ifdef NO_MPI
     ! Global sum and local sum are the same thing in a non-mpi build
@@ -325,7 +341,7 @@ contains
 #else
     if(self%comm_set)then
       ! Generate global sum
-      call mpi_allreduce( l_sum, g_sum, 1, get_mpi_datatype( integer_type, i_def ), &
+      call mpi_allreduce( l_sum, g_sum, 1, get_mpi_datatype( integer_type, int32 ), &
                           mpi_sum, self%comm, err )
       if (err /= mpi_success) &
         call log_event('Call to integer global_sum failed with an MPI error.', &
@@ -337,7 +353,7 @@ contains
     end if
 #endif
 
-  end subroutine global_sum_i_def
+  end subroutine global_sum_int32
 
 
   !> Calculates the global minimum of a collection of local real minimums
@@ -345,13 +361,13 @@ contains
   !> @param l_min The min on the local partition
   !> @param g_min The calculated global minimum
   !>
-  subroutine global_min_r_double(self, l_min, g_min)
+  subroutine global_min_real64(self, l_min, g_min)
     implicit none
     class(mpi_type), intent(inout) :: self
-    real(r_double), intent(in)     :: l_min
-    real(r_double), intent(out)    :: g_min
+    real(real64), intent(in)       :: l_min
+    real(real64), intent(out)      :: g_min
 
-    integer(i_def)  :: err
+    integer :: err
 
 #ifdef NO_MPI
     ! Global minimum and local minimum are the same thing in a non-mpi build
@@ -360,7 +376,7 @@ contains
 #else
     if(self%comm_set)then
       ! Generate global min
-      call mpi_allreduce( l_min, g_min, 1, get_mpi_datatype( real_type, r_double ), &
+      call mpi_allreduce( l_min, g_min, 1, get_mpi_datatype( real_type, real64 ), &
                           mpi_min, self%comm, err )
       if (err /= mpi_success) &
         call log_event('Call to global_min failed with an MPI error.', &
@@ -372,20 +388,20 @@ contains
     end if
 #endif
 
-  end subroutine global_min_r_double
+  end subroutine global_min_real64
 
   !> Calculates the global minimum of a collection of local real32 minimums
   !>
   !> @param l_min The min on the local partition
   !> @param g_min The calculated global minimum
   !>
-  subroutine global_min_r_single(self, l_min, g_min)
+  subroutine global_min_real32(self, l_min, g_min)
     implicit none
     class(mpi_type), intent(inout) :: self
-    real(r_single), intent(in)     :: l_min
-    real(r_single), intent(out)    :: g_min
+    real(real32), intent(in)       :: l_min
+    real(real32), intent(out)      :: g_min
 
-    integer(i_def)  :: err
+    integer :: err
 
 #ifdef NO_MPI
     ! Global minimum and local minimum are the same thing in a non-mpi build
@@ -394,7 +410,7 @@ contains
 #else
     if(self%comm_set)then
       ! Generate global min
-      call mpi_allreduce( l_min, g_min, 1, get_mpi_datatype( real_type, r_single), &
+      call mpi_allreduce( l_min, g_min, 1, get_mpi_datatype( real_type, real32), &
                           mpi_min, self%comm, err )
       if (err /= mpi_success) &
         call log_event('Call to global_min failed with an MPI error.', &
@@ -406,7 +422,7 @@ contains
     end if
 #endif
 
-  end subroutine global_min_r_single
+  end subroutine global_min_real32
 
 
   !> Calculates the global minimum of a collection of local integer minimums
@@ -414,13 +430,13 @@ contains
   !> @param l_min The min on the local partition
   !> @param g_min The calculated global minimum
   !>
-  subroutine global_min_i_def(self, l_min, g_min)
+  subroutine global_min_int32(self, l_min, g_min)
     implicit none
     class(mpi_type), intent(inout) :: self
-    integer(i_def), intent(in)     :: l_min
-    integer(i_def), intent(out)    :: g_min
+    integer(int32), intent(in)     :: l_min
+    integer(int32), intent(out)    :: g_min
 
-    integer(i_def)  :: err
+    integer :: err
 
 #ifdef NO_MPI
     ! Global minimum and local minimum are the same thing in a non-mpi build
@@ -429,7 +445,7 @@ contains
 #else
     if(self%comm_set)then
       ! Generate global min
-      call mpi_allreduce( l_min, g_min, 1, get_mpi_datatype( integer_type, i_def ), &
+      call mpi_allreduce( l_min, g_min, 1, get_mpi_datatype( integer_type, int32 ), &
                           mpi_min, self%comm, err )
       if (err /= mpi_success) &
         call log_event('Call to global_min failed with an MPI error.', &
@@ -441,7 +457,7 @@ contains
     end if
 #endif
 
-  end subroutine global_min_i_def
+  end subroutine global_min_int32
 
 
   !> Calculates the global maximum of a collection of local real maximums
@@ -449,13 +465,13 @@ contains
   !> @param l_min The max on the local partition
   !> @param g_max The calculated global maximum
   !>
-  subroutine global_max_r_double(self, l_max, g_max)
+  subroutine global_max_real64(self, l_max, g_max)
     implicit none
     class(mpi_type), intent(inout) :: self
-    real(r_double), intent(in)     :: l_max
-    real(r_double), intent(out)    :: g_max
+    real(real64), intent(in)       :: l_max
+    real(real64), intent(out)      :: g_max
 
-    integer(i_def)  :: err
+    integer :: err
 
 #ifdef NO_MPI
     ! Global maximum and local maximum are the same thing in a non-mpi build
@@ -464,7 +480,7 @@ contains
 #else
     if(self%comm_set)then
       ! Generate global max
-      call mpi_allreduce( l_max, g_max, 1, get_mpi_datatype( real_type, r_double ), &
+      call mpi_allreduce( l_max, g_max, 1, get_mpi_datatype( real_type, real64 ), &
                           mpi_max, self%comm, err )
       if (err /= mpi_success) &
         call log_event('Call to global_max failed with an MPI error.', &
@@ -476,7 +492,7 @@ contains
     end if
 #endif
 
-  end subroutine global_max_r_double
+  end subroutine global_max_real64
 
 
   !> Calculates the global maximum of a collection of local real32 maximums
@@ -484,13 +500,13 @@ contains
   !> @param l_min The max on the local partition
   !> @param g_max The calculated global maximum
   !>
-  subroutine global_max_r_single(self, l_max, g_max)
+  subroutine global_max_real32(self, l_max, g_max)
     implicit none
     class(mpi_type), intent(inout) :: self
-    real(r_single), intent(in)     :: l_max
-    real(r_single), intent(out)    :: g_max
+    real(real32), intent(in)       :: l_max
+    real(real32), intent(out)      :: g_max
 
-    integer(i_def)  :: err
+    integer :: err
 
 #ifdef NO_MPI
     ! Global maximum and local maximum are the same thing in a non-mpi build
@@ -499,7 +515,7 @@ contains
 #else
     if(self%comm_set)then
       ! Generate global max
-      call mpi_allreduce( l_max, g_max, 1, get_mpi_datatype( real_type, r_single), &
+      call mpi_allreduce( l_max, g_max, 1, get_mpi_datatype( real_type, real32), &
                           mpi_max, self%comm, err )
       if (err /= mpi_success) &
         call log_event('Call to global_max failed with an MPI error.', &
@@ -511,7 +527,7 @@ contains
     end if
 #endif
 
-  end subroutine global_max_r_single
+  end subroutine global_max_real32
 
 
   !> Calculates the global maximum of a collection of local integer maximums
@@ -519,13 +535,13 @@ contains
   !> @param l_min The max on the local partition
   !> @param g_max The calculated global maximum
   !>
-  subroutine global_max_i_def(self, l_max, g_max)
+  subroutine global_max_int32(self, l_max, g_max)
     implicit none
     class(mpi_type), intent(inout) :: self
-    integer(i_def), intent(in)     :: l_max
-    integer(i_def), intent(out)    :: g_max
+    integer(int32), intent(in)     :: l_max
+    integer(int32), intent(out)    :: g_max
 
-    integer(i_def)  :: err
+    integer :: err
 
 #ifdef NO_MPI
     ! Global maximum and local maximum are the same thing in a non-mpi build
@@ -534,7 +550,7 @@ contains
 #else
     if(self%comm_set)then
       ! Generate global max
-      call mpi_allreduce( l_max, g_max, 1, get_mpi_datatype( integer_type, i_def ), &
+      call mpi_allreduce( l_max, g_max, 1, get_mpi_datatype( integer_type, int32 ), &
                           mpi_max, self%comm, err )
       if (err /= mpi_success) &
         call log_event('Call to global_max failed with an MPI error.', &
@@ -546,7 +562,7 @@ contains
     end if
 #endif
 
-  end subroutine global_max_i_def
+  end subroutine global_max_int32
 
 
   !> Gather integer data from all MPI tasks into a single array in all MPI tasks
@@ -559,11 +575,11 @@ contains
   subroutine all_gather(self, send_buffer, recv_buffer, count)
     implicit none
     class(mpi_type), intent(inout) :: self
-    integer(i_def), intent(in)     :: send_buffer(:)
-    integer(i_def), intent(out)    :: recv_buffer(:)
-    integer(i_def), intent(in)     :: count
+    integer(int32), intent(in)     :: send_buffer(:)
+    integer(int32), intent(out)    :: recv_buffer(:)
+    integer(int32), intent(in)     :: count
 
-    integer(i_def) :: err
+    integer :: err
 
 #ifdef NO_MPI
     ! Send and recv buffers in a gather are the same thing in a non-mpi build
@@ -571,8 +587,8 @@ contains
     err=0 ! Set local variable to avoid unused variable errors
 #else
     if(self%comm_set)then
-      call mpi_allgather(send_buffer, count, get_mpi_datatype( integer_type, i_def ), &
-                         recv_buffer, count, get_mpi_datatype( integer_type, i_def ), &
+      call mpi_allgather(send_buffer, count, get_mpi_datatype( integer_type, int32 ), &
+                         recv_buffer, count, get_mpi_datatype( integer_type, int32 ), &
                          self%comm, err)
       if (err /= mpi_success) &
         call log_event('Call to all_gather failed with an MPI error.', &
@@ -586,23 +602,23 @@ contains
   end subroutine all_gather
 
 
-
-  !> Broadcasts logical data from the root MPI task to all other MPI tasks
+  !> Broadcasts 1d array of logical data from the root MPI task to all other
+  !> MPI tasks
   !>
   !> @param buffer On the root MPI task, contains the data to broadcast,
   !>               on other tasks the data from root task will be writen to here
   !> @param count The number of items in buffer
   !> @param root The MPI task from which data will be broadcast
-  subroutine broadcast_l_def(self, buffer, count, root)
+  subroutine broadcast_logical_1d(self, buffer, count, root)
 
     implicit none
 
     class(mpi_type), intent(inout) :: self
-    logical(l_def), intent(inout)  :: buffer(:)
-    integer(i_def), intent(in)     :: count
-    integer(i_def), intent(in)     :: root
+    logical,         intent(inout) :: buffer(:)
+    integer,         intent(in)    :: count
+    integer,         intent(in)    :: root
 
-    integer(i_def) :: err
+    integer(int32) :: err
 
 #ifdef NO_MPI
     ! In a non-mpi build there is nowhere to broadcast to - so do nothing
@@ -619,31 +635,32 @@ contains
       LOG_LEVEL_ERROR )
     end if
 #endif
-  end subroutine broadcast_l_def
+  end subroutine broadcast_logical_1d
 
-  !> Broadcasts integer data from the root MPI task to all other MPI tasks
+  !> Broadcasts 1d array of 32-bit integer data from the root MPI task to all
+  !> other MPI tasks
   !>
   !> @param buffer On the root MPI task, contains the data to broadcast,
   !>               on other tasks the data from root task will be writen to here
   !> @param count The number of items in buffer
   !> @param root The MPI task from which data will be broadcast
-  subroutine broadcast_i_def(self, buffer, count, root)
+  subroutine broadcast_int32_1d(self, buffer, count, root)
 
     implicit none
 
     class(mpi_type), intent(inout) :: self
-    integer(i_def), intent(inout)  :: buffer(:)
-    integer(i_def), intent(in)     :: count
-    integer(i_def), intent(in)     :: root
+    integer(int32),  intent(inout) :: buffer(:)
+    integer,         intent(in)    :: count
+    integer,         intent(in)    :: root
 
-    integer(i_def) :: err
+    integer :: err
 
 #ifdef NO_MPI
     ! In a non-mpi build there is nowhere to broadcast to - so do nothing
     err=0 ! Set local variable to avoid unused variable errors
 #else
     if(self%comm_set)then
-      call mpi_bcast( buffer, count, get_mpi_datatype( integer_type, i_def ), &
+      call mpi_bcast( buffer, count, get_mpi_datatype( integer_type, int32 ), &
                       root, self%comm, err )
       if (err /= mpi_success) &
         call log_event('Call to integer broadcast failed with an MPI error.', &
@@ -654,24 +671,25 @@ contains
       LOG_LEVEL_ERROR )
     end if
 #endif
-  end subroutine broadcast_i_def
+  end subroutine broadcast_int32_1d
 
-  !> Broadcasts double real data from the root MPI task to all other MPI tasks.
+  !> Broadcasts 1d array of 64-bit real data from the root MPI task to all
+  !> other MPI tasks.
   !>
   !> @param buffer On the root MPI task, contains the data to broadcast,
   !>               on other tasks the data from root task will be writen to here
   !> @param count The number of items in buffer
   !> @param root The MPI task from which data will be broadcast
-  subroutine broadcast_r_double(self, buffer, count, root)
+  subroutine broadcast_real64_1d(self, buffer, count, root)
 
     implicit none
 
     class(mpi_type), intent(inout) :: self
-    real(r_double), intent(inout)  :: buffer(:)
-    integer(i_def), intent(in)     :: count
-    integer(i_def), intent(in)     :: root
+    real(real64),    intent(inout) :: buffer(:)
+    integer,         intent(in)    :: count
+    integer,         intent(in)    :: root
 
-    integer(i_def) :: err
+    integer :: err
 
 #ifdef NO_MPI
     ! In a non-mpi build there is nowhere to broadcast to - so do nothing
@@ -679,7 +697,7 @@ contains
 #else
     if(self%comm_set)then
       call mpi_bcast( buffer, count, &
-                      get_mpi_datatype( real_type, r_double ), &
+                      get_mpi_datatype( real_type, real64 ), &
                       root, self%comm, err )
       if (err /= mpi_success) &
         call log_event('Call to real broadcast failed with an MPI error.', &
@@ -690,24 +708,25 @@ contains
       LOG_LEVEL_ERROR )
     end if
 #endif
-  end subroutine broadcast_r_double
+  end subroutine broadcast_real64_1d
 
-  !> Broadcasts single real data from the root MPI task to all other MPI tasks.
+  !> Broadcasts 1d array of 32-bit real data from the root MPI task to all
+  !> other MPI tasks.
   !>
   !> @param buffer On the root MPI task, contains the data to broadcast,
   !>               on other tasks the data from root task will be writen to here
   !> @param count The number of items in buffer
   !> @param root The MPI task from which data will be broadcast
-  subroutine broadcast_r_single(self, buffer, count, root)
+  subroutine broadcast_real32_1d(self, buffer, count, root)
 
     implicit none
 
     class(mpi_type), intent(inout) :: self
-    real(r_single), intent(inout)  :: buffer(:)
-    integer(i_def), intent(in)     :: count
-    integer(i_def), intent(in)     :: root
+    real(real32),    intent(inout) :: buffer(:)
+    integer,         intent(in)    :: count
+    integer,         intent(in)    :: root
 
-    integer(i_def) :: err
+    integer :: err
 
 #ifdef NO_MPI
     ! In a non-mpi build there is nowhere to broadcast to - so do nothing
@@ -715,7 +734,7 @@ contains
 #else
     if(self%comm_set)then
       call mpi_bcast( buffer, count, &
-                      get_mpi_datatype( real_type, r_single ), &
+                      get_mpi_datatype( real_type, real32 ), &
                       root, self%comm, err )
       if (err /= mpi_success) &
         call log_event('Call to real broadcast failed with an MPI error.', &
@@ -726,24 +745,25 @@ contains
       LOG_LEVEL_ERROR )
     end if
 #endif
-  end subroutine broadcast_r_single
+  end subroutine broadcast_real32_1d
 
-  !> Broadcasts character data from the root MPI task to all other MPI tasks
+  !> Broadcasts 1d array of character data from the root MPI task to all other
+  !> MPI tasks
   !>
   !> @param buffer On the root MPI task, contains the data to broadcast,
   !>               on other tasks the data from root task will be writen to here
   !> @param count The number of items in buffer
   !> @param root The MPI task from which data will be broadcast
-  subroutine broadcast_str(self, buffer, count, root)
+  subroutine broadcast_str_1d(self, buffer, count, root)
 
     implicit none
 
-    class(mpi_type), intent(inout)  :: self
+    class(mpi_type),  intent(inout) :: self
     character(len=*), intent(inout) :: buffer(:)
-    integer(i_def),   intent(in)    :: count
-    integer(i_def),   intent(in)    :: root
+    integer,          intent(in)    :: count
+    integer,          intent(in)    :: root
 
-    integer(i_def) :: err
+    integer :: err
 
 #ifdef NO_MPI
     ! In a non-mpi build there is nowhere to broadcast to - so do nothing
@@ -760,7 +780,299 @@ contains
       LOG_LEVEL_ERROR )
     end if
 #endif
-  end subroutine broadcast_str
+  end subroutine broadcast_str_1d
+
+  !> Broadcasts 2d array of logical data from the root MPI task to all other
+  !> MPI tasks
+  !>
+  !> @param buffer On the root MPI task, contains the data to broadcast,
+  !>               on other tasks the data from root task will be writen to here
+  !> @param count The number of items in buffer
+  !> @param root The MPI task from which data will be broadcast
+  subroutine broadcast_logical_2d(self, buffer, count, root)
+
+    implicit none
+
+    class(mpi_type), intent(inout) :: self
+    logical,         intent(inout) :: buffer(:,:)
+    integer,         intent(in)    :: count
+    integer,         intent(in)    :: root
+
+    integer :: err
+
+#ifdef NO_MPI
+    ! In a non-mpi build there is nowhere to broadcast to - so do nothing
+    err=0 ! Set local variable to avoid unused variable errors
+#else
+    if(self%comm_set)then
+      call mpi_bcast( buffer, count, MPI_LOGICAL, root, self%comm, err )
+      if (err /= mpi_success) &
+        call log_event('Call to logical broadcast failed with an MPI error.', &
+                       LOG_LEVEL_ERROR )
+    else
+      call log_event( &
+      'Call to broadcast failed. Must initialise the mpi object first',&
+      LOG_LEVEL_ERROR )
+    end if
+#endif
+  end subroutine broadcast_logical_2d
+
+  !> Broadcasts 2d array of 32-bit integer data from the root MPI task to all
+  !> other MPI tasks
+  !>
+  !> @param buffer On the root MPI task, contains the data to broadcast,
+  !>               on other tasks the data from root task will be writen to here
+  !> @param count The number of items in buffer
+  !> @param root The MPI task from which data will be broadcast
+  subroutine broadcast_int32_2d(self, buffer, count, root)
+
+    implicit none
+
+    class(mpi_type), intent(inout) :: self
+    integer(int32),  intent(inout) :: buffer(:,:)
+    integer, intent(in)            :: count
+    integer, intent(in)            :: root
+
+    integer :: err
+
+#ifdef NO_MPI
+    ! In a non-mpi build there is nowhere to broadcast to - so do nothing
+    err=0 ! Set local variable to avoid unused variable errors
+#else
+    if(self%comm_set)then
+      call mpi_bcast( buffer, count, get_mpi_datatype( integer_type, int32 ), &
+                      root, self%comm, err )
+      if (err /= mpi_success) &
+        call log_event('Call to integer broadcast failed with an MPI error.', &
+                       LOG_LEVEL_ERROR )
+    else
+      call log_event( &
+      'Call to broadcast failed. Must initialise the mpi object first',&
+      LOG_LEVEL_ERROR )
+    end if
+#endif
+  end subroutine broadcast_int32_2d
+
+  !> Broadcasts 2d array of 64-bit real data from the root MPI task to all
+  !> other MPI tasks.
+  !>
+  !> @param buffer On the root MPI task, contains the data to broadcast,
+  !>               on other tasks the data from root task will be writen to here
+  !> @param count The number of items in buffer
+  !> @param root The MPI task from which data will be broadcast
+  subroutine broadcast_real64_2d(self, buffer, count, root)
+
+    implicit none
+
+    class(mpi_type), intent(inout) :: self
+    real(real64),    intent(inout) :: buffer(:,:)
+    integer, intent(in)            :: count
+    integer, intent(in)            :: root
+
+    integer :: err
+
+#ifdef NO_MPI
+    ! In a non-mpi build there is nowhere to broadcast to - so do nothing
+    err=0 ! Set local variable to avoid unused variable errors
+#else
+    if(self%comm_set)then
+      call mpi_bcast( buffer, count, &
+                      get_mpi_datatype( real_type, real64 ), &
+                      root, self%comm, err )
+      if (err /= mpi_success) &
+        call log_event('Call to real broadcast failed with an MPI error.', &
+                       LOG_LEVEL_ERROR )
+    else
+      call log_event( &
+      'Call to broadcast failed. Must initialise the mpi object first',&
+      LOG_LEVEL_ERROR )
+    end if
+#endif
+  end subroutine broadcast_real64_2d
+
+  !> Broadcasts 2d array of 32-bit real data from the root MPI task to all
+  !> other MPI tasks.
+  !>
+  !> @param buffer On the root MPI task, contains the data to broadcast,
+  !>               on other tasks the data from root task will be writen to here
+  !> @param count The number of items in buffer
+  !> @param root The MPI task from which data will be broadcast
+  subroutine broadcast_real32_2d(self, buffer, count, root)
+
+    implicit none
+
+    class(mpi_type), intent(inout) :: self
+    real(real32),    intent(inout) :: buffer(:,:)
+    integer,         intent(in)    :: count
+    integer,         intent(in)    :: root
+
+    integer :: err
+
+#ifdef NO_MPI
+    ! In a non-mpi build there is nowhere to broadcast to - so do nothing
+    err=0 ! Set local variable to avoid unused variable errors
+#else
+    if(self%comm_set)then
+      call mpi_bcast( buffer, count, &
+                      get_mpi_datatype( real_type, real32 ), &
+                      root, self%comm, err )
+      if (err /= mpi_success) &
+        call log_event('Call to real broadcast failed with an MPI error.', &
+                       LOG_LEVEL_ERROR )
+    else
+      call log_event( &
+      'Call to broadcast failed. Must initialise the mpi object first',&
+      LOG_LEVEL_ERROR )
+    end if
+#endif
+  end subroutine broadcast_real32_2d
+
+  !> Broadcasts 3d array of logical data from the root MPI task to all other
+  !> MPI tasks
+  !>
+  !> @param buffer On the root MPI task, contains the data to broadcast,
+  !>               on other tasks the data from root task will be writen to here
+  !> @param count The number of items in buffer
+  !> @param root The MPI task from which data will be broadcast
+  subroutine broadcast_logical_3d(self, buffer, count, root)
+
+    implicit none
+
+    class(mpi_type), intent(inout) :: self
+    logical,         intent(inout) :: buffer(:,:,:)
+    integer,         intent(in)    :: count
+    integer,         intent(in)    :: root
+
+    integer :: err
+
+#ifdef NO_MPI
+    ! In a non-mpi build there is nowhere to broadcast to - so do nothing
+    err=0 ! Set local variable to avoid unused variable errors
+#else
+    if(self%comm_set)then
+      call mpi_bcast( buffer, count, MPI_LOGICAL, root, self%comm, err )
+      if (err /= mpi_success) &
+        call log_event('Call to logical broadcast failed with an MPI error.', &
+                       LOG_LEVEL_ERROR )
+    else
+      call log_event( &
+      'Call to broadcast failed. Must initialise the mpi object first',&
+      LOG_LEVEL_ERROR )
+    end if
+#endif
+  end subroutine broadcast_logical_3d
+
+  !> Broadcasts 3d array of 32-bit integer data from the root MPI task to all
+  !> other MPI tasks
+  !>
+  !> @param buffer On the root MPI task, contains the data to broadcast,
+  !>               on other tasks the data from root task will be writen to here
+  !> @param count The number of items in buffer
+  !> @param root The MPI task from which data will be broadcast
+  subroutine broadcast_int32_3d(self, buffer, count, root)
+
+    implicit none
+
+    class(mpi_type), intent(inout) :: self
+    integer(int32),  intent(inout) :: buffer(:,:,:)
+    integer,         intent(in)    :: count
+    integer,         intent(in)    :: root
+
+    integer(int32) :: err
+
+#ifdef NO_MPI
+    ! In a non-mpi build there is nowhere to broadcast to - so do nothing
+    err=0 ! Set local variable to avoid unused variable errors
+#else
+    if(self%comm_set)then
+      call mpi_bcast( buffer, count, get_mpi_datatype( integer_type, int32 ), &
+                      root, self%comm, err )
+      if (err /= mpi_success) &
+        call log_event('Call to integer broadcast failed with an MPI error.', &
+                       LOG_LEVEL_ERROR )
+    else
+      call log_event( &
+      'Call to broadcast failed. Must initialise the mpi object first',&
+      LOG_LEVEL_ERROR )
+    end if
+#endif
+  end subroutine broadcast_int32_3d
+
+  !> Broadcasts 3d array of 64-bit real data from the root MPI task to all
+  !> other MPI tasks.
+  !>
+  !> @param buffer On the root MPI task, contains the data to broadcast,
+  !>               on other tasks the data from root task will be writen to here
+  !> @param count The number of items in buffer
+  !> @param root The MPI task from which data will be broadcast
+  subroutine broadcast_real64_3d(self, buffer, count, root)
+
+    implicit none
+
+    class(mpi_type), intent(inout) :: self
+    real(real64),    intent(inout) :: buffer(:,:,:)
+    integer,         intent(in)    :: count
+    integer,         intent(in)    :: root
+
+    integer :: err
+
+#ifdef NO_MPI
+    ! In a non-mpi build there is nowhere to broadcast to - so do nothing
+    err=0 ! Set local variable to avoid unused variable errors
+#else
+    if(self%comm_set)then
+      call mpi_bcast( buffer, count, &
+                      get_mpi_datatype( real_type, real64 ), &
+                      root, self%comm, err )
+      if (err /= mpi_success) &
+        call log_event('Call to real broadcast failed with an MPI error.', &
+                       LOG_LEVEL_ERROR )
+    else
+      call log_event( &
+      'Call to broadcast failed. Must initialise the mpi object first',&
+      LOG_LEVEL_ERROR )
+    end if
+#endif
+  end subroutine broadcast_real64_3d
+
+  !> Broadcasts 3d array of 32-bit real data from the root MPI task to all
+  !> other MPI tasks.
+  !>
+  !> @param buffer On the root MPI task, contains the data to broadcast,
+  !>               on other tasks the data from root task will be writen to here
+  !> @param count The number of items in buffer
+  !> @param root The MPI task from which data will be broadcast
+  subroutine broadcast_real32_3d(self, buffer, count, root)
+
+    implicit none
+
+    class(mpi_type), intent(inout) :: self
+    real(real32),    intent(inout) :: buffer(:,:,:)
+    integer,         intent(in)    :: count
+    integer,         intent(in)    :: root
+
+    integer :: err
+
+#ifdef NO_MPI
+    ! In a non-mpi build there is nowhere to broadcast to - so do nothing
+    err=0 ! Set local variable to avoid unused variable errors
+#else
+    if(self%comm_set)then
+      call mpi_bcast( buffer, count, &
+                      get_mpi_datatype( real_type, real32 ), &
+                      root, self%comm, err )
+      if (err /= mpi_success) &
+        call log_event('Call to real broadcast failed with an MPI error.', &
+                       LOG_LEVEL_ERROR )
+    else
+      call log_event( &
+      'Call to broadcast failed. Must initialise the mpi object first',&
+      LOG_LEVEL_ERROR )
+    end if
+#endif
+  end subroutine broadcast_real32_3d
+
+
 
   !> Returns the number of MPI ranks in the communicator
   !>
@@ -768,7 +1080,7 @@ contains
   function get_comm_size(self) result(c_size)
     implicit none
     class(mpi_type), intent(inout)  :: self
-    integer(i_def) :: c_size
+    integer :: c_size
 #ifdef NO_MPI
     ! A non-mpi run is serial, therefore, number of ranks has to be one
     c_size = 1
@@ -789,7 +1101,7 @@ contains
   function get_comm_rank(self) result(c_rank)
     implicit none
     class(mpi_type), intent(inout)  :: self
-    integer(i_def) :: c_rank
+    integer :: c_rank
 #ifdef NO_MPI
     ! A non-mpi run is serial, therefore, local rank is always rank zero
     c_rank = 0
