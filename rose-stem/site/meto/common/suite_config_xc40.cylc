@@ -14,13 +14,13 @@
                        'export PATH=/critical/ukmo/unsupported/gmake/3.8.2/bin:$PATH' %}
 {% endif %}
 
-{% set xc40_compiler_intel = 'module load meto-environment/lfric/intel/17.0.0.098/10' %}
+{% set xc40_compiler_intel = 'module load meto-environment/lfric/intel/17.0.0.098/11' %}
 
-{% set xc40_compiler_cce = 'module load meto-environment/lfric/cce/8.7.0/7' %}
+{% set xc40_compiler_cce = 'module load meto-environment/lfric/cce/8.7.0/8' %}
 
 {% set xc40_scitools = 'module load scitools/production-os45-1' %}
 
-{% set xc40_tech = 'module load meto-common/lfric/18 ; '~
+{% set xc40_tech = 'module load meto-common/lfric/19 ; '~
                    'module load cray-snplauncher/$CRAY_MPICH2_VER' %}
 
     [[XC40_BASE]]
