@@ -15,7 +15,7 @@ module driver_coordinates_mod
                                        topology_non_periodic
   use constants_mod,             only: r_def, i_def, l_def, &
                                        radians_to_degrees, &
-                                       i_halo_index, EPS
+                                       i_halo_index, EPS, PI
   use log_mod,                   only: log_event, LOG_LEVEL_ERROR
   use planet_config_mod,         only: scaled_radius
   use coord_transform_mod,       only: xyz2llr, llr2xyz, identify_panel, &
@@ -614,7 +614,7 @@ contains
     integer(kind=i_def) :: k, df, dfk, vert
     real(kind=r_def)    :: longitude, latitude, radius
 
-    real(kind=r_def) :: interp_weight
+    real(kind=r_def) :: interp_weight, max_lon, min_lon
     real(kind=r_def) :: v_xyz(3), v_lon, v_lat, v_r
     real(kind=r_def) :: vertex_local_coords(3,nverts)
 
@@ -622,6 +622,8 @@ contains
     do k = 0, nlayers-1
       vertex_local_coords(:,:) = column_coords(:,:,k+1)
 
+      min_lon = 2.0_r_def*PI
+      max_lon = -2.0_r_def*PI
       do df = 1, ndf
         dfk = map(df)+k
         ! Compute interpolation weights
@@ -650,7 +652,18 @@ contains
         chi_2(dfk) = latitude
         chi_3(dfk) = radius - scaled_radius
 
+        min_lon = MIN(longitude, min_lon)
+        max_lon = MAX(longitude, max_lon)
       end do
+
+      ! If cell spans the dateline, adjust the negative longitudes
+      if ( max_lon - min_lon > PI ) then
+        do df = 1, ndf
+          if ( chi_1(map(df)+k) < 0.0_r_def ) then
+            chi_1(map(df)+k) = chi_1(map(df)+k) + 2.0_r_def*PI
+          end if
+        end do
+      end if
     end do
 
   end subroutine assign_coordinate_lonlatz
