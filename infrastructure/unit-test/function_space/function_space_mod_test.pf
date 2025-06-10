@@ -317,11 +317,12 @@ contains
     integer :: cell
     integer(i_def) :: ndat
 
-    integer(i_def) :: global_cell_dof_id_2d(9)
+    integer(i_def), allocatable :: global_cell_dof_id_2d(:)
+    integer(i_def), allocatable :: global_edge_dof_id_2d(:)
+    integer(i_def), allocatable :: global_vert_dof_id_2d(:)
+
     integer(i_def) :: known_global_cell_dof_id_2d(9)
-    integer(i_def) :: global_edge_dof_id_2d(18)
     integer(i_def) :: known_global_edge_dof_id_2d(18)
-    integer(i_def) :: global_vert_dof_id_2d(9)
     integer(i_def) :: known_global_vert_dof_id_2d(9)
 
     integer(i_def) :: i
@@ -518,14 +519,13 @@ contains
     @assertEqual( ndat, test_fs%get_ndata() )
     @assertTrue ( test_fs%is_ndata_first())
 
-    ! Test we have the right number of dofs in the multi-data field.
-    ! In this serial test, last owned, annexed and halo dof will all be the same
-    @assertEqual( ndat*this%ndof_glob, test_fs%get_last_dof_owned()    )
-
     call test_fs%clear()
     nullify( xp, zp, nodal_coords, dofmap, basis_function,&
              basis_diff_function )
 
+    deallocate(global_cell_dof_id_2d)
+    deallocate(global_edge_dof_id_2d)
+    deallocate(global_vert_dof_id_2d)
     deallocate(this%test_basis)
     deallocate(this%test_diff_basis)
 

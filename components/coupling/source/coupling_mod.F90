@@ -138,7 +138,7 @@ contains
     ! Function space of fields used in coupling
     type(function_space_type), pointer          :: cpl_fs
     ! Pointer to the global indices from the mesh
-    integer(i_halo_index), pointer              :: global_index_ptr(:)
+    integer(i_halo_index), allocatable          :: global_index_ptr(:)
     ! Global index for the first mesh level
     integer(i_def), allocatable                 :: global_index(:)
     ! Vector describing the 2d local grid partition in the global index space
@@ -163,7 +163,7 @@ contains
     allocate(global_index(self%cpl_size))
     allocate(self%local_index(self%cpl_size))
 
-    global_index_ptr => cpl_fs%get_global_dof_id()
+    call cpl_fs%get_global_dof_id(global_index_ptr)
 
     ! Convert global indices to integers, if possible
     if (maxval(global_index) > int(huge(i_def), i_halo_index)) then
@@ -173,7 +173,9 @@ contains
     else
       global_index(1:self%cpl_size) = &
                       int(global_index_ptr(1:self%cpl_size), i_def)
-    endif
+    end if
+
+    deallocate(global_index_ptr)
 
     do i = 1, self%cpl_size
       self%local_index(i) = i

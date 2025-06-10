@@ -19,10 +19,6 @@ class function_space_mod::function_space_type {
     -fs_order_v: integer
     -ndata: integer
     -ndata_first : logical
-    -global_dof_id: integer[] <<allocatable>>
-    -global_cell_dof_id_2d: integer[] <<allocatable>>
-    -global_edge_dof_id_2d: integer[] <<allocatable>>
-    -global_vert_dof_id_2d: integer[] <<allocatable>>
     -last_dof_annexed: integer
     -last_dof_halo: integer[] <<allocatable>>
     -last_dof_owned: integer
@@ -62,9 +58,9 @@ class function_space_mod::function_space_type {
     +get_fs_order_v() : integer
     +get_ndata() : integer
     +get_global_dof_id( <<inout>>global_dof_id: integer[] )
-    +get_global_cell_dof_id_2d( <<out>>global_cell_dof_id_2d: integer[] )
-    +get_global_edge_dof_id_2d( <<out>>global_edge_dof_id_2d: integer[] )
-    +get_global_vert_dof_id_2d( <<out>>global_vert_dof_id_2d: integer[] )
+    +get_global_cell_dof_id_2d( <<inout>>global_cell_dof_id_2d: integer[] )
+    +get_global_edge_dof_id_2d( <<inout>>global_edge_dof_id_2d: integer[] )
+    +get_global_vert_dof_id_2d( <<inout>>global_vert_dof_id_2d: integer[] )
     +get_last_dof_halo() : integer
     +get_last_dof_halo( <<in>>depth: integer ) : integer
     +get_last_dof_owned() : integer

@@ -686,12 +686,12 @@ contains
     integer(kind=i_def) :: k_ord_h, k_ord_v, ord_idx
 
     ! Checkpoint domain
-    integer(kind=i_def)                 :: ibegin_checkpoint
-    real(dp_xios), allocatable          :: checkpoint_lon(:)
-    real(dp_xios), allocatable          :: checkpoint_lat(:)
-    real(dp_xios), allocatable          :: bnd_checkpoint_lon(:,:)
-    real(dp_xios), allocatable          :: bnd_checkpoint_lat(:,:)
-    integer(kind=i_halo_index), pointer :: cp_domain_index(:)
+    integer(kind=i_def)                     :: ibegin_checkpoint
+    real(dp_xios), allocatable              :: checkpoint_lon(:)
+    real(dp_xios), allocatable              :: checkpoint_lat(:)
+    real(dp_xios), allocatable              :: bnd_checkpoint_lon(:,:)
+    real(dp_xios), allocatable              :: bnd_checkpoint_lat(:,:)
+    integer(kind=i_halo_index), allocatable :: cp_domain_index(:)
 
 
     ! Variables needed to compute output domain coordinates in lat-long
@@ -711,8 +711,6 @@ contains
     ! Factor to convert coords from radians to degrees if needed
     ! set as 1.0 for planar mesh
     real(kind=r_def) :: r2d
-
-    nullify( cp_domain_index )
 
     if ( mesh%is_geometry_spherical() ) then
      r2d = radians_to_degrees
@@ -816,7 +814,7 @@ contains
     if (use_index) then
 
       ! Populate domain_index for this rank
-      cp_domain_index => output_field_fs%get_global_dof_id()
+      call output_field_fs%get_global_dof_id(cp_domain_index)
 
       ! temporary fix for higher-order domain decomposition
       if (k_ord_h > 0 .or. k_ord_v > 0) then
@@ -830,6 +828,7 @@ contains
 
     end if
 
+    if ( allocated(cp_domain_index) )    deallocate(cp_domain_index)
     if ( allocated(checkpoint_lon) )     deallocate(checkpoint_lon)
     if ( allocated(checkpoint_lat) )     deallocate(checkpoint_lat)
     if ( allocated(bnd_checkpoint_lon) ) deallocate(bnd_checkpoint_lon)
@@ -970,7 +969,6 @@ contains
     end if
 
     ! Populate domain_index for this rank for relevant function space
-    allocate( domain_index(local_domain_size) )
     if (fs_id == W0) then
       call domain_fs%get_global_vert_dof_id_2d(domain_index)
     else if (fs_id == W2H) then

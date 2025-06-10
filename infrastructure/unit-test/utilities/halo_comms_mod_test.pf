@@ -128,7 +128,7 @@ contains
 
     type(halo_routing_type) :: halo_routing
     type(function_space_type), pointer :: function_space => null()
-    integer(i_halo_index), pointer :: global_dof_id(:) => null()
+    integer(i_halo_index), allocatable :: global_dof_id(:)
     integer(i_def), allocatable :: halo_start(:)
     integer(i_def), allocatable :: halo_finish(:)
     integer(i_def) :: idepth
@@ -141,7 +141,7 @@ contains
 
     ndata = 2
 
-    !Get indices of owned and halo cells
+    ! Get indices of owned and halo cells
     function_space => function_space_collection%get_fs( mesh, &
                                                         0, 0,&
                                                         W3, &
@@ -150,7 +150,7 @@ contains
     last_owned_dof = function_space%get_last_dof_owned()
 
     ! Set up the global dof index array
-    global_dof_id => function_space%get_global_dof_id()
+    call function_space%get_global_dof_id(global_dof_id)
 
     ! Set up the boundaries of the different depths of halo
     allocate( halo_start(mesh%get_halo_depth()) )
@@ -184,7 +184,7 @@ contains
                                       r_def, &
                                       mesh%get_halo_depth() )
     deallocate( halo_finish )
-    nullify( global_dof_id )
+    deallocate( global_dof_id )
 
     ! Test the getters on the halo_routing object return the correct values
     result = halo_routing%get_mesh_id()
