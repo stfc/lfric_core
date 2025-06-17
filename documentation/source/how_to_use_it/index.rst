@@ -20,4 +20,5 @@ How to use it
     technical_articles/index
     testing/index
     build_and_test/index
+    parallelism/index
     API/index
