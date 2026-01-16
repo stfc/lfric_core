@@ -96,7 +96,7 @@ subroutine get_partition_parameters_nml( partitioning,   &
   call partitioning%get_value( 'panel_decomposition', panel_decomposition )
 
 
-#ifdef __NVCOMPILER
+#ifndef __NVCOMPILER
   select case (panel_decomposition)
 
   case ( panel_decomposition_auto )
