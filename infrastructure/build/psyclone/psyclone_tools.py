@@ -14,11 +14,11 @@ their application in PSyclone optimisations scripts.
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.nodes import Loop, Routine, Directive
+from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.transformations import (
     Dynamo0p3ColourTrans,
     Dynamo0p3OMPLoopTrans,
     Dynamo0p3RedundantComputationTrans,
-    OMPParallelTrans,
 )
 
 # List of allowed 'setval_*' built-ins for redundant computation transformation
