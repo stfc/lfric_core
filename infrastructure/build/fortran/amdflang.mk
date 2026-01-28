@@ -9,7 +9,7 @@
 # This macro is evaluated now (:= syntax) so it may be used as many times as
 # desired without wasting time rerunning it.
 #
-$(info ** Chosen AMD Flang
+$(info ** Chosen AMD Flang)
 
 F_MOD_DESTINATION_ARG     = -J
 F_MOD_SOURCE_ARG          = -I
