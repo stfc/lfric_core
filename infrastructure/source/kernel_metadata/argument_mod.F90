@@ -50,7 +50,6 @@ module argument_mod
   integer, public, parameter :: GH_FIELD               = 507
   integer, public, parameter :: GH_OPERATOR            = 735
   integer, public, parameter :: GH_COLUMNWISE_OPERATOR = 841
-  integer, public, parameter :: GH_SCALAR_ARRAY        = 973
   !> @}
 
   !> @defgroup data_type Enumeration of argument data type property descriptors.
