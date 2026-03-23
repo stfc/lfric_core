@@ -170,6 +170,11 @@ subroutine init_chi_transforms( geometry, topology, &
          LOG_LEVEL_WARNING                                                     &
       )
     end if
+    ! Weird lfric_atm bug where null_islane(2) was NaN, this is a temporary fix
+    ! to this.
+    if( isnan(null_island(2))) then
+        null_island(2) = 0.0_r_def
+    end if
     if ( abs(null_island(1) - rmdi) < EPS                                      &
          .or. abs(null_island(2) - rmdi) < EPS ) then
       null_island(1) = 0.0_r_def
