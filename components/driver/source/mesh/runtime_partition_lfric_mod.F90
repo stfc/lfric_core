@@ -93,8 +93,9 @@ subroutine get_partition_parameters_nml( partitioning,   &
 
   integer :: panel_decomposition
 
+  ! Incorporate Chris' fix for NVFortran.
+#ifndef __NVCOMPILER
   call partitioning%get_value( 'panel_decomposition', panel_decomposition )
-
 
   select case (panel_decomposition)
 
@@ -125,6 +126,9 @@ subroutine get_partition_parameters_nml( partitioning,   &
                     "specify 'auto' if unsure.", LOG_LEVEL_ERROR )
 
   end select
+#else
+  panel_decomposition = panel_decomposition_auto
+#endif
 
   call get_partition_strategy(mesh_selection, total_ranks, partitioner_ptr)
 
