@@ -135,7 +135,7 @@ end subroutine ll2xyz
 !!  @param[out]  y         Cartesian y coordinate.
 !!  @param[out]  z         Cartesian z coordinate.
 !------------------------------------------------------------------------------
-subroutine llr2xyz(longitude, latitude, radius, x, y, z)
+pure subroutine llr2xyz(longitude, latitude, radius, x, y, z)
 
   !$omp declare target
   implicit none
@@ -169,7 +169,7 @@ end subroutine llr2xyz
 !!  @param[out]  longitude  -PI   <=  Longitude < PI   (radians).
 !!  @param[out]  latitude   -PI/2 <= Latitude  <= PI/2 (radians).
 !------------------------------------------------------------------------------
-subroutine xyz2ll_r_single(x, y, z, longitude, latitude)
+pure subroutine xyz2ll_r_single(x, y, z, longitude, latitude)
 
   !$omp declare target
   implicit none
@@ -229,7 +229,7 @@ subroutine xyz2ll_r_single(x, y, z, longitude, latitude)
   return
 end subroutine xyz2ll_r_single
 
-subroutine xyz2ll_r_double(x, y, z, longitude, latitude)
+pure subroutine xyz2ll_r_double(x, y, z, longitude, latitude)
 
   !$omp declare target
   implicit none
@@ -298,8 +298,8 @@ end subroutine xyz2ll_r_double
 !!  @param[out]  latitude   -PI/2 <= Latitude  <= PI/2 (radians).
 !!  @param[out]  radius     Radius of the sphere(m).
 !------------------------------------------------------------------------------
-subroutine xyz2llr_r_single( x, y, z, &
-                             longitude, latitude, radius )
+pure subroutine xyz2llr_r_single( x, y, z, &
+                                  longitude, latitude, radius )
 
   !$omp declare target
   implicit none
@@ -364,8 +364,8 @@ subroutine xyz2llr_r_single( x, y, z, &
 
 end subroutine xyz2llr_r_single
 
-subroutine xyz2llr_r_double( x, y, z, &
-                             longitude, latitude, radius )
+pure subroutine xyz2llr_r_double( x, y, z, &
+                                  longitude, latitude, radius )
 
   !$omp declare target
   implicit none
@@ -882,8 +882,8 @@ end subroutine xyz2alphabetarpanel
 !! @param[out] global_y Geocentric Cartesian y coordinate
 !! @param[out] global_z Geocentric Cartesian z coordinate
 !-----------------------------------------------------------------------------
-subroutine alphabetar2xyz_r_single(alpha, beta, radius, panel_id, &
-                                   global_x, global_y, global_z)
+pure subroutine alphabetar2xyz_r_single(alpha, beta, radius, panel_id, &
+                                        global_x, global_y, global_z)
 
   !$omp declare target
   implicit none
@@ -910,8 +910,8 @@ subroutine alphabetar2xyz_r_single(alpha, beta, radius, panel_id, &
 
 end subroutine alphabetar2xyz_r_single
 
-subroutine alphabetar2xyz_r_double(alpha, beta, radius, panel_id, &
-                                   global_x, global_y, global_z)
+pure subroutine alphabetar2xyz_r_double(alpha, beta, radius, panel_id, &
+                                        global_x, global_y, global_z)
 
   !$omp declare target
   implicit none
@@ -1174,7 +1174,7 @@ end function mesh_rotation_matrix
 !> @param[in]  stretch       Stretching factor
 !> @returns    physical_xyz  Physical geocentric Cartesian coordinates
 !-----------------------------------------------------------------------------
-function schmidt_transform_xyz(native_xyz, stretch) result(physical_xyz)
+pure function schmidt_transform_xyz(native_xyz, stretch) result(physical_xyz)
 
   !$omp declare target
   implicit none
