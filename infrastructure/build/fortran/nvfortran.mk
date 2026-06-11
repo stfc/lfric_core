@@ -27,7 +27,7 @@ FFLAGS_RUNTIME            =
 # Option for checking code meets Fortran standard (not available for PGI)
 FFLAGS_FORTRAN_STANDARD   =
 
-LDFLAGS_COMPILER = -g
+LDFLAGS_COMPILER = -g -cuda -lnvtx3interop
 
 # Flags for OpenMP threading / OpenMP offloading / OpenACC Offloading
 # The LFRIC_OFFLOAD_DIRECTIVES env_variable is also queried in the PSyclone

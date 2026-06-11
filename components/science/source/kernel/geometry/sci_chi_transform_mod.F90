@@ -47,12 +47,16 @@ private
 ! ---------------------------------------------------------------------------- !
 ! Private matrices or values that need computing once
 ! ---------------------------------------------------------------------------- !
-
 real(kind=r_def)    :: chi2xyz_rot_mat(3,3)
+!$omp declare target (chi2xyz_rot_mat)
 real(kind=r_def)    :: xyz2chi_rot_mat(3,3)
+!$omp declare target (xyz2chi_rot_mat)
 real(kind=r_def)    :: stretch_factor
+!$omp declare target (stretch_factor)
 logical(kind=l_def) :: to_rotate
+!$omp declare target (to_rotate)
 logical(kind=l_def) :: to_stretch
+!$omp declare target (to_stretch)
 
 ! ---------------------------------------------------------------------------- !
 ! Public subroutines
@@ -253,6 +257,7 @@ end subroutine final_chi_transforms
 !-------------------------------------------------------------------------------
 subroutine chi2xyz(chi_1, chi_2, chi_3, panel_id, x, y, z)
 
+  !$omp declare target
   implicit none
 
   integer(kind=i_def), intent(in)  :: panel_id
@@ -412,8 +417,9 @@ end subroutine chir2xyz
 !! @param[out]  latitude   The second coordinate field out (latitude)
 !! @param[out]  radius     The third coordinate field out (radius)
 !-------------------------------------------------------------------------------
-subroutine chi2llr(chi_1, chi_2, chi_3, panel_id, lon, lat, radius)
+pure subroutine chi2llr(chi_1, chi_2, chi_3, panel_id, lon, lat, radius)
 
+  !$omp declare target
   implicit none
 
   integer(kind=i_def), intent(in)  :: panel_id
@@ -486,6 +492,7 @@ end subroutine chi2llr
 !-------------------------------------------------------------------------------
 subroutine chi2abr(chi_1, chi_2, chi_3, panel_id, alpha, beta, radius)
 
+  !$omp declare target
   implicit none
 
   integer(kind=i_def), intent(in)  :: panel_id
@@ -495,9 +502,9 @@ subroutine chi2abr(chi_1, chi_2, chi_3, panel_id, alpha, beta, radius)
   real(kind=r_def) :: xyz(3)
 
   if (topology /= topology_fully_periodic .or. geometry /= geometry_spherical) then
-    call log_event(                                                            &
-      'chi2abr can only be used on cubed-sphere meshes', LOG_LEVEL_ERROR       &
-    )
+    ! call log_event(                                                            &
+    !   'chi2abr can only be used on cubed-sphere meshes', LOG_LEVEL_ERROR       &
+    ! )
 
   else if (coord_system == coord_system_native) then
     alpha = chi_1
@@ -531,6 +538,7 @@ end subroutine chi2abr
 !!        native Cartesian coordinates to the physical Cartesian coordinates
 !-------------------------------------------------------------------------------
 function get_mesh_rotation_matrix() result(rot_mat)
+  !$omp declare target
   implicit none
   real(kind=r_def) :: rot_mat(3,3)
 
@@ -543,6 +551,7 @@ end function get_mesh_rotation_matrix
 !!        physical Cartesian coordinates to native Cartesian coordinates
 !-------------------------------------------------------------------------------
 function get_inverse_mesh_rotation_matrix() result(rot_mat)
+  !$omp declare target
   implicit none
   real(kind=r_def) :: rot_mat(3,3)
 
@@ -554,6 +563,7 @@ end function get_inverse_mesh_rotation_matrix
 !> @brief Returns the Schmidt transform stretch factor
 !-------------------------------------------------------------------------------
 function get_stretch_factor() result(stretch_factor_out)
+  !$omp declare target
   implicit none
   real(kind=r_def) :: stretch_factor_out
 
@@ -565,6 +575,7 @@ end function get_stretch_factor
 !> @brief Returns whether coordinates are rotated
 !-------------------------------------------------------------------------------
 function get_to_rotate() result(to_rotate_out)
+  !$omp declare target
   implicit none
   logical(kind=l_def) :: to_rotate_out
 
@@ -576,6 +587,7 @@ end function get_to_rotate
 !> @brief Returns whether coordinates are stretched
 !-------------------------------------------------------------------------------
 function get_to_stretch() result(to_stretch_out)
+  !$omp declare target
   implicit none
   logical(kind=l_def) :: to_stretch_out
 
