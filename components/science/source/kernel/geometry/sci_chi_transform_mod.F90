@@ -30,15 +30,12 @@ use log_mod,                   only : log_event,               &
                                       LOG_LEVEL_WARNING
 use matrix_invert_mod,         only : matrix_invert_3x3
 
-use base_mesh_config_mod,      only : geometry,                &
-                                      geometry_spherical,      &
-                                      geometry_planar,         &
-                                      topology,                &
-                                      topology_fully_periodic
-use finite_element_config_mod, only : coord_system,            &
-                                      coord_system_xyz,        &
-                                      coord_system_native
-use planet_config_mod,         only : scaled_radius
+! Configuration modules
+use base_mesh_config_mod,      only: geometry_spherical, &
+                                     geometry_planar,    &
+                                     topology_fully_periodic
+use finite_element_config_mod, only: coord_system_xyz, &
+                                     coord_system_native
 
 implicit none
 
@@ -81,6 +78,8 @@ contains
 !------------------------------------------------------------------------------
 !> @brief  Initialise the coordinate transform information
 !!
+!> @param[in] geometry           Mesh geometry enumeration value
+!> @param[in] topology           Mesh topology enumeration value
 !> @param[in] mesh_collection    Optional: a collection of meshes, which contain
 !!                               metadata used to determine the rotation matrix
 !!                               and stretching factors.
@@ -96,11 +95,12 @@ contains
 !------------------------------------------------------------------------------
 subroutine init_chi_transforms( geometry, topology, &
                                 mesh_collection,    &
-                                north_pole_arg, equator_lat_arg )
+                                north_pole_arg,     &
+                                equator_lat_arg )
 
-  use local_mesh_mod,            only : local_mesh_type
-  use mesh_collection_mod,       only : mesh_collection_type
-  use mesh_mod,                  only : mesh_type
+  use local_mesh_mod,      only: local_mesh_type
+  use mesh_collection_mod, only: mesh_collection_type
+  use mesh_mod,            only: mesh_type
 
   implicit none
 
@@ -191,7 +191,7 @@ subroutine init_chi_transforms( geometry, topology, &
          LOG_LEVEL_WARNING                                                     &
       )
     end if
-  end if
+  end if ! present(mesh_collection)
 
   if (present(north_pole_arg)) north_pole = north_pole_arg
   if (present(equator_lat_arg)) equatorial_latitude = equator_lat_arg
@@ -247,15 +247,21 @@ end subroutine final_chi_transforms
 !>        will be added to the height to give the radius before the coordinates
 !>        are transformed to (X,Y,Z) coordinates.
 !!
-!! @param[in]   chi_1      The first coordinate field in
-!! @param[in]   chi_2      The second coordinate field in
-!! @param[in]   chi_3      The third coordinate field in
-!! @param[in]   panel_id   The mesh panel ID
-!! @param[out]  x          The first coordinate field out (global Cartesian X)
-!! @param[out]  y          The second coordinate field out (global Cartesian Y)
-!! @param[out]  z          The third coordinate field out (global Cartesian Z)
+!! @param[in]   chi_1         The first coordinate field in
+!! @param[in]   chi_2         The second coordinate field in
+!! @param[in]   chi_3         The third coordinate field in
+!! @param[in]   panel_id      The mesh panel ID
+!> @param[in]   geometry      Mesh geometry enumeration value
+!> @param[in]   topology      Mesh topology enumeration value
+!> @param[in]   coord_system  Finite-Element coord-system enumeration value
+!> @param[in]   scaled_radius Planet scaled radius
+!! @param[out]  x             The first coordinate field out (global Cartesian X)
+!! @param[out]  y             The second coordinate field out (global Cartesian Y)
+!! @param[out]  z             The third coordinate field out (global Cartesian Z)
 !-------------------------------------------------------------------------------
-subroutine chi2xyz(chi_1, chi_2, chi_3, panel_id, x, y, z)
+subroutine chi2xyz( chi_1, chi_2, chi_3, panel_id,                   &
+                    geometry, topology, coord_system, scaled_radius, &
+                    x, y, z )
 
   !$omp declare target
   implicit none
@@ -265,6 +271,11 @@ subroutine chi2xyz(chi_1, chi_2, chi_3, panel_id, x, y, z)
   real(kind=r_def),    intent(out) :: x, y, z
 
   real(kind=r_def) :: xyz(3)
+
+  integer(i_def), intent(in) :: geometry
+  integer(i_def), intent(in) :: topology
+  integer(i_def), intent(in) :: coord_system
+  real(r_def),    intent(in) :: scaled_radius
 
   if (geometry == geometry_planar .or. coord_system == coord_system_xyz) then
     ! chi already uses (geocentric) Cartesian coordinates
@@ -330,21 +341,30 @@ end subroutine chi2xyz
 !>        function from chi2xyz above). Therefore this will not add the
 !>        scaled_radius to transform.
 !!
-!! @param[in]   chi_1      The first coordinate field in
-!! @param[in]   chi_2      The second coordinate field in
-!! @param[in]   chi_3      The third coordinate field in
-!! @param[in]   panel_id   The mesh panel ID
-!! @param[out]  x          The first coordinate field out (global Cartesian X)
-!! @param[out]  y          The second coordinate field out (global Cartesian Y)
-!! @param[out]  z          The third coordinate field out (global Cartesian Z)
+!! @param[in]   chi_1         The first coordinate field in
+!! @param[in]   chi_2         The second coordinate field in
+!! @param[in]   chi_3         The third coordinate field in
+!! @param[in]   panel_id      The mesh panel ID
+!> @param[in]   geometry      Mesh geometry enumeration value
+!> @param[in]   topology      Mesh topology enumeration value
+!> @param[in]   coord_system  Finite-Element coord-system enumeration value
+!! @param[out]  x             The first coordinate field out (global Cartesian X)
+!! @param[out]  y             The second coordinate field out (global Cartesian Y)
+!! @param[out]  z             The third coordinate field out (global Cartesian Z)
 !-------------------------------------------------------------------------------
-subroutine chir2xyz(chi_1, chi_2, chi_3, panel_id, x, y, z)
+subroutine chir2xyz( chi_1, chi_2, chi_3, panel_id,    &
+                     geometry, topology, coord_system, &
+                     x, y, z )
 
   implicit none
 
-  integer(kind=i_def), intent(in)  :: panel_id
-  real(kind=r_def),    intent(in)  :: chi_1, chi_2, chi_3
-  real(kind=r_def),    intent(out) :: x, y, z
+  integer(kind=i_def), intent(in) :: panel_id
+  real(kind=r_def),    intent(in) :: chi_1, chi_2, chi_3
+  integer(kind=i_def), intent(in) :: geometry
+  integer(kind=i_def), intent(in) :: topology
+  integer(kind=i_def), intent(in) :: coord_system
+
+  real(kind=r_def), intent(out) :: x, y, z
 
   real(kind=r_def) :: xyz(3)
 
@@ -409,22 +429,33 @@ end subroutine chir2xyz
 !> @brief Transforms a coordinate field chi from any system into spherical polar
 !>        (longitude, latitude, radius) coordinates
 !!
-!! @param[in]   chi_1      The first coordinate field in
-!! @param[in]   chi_2      The second coordinate field in
-!! @param[in]   chi_3      The third coordinate field in
-!! @param[in]   panel_id   The mesh panel ID
-!! @param[out]  longitude  The first coordinate field out (longitude)
-!! @param[out]  latitude   The second coordinate field out (latitude)
-!! @param[out]  radius     The third coordinate field out (radius)
+!! @param[in]   chi_1         The first coordinate field in
+!! @param[in]   chi_2         The second coordinate field in
+!! @param[in]   chi_3         The third coordinate field in
+!! @param[in]   panel_id      The mesh panel ID
+!> @param[in]   geometry      Mesh geometry enumeration value
+!> @param[in]   topology      Mesh topology enumeration value
+!> @param[in]   coord_system  Finite-Element coord-system enumeration value
+!> @param[in]   scaled_radius Planet scaled radius
+!! @param[out]  longitude     The first coordinate field out (longitude)
+!! @param[out]  latitude      The second coordinate field out (latitude)
+!! @param[out]  radius        The third coordinate field out (radius)
 !-------------------------------------------------------------------------------
-pure subroutine chi2llr(chi_1, chi_2, chi_3, panel_id, lon, lat, radius)
+subroutine chi2llr( chi_1, chi_2, chi_3, panel_id,                   &
+                    geometry, topology, coord_system, scaled_radius, &
+                    lon, lat, radius )
 
   !$omp declare target
   implicit none
 
-  integer(kind=i_def), intent(in)  :: panel_id
-  real(kind=r_def),    intent(in)  :: chi_1, chi_2, chi_3
-  real(kind=r_def),    intent(out) :: lon, lat, radius
+  integer(kind=i_def), intent(in) :: panel_id
+  real(kind=r_def),    intent(in) :: chi_1, chi_2, chi_3
+  integer(kind=i_def), intent(in) :: geometry
+  integer(kind=i_def), intent(in) :: topology
+  integer(kind=i_def), intent(in) :: coord_system
+  real(kind=r_def),    intent(in) :: scaled_radius
+
+  real(kind=r_def), intent(out) :: lon, lat, radius
 
   real(kind=r_def) :: xyz(3)
 
@@ -482,29 +513,40 @@ end subroutine chi2llr
 !> @brief Transforms a coordinate field chi from any system into *native*
 !!        equiangular cubed sphere (alpha,beta,radius) coordinates
 !!
-!! @param[in]   chi_1      The first coordinate field in
-!! @param[in]   chi_2      The second coordinate field in
-!! @param[in]   chi_3      The third coordinate field in
-!! @param[in]   panel_id   The mesh panel ID
-!! @param[out]  alpha      The first coordinate field out (alpha)
-!! @param[out]  beta       The second coordinate field out (beta)
-!! @param[out]  radius     The third coordinate field out (radius)
+!! @param[in]   chi_1         The first coordinate field in
+!! @param[in]   chi_2         The second coordinate field in
+!! @param[in]   chi_3         The third coordinate field in
+!! @param[in]   panel_id      The mesh panel ID
+!> @param[in]   geometry      Mesh geometry enumeration value
+!> @param[in]   topology      Mesh topology enumeration value
+!> @param[in]   coord_system  Finite-Element coord-system enumeration value
+!> @param[in]   scaled_radius Planet scaled radius
+!! @param[out]  alpha         The first coordinate field out (alpha)
+!! @param[out]  beta          The second coordinate field out (beta)
+!! @param[out]  radius        The third coordinate field out (radius)
 !-------------------------------------------------------------------------------
-subroutine chi2abr(chi_1, chi_2, chi_3, panel_id, alpha, beta, radius)
+subroutine chi2abr( chi_1, chi_2, chi_3, panel_id,                   &
+                    geometry, topology, coord_system, scaled_radius, &
+                    alpha, beta, radius )
 
   !$omp declare target
   implicit none
 
-  integer(kind=i_def), intent(in)  :: panel_id
-  real(kind=r_def),    intent(in)  :: chi_1, chi_2, chi_3
-  real(kind=r_def),    intent(out) :: alpha, beta, radius
+  integer(kind=i_def), intent(in) :: panel_id
+  real(kind=r_def),    intent(in) :: chi_1, chi_2, chi_3
+  integer(kind=i_def), intent(in) :: geometry
+  integer(kind=i_def), intent(in) :: topology
+  integer(kind=i_def), intent(in) :: coord_system
+  real(kind=r_def),    intent(in) :: scaled_radius
+
+  real(kind=r_def), intent(out) :: alpha, beta, radius
 
   real(kind=r_def) :: xyz(3)
 
   if (topology /= topology_fully_periodic .or. geometry /= geometry_spherical) then
-    ! call log_event(                                                            &
-    !   'chi2abr can only be used on cubed-sphere meshes', LOG_LEVEL_ERROR       &
-    ! )
+    call log_event(                                                            &
+  'chi2abr can only be used on cubed-sphere meshes', LOG_LEVEL_ERROR       &
+  )
 
   else if (coord_system == coord_system_native) then
     alpha = chi_1
@@ -539,6 +581,7 @@ end subroutine chi2abr
 !-------------------------------------------------------------------------------
 function get_mesh_rotation_matrix() result(rot_mat)
   !$omp declare target
+
   implicit none
   real(kind=r_def) :: rot_mat(3,3)
 
@@ -552,6 +595,7 @@ end function get_mesh_rotation_matrix
 !-------------------------------------------------------------------------------
 function get_inverse_mesh_rotation_matrix() result(rot_mat)
   !$omp declare target
+
   implicit none
   real(kind=r_def) :: rot_mat(3,3)
 
@@ -564,6 +608,7 @@ end function get_inverse_mesh_rotation_matrix
 !-------------------------------------------------------------------------------
 function get_stretch_factor() result(stretch_factor_out)
   !$omp declare target
+
   implicit none
   real(kind=r_def) :: stretch_factor_out
 
@@ -576,6 +621,7 @@ end function get_stretch_factor
 !-------------------------------------------------------------------------------
 function get_to_rotate() result(to_rotate_out)
   !$omp declare target
+
   implicit none
   logical(kind=l_def) :: to_rotate_out
 
@@ -588,6 +634,7 @@ end function get_to_rotate
 !-------------------------------------------------------------------------------
 function get_to_stretch() result(to_stretch_out)
   !$omp declare target
+
   implicit none
   logical(kind=l_def) :: to_stretch_out
 
