@@ -190,6 +190,10 @@ module argument_mod
   integer, public, parameter :: DOF                        = 712
   !> @}
 
+  !> The maximum length of those elements of argument metadata that
+  !! are of character type.
+  integer, private, parameter :: METADATA_CHAR_LENGTH = 40
+
   !> Metadata for the argument type description, stored in the `arg_type` type
   !! as an array of `meta_args`. We need to know how many scalars, fields
   !! and/or operators are passed to the kernel and in what order they are
@@ -224,6 +228,13 @@ module argument_mod
      !> Optional metadata (fields only) for inter-grid mapping kernels.
      !! One of {GH_FINE, GH_COARSE}.
      integer :: mesh_arg    = -1
+     !> Optional metadata (fields only) specifying how many data values
+     !! there are at each DoF. Defaults to 1.
+     character(len=METADATA_CHAR_LENGTH) :: ndata = "1"
+     !> Optional metadata specifying how many vertical levels
+     !! the field has. Default is to use the number associated with the
+     !! first field/operator kernel argument.
+     character(len=METADATA_CHAR_LENGTH) :: nlevels = ""
   end type arg_type
 
   !> Optional metadata for the basis/differential basis functions required with
