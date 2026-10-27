@@ -50,13 +50,19 @@ pre_process: $(LOWER_PP_FILES)
 
 FPPFLAGS += -P
 
-ifeq ("$(FORTRAN_COMPILER)", "nvfortran")
+# nvfortran as preprocessor needs different options
+PREPROCESSOR = $(firstword $(subst -, ,$(notdir $(FPP))))
+
+# Debug output
+$(info FC $(FC) PREPROCESSOR $(PREPROCESSOR) FPP $(FPP) FPPFLAGS $(FPPFLAGS))
+
+ifeq ("$(PREPROCESSOR)", "nvfortran")
 %.x90: /%.X90
-	$(call MESSAGE,Preprocessing, $<
+	$(call MESSAGE,Preprocessing, $<)
 	$Q$(FPP) $(FPPFLAGS) $(MACRO_ARGS) -o $@ $<
 	$Qrm $<
 %.f90: %.F90
-	$(call MESSAGE,Preprocessing, $<
+	$(call MESSAGE,Preprocessing, $<)
 	$Q$(FPP) $(FPPFLAGS) $(MACRO_ARGS) -o $@ $<
 	$Qrm $<
 else
