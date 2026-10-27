@@ -48,6 +48,8 @@ LOWER_PP_FILES := $(patsubst %.X90,%.x90,$(patsubst %.F90,%.f90,$(PP_FILES)))
 
 pre_process: $(LOWER_PP_FILES)
 
+FPPFLAGS += -P
+
 ifeq ("$(FORTRAN_COMPILER)", "nvfortran")
 %.x90: /%.X90
 	$(call MESSAGE,Preprocessing, $<
