@@ -50,5 +50,8 @@ else
 	LDFLAGS_OPENMP = -mp
 endif
 
-FPP = nvfortran -E
-FPPFLAGS = -P -D__NVCOMPILER
+# We can't easily use nvfortran as preprorcessor, since -P results
+# that the output file is written in the current directory (and th
+# -o directive is ignored)
+FPP = cpp --traditional
+FPPFLAGS = -P
