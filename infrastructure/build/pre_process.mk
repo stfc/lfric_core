@@ -32,6 +32,8 @@
 #
 ##############################################################################
 
+include $(LFRIC_BUILD)/fortran.mk
+
 .SECONDEXPANSION:
 
 # Build a set of "-I" arguments to seach the whole object tree:
@@ -47,8 +49,6 @@ PP_FILES := $(shell find $(WORKING_DIR) -name '*.[FX]90' -print)
 LOWER_PP_FILES := $(patsubst %.X90,%.x90,$(patsubst %.F90,%.f90,$(PP_FILES)))
 
 pre_process: $(LOWER_PP_FILES)
-
-FPPFLAGS += -P
 
 # nvfortran as preprocessor needs different options
 PREPROCESSOR = $(firstword $(subst -, ,$(notdir $(FPP))))
