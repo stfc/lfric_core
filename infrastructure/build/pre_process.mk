@@ -44,6 +44,14 @@ INCLUDE_ARGS := $(subst ./,-I,$(shell find . -mindepth 1 -type d -print)) \
 #
 MACRO_ARGS := $(addprefix -D,$(PRE_PROCESS_MACROS))
 
+# Add a special compiler-specific define (in case that the compiler is not used
+# as preprocesser, e.g. nvidia). This way, compiler-specific preprocessing
+# can be done in all cases using consistent macros:
+# IFORT_COMPILER, IFX_COMPILER, GNU_COMPILER, NVFORTRAN_COMPILER
+
+UPPER_NAME := $(shell echo $(FORTRAN_COMPILER) | tr '[:lower:]' '[:upper:]')
+MACRO_ARGS += -D$(UPPER_NAME)_COMPILER
+
 PP_FILES := $(shell find $(WORKING_DIR) -name '*.[FX]90' -print)
 # Convert to lower case
 LOWER_PP_FILES := $(patsubst %.X90,%.x90,$(patsubst %.F90,%.f90,$(PP_FILES)))
