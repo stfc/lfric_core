@@ -37,7 +37,7 @@ include $(LFRIC_BUILD)/fortran.mk
 .SECONDEXPANSION:
 
 # Build a set of "-I" arguments to seach the whole object tree:
-INCLUDE_ARGS := $(subst ./,-I,$(shell find . -mindepth 1 -type d -print)) \
+INCLUDE_ARGS := $(addprefix -I, $(shell find $(WORKING_DIR) -mindepth 1 -type d -print)) \
                 $(addprefix -I, $(PRE_PROCESS_INCLUDE_DIRS))
 
 # Build a set of "-D" argument for any pre-processor macros
@@ -61,28 +61,19 @@ pre_process: $(LOWER_PP_FILES)
 # nvfortran as preprocessor needs different options
 PREPROCESSOR = $(firstword $(subst -, ,$(notdir $(FPP))))
 
-# Debug output
-$(info FC $(FC) PREPROCESSOR $(PREPROCESSOR) FPP $(FPP) FPPFLAGS $(FPPFLAGS))
-
 ifeq ("$(PREPROCESSOR)", "nvfortran")
-%.x90: /%.X90
-	$(call MESSAGE,Preprocessing, $<)
-	$Q$(FPP) $(FPPFLAGS) $(MACRO_ARGS) -o $@ $<
-	$Qrm $<
-%.f90: %.F90
-	$(call MESSAGE,Preprocessing, $<)
-	$Q$(FPP) $(FPPFLAGS) $(MACRO_ARGS) -o $@ $<
-	$Qrm $<
-else
+	# That shouldn't really be happening
+    $(error You cannot use nvfortran as preprocessor )
+endif
+
 %.x90: %.X90
 	$(call MESSAGE,Preprocessing, $<)
-	$Q$(FPP) $(FPPFLAGS) $(MACRO_ARGS) $< $@
+	$Q$(FPP) $(FPPFLAGS) $(INCLUDE_ARGS) $(MACRO_ARGS) $< $@
 	$Qrm $<
 %.f90: %.F90
 	$(call MESSAGE,Preprocessing, $<)
-	$Q$(FPP) $(FPPFLAGS) $(MACRO_ARGS) $< $@
+	$Q$(FPP) $(FPPFLAGS) $(INCLUDE_ARGS) $(MACRO_ARGS) $< $@
 	$Qrm $<
-endif
 
 # Get MESSAGE function from lfric.mk
 include $(LFRIC_BUILD)/lfric.mk
