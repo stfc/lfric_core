@@ -545,7 +545,7 @@ subroutine chi2abr( chi_1, chi_2, chi_3, panel_id,                   &
   real(kind=r_def) :: xyz(3)
 
   if (topology /= topology_fully_periodic .or. geometry /= geometry_spherical) then
-#ifndef __NVCOMPILER
+#ifndef NVFORTRAN_COMPILER
     call log_event(                                                            &
   'chi2abr can only be used on cubed-sphere meshes', LOG_LEVEL_ERROR       &
   )
