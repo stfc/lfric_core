@@ -44,6 +44,7 @@ private
 ! ---------------------------------------------------------------------------- !
 ! Private matrices or values that need computing once
 ! ---------------------------------------------------------------------------- !
+
 real(kind=r_def)    :: chi2xyz_rot_mat(3,3)
 !$omp declare target (chi2xyz_rot_mat)
 real(kind=r_def)    :: xyz2chi_rot_mat(3,3)
@@ -544,9 +545,11 @@ subroutine chi2abr( chi_1, chi_2, chi_3, panel_id,                   &
   real(kind=r_def) :: xyz(3)
 
   if (topology /= topology_fully_periodic .or. geometry /= geometry_spherical) then
+#ifndef __NVCOMPILER
     call log_event(                                                            &
   'chi2abr can only be used on cubed-sphere meshes', LOG_LEVEL_ERROR       &
   )
+#endif
 
   else if (coord_system == coord_system_native) then
     alpha = chi_1
