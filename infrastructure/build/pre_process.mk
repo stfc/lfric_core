@@ -80,8 +80,11 @@ else
 
 %.x90: %.X90
 	$(call MESSAGE,Preprocessing, $<)
-	$Q$(FPP) $(FPPFLAGS) $(INCLUDE_ARGS) $(MACRO_ARGS) $< > $@
-	$Qrm $<
+	# Some compilers (e.g. gfortran) do not allow .X90 files to
+	# be preprocessed. So, rename the .X90 into .F90 before preprocessing:
+	mv $< $(basename $<).F90
+	$Q$(FPP) $(FPPFLAGS) $(INCLUDE_ARGS) $(MACRO_ARGS) $(basename $<).F90 > $@
+	$Qrm $(basename $<).F90
 %.f90: %.F90
 	$(call MESSAGE,Preprocessing, $<)
 	$Q$(FPP) $(FPPFLAGS) $(INCLUDE_ARGS) $(MACRO_ARGS) $< > $@
