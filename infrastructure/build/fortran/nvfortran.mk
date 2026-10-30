@@ -50,8 +50,16 @@ else
 	LDFLAGS_OPENMP = -mp
 endif
 
-# We can't easily use nvfortran as preprorcessor, since -P results
-# that the output file is written in the current directory (and th
-# -o directive is ignored)
-FPP = cpp --traditional
-FPPFLAGS = -P
+PREPROCESSOR = $(firstword $(subst -, ,$(notdir $(FPP))))
+ifeq ("$(PREPROCESSOR)", "nvfortran")
+	# Using -P with nvfortran as preprocessor results
+	# that the output file is written in the current directory, NOT to the
+	# output directory specified with -o (and not even to stdout even if no
+	# -o is specified). In this case, the preprocessing step will pipe the
+	# output through grep to remove preprocessor lines. Therefore, no -P in
+	# this case:
+	FPPFLAGS =
+else
+	# E.g. using cpp as preprocessor, which needs -P
+	FPPFLAGS = -P
+endif

@@ -60,11 +60,23 @@ pre_process: $(LOWER_PP_FILES)
 
 # nvfortran as preprocessor needs different options
 PREPROCESSOR = $(firstword $(subst -, ,$(notdir $(FPP))))
+$(info Preprocessor $(FPP)  $(PREPROCESSOR) XXX $(FPPFLAGS))
 
 ifeq ("$(PREPROCESSOR)", "nvfortran")
-	# That shouldn't really be happening
-    $(error You cannot use nvfortran as preprocessor )
-endif
+# nvfortran with -P will write the output file to the current directory, NOT
+# to the directory specified with -o (and not to stdout either).
+# So, instead of -P, we pipe the files through grep to remove linemarkers
+%.x90: %.X90
+	$(call MESSAGE,Preprocessing $(FPP) $(PREPROCESSOR), $<)
+	$Q$(FPP) $(FPPFLAGS) $(INCLUDE_ARGS) $(MACRO_ARGS) $< | grep -v "^#" > $@
+	$Qrm $<
+%.f90: %.F90
+	$(call MESSAGE,Preprocessing $(FPP) $(PREPROCESSOR), $<)
+	$(call MESSAGE,Preprocessing, $<)
+	$Q$(FPP) $(FPPFLAGS) $(INCLUDE_ARGS) $(MACRO_ARGS) $< | grep -v "^#" > $@
+	$Qrm $<
+
+else
 
 %.x90: %.X90
 	$(call MESSAGE,Preprocessing, $<)
@@ -74,6 +86,8 @@ endif
 	$(call MESSAGE,Preprocessing, $<)
 	$Q$(FPP) $(FPPFLAGS) $(INCLUDE_ARGS) $(MACRO_ARGS) $< > $@
 	$Qrm $<
+
+endif
 
 # Get MESSAGE function from lfric.mk
 include $(LFRIC_BUILD)/lfric.mk
