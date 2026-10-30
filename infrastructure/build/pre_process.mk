@@ -68,11 +68,11 @@ endif
 
 %.x90: %.X90
 	$(call MESSAGE,Preprocessing, $<)
-	$Q$(FPP) $(FPPFLAGS) $(INCLUDE_ARGS) $(MACRO_ARGS) $< $@
+	$Q$(FPP) $(FPPFLAGS) $(INCLUDE_ARGS) $(MACRO_ARGS) $< > $@
 	$Qrm $<
 %.f90: %.F90
 	$(call MESSAGE,Preprocessing, $<)
-	$Q$(FPP) $(FPPFLAGS) $(INCLUDE_ARGS) $(MACRO_ARGS) $< $@
+	$Q$(FPP) $(FPPFLAGS) $(INCLUDE_ARGS) $(MACRO_ARGS) $< > $@
 	$Qrm $<
 
 # Get MESSAGE function from lfric.mk
