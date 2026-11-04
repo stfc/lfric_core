@@ -20,8 +20,6 @@ ALGORITHM_f_FILES := $(patsubst %.x90, \
                                 %.f90, \
                                 $(shell find $(WORKING_DIR) -name '*.x90' -print))
 
-DIRECTORIES := $(patsubst $(SOURCE_DIR)%,$(WORKING_DIR)%, \
-                          $(shell find $(SOURCE_DIR) -type d -printf '%p/\n'))
 PSYCLONE_CONFIG_FILE ?= $(CORE_ROOT_DIR)/etc/psyclone.cfg
 
 .PHONY: psyclone
@@ -103,9 +101,3 @@ endif
 $(WORKING_DIR)/%.x90: $(SOURCE_DIR)/%.x90 | $$(dir $$@)
 	$(call MESSAGE,Copying, $(subst $(SOURCE_DIR)/,,$<))
 	$Qcp $< $@
-
-# Create directories in the workspace as needed.
-#
-$(DIRECTORIES):
-	$(call MESSAGE,Creating,$@)
-	$Qmkdir -p $@
