@@ -17,6 +17,9 @@ module coupling_mod
                                             namsrcfld, namdstfld, oasis_in,    &
                                             oasis_get_ncpl, oasis_get_freqs,   &
                                             prism_real
+#ifdef USE_XIOS
+  use xios, only : xios_oasis_enddef
+#endif
 #endif
 
   use constants_mod,                 only : i_def, r_def, str_def, i_halo_index
@@ -104,14 +107,14 @@ contains
 
     if (kinfo /= prism_ok) then
       call oasis_abort(self%comp_id, trim(cpl_name), 'initialise')
-    endif
+    end if
 
     call oasis_get_localcomm(comm, kinfo)
     call comm_out%set_comm_mpi_val(comm)
 
     if (kinfo /= prism_ok) then
       call oasis_abort(self%comp_id, trim(cpl_name), 'initialise')
-    endif
+    end if
 
     comm_is_split = .true.
 
@@ -156,7 +159,7 @@ contains
       write(log_scratch_space,'(2A)') "define_coupling_partitions:", &
         "Currently, coupling only supports 2D meshes"
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-    endif
+    end if
     cpl_fs => function_space_collection%get_fs( twod_mesh, 0, 0, W3 )
     self%cpl_size = cpl_fs%get_last_dof_owned()
 
@@ -179,7 +182,7 @@ contains
 
     do i = 1, self%cpl_size
       self%local_index(i) = i
-    enddo
+    end do
 
     ! Lookup used to sort 2d field indices to improve OASIS performance
     call bubble_sort(self%cpl_size, global_index, self%local_index)
@@ -191,7 +194,7 @@ contains
 
     do i = 1, self%cpl_size
       ig_paral_2d(i + 2) = global_index(i) + 1
-    enddo
+    end do
 
     deallocate(global_index)
 
@@ -204,7 +207,7 @@ contains
       ig_paral_0d(3)=1
     else
       ig_paral_0d(3)=0
-    endif
+    end if
     call oasis_def_partition (self%part_0d_id, ig_paral_0d, kinfo)
 
     deallocate(ig_paral_2d)
@@ -289,7 +292,7 @@ contains
           write(log_scratch_space, '(A)' ) &
                     "cpl_define: field "//trim(var_name_lev)//" receive"
           call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
-        enddo
+        end do
       else
         call oasis_def_var( var_id,          &
                             trim(var_name),  &
@@ -305,7 +308,7 @@ contains
                      "cpl_define: field "//trim(var_name)//" receive"
         call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
 
-      endif
+      end if
       field_iter   => null()
     end do
 
@@ -333,7 +336,7 @@ contains
           write(log_scratch_space, '(A)' ) &
                        "cpl_define: field "//trim(var_name_lev)//" send"
           call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
-        enddo
+        end do
       else
         call oasis_def_var( var_id,          &
                             trim(var_name),  &
@@ -348,7 +351,7 @@ contains
         write(log_scratch_space, '(A)' ) &
                           "cpl_define: field "//trim(var_name)//" send"
         call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
-      endif
+      end if
       field_iter   => null()
     end do
 
@@ -420,6 +423,9 @@ contains
     ! Coupling frequency of each model
     integer(i_def)                              :: cpl_freqs(nmax)
 
+#ifdef USE_XIOS
+    call xios_oasis_enddef
+#endif
     call oasis_enddef (kinfo)
 
     ! Check that each field has the same the coupling frequency for
@@ -444,8 +450,8 @@ contains
                    trim(var_name_lev),                                 &
                    " has different coupling frequencies for different components"
             call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-          endif
-        enddo
+          end if
+        end do
       else
         var_id = field_iter%get_cpl_id(1)
         call oasis_get_ncpl(var_id, ncpl, kinfo)
@@ -456,8 +462,8 @@ contains
                  trim(var_name),                                     &
                  " has different coupling frequencies for different components"
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-        endif
-      endif
+        end if
+      end if
     end do
     call iter%initialise(cpl_snd_0d)
     do
@@ -474,7 +480,7 @@ contains
                trim(var_name),                                     &
                " has different coupling frequencies for different components"
         call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-      endif
+      end if
     end do
 #else
     write(log_scratch_space, * ) &
@@ -516,7 +522,7 @@ contains
     else
       write(log_scratch_space,'(A)') "finalise : oasis_terminated OK"
       call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
-    endif
+    end if
 #else
     write(log_scratch_space, * ) &
           "finalise: to use OASIS, cpp directive MCT must be set"
