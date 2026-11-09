@@ -41,9 +41,10 @@
 
 .SECONDEXPANSION:
 
-# Build a set of "-I" arguments to seach the whole object tree:
+# Build a set of "-I" arguments to seach the whole object tree.
+# Note that
 INCLUDE_ARGS := $(subst ./,-I,$(shell find . -mindepth 1 -type d -print)) \
-                $(addprefix -I, $(PRE_PROCESS_INCLUDE_DIRS))
+					      $(patsubst $(WORKING_DIR)/%,-I%,$(PRE_PROCESS_INCLUDE_DIRS))
 
 # Build a set of "-D" argument for any pre-processor macros
 #
