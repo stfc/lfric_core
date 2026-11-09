@@ -1,0 +1,25 @@
+# This file controls the PSyclone processing in LFRic. This default
+# script just adds a single DSL phase.
+
+phases:
+  # Define the one DSL phase
+  - dsl
+
+dsl:
+  comment: "PSylone DSL Phase"
+  api: lfric
+  file_pattern: "*x90"
+  script_dir: meto-ex1a/psykal
+
+  # These two directives reproduce the default PSyclone triggering used
+  # in LFRic:
+
+  # Run optimisation/.../global.py on all x90 files
+  global.py:
+    files: "*"
+
+  # If there is a file-specific .py file, use it for the corresponding file.
+  # The specification of '*' does not trigger an error if there is no
+  # file_specific script.
+  file_specific:
+    files: "*"
