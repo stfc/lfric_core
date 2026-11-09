@@ -66,9 +66,7 @@ module argument_mod
   integer, public, parameter :: GH_READWRITE = 811
   integer, public, parameter :: GH_INC       = 542
   integer, public, parameter :: GH_READINC   = 420
-  integer, public, parameter :: GH_SUM       = 563
-  integer, public, parameter :: GH_MIN       = 718
-  integer, public, parameter :: GH_MAX       = 391
+  integer, public, parameter :: GH_REDUCTION = 563
   !> @}
 
   !> @defgroup fspace Enumeration of function space IDs (also "fspace_from").
@@ -234,7 +232,7 @@ module argument_mod
      !> Optional metadata specifying how many vertical levels
      !! the field has. Default is to use the number associated with the
      !! first field/operator kernel argument.
-     character(len=METADATA_CHAR_LENGTH) :: nlevels = ""
+     character(len=METADATA_CHAR_LENGTH) :: nlayers = ""
   end type arg_type
 
   !> Optional metadata for the basis/differential basis functions required with
