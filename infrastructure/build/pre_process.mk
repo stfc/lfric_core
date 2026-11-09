@@ -37,8 +37,7 @@ include $(LFRIC_BUILD)/fortran.mk
 .SECONDEXPANSION:
 
 # Build a set of "-I" arguments to seach the whole object tree:
-INCLUDE_ARGS := $(addprefix -I, $(shell find $(WORKING_DIR) -mindepth 1 -type d -print)) \
-                $(addprefix -I, $(PRE_PROCESS_INCLUDE_DIRS))
+INCLUDE_ARGS := $(addprefix -I, $(PRE_PROCESS_INCLUDE_DIRS))
 
 # Build a set of "-D" argument for any pre-processor macros
 #

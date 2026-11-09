@@ -12,10 +12,13 @@
 
 module ugrid_mesh_data_mod
 
-  use constants_mod, only: r_def, i_def, l_def, str_def, &
-                           str_longlong, cmdi, imdi, rmdi
+  use constants_mod, only: r_def, i_def, l_def, str_def,   &
+                           str_longlong, cmdi, imdi, rmdi, &
+                           str_max_filename
+
   use log_mod,       only: log_event, log_scratch_space, &
                            LOG_LEVEL_ERROR, LOG_LEVEL_TRACE
+  use ugrid_2d_mod,   only: ugrid_2d_type
 
   implicit none
 
@@ -25,12 +28,16 @@ module ugrid_mesh_data_mod
   integer(i_def), parameter :: GLOBAL_MESH_FLAG = 101
 
   type, public :: ugrid_mesh_data_type
+
     !> Name of ugrid mesh topology.
-    character(str_def) :: global_mesh_name
-
-    integer(i_def)     :: mesh_extents
-    logical(l_def)     :: is_local_mesh
-
+    character(str_def) :: global_mesh_name = cmdi
+    !> Source file containing the mesh.
+    character(str_max_filename) :: origin_file = cmdi
+    !> Mesh name as it was referenced in source file
+    character(str_def) :: origin_name = cmdi
+    !> Enumeration indicating whether the mesh extends across
+    !> the global model on across a local partition.
+    integer(i_def) :: mesh_extents
     !> Domain geometry of global mesh.
     character(str_def) :: geometry
     !> Topology of mesh.
@@ -170,11 +177,7 @@ contains
   !> @param[in] global_mesh_name Name of ugrid mesh topology to create
   !>                             global mesh object from.
   !>
-  subroutine read_from_file( self, filename, global_mesh_name )
-
-    use ugrid_2d_mod,   only: ugrid_2d_type
-    use ugrid_file_mod, only: ugrid_file_type
-    use ncdf_quad_mod,  only: ncdf_quad_type
+  subroutine read_from_file( self, filename, global_mesh_name, ugrid_2d )
 
     implicit none
 
@@ -182,14 +185,12 @@ contains
     character(*),                 intent(in)    :: filename
     character(*),                 intent(in)    :: global_mesh_name
 
-    type(ugrid_2d_type) :: ugrid_2d
-
-    class(ugrid_file_type), allocatable :: file_handler
+    type(ugrid_2d_type), intent(inout) :: ugrid_2d
 
     call self%clear()
 
-    allocate( ncdf_quad_type :: file_handler )
-    call ugrid_2d%set_file_handler( file_handler )
+    self%origin_file = trim(filename)
+
     call ugrid_2d%set_from_file_read( trim(global_mesh_name), trim(filename) )
 
     self%populated_with_mesh = .false.
@@ -205,8 +206,6 @@ contains
       self%populated_with_mesh = .true.
     end if
 
-    if (allocated(file_handler)) deallocate( file_handler )
-
   end subroutine read_from_file
 
 
@@ -214,14 +213,15 @@ contains
   !> @brief Provides access to the data within the ugrid_mesh_data object - that
   !>        can be used to construct a global mesh object.
   !>
-  !> @param[out] mesh_name Name of ugrid mesh topology.
-  !> @param[out] geometry   Domain surface geometry.
-  !> @param[out] topology   Domain topology.
-  !> @param[out] coord_sys  Coordinate system used to position nodes.
-  !> @param[out] npanels    Number of groups of uniform cell orientations on global mesh.
-  !> @param[out] nnode      Total number of nodes in the full domain.
-  !> @param[out] nedge      Total number of edges in the full domain.
-  !> @param[out] nface      Total number of faces in full domain.
+  !> @param[out] mesh_name   Name of ugrid mesh topology.
+  !> @param[out] origin_file File the mesh data was sourced from.
+  !> @param[out] geometry    Domain surface geometry.
+  !> @param[out] topology    Domain topology.
+  !> @param[out] coord_sys   Coordinate system used to position nodes.
+  !> @param[out] npanels     Number of groups of uniform cell orientations on global mesh.
+  !> @param[out] nnode       Total number of nodes in the full domain.
+  !> @param[out] nedge       Total number of edges in the full domain.
+  !> @param[out] nface       Total number of faces in full domain.
   !> @param[out] nnodes_per_face     Number of nodes on each face.
   !> @param[out] nnodes_per_edge     Number of nodes on each edge.
   !> @param[out] nedges_per_face     Number of edges on each cell.
@@ -246,15 +246,16 @@ contains
   !> @param[out] node_on_edge_2d  Full domain nodes on an edge.
   !> @param[out] max_stencil_depth  Max stencil depth supported by this mesh.
   !>
-  subroutine get_data( self,      &
-                       mesh_name, &
-                       geometry,  &
-                       topology,  &
-                       coord_sys, &
-                       npanels,   &
-                       nnode,     &
-                       nedge,     &
-                       nface,     &
+  subroutine get_data( self,        &
+                       mesh_name,   &
+                       origin_file, &
+                       geometry,    &
+                       topology,    &
+                       coord_sys,   &
+                       npanels,     &
+                       nnode,       &
+                       nedge,       &
+                       nface,       &
                        nnodes_per_face, &
                        nnodes_per_edge, &
                        nedges_per_face, &
@@ -280,10 +281,13 @@ contains
     implicit none
 
     class (ugrid_mesh_data_type), intent(in) :: self
+
     character(str_def), intent(out) :: mesh_name
     character(str_def), intent(out) :: geometry
     character(str_def), intent(out) :: topology
     character(str_def), intent(out) :: coord_sys
+
+    character(str_max_filename), intent(out) :: origin_file
 
     integer(i_def), intent(out) :: nnode
     integer(i_def), intent(out) :: nedge
@@ -320,11 +324,12 @@ contains
     ! Only valid if the ugrid file contains a local mesh
     integer(i_def), optional, intent(out) :: max_stencil_depth
 
-    mesh_name = self%global_mesh_name
-    geometry  = self%geometry
-    topology  = self%topology
-    coord_sys = self%coord_sys
-    npanels   = self%npanels
+    mesh_name   = self%global_mesh_name
+    origin_file = self%origin_file
+    geometry    = self%geometry
+    topology    = self%topology
+    coord_sys   = self%coord_sys
+    npanels     = self%npanels
 
     nnode = self%nnode
     nedge = self%nedge
@@ -650,6 +655,9 @@ contains
     else
       self%mesh_extents = GLOBAL_MESH_FLAG
     end if
+
+    self%origin_name = self%global_mesh_name
+    self%origin_file = ugrid_2d%get_origin_file()
 
     return
   end subroutine set_by_ugrid_2d
