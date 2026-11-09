@@ -23,7 +23,21 @@ ALGORITHM_f_FILES := $(patsubst %.x90, \
 PSYCLONE_CONFIG_FILE ?= $(CORE_ROOT_DIR)/etc/psyclone.cfg
 
 .PHONY: psyclone
-psyclone: $(ALGORITHM_f_FILES)
+psyclone: 
+	$QPYTHONPATH=$(LFRIC_BUILD)/psyclone:$(APPS_ROOT_DIR)/interfaces/build:$$PYTHONPATH \
+	/home/joerg/work/psyclone/src/psyclone/scripts/run_psyclone.py  \
+		--nprocs $(NPROCS)   \
+		-d $(WORKING_DIR)    \
+		--psyclone-options "$(PSYCLONE_PSYKAL_EXTRAS) --config $(PSYCLONE_CONFIG_FILE)"  \
+		--output $(WORKING_DIR)  \
+		--input $(WORKING_DIR)   \
+		--optimisation optimisation \
+		$(APPS_ROOT_DIR)/applications/lfric_atm/psyclone_control-lfric_atm.yaml
+
+# 		$(CORE_ROOT_DIR)/infrastructure/build/psyclone/psyclone_control-lfric.yaml
+
+
+#	$(ALGORITHM_f_FILES)
 
 include $(LFRIC_BUILD)/lfric.mk
 include $(LFRIC_BUILD)/fortran.mk
