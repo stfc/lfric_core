@@ -53,7 +53,7 @@ PSYCLONE_CONTROL_FILE ?= $(APPS_ROOT_DIR)/applications/lfric_atm/psyclone_contro
 psyclone:
 	$QPYTHONPATH=$(LFRIC_BUILD)/psyclone:$(APPS_ROOT_DIR)/interfaces/build:$$PYTHONPATH \
 	$(GITHUB_WORKSPACE)/src/psyclone/scripts/run_psyclone.py  \
-		--nprocs $(NPROCS)   \
+		--nprocs $(NCORES)   \
 		-d $(WORKING_DIR)    \
 		--psyclone-options "$(PSYCLONE_PSYKAL_EXTRAS) --config $(PSYCLONE_CONFIG_FILE)"  \
 		--output $(WORKING_DIR)  \
