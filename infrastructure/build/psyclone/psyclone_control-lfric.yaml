@@ -9,7 +9,7 @@ dsl:
   comment: "PSylone DSL Phase"
   api: lfric
   file_pattern: "*x90"
-  script_dir: meto-ex1a/psykal
+  script_dir: $PSYCLONE_TRANSFORMATION/psykal
 
   # These two directives reproduce the default PSyclone triggering used
   # in LFRic:
