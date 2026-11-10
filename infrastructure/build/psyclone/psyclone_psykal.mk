@@ -47,9 +47,10 @@ ALGORITHM_f_FILES := $(patsubst %.x90, \
                                 $(shell find $(WORKING_DIR) -name '*.x90' -print))
 
 PSYCLONE_CONFIG_FILE ?= $(CORE_ROOT_DIR)/etc/psyclone.cfg
+PSYCLONE_CONTROL_FILE ?= $(APPS_ROOT_DIR)/applications/lfric_atm/psyclone_control-lfric_atm.yaml
 
 .PHONY: psyclone
-psyclone: 
+psyclone:
 	$QPYTHONPATH=$(LFRIC_BUILD)/psyclone:$(APPS_ROOT_DIR)/interfaces/build:$$PYTHONPATH \
 	/home/joerg/work/psyclone/src/psyclone/scripts/run_psyclone.py  \
 		--nprocs $(NPROCS)   \
@@ -58,10 +59,7 @@ psyclone:
 		--output $(WORKING_DIR)  \
 		--input $(WORKING_DIR)   \
 		--optimisation optimisation \
-		$(APPS_ROOT_DIR)/applications/lfric_atm/psyclone_control-lfric_atm.yaml
-
-# 		$(CORE_ROOT_DIR)/infrastructure/build/psyclone/psyclone_control-lfric.yaml
-
+		$(PSYCLONE_CONTROL_FILE)
 
 #	$(ALGORITHM_f_FILES)
 
