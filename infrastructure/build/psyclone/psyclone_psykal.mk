@@ -52,7 +52,7 @@ PSYCLONE_CONTROL_FILE ?= $(APPS_ROOT_DIR)/applications/lfric_atm/psyclone_contro
 .PHONY: psyclone
 psyclone:
 	$QPYTHONPATH=$(LFRIC_BUILD)/psyclone:$(APPS_ROOT_DIR)/interfaces/build:$$PYTHONPATH \
-	/home/joerg/work/psyclone/src/psyclone/scripts/run_psyclone.py  \
+	$(GITHUB_WORKSPACE)/src/psyclone/scripts/run_psyclone.py  \
 		--nprocs $(NPROCS)   \
 		-d $(WORKING_DIR)    \
 		--psyclone-options "$(PSYCLONE_PSYKAL_EXTRAS) --config $(PSYCLONE_CONFIG_FILE)"  \
